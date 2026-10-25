@@ -33,7 +33,8 @@ async function signedRequest(payload: unknown, opts: { tamper?: boolean } = {}) 
       'x-signature-ed25519': signature,
       'x-signature-timestamp': timestamp,
     },
-    body: opts.tamper ? body.replace('}', ',"x":1}') : body,
+    // Tampering: send different bytes than were signed (still valid JSON).
+    body: opts.tamper ? `${body} ` : body,
   });
 }
 

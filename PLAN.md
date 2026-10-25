@@ -666,11 +666,11 @@ AFD, botcore, Mechanic, FenCore, FenUI, MechanicLib, Violet, FAST-AF, and the AF
 | Project | Item | Status |
 |---|---|---|
 | AFD | Stateless Streamable HTTP in `afd-server`, `afd-client`, and `afd-cli` on the v2 SDK (§3.7) | In progress in a separate AFD session (2.2); Vintage consumes it |
-| AFD site | `design-system.json` vs `styles.css` drift (§3.8) | To file |
-| Violet | Lua/FenUI exporter; confirm CLI export from in-repo files without the API server (§3.8, Q14) | To file after spike |
+| AFD site | `design-system.json` vs `styles.css` drift (§3.8) | Not needed: the drift is only in a local working copy; the published AFD site is consistent |
+| Violet | Lua/FenUI exporter; CLI export from in-repo files without the API server (§3.8, Q14) | Filed: [lushly-dev/violet#30](https://github.com/lushly-dev/violet/issues/30) |
 | FAST-AF | Publish `element` and `violet-elements` to npm (§3.9) | To file |
 | FAST-AF | Ultraviolet stack naming (Ultra vs. Violet) and the broken VISION link | Filed: [lushly-dev/fast-af#165](https://github.com/lushly-dev/fast-af/issues/165) |
-| FenUI | External theme table that overrides semantic tokens, if no hook exists (Q13) | To check |
+| FenUI | External theme table that overrides semantic tokens (Q13) | Not needed: `FenUI:RegisterTheme` exists; confirm in game in Phase 2 |
 | Mechanic | Sandbox API stubs for Forever (Mainline family plus the 1.60.1 removals); release commands passing the packager's `-t` option for a monorepo subdirectory (§3.6) | To check in Phase 1–2 |
 
 ---
@@ -681,26 +681,28 @@ Phase 0 has about ten days and one maintainer, so it is cut to the minimum that 
 
 ### Phase 0 — Foundation (now → 2026-11-04)
 
+> Live tracking moved to GitHub: epic vintage-guild/vintage#2, Phase 0 #3, and the [project board](https://github.com/orgs/vintage-guild/projects/1). The boxes below are updated at milestones.
+
 **Spikes first (days 1–2), each a yes/no with a fallback already named:**
 
-- [ ] Convex local components as the module pattern: auth context handoff, parent-orchestrated cross-module call, scheduled fan-out (Q8; fallback: namespaced folders)
+- [x] Convex local components as the module pattern: auth context handoff, parent-orchestrated cross-module call, scheduled fan-out (Q8; fallback: namespaced folders) **Passed.**
 - [ ] **Dependency, not a spike:** AFD 2.2 (stateless Streamable HTTP; separate session, in progress) published before `/mcp` is wired around day 5. If it slips, `/mcp` runs on the raw v2 SDK behind the `guild-kit` adapter until it lands (§3.7)
-- [ ] Violet CLI export from in-repo nodes in CI (Q14; fallback: plain DTCG script)
-- [ ] Vercel plan decision: Pro seat or public repo (Q10); Convex preview availability on the chosen plan
+- [x] Violet CLI export from in-repo nodes in CI (Q14; fallback: plain DTCG script) **No**: plain DTCG fallback (#45); upstream lushly-dev/violet#30.
+- [x] Vercel plan decision: Pro seat or public repo (Q10); Convex preview availability on the chosen plan **Public repo**, so Vercel Hobby works; Convex plan still open.
 
 **Build:**
 
-- [ ] Create GitHub org + `vintage` monorepo (pnpm, Turbo, `botcore-vintage` with `module.new` and `repo.check`); secrets only in Vercel/Convex env
-- [ ] CI: `select` → lanes → `ci-ok`; `validate:final` / `check` local gates; lefthook + commitlint (§7.2)
-- [ ] Agent-native setup: lean AGENTS.md + INIT.md, seeded skills + `vintage-afd-commands` + `vintage-convex-modules`, three reviewer agents, safety hooks, label taxonomy, issue forms (§7.4)
+- [x] Create GitHub org + `vintage` monorepo (pnpm, Turbo, `botcore-vintage` with `module.new` and `repo.check`); secrets only in Vercel/Convex env vintage-guild/vintage.
+- [x] CI: `select` → lanes → `ci-ok`; `validate:final` / `check` local gates; lefthook + commitlint (§7.2) Plus DCO, PR-title, lockfile, and CodeQL checks.
+- [x] Agent-native setup: lean AGENTS.md + INIT.md, seeded skills + `vintage-afd-commands` + `vintage-convex-modules`, three reviewer agents, safety hooks, label taxonomy, issue forms (§7.4)
 - [ ] `packages/guild-kit` on AFD 2.2: caller resolution, permission tiers, `guildId`, dryRun/confirm tokens, transport adapter, command manifest + `contract.diff`
-- [ ] `identity` module as the first component: members, characters, role → tier sync
+- [x] `identity` module as the first component: members, characters, role → tier sync Now guild rank → tier (#42) with role sync (#44).
 - [ ] Better Auth with Discord sign-in (`@convex-dev/better-auth`) and the MCP OAuth plugin; sign-in + cron role sync
 - [ ] `/mcp` on `afd-server`'s stateless handler with AFD's meta-tools and the confirm-token flow; `apps/cli` = `afd-cli --transport streamable`; verified from Claude and the CLI
-- [ ] `libs/design-tokens`: `afd-site` + `vintage` nodes exporting CSS/TS as-is (no reskin yet); `docs/design/` forked from the AFD site
+- [x] `libs/design-tokens`: `afd-site` + `vintage` nodes exporting CSS/TS as-is (no reskin yet); `docs/design/` forked from the AFD site Includes the emblem palette and a FenUI Lua theme (#45); `docs/design/` still to do.
 - [ ] `packages/ui-kit` on FAST-AF + `violet-elements` (git dependency): sign-in, profile, and character components with `@command`; Custom Elements Manifest in CI
 - [ ] `apps/web`: shell on the FAST-AF Router, public about/recruitment page, member profile + characters, deployed to Vercel
-- [ ] Discord application created; `/discord/interactions` verified (ping, signature check, deferred ack)
+- [ ] Discord application created ✅; `/discord/interactions` built and tested (#43), **not yet deployed or verified by Discord**
 
 **Done when:** a guildie signs in with Discord, sees the tier matching their Discord role, adds characters, and an officer's agent lists members over MCP from Claude or the CLI.
 
@@ -708,7 +710,7 @@ Phase 0 has about ten days and one maintainer, so it is cut to the minimum that 
 
 - [ ] `raids`: schedules, events, signups, roster, `comp.suggest` via `libs/comp-solver`
 - [ ] `coordinator`: materialize events, post signups, button flow, T-72h/T-24h reminders, officer digest, lock + final roster, `CoordinatorAction` log, `#vintage-ops` errors
-- [ ] `libs/discord-kit`: signature verification, embeds, components, timestamps
+- [x] `libs/discord-kit`: signature verification, embeds, components, timestamps Landed early in Phase 0 (#43).
 - [ ] Member prefs (DM opt-out, default character, timezone); live roster board on the website
 - [ ] Hosted agent v0 (§3.10): `/ask` in Discord + site chat, read commands + own signups, spend caps, `agent.pause`
 - [ ] First reskin pass once the GM answers Q12: guild colors, class/quality/role/status tokens, display font

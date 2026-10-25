@@ -47,7 +47,7 @@ def _files(name: str, maturity: str, owner: str) -> dict[str, str]:
             "./_generated/component.js": "./convex/_generated/component.ts",
             "./package.json": "./package.json",
         },
-        "scripts": {"type-check": "tsc6 -p tsconfig.json"},
+        "scripts": {"type-check": "tsc6 -p tsconfig.json --noEmit"},
         "dependencies": {
             "@vintage/guild-kit": "workspace:*",
             "convex": "catalog:",

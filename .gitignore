@@ -24,3 +24,6 @@ __pycache__/
 Thumbs.db
 .vscode/*
 !.vscode/extensions.json
+
+# Agent worktrees (Claude Code)
+.claude/worktrees/

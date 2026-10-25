@@ -41,8 +41,23 @@ it pushes functions and regenerates `apps/api/convex/_generated` and
 `modules/*/convex/_generated`. Commit both. On Windows, set `CONVEX_TMPDIR` to a folder on the
 same drive as the repo if you see a "different filesystems" warning.
 
+## Changing a schema that already has data
+
+Convex validates existing rows against a new schema and refuses the push if any row doesn't fit.
+Never wipe data to get past it. Instead:
+
+1. Add the new field as `v.optional(...)` and treat a missing value as a sensible default when
+   reading (e.g. `rank: doc.rank ?? null` in the component's mapper).
+2. Let the normal write path fill it in (here, the next `member-sync`), or write a one-off backfill.
+3. Tighten to required only once every row has it.
+
+Removing a table or field that holds no data is fine; say so in the PR.
+
 ## Rules
 
 - Components never see `ctx.auth`; never call component functions from clients.
+- System entry points (sync jobs, crons) are `internalMutation` / `internalAction`, never public
+  `mutation` / `action`; only the cron or someone with deploy access can trigger them.
+- `dev:local` in a fresh git worktree creates its own empty anonymous deployment; that's expected.
 - Read-only commands work in `commands.read` (a query); a store write inside `read` throws.
 - Keep the memory store and the component in step: same ordering, same scoping by `guildId`.

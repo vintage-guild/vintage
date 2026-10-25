@@ -33,7 +33,7 @@ flowchart TB
         ADDON["WoW addon 📋<br/>import/export strings"]
     end
 
-    subgraph Gateway["apps/gateway · Vercel 📋"]
+    subgraph Gateway["apps/gateway · Vercel 🚧"]
         GMCP["/mcp (stateless)"]
         GDISC["/discord/interactions"]
     end
@@ -66,10 +66,10 @@ not copies: when one has a bug or a gap, file it upstream (see [Upstream](#upstr
 | [AFD](https://github.com/lushly-dev/afd) | Agent-First Development framework: command definitions, `CommandResult`, MCP server/client/CLI, testing helpers | `guild-kit` builds on `@lushly-dev/afd-core`; `/mcp` and `apps/cli` will use `afd-server` / `afd-cli` 2.2 (stateless Streamable HTTP, in progress upstream, not on npm yet) | ✅ core · 🚧 MCP |
 | [botcore](https://github.com/lushly-dev/botcore) | Shared repo tooling for agents: commands, skills, plugins, one MCP server | `tooling/botcore` plugin + `vintagebot` CLI (`module-new`, `repo-check`); `botcore.toml` gates and skill seeding | ✅ |
 | [FAST-AF](https://github.com/lushly-dev/fast-af) | FAST Element v3 runtime with AFD extensions: Definition Schema, `@command`, router, `violet-elements` primitives | Website components in `packages/ui-kit` and `apps/web` | 📋 |
-| [Violet](https://github.com/lushly-dev/violet) | Design-token engine: inheritance tree of token nodes, build-time export | `libs/design-tokens`: `afd-site → vintage → dark / parchment` | 📋 |
-| AFD site design system | Brand language (palette, type roles, motion, voice) for the AFD site | Starting point for Vintage's design, reskinned for WoW | 📋 |
+| [Violet](https://github.com/lushly-dev/violet) | Design-token engine: inheritance tree of token nodes, build-time export | Not used yet: its CLI can't export from in-repo files in CI (spike Q14, upstream [lushly-dev/violet#30](https://github.com/lushly-dev/violet/issues/30)). `libs/design-tokens` keeps Violet's node model in plain DTCG so switching later only swaps the build script | 📋 |
+| AFD site design system | Brand language (palette, type roles, motion, voice) for the AFD site | The `afd-site` base node in `libs/design-tokens`, reskinned by the `vintage` node | ✅ |
 | [Mechanic](https://github.com/Falkicon/Mechanic) | WoW addon dev hub: diagnostics, library sync, sandbox tests, release commands | Addon library management (`libs.json`), offline Lua tests, packaging | 📋 |
-| FenCore · FenUI · MechanicLib | WoW addon libraries: pure logic domains, themeable widgets with design tokens, Mechanic integration | The `Vintage` addon's core, UI, and diagnostics | 📋 |
+| FenCore · FenUI · MechanicLib | WoW addon libraries: pure logic domains, themeable widgets with design tokens, Mechanic integration | The `Vintage` addon's core, UI, and diagnostics. `libs/design-tokens` already generates a theme table for `FenUI:RegisterTheme` | 📋 |
 
 Outside that set, the main platforms are **Convex** (database, functions, crons), **Vercel**
 (website and gateway hosting), **Better Auth** (Discord sign-in, MCP OAuth), **Discord**
@@ -130,6 +130,19 @@ packages/  platform glue (guild-kit, agent, ui-kit, testing, config)
 libs/      pure, platform-free logic (wow-data, comp-solver, bridge-format, …)
 ```
 
+Current packages:
+
+| Package | Layer | What it is | Status |
+|---|---|---|---|
+| `libs/wow-data` | lib | Classes, specs, raid roles | ✅ |
+| `libs/discord-kit` | lib | Interaction signature verification, response/embed/component builders, timestamps, rate-limit-aware REST client | ✅ |
+| `libs/design-tokens` | lib | DTCG token nodes and exporters: CSS themes, TS map (`discordColor`), FenUI Lua theme | ✅ |
+| `packages/guild-kit` | package | Commands, tiers, registry, confirm tokens, manifest | ✅ |
+| `packages/testing` | package | Test callers, clock, registry helpers | ✅ |
+| `modules/identity` | module | Members, characters, guild ranks, role → rank map, role sync planner | ✅ |
+| `apps/api` | app | Convex: composes components, command surface, crons | ✅ |
+| `apps/gateway` | app | Vercel functions: `/discord/interactions` (later `/mcp`) | 🚧 |
+
 Dependencies only point down: `apps → modules → packages → libs`. Modules reach each other only
 through `/contract`. Libs never import Convex, Discord, OpenAI, Vercel, or FAST-AF. These rules
 are enforced by `pnpm check:boundaries`; the full table is in PLAN.md §4.1.
@@ -151,7 +164,7 @@ are enforced by `pnpm check:boundaries`; the full table is in PLAN.md §4.1.
 | Surface | How it works | Status |
 |---|---|---|
 | Website | FAST-AF components calling `commands.read` (live queries) and `commands.run` (mutations); themed by design tokens | 📋 |
-| Discord | Serverless: interactions hit `/discord/interactions` (Ed25519-verified, 3s deferred ack); posts and DMs are REST calls from Convex scheduled functions | 🚧 |
+| Discord | Serverless: interactions hit `/discord/interactions` in `apps/gateway` (Ed25519-verified, 3s deferred ack); posts, DMs, and member lists are REST calls through `libs/discord-kit`. The Vintage bot app exists; endpoint built and tested, not deployed yet | 🚧 |
 | MCP | `/mcp` on AFD 2.2's stateless handler (MCP 2026-07-28 spec); AFD meta-tools (`afd-discover`, `afd-detail`, `afd-call`, `afd-batch`, `afd-pipe`); Better Auth OAuth | 📋 |
 | CLI | `afd-cli --transport streamable` pointed at `/mcp` | 📋 |
 | Hosted agent | OpenAI Agents SDK in Convex Node actions, using the same commands as the asking member | 📋 |

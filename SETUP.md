@@ -57,6 +57,31 @@ npx convex run commands:read '{"name":"member-list","input":{}}'
 `dev:local` starts an anonymous local Convex backend, pushes functions, and regenerates
 `convex/_generated` (commit those changes). Use `dev:local:watch` to keep it running.
 
+## Discord (only if you work on the bot)
+
+The bot's settings live in the Discord Developer Portal under the **Vintage** application. To run
+Discord code locally, put these in `apps/api/.env.local` (gitignored; never commit them):
+
+```
+DISCORD_APP_ID=        # General Information → Application ID (not secret)
+DISCORD_PUBLIC_KEY=    # General Information → Public Key (not secret)
+DISCORD_BOT_TOKEN=     # Bot → Reset Token (secret; ask an officer, never share in chat)
+DISCORD_GUILD_ID=      # the Vintage server id (real roles and members; role sync)
+DISCORD_DEV_GUILD_ID=  # the bot test server (register commands instantly, experiment safely)
+```
+
+The bot is in two servers: the **Vintage** server with minimal permissions (View Channels) for
+role sync, and a **test server** for trying commands, buttons, and embeds without the guild seeing
+half-built messages.
+
+The role-sync cron does nothing until `DISCORD_BOT_TOKEN` and `DISCORD_GUILD_ID` are set in the
+Convex environment. See the `vintage-discord` skill for how the pieces fit.
+
+## Design tokens
+
+Token sources live in `libs/design-tokens/nodes/`. After changing one, run `pnpm tokens:build` and
+commit the regenerated `generated/` files with it; a test fails if they're stale.
+
 ## Repo tooling (botcore)
 
 ```bash

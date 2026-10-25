@@ -1,0 +1,56 @@
+{
+  "$description": "Long-form pages (news, strategy): parchment surfaces, leather ink, crimson accent. Role and signup colors are darkened to read on parchment.",
+  "$extensions": {
+    "dev.vintage.node": {
+      "name": "vintage-parchment",
+      "parent": "vintage"
+    }
+  },
+  "semantic": {
+    "color": {
+      "surface": {
+        "canvas": { "$value": "{color.parchment.100}" },
+        "raised": { "$value": "{color.parchment.50}" },
+        "sunken": { "$value": "{color.parchment.200}" },
+        "inverse": { "$value": "{color.iron.900}" }
+      },
+      "text": {
+        "primary": { "$value": "{color.leather.900}" },
+        "secondary": { "$value": "{color.leather.700}" },
+        "inverse": { "$value": "{color.parchment.100}" },
+        "accent": { "$value": "{color.crimson.500}" }
+      },
+      "accent": {
+        "primary": { "$value": "{color.crimson.600}" },
+        "contrast": { "$value": "{color.gold.200}" },
+        "secondary": { "$value": "{color.gold.700}" },
+        "on-secondary": { "$value": "{color.parchment.50}" }
+      },
+      "border": {
+        "default": { "$value": "#2b211833" },
+        "inverse": { "$value": "#f3ead733" },
+        "strong": { "$value": "{color.leather.700}" }
+      },
+      "focus": {
+        "ring": { "$value": "{color.crimson.500}" }
+      },
+      "feedback": {
+        "danger": { "$value": "{color.crimson.500}" },
+        "success": { "$value": "#2e6b1f" }
+      },
+      "role": {
+        "tank": { "$value": "#2f5a87" },
+        "healer": { "$value": "#2e6b1f" },
+        "melee": { "$value": "#8f1d21" },
+        "ranged": { "$value": "#6a3d9a" }
+      },
+      "signup": {
+        "accepted": { "$value": "#2e6b1f" },
+        "tentative": { "$value": "#855400" },
+        "bench": { "$value": "#2f5a87" },
+        "declined": { "$value": "{color.crimson.500}" },
+        "no-response": { "$value": "#5f564e" }
+      }
+    }
+  }
+}

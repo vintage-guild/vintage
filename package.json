@@ -26,7 +26,8 @@
     "check": "pnpm validate:full",
     "manifest:write": "pnpm --filter @vintage/api manifest:write",
     "prepare": "lefthook install",
-    "check:scripts": "node --test \"scripts/*.test.mjs\""
+    "check:scripts": "node --test \"scripts/*.test.mjs\"",
+    "tokens:build": "tsx scripts/build-design-tokens.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

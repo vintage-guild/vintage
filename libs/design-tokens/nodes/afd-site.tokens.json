@@ -1,0 +1,189 @@
+{
+  "$description": "Base node: the AFD site design system as shipped in lushly-dev/afdsite site/styles.css. Where brief/design-system.json disagrees (teal, serif and sans faces), styles.css wins (PLAN §3.8).",
+  "$extensions": {
+    "dev.vintage.node": {
+      "name": "afd-site",
+      "parent": null,
+      "source": "lushly-dev/afdsite site/styles.css"
+    }
+  },
+  "global": {
+    "color": {
+      "$type": "color",
+      "cream": { "$value": "#f4f0ea", "$description": "AFD --color-cream: warm paper stock." },
+      "charcoal": { "$value": "#181818", "$description": "AFD --color-charcoal." },
+      "red": { "$value": "#e53935", "$description": "AFD --color-red: signal red." },
+      "teal": {
+        "$value": "#008085",
+        "$description": "AFD --color-teal (styles.css; design-system.json says #07bcbf)."
+      }
+    },
+    "font": {
+      "family": {
+        "$type": "fontFamily",
+        "display": {
+          "$value": ["Archivo Black", "sans-serif"],
+          "$description": "AFD --font-display."
+        },
+        "serif": { "$value": ["Playfair Display", "serif"], "$description": "AFD --font-serif." },
+        "sans": {
+          "$value": ["Darker Grotesque", "system-ui", "-apple-system", "sans-serif"],
+          "$description": "AFD --font-sans."
+        },
+        "mono": { "$value": ["JetBrains Mono", "monospace"], "$description": "AFD --font-mono." }
+      },
+      "size": {
+        "$type": "dimension",
+        "xs": { "$value": "0.75rem", "$description": "AFD --text-xs." },
+        "sm": { "$value": "0.875rem", "$description": "AFD --text-sm." },
+        "md": { "$value": "1.1rem", "$description": "AFD --text-md." },
+        "lg": { "$value": "1.5rem", "$description": "AFD --text-lg." },
+        "xl": { "$value": "2rem", "$description": "AFD --text-xl." },
+        "2xl": { "$value": "3rem", "$description": "AFD --text-2xl." },
+        "h3": { "$value": "clamp(1.8rem, 4vw, 4rem)", "$description": "AFD --text-h3." },
+        "h2": { "$value": "clamp(3rem, 8vw, 10rem)", "$description": "AFD --text-h2." },
+        "h1": { "$value": "clamp(3.5rem, 11vw, 13rem)", "$description": "AFD --text-h1." }
+      },
+      "weight": {
+        "$type": "fontWeight",
+        "light": { "$value": 300, "$description": "AFD --weight-light." },
+        "regular": { "$value": 400, "$description": "AFD --weight-regular." },
+        "medium": { "$value": 500, "$description": "AFD --weight-medium." },
+        "bold": { "$value": 700, "$description": "AFD --weight-bold." }
+      },
+      "leading": {
+        "$type": "number",
+        "tight": { "$value": 0.85, "$description": "AFD --leading-tight." },
+        "snug": { "$value": 0.9, "$description": "AFD --leading-snug." },
+        "normal": { "$value": 1.2, "$description": "AFD --leading-normal." },
+        "relaxed": { "$value": 1.6, "$description": "AFD --leading-relaxed." }
+      },
+      "tracking": {
+        "$type": "dimension",
+        "tight": { "$value": "-0.02em", "$description": "AFD --tracking-tight." },
+        "normal": { "$value": "0", "$description": "AFD --tracking-normal." },
+        "wide": { "$value": "0.05em", "$description": "AFD --tracking-wide." },
+        "wider": { "$value": "0.1em", "$description": "AFD --tracking-wider." }
+      }
+    },
+    "space": {
+      "$type": "dimension",
+      "xs": { "$value": "0.75rem", "$description": "AFD --space-xs." },
+      "sm": { "$value": "1rem", "$description": "AFD --space-sm." },
+      "md": { "$value": "1.5rem", "$description": "AFD --space-md." },
+      "lg": { "$value": "2rem", "$description": "AFD --space-lg." },
+      "xl": { "$value": "3rem", "$description": "AFD --space-xl." },
+      "2xl": { "$value": "4rem", "$description": "AFD --space-2xl." },
+      "3xl": { "$value": "6rem", "$description": "AFD --space-3xl." },
+      "inset": { "$value": "2vw", "$description": "AFD --space-inset." },
+      "section": { "$value": "8vw", "$description": "AFD --space-section." }
+    },
+    "border": {
+      "width": {
+        "$type": "dimension",
+        "thin": { "$value": "2px", "$description": "AFD --border-thin." },
+        "thick": { "$value": "3px", "$description": "AFD --border-thick." }
+      }
+    },
+    "shadow": {
+      "offset": {
+        "$type": "string",
+        "$description": "Hard offset shadows; the color comes from the context (AFD pairs these with --card-shadow).",
+        "sm": { "$value": "6px 6px 0px", "$description": "AFD --shadow-sm." },
+        "md": { "$value": "8px 8px 0px", "$description": "AFD --shadow-md." },
+        "lg": { "$value": "10px 10px 0px", "$description": "AFD --shadow-lg." }
+      }
+    },
+    "motion": {
+      "ease": {
+        "out": {
+          "$type": "cubicBezier",
+          "$value": [0.16, 1, 0.3, 1],
+          "$description": "AFD --ease-out: snaps, not fades."
+        }
+      },
+      "duration": {
+        "normal": {
+          "$type": "duration",
+          "$value": "400ms",
+          "$description": "AFD --duration-normal."
+        }
+      }
+    }
+  },
+  "semantic": {
+    "color": {
+      "$type": "color",
+      "surface": {
+        "canvas": {
+          "$value": "{color.cream}",
+          "$description": "Page background (AFD --bg-cream)."
+        },
+        "raised": { "$value": "{color.cream}", "$description": "Cards and panels on the canvas." },
+        "sunken": { "$value": "{color.cream}", "$description": "Inputs, wells, and table bodies." },
+        "inverse": {
+          "$value": "{color.charcoal}",
+          "$description": "Contrasting block (AFD --bg-dark)."
+        }
+      },
+      "text": {
+        "primary": { "$value": "{color.charcoal}", "$description": "Body text (AFD --text-dark)." },
+        "secondary": { "$value": "{color.charcoal}", "$description": "Supporting and muted text." },
+        "inverse": {
+          "$value": "{color.cream}",
+          "$description": "Text on surface.inverse (AFD --text-cream)."
+        },
+        "accent": {
+          "$value": "{color.red}",
+          "$description": "Emphasis text: headings, highlights."
+        }
+      },
+      "accent": {
+        "primary": {
+          "$value": "{color.red}",
+          "$description": "Primary accent fill (AFD --accent-red)."
+        },
+        "contrast": {
+          "$value": "{color.cream}",
+          "$description": "Text and icons on accent.primary."
+        },
+        "secondary": {
+          "$value": "{color.teal}",
+          "$description": "Secondary accent fill (AFD --accent-teal)."
+        },
+        "on-secondary": {
+          "$value": "{color.cream}",
+          "$description": "Text and icons on accent.secondary."
+        }
+      },
+      "border": {
+        "default": {
+          "$value": "#18181833",
+          "$description": "Hairlines on the canvas (AFD --border-dark)."
+        },
+        "inverse": {
+          "$value": "#f4f0ea33",
+          "$description": "Hairlines on surface.inverse (AFD --border-light)."
+        },
+        "strong": { "$value": "{color.charcoal}", "$description": "Frames and emphasized edges." }
+      },
+      "focus": {
+        "ring": { "$value": "{color.teal}", "$description": "Keyboard focus indicator." }
+      },
+      "feedback": {
+        "danger": { "$value": "{color.red}", "$description": "Errors and destructive actions." },
+        "success": { "$value": "{color.teal}", "$description": "Confirmations and success states." }
+      }
+    }
+  },
+  "component": {
+    "card": {
+      "$type": "color",
+      "$description": "AFD card theme context (.section--dark / .section--light).",
+      "bg": { "$value": "{color.surface.raised}", "$description": "AFD --card-bg." },
+      "text": { "$value": "{color.text.primary}", "$description": "AFD --card-text." },
+      "border": { "$value": "{color.border.default}", "$description": "AFD --border-color." },
+      "shadow": { "$value": "{color.text.primary}", "$description": "AFD --card-shadow." }
+    }
+  }
+}

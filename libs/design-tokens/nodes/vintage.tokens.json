@@ -1,0 +1,147 @@
+{
+  "$description": "Vintage brand node: palette sampled from the color emblem (assets/brand/vintage-logo-color.png), the display face, and the WoW semantic tokens (item quality, class, role, signup status). Not exported on its own; the theme nodes below it set surfaces and text.",
+  "$extensions": {
+    "dev.vintage.node": {
+      "name": "vintage",
+      "parent": "afd-site",
+      "source": "assets/brand/vintage-logo-color.png; Blizzard item quality and class colors"
+    }
+  },
+  "global": {
+    "color": {
+      "$type": "color",
+      "gold": {
+        "$description": "Letterforms on the emblem. 100–500 are sampled lightness bands (90th → 10th percentile); 700 and 900 are derived for text on parchment.",
+        "100": { "$value": "#fdedac", "$description": "Sampled: letter highlight." },
+        "200": { "$value": "#fdde8a", "$description": "Sampled: upper letter face." },
+        "300": {
+          "$value": "#fbd275",
+          "$description": "Sampled: letter face (median). The brand gold."
+        },
+        "400": { "$value": "#f7c760", "$description": "Sampled: lower letter face." },
+        "500": { "$value": "#e49d2b", "$description": "Sampled: letter shading and bevel." },
+        "700": {
+          "$value": "#8a5a12",
+          "$description": "Derived: antique gold dark enough for text on parchment."
+        },
+        "900": { "$value": "#4d3209", "$description": "Derived: deepest bronze." }
+      },
+      "crimson": {
+        "$description": "The tag behind the letters. 500–900 are sampled; 300 is derived so crimson reads as text on dark surfaces.",
+        "300": { "$value": "#e8676b", "$description": "Derived: crimson lifted for text on iron." },
+        "500": { "$value": "#750a0e", "$description": "Sampled: brightest tag red." },
+        "600": { "$value": "#5e0a0e", "$description": "Sampled: tag red." },
+        "700": {
+          "$value": "#4f0b0e",
+          "$description": "Sampled: tag body (median). The brand crimson."
+        },
+        "800": { "$value": "#400a0c", "$description": "Sampled: tag shadow." },
+        "900": { "$value": "#2e0807", "$description": "Sampled: deepest tag shadow." }
+      },
+      "iron": {
+        "$description": "The frame and chain. All sampled from the emblem's low-saturation pixels.",
+        "300": { "$value": "#504d4f", "$description": "Sampled: frame highlight." },
+        "500": { "$value": "#383031", "$description": "Sampled: frame face." },
+        "600": { "$value": "#302a2b", "$description": "Sampled: frame (median)." },
+        "700": { "$value": "#292526", "$description": "Sampled: frame shadow." },
+        "900": { "$value": "#131212", "$description": "Sampled: outline. Darkest iron." },
+        "950": { "$value": "#0b0a0a", "$description": "Derived: recessed wells below iron.900." }
+      },
+      "parchment": {
+        "$description": "Derived: the AFD cream warmed toward the emblem gold (PLAN §3.8: cream becomes parchment).",
+        "50": { "$value": "#faf5ea", "$description": "Derived: brightest sheet." },
+        "100": {
+          "$value": "#f3ead7",
+          "$description": "Derived: parchment canvas; also text on iron."
+        },
+        "200": { "$value": "#e8dcc0", "$description": "Derived: aged parchment for wells." },
+        "400": { "$value": "#b5a485", "$description": "Derived: faded ink; muted text on iron." }
+      },
+      "leather": {
+        "$description": "Derived: dark leather inks for text on parchment.",
+        "700": {
+          "$value": "#5c4a3a",
+          "$description": "Derived: worn leather; muted text on parchment."
+        },
+        "900": {
+          "$value": "#2b2118",
+          "$description": "Derived: dark leather; body text on parchment."
+        }
+      }
+    },
+    "font": {
+      "family": {
+        "display": {
+          "$value": ["Cinzel", "Georgia", "serif"],
+          "$description": "Fantasy-inscription display face. Cinzel (OFL) stands in for Friz Quadrata, which is licensed; the addon keeps Friz via FenUI. Self-host; final pick with Q12."
+        }
+      }
+    }
+  },
+  "semantic": {
+    "color": {
+      "$type": "color",
+      "quality": {
+        "$description": "Blizzard item quality colors. Shown on dark WoW frames in every theme.",
+        "poor": { "$value": "#9d9d9d", "$description": "Poor (gray) items." },
+        "common": { "$value": "#ffffff", "$description": "Common (white) items." },
+        "uncommon": { "$value": "#1eff00", "$description": "Uncommon (green) items." },
+        "rare": { "$value": "#0070dd", "$description": "Rare (blue) items." },
+        "epic": { "$value": "#a335ee", "$description": "Epic (purple) items." },
+        "legendary": { "$value": "#ff8000", "$description": "Legendary (orange) items." }
+      },
+      "class": {
+        "$description": "Blizzard's standard class colors. Shown on dark WoW frames in every theme.",
+        "warrior": { "$value": "#c69b6d", "$description": "Warrior." },
+        "paladin": { "$value": "#f48cba", "$description": "Paladin." },
+        "hunter": { "$value": "#aad372", "$description": "Hunter." },
+        "rogue": { "$value": "#fff468", "$description": "Rogue." },
+        "priest": { "$value": "#ffffff", "$description": "Priest." },
+        "shaman": { "$value": "#0070dd", "$description": "Shaman." },
+        "mage": { "$value": "#3fc7eb", "$description": "Mage." },
+        "warlock": { "$value": "#8788ee", "$description": "Warlock." },
+        "druid": { "$value": "#ff7c0a", "$description": "Druid." }
+      },
+      "role": {
+        "$description": "Raid roles. Tuned for text on iron; parchment overrides them darker.",
+        "tank": { "$value": "#79a9e0", "$description": "Tank." },
+        "healer": { "$value": "#6fcf5a", "$description": "Healer." },
+        "melee": { "$value": "#e8676b", "$description": "Melee damage." },
+        "ranged": { "$value": "#c08ff0", "$description": "Ranged damage." }
+      },
+      "signup": {
+        "$description": "Signup status. Tuned for text on iron; parchment overrides them darker.",
+        "accepted": { "$value": "#6fcf5a", "$description": "Accepted into the raid." },
+        "tentative": { "$value": "#f0b44c", "$description": "Tentative." },
+        "bench": { "$value": "#8fb3d9", "$description": "Benched: available, not in the comp." },
+        "declined": { "$value": "{color.crimson.300}", "$description": "Declined." },
+        "no-response": { "$value": "#9a9086", "$description": "No response yet." }
+      }
+    }
+  },
+  "component": {
+    "wow-frame": {
+      "$type": "color",
+      "$description": "Dark WoW-style frame for item tooltips and class-colored names. Stays dark in every theme so Blizzard colors keep their meaning.",
+      "bg": { "$value": "{color.iron.900}", "$description": "Frame body." },
+      "border": { "$value": "{color.iron.300}", "$description": "Frame edge." },
+      "text": {
+        "$value": "{color.parchment.100}",
+        "$description": "Default text inside the frame."
+      }
+    },
+    "button": {
+      "primary": {
+        "$type": "color",
+        "bg": { "$value": "{color.accent.primary}", "$description": "Primary button fill." },
+        "text": { "$value": "{color.accent.contrast}", "$description": "Primary button label." }
+      }
+    },
+    "logo": {
+      "$type": "color",
+      "$description": "Two-tone logo (assets/brand/vintage-logo-two-tone.svg): map --vintage-logo-ink and --vintage-logo-paper to these.",
+      "ink": { "$value": "{color.crimson.700}", "$description": "Tag and outline." },
+      "paper": { "$value": "{color.gold.300}", "$description": "Letters and inner frame." }
+    }
+  }
+}

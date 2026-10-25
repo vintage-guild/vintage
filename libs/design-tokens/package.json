@@ -1,0 +1,20 @@
+{
+  "name": "@vintage/design-tokens",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Vintage design tokens: Violet-style DTCG nodes (afd-site → vintage → dark / parchment) exported to CSS, TS, and a FenUI Lua theme.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./css/*": "./generated/css/*",
+    "./lua": "./generated/lua/VintageTokens.lua",
+    "./nodes/*": "./nodes/*"
+  },
+  "scripts": {
+    "type-check": "tsc6 -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@vintage/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

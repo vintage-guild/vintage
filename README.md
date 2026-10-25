@@ -1,38 +1,68 @@
-# Vintage
+<p align="center">
+  <img src="assets/brand/vintage-logo-color-800.png" alt="Vintage" width="480">
+</p>
 
-Guild platform for **Vintage** on WoW: Forever: an autonomous raid coordinator, the guild
-website, a swappable loot system, and an in-game addon — all on one typed command surface
-that people, Discord, and AI agents share.
+<p align="center">
+  <strong>The guild platform for Vintage on WoW: Forever</strong><br>
+  An autonomous raid coordinator, the guild website, a swappable loot system, and an in-game
+  addon, all on one typed command surface that people, Discord, and AI agents share.
+</p>
 
-- **Plan:** [PLAN.md](PLAN.md)
-- **For agents:** [AGENTS.md](AGENTS.md), [INIT.md](INIT.md)
-- **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md)
+<p align="center">
+  <a href="https://github.com/vintage-guild/vintage/actions/workflows/ci.yml"><img src="https://github.com/vintage-guild/vintage/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <a href="LICENSE.md"><img src="https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-blue" alt="License: PolyForm Noncommercial 1.0.0"></a>
+  <a href="https://github.com/orgs/vintage-guild/projects/1"><img src="https://img.shields.io/badge/project-Vintage%20MVP-8a2be2" alt="Project board"></a>
+</p>
+
+---
+
+## What it does
+
+- **Coordinates raids on its own:** posts signups, reminds people, flags comp gaps, locks the
+  roster, and hands the raid leader a one-click invite list.
+- **Is the guild website:** recruitment and progress pages, member profiles, signups,
+  wishlists, and loot history.
+- **Uses Discord as identity:** sign in with Discord; Discord roles are the guild ranks.
+- **Bridges into the game:** the `Vintage` addon forms the raid, records attendance and loot,
+  and shows loot priority when items drop.
+- **Is agent-native:** every capability is an [AFD](https://github.com/lushly-dev/afd) command,
+  reachable over MCP and the CLI with the same permissions as the website.
 
 ## Status
 
-Phase 0 (foundation). Working today:
+**Phase 0 (foundation), due Nov 4.** Raids unlock **Dec 9**. Track progress on the
+[project board](https://github.com/orgs/vintage-guild/projects/1) and the
+[MVP epic](https://github.com/vintage-guild/vintage/issues/2).
 
-- `guild-kit`: commands, permission tiers, validation, dryRun → confirm tokens, command manifest
-- `identity` module: members, characters, Discord role → tier, as a Convex component
-- `apps/api`: Convex backend exposing the registry (`commands.read`, `commands.run`)
-- Repo gates: lint, boundaries, agent docs, manifest, type-check, tests, CI lane selection
+Working today: the command layer (`guild-kit`), the `identity` module on Convex, the repo
+gates and CI, and the agent setup. Next: Discord sign-in, the Discord bot endpoint, design
+tokens, `/mcp`, and the website shell.
 
-Next: Better Auth with Discord sign-in, `/mcp` on AFD 2.2, the website shell.
+## Documentation
 
-## Requirements
+| Doc | For |
+|---|---|
+| [docs/architecture.md](docs/architecture.md) | How Vintage fits together: AFD, botcore, Convex modules, surfaces |
+| [SETUP.md](SETUP.md) | First-time setup on your machine |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute, and the [contributor agreement](CONTRIBUTOR_AGREEMENT.md) |
+| [AGENTS.md](AGENTS.md) · [INIT.md](INIT.md) | Rules and orientation for AI agents |
+| [PLAN.md](PLAN.md) | The full plan: architecture decisions, phases, open questions |
+| [SUPPORT.md](SUPPORT.md) · [SECURITY.md](SECURITY.md) | Getting help · reporting vulnerabilities |
 
-Node 24, pnpm 10, and `uv` for the botcore repo tooling.
+## Quick start
 
 ```bash
 pnpm install
 pnpm validate:final
 ```
 
+Requires Node 24, pnpm 10, and `uv`. Details in [SETUP.md](SETUP.md).
+
 ## License
 
 Code is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE.md): use, change, and
-share it for any noncommercial purpose, keeping the license and its `Required Notice` line (that's the
-attribution). Commercial use needs permission from the guild.
+share it for any noncommercial purpose, keeping the license and its `Required Notice` line (that's
+the attribution). Commercial use needs permission from the guild.
 
 The Vintage logos and brand artwork in [`assets/brand/`](assets/brand/) are **all rights reserved**
 ([details](assets/brand/LICENSE.md)); forks must use their own branding.

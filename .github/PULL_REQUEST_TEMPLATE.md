@@ -6,6 +6,7 @@
 
 ## Testing
 
+- [ ] Every commit is signed off (`git commit -s`, see CONTRIBUTOR_AGREEMENT.md)
 - [ ] `pnpm validate:final` passes
 - [ ] New behavior is tested through `registry.execute` (commands) or the gate was watched failing (gates)
 

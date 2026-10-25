@@ -50,6 +50,19 @@ lives in skills and module `AGENTS.md` files.
 | `vintage-afd-commands` | Adding or changing a command, tier, or the confirm flow |
 | `vintage-convex-modules` | Adding a module, a table, or a Convex component function |
 
+## Commits and attribution
+
+Credit whoever drives the commit:
+
+- **Human-driven (with or without AI help):** the human is the author and signs off
+  (`git commit -s`, [contributor agreement](CONTRIBUTOR_AGREEMENT.md)). Agents never add
+  `Co-authored-by` trailers for themselves; GitHub counts those as authorship. Disclose AI help
+  with a trailer like `Assisted-by: Claude Opus 5.5`.
+- **Fully automated** (a bot account authors the commit, like Dependabot): bot attribution is
+  fine; no sign-off needed.
+
+CI rejects human commits that are unsigned or credit an AI co-author.
+
 ## Gate discipline
 
 Every new or changed gate must be watched failing once. A check that cannot fail is worse

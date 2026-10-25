@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "description": "Guild platform for Vintage on WoW: Forever: raid coordinator, website, loot, and addon on one AFD command surface.",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "packageManager": "pnpm@10.26.2",
   "engines": {
     "node": ">=24.18.0 <25",
@@ -20,12 +21,12 @@
     "check:boundaries": "node scripts/check-boundaries.mjs",
     "check:manifest": "pnpm --filter @vintage/api manifest:check",
     "check:agent-docs": "node scripts/check-agent-docs.mjs",
-    "check:ci-selection": "node --test scripts/ci-selection.test.mjs",
     "validate:final": "node scripts/run-final-validation.mjs",
     "validate:full": "node scripts/run-final-validation.mjs --full",
     "check": "pnpm validate:full",
     "manifest:write": "pnpm --filter @vintage/api manifest:write",
-    "prepare": "lefthook install"
+    "prepare": "lefthook install",
+    "check:scripts": "node --test \"scripts/*.test.mjs\""
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

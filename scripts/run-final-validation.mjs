@@ -17,7 +17,7 @@ const steps = [
   ['tests', 'pnpm test:run'],
 ];
 if (full) {
-  steps.push(['ci selection self-test', 'pnpm check:ci-selection']);
+  steps.push(['gate script self-tests', 'pnpm check:scripts']);
   if (hasUv()) steps.push(['botcore plugin tests', 'uv run --directory tooling/botcore pytest -q']);
   else console.warn('! uv not found: skipping botcore plugin tests');
 }

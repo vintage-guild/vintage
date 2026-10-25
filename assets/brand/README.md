@@ -10,20 +10,22 @@
 | `vintage-logo-color-800.png` | Web copy of the color emblem (800×520, trimmed, ~430 KB): README header and anywhere bandwidth matters |
 | `vintage-logo-color.png` | Full-color painted emblem (gold letters, crimson tag, iron chain), 1536×1024 with a transparent background. Use for the website hero, Discord server icon/banner, and CurseForge. Not traced: painted shading doesn't vectorize cleanly |
 
-The color emblem suggests the palette for the `vintage` token node (PLAN §3.8, Q12): gold for
-letterforms and accents, deep crimson for surfaces, iron/charcoal for frames.
+The color emblem is the source of the `vintage` token node's palette (PLAN §3.8, Q12): gold
+letterforms (`--color-gold-*`), the crimson tag (`--color-crimson-*`), and the iron frame
+(`--color-iron-*`), sampled from `vintage-logo-color.png`. Values and method:
+[libs/design-tokens](../../libs/design-tokens/README.md#palette).
 
 ## Theming the two-tone logo
 
 ```css
 .site-header .logo {
-  --vintage-logo-ink: var(--color-surface-ink);     /* tag + outline */
-  --vintage-logo-paper: var(--color-surface-paper); /* letters + inner frame */
+  --vintage-logo-ink: var(--logo-ink);     /* tag + outline (crimson) */
+  --vintage-logo-paper: var(--logo-paper); /* letters + inner frame (gold) */
 }
 ```
 
-Defaults: ink = `currentColor`, paper = `#fff`. When `libs/design-tokens` lands (PLAN §3.8), map
-these to the Vintage tokens rather than hard-coding colors.
+Defaults: ink = `currentColor`, paper = `#fff`. `--logo-ink` and `--logo-paper` are component
+tokens from `@vintage/design-tokens`; don't hard-code colors.
 
 ## Regenerating
 

@@ -1,0 +1,4 @@
+{
+  "extends": "@vintage/config/tsconfig.library.json",
+  "include": ["src", "generated"]
+}

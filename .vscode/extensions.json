@@ -1,0 +1,8 @@
+{
+  "recommendations": [
+    "biomejs.biome",
+    "editorconfig.editorconfig",
+    "sumneko.lua",
+    "vitest.explorer"
+  ]
+}

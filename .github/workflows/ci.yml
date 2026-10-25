@@ -3,6 +3,7 @@ name: CI
 on:
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, edited]
   push:
     branches: [main]
   schedule:
@@ -37,6 +38,12 @@ jobs:
           node-version-file: .nvmrc
           # no pnpm in this job; setup-node@v5 would auto-enable the pnpm cache from packageManager
           package-manager-cache: false
+      - name: PR title is a valid squash commit header
+        if: github.event_name == 'pull_request'
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: node scripts/check-pr-title.mjs "$TITLE" "$AUTHOR"
       - name: Every commit is signed off (CONTRIBUTOR_AGREEMENT.md)
         if: github.event_name == 'pull_request'
         env:

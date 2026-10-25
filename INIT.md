@@ -1,7 +1,8 @@
 # Vintage Init
 
 > Audience: an agent entering an already-set-up checkout that needs to be productive fast.
-> Durable rules are in [AGENTS.md](AGENTS.md); the why is in [PLAN.md](PLAN.md).
+> Durable rules are in [AGENTS.md](AGENTS.md); the big picture is in
+> [docs/architecture.md](docs/architecture.md); the why is in [PLAN.md](PLAN.md).
 
 ## Mental model
 

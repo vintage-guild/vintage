@@ -27,3 +27,12 @@ Node 24, pnpm 10, and `uv` for the botcore repo tooling.
 pnpm install
 pnpm validate:final
 ```
+
+## License
+
+Code is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE.md): use, change, and
+share it for any noncommercial purpose, keeping the license and its `Required Notice` line (that's the
+attribution). Commercial use needs permission from the guild.
+
+The Vintage logos and brand artwork in [`assets/brand/`](assets/brand/) are **all rights reserved**
+([details](assets/brand/LICENSE.md)); forks must use their own branding.

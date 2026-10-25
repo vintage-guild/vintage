@@ -37,6 +37,12 @@ jobs:
           node-version-file: .nvmrc
           # no pnpm in this job; setup-node@v5 would auto-enable the pnpm cache from packageManager
           package-manager-cache: false
+      - name: Every commit is signed off (CONTRIBUTOR_AGREEMENT.md)
+        if: github.event_name == 'pull_request'
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/check-dco.mjs --base "$BASE" --head "$HEAD"
       - id: selection
         env:
           EVENT: ${{ github.event_name }}
@@ -128,7 +134,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           package-manager-cache: false
-      - run: node --test scripts/ci-selection.test.mjs
+      - run: node --test 'scripts/*.test.mjs'
 
   ci-ok:
     if: always()

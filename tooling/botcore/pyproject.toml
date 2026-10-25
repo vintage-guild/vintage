@@ -3,7 +3,7 @@ name = "botcore-vintage"
 version = "0.1.0"
 description = "Vintage repo tooling for botcore: module scaffolding and repo checks, for humans, CI, and agents"
 requires-python = ">=3.11"
-license = { text = "MIT" }
+license = { text = "PolyForm-Noncommercial-1.0.0" }
 authors = [{ name = "Falkicon" }]
 dependencies = [
     "lushly-botcore>=0.2.0",

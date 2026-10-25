@@ -10,6 +10,7 @@
 
 import type * as characters from "../characters.js";
 import type * as members from "../members.js";
+import type * as roleRanks from "../roleRanks.js";
 
 import type {
   ApiFromModules,
@@ -21,6 +22,7 @@ import { anyApi, componentsGeneric } from "convex/server";
 const fullApi: ApiFromModules<{
   characters: typeof characters;
   members: typeof members;
+  roleRanks: typeof roleRanks;
 }> = anyApi as any;
 
 /**

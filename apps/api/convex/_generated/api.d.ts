@@ -9,6 +9,8 @@
  */
 
 import type * as commands from "../commands.js";
+import type * as crons from "../crons.js";
+import type * as roleSync from "../roleSync.js";
 import type * as stores from "../stores.js";
 
 import type {
@@ -19,6 +21,8 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   commands: typeof commands;
+  crons: typeof crons;
+  roleSync: typeof roleSync;
   stores: typeof stores;
 }>;
 

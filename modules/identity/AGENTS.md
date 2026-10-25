@@ -8,15 +8,22 @@ Members, characters, and Discord roles → guild rank → permission tier (PLAN 
 |---|---|
 | `src/contract.ts` | Public types, command names, events. The only import other modules may use |
 | `src/domain/rank.ts` | Pure: Discord roles → guild rank → tier |
-| `src/store.ts` | `IdentityStore` port, `IdentityDeps`, and `command = commandsFor<IdentityDeps>()` |
-| `src/commands/` | `member-*` and `character-*` commands |
+| `src/domain/role-sync.ts` | Pure: `planRoleSync(directory, known)` → `member-sync` inputs |
+| `src/directory.ts` | `GuildDirectory` port (pages of Discord members) and `readDirectory` |
+| `src/store.ts` | `IdentityStore` port (incl. the role → rank map), `IdentityDeps`, `command` |
+| `src/commands/` | `member-*`, `character-*`, and `guild-roles-*` commands |
 | `src/testing.ts` | Memory store with the same behavior contract as the component |
-| `convex/` | The `identity` Convex component: `members` and `characters` tables |
+| `convex/` | The `identity` Convex component: `members`, `characters`, `roleRanks` tables |
 
 ## Rules
 
 - `member-sync` is the only writer of `rank` and `tier`. Hosts call it at sign-in and from the role-sync
-  cron through `commands:syncMember` (system caller). Never set them anywhere else.
+  cron through `commands:syncMember(s)` (system caller). Never set them anywhere else.
+- The Discord role id → rank map lives in `roleRanks`, read with `guild-roles-get` (leader) and
+  replaced with `guild-roles-set` (officer, destructive). The map must keep an officer role, so
+  officers can't lock themselves out. Tiers follow at the next sync, not at save time.
+- Role sync (`apps/api/convex/roleSync.ts`, every 15 min) reads the whole `GuildDirectory` before
+  planning. Never plan from a partial or empty directory: missing members are synced as gone.
 - Rank decides tier (`RANK_TIER` in the contract). Discord-only Friends and anyone without a
   rank role are `public`; being in the Discord server alone grants nothing.
 - Rank and tier are separate on purpose: Raider and Flex Raider share the `raider` tier, but the

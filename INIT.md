@@ -44,7 +44,7 @@ pnpm validate:final
 pnpm --filter @vintage/api dev:local
 cd apps/api
 npx convex env set VINTAGE_CONFIRM_SECRET local-dev-secret
-npx convex run commands:syncMember '{"discordId":"d1","displayName":"Aeryn","inGuild":true,"roleIds":[]}'
+npx convex run commands:syncMember '{"discordId":"d1","displayName":"Aeryn","inServer":true,"roleIds":[]}'
 npx convex run commands:read '{"name":"member-list","input":{}}'
 ```
 

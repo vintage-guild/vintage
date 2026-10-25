@@ -1,7 +1,7 @@
 // Adapters from module ports to Convex: each module's store calls its own component.
 // Commands never see Convex; they get these through `deps` (PLAN §3.3).
 import type { IdentityDeps, IdentityStore } from '@vintage/identity/commands';
-import type { Character, Member, RoleRankMap } from '@vintage/identity/contract';
+import type { Character, GuildRank, Member, RoleRankMap } from '@vintage/identity/contract';
 import type { WowClass } from '@vintage/wow-data';
 import type { GenericMutationCtx, GenericQueryCtx } from 'convex/server';
 import { components } from './_generated/api';
@@ -67,18 +67,23 @@ export function identityStore(ctx: Ctx): IdentityStore {
     deleteCharacter: async (guildId, characterId) => {
       await writable(ctx).runMutation(identity.characters.remove, { guildId, characterId });
     },
+
+    getRoleRankMap: async (guildId) =>
+      asRoleRankMap(await ctx.runQuery(identity.roleRanks.list, { guildId })),
+    setRoleRankMap: async (guildId, map) =>
+      asRoleRankMap(
+        await writable(ctx).runMutation(identity.roleRanks.replace, {
+          guildId,
+          entries: Object.entries(map).map(([discordRoleId, rank]) => ({ discordRoleId, rank })),
+        }),
+      ),
   };
 }
 
-export function identityDeps(ctx: Ctx, guildId: string): IdentityDeps {
-  return {
-    identity: identityStore(ctx),
-    roleRankMap: async () => {
-      const settings = await ctx.db
-        .query('guildSettings')
-        .withIndex('by_guild', (q) => q.eq('guildId', guildId))
-        .unique();
-      return (settings?.roleRankMap ?? {}) as RoleRankMap;
-    },
-  };
+// The component stores one row per role (Discord ids as values, not object keys).
+const asRoleRankMap = (entries: { discordRoleId: string; rank: GuildRank }[]): RoleRankMap =>
+  Object.fromEntries(entries.map((e) => [e.discordRoleId, e.rank]));
+
+export function identityDeps(ctx: Ctx): IdentityDeps {
+  return { identity: identityStore(ctx) };
 }

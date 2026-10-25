@@ -159,7 +159,7 @@ Destructive: `raid.cancel`, `roster.remove`, `loot.award`, `character.remove`, `
 ### 3.4 Identity and Discord roles
 
 - **Sign-in:** Discord OAuth only (scopes: `identify`, `guilds.members.read`).
-- **Discord role → guild rank → permission tier** (Q1, answered 2026-10-25 from the Vintage Discord). The role → rank map is officer-editable config keyed by Discord role id; rank → tier is fixed in code (`RANK_TIER` in the identity contract):
+- **Discord role → guild rank → permission tier** (Q1, answered 2026-10-25 from the Vintage Discord). The role → rank map is officer-editable config keyed by Discord role id, stored in the identity component's `roleRanks` table and edited with `guild-roles-get` / `guild-roles-set`; rank → tier is fixed in code (`RANK_TIER` in the identity contract):
 
   | Discord role | Guild rank | Tier | Can |
   |---|---|---|---|
@@ -174,7 +174,7 @@ Destructive: `raid.cancel`, `roster.remove`, `loot.award`, `character.remove`, `
 
   Rank and tier are separate: rank is guild standing (used for coordinator priority), tier is permission. Being in the Discord server alone grants nothing.
 
-- **Sync:** on every sign-in (member object via `GET /users/@me/guilds/{id}/member`) and on a cron via the bot (`GET /guilds/{id}/members`, which requires the Server Members privileged intent; a bot in under 100 servers can enable it in the developer portal without verification).
+- **Sync:** on every sign-in (member object via `GET /users/@me/guilds/{id}/member`) and on a cron via the bot every 15 minutes (`GET /guilds/{id}/members`, which requires the Server Members privileged intent; a bot in under 100 servers can enable it in the developer portal without verification). The cron needs `DISCORD_BOT_TOKEN` and `DISCORD_GUILD_ID` in the Convex environment and is a no-op without them; members who left the server drop to `public`.
 - **Characters:** members register mains/alts (name, class, spec, role). Later: Battle.net linking to verify ownership.
 
 ### 3.5 Game ↔ web bridge

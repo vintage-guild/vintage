@@ -3,6 +3,7 @@
 packages/guild-kit/ @Falkicon
 modules/identity/ @Falkicon
 apps/api/ @Falkicon
+apps/gateway/ @Falkicon
 libs/ @Falkicon
 .github/ @Falkicon
 scripts/ @Falkicon

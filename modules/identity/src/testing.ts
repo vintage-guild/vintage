@@ -5,9 +5,12 @@ import type { IdentityDeps, IdentityStore } from './store';
 export function createMemoryIdentityStore(): IdentityStore & {
   members: Map<string, Member>;
   characters: Map<string, Character>;
+  /** guildId → role → rank map. */
+  roleRanks: Map<string, RoleRankMap>;
 } {
   const members = new Map<string, Member>();
   const characters = new Map<string, Character>();
+  const roleRanks = new Map<string, RoleRankMap>();
   let seq = 0;
   const id = (prefix: string) => `${prefix}_${++seq}`;
   const must = <T>(value: T | undefined, what: string): T => {
@@ -18,6 +21,7 @@ export function createMemoryIdentityStore(): IdentityStore & {
   return {
     members,
     characters,
+    roleRanks,
     async getMember(guildId, memberId) {
       const m = members.get(memberId);
       return m && m.guildId === guildId ? m : null;
@@ -70,12 +74,32 @@ export function createMemoryIdentityStore(): IdentityStore & {
     async deleteCharacter(_guildId, characterId) {
       characters.delete(characterId);
     },
+    async getRoleRankMap(guildId) {
+      return sortedMap(roleRanks.get(guildId) ?? {});
+    },
+    async setRoleRankMap(guildId, map) {
+      const stored = sortedMap(map);
+      roleRanks.set(guildId, stored);
+      return { ...stored };
+    },
   };
 }
 
-/** Deps for identity commands backed by the memory store. */
-export function createMemoryIdentityDeps(roleRankMap: RoleRankMap = {}): IdentityDeps & {
+/** Same ordering as the component: entries by Discord role id. */
+const sortedMap = (map: RoleRankMap): RoleRankMap =>
+  Object.fromEntries(Object.entries(map).sort(([a], [b]) => a.localeCompare(b)));
+
+/**
+ * Deps for identity commands backed by the memory store, optionally seeded with a role → rank
+ * map for `guildId` (the test guild by default).
+ */
+export function createMemoryIdentityDeps(
+  roleRankMap: RoleRankMap = {},
+  guildId = 'guild-test', // TEST_GUILD_ID in @vintage/testing
+): IdentityDeps & {
   identity: ReturnType<typeof createMemoryIdentityStore>;
 } {
-  return { identity: createMemoryIdentityStore(), roleRankMap: async () => roleRankMap };
+  const identity = createMemoryIdentityStore();
+  identity.roleRanks.set(guildId, sortedMap(roleRankMap));
+  return { identity };
 }

@@ -7,13 +7,13 @@ import {
   publicCaller,
   systemCaller,
 } from '@vintage/guild-kit';
-import { v } from 'convex/values';
+import { type Infer, v } from 'convex/values';
 import { commands, type VintageDeps } from '../src/registry';
 import { internalMutation, mutation, query } from './_generated/server';
 import { identityDeps, identityStore } from './stores';
 
 /** Single-guild deployment for now; every record still carries guildId (PLAN §3.11). */
-const GUILD_ID = process.env.VINTAGE_GUILD_ID ?? 'vintage';
+export const GUILD_ID = process.env.VINTAGE_GUILD_ID ?? 'vintage';
 
 function registry() {
   const confirmSecret = process.env.VINTAGE_CONFIRM_SECRET;
@@ -23,7 +23,7 @@ function registry() {
 
 type Ctx = Parameters<typeof identityStore>[0];
 
-const deps = (ctx: Ctx): VintageDeps => identityDeps(ctx, GUILD_ID);
+const deps = (ctx: Ctx): VintageDeps => identityDeps(ctx);
 
 /**
  * Resolve the caller from the auth identity. Better Auth's Discord provider (Phase 0, next step)
@@ -78,19 +78,33 @@ export const run = mutation({
   },
 });
 
+const memberSyncInput = v.object({
+  discordId: v.string(),
+  displayName: v.string(),
+  inServer: v.boolean(),
+  roleIds: v.array(v.string()),
+});
+
+const runMemberSync = (ctx: Ctx, input: Infer<typeof memberSyncInput>) =>
+  registry().execute({ name: 'member-sync', input, caller: systemCaller(GUILD_ID) }, deps(ctx));
+
 /** System entry point for sign-in and the role-sync cron: runs `member-sync` as the system caller. */
 export const syncMember = internalMutation({
-  args: {
-    discordId: v.string(),
-    displayName: v.string(),
-    inServer: v.boolean(),
-    roleIds: v.array(v.string()),
+  args: memberSyncInput.fields,
+  handler: async (ctx, input) => toConvex(await runMemberSync(ctx, input)),
+});
+
+/** A batch of `member-sync` calls in one transaction, for the role-sync cron (roleSync.ts). */
+export const syncMembers = internalMutation({
+  args: { members: v.array(memberSyncInput) },
+  handler: async (ctx, { members }) => {
+    const failed: { discordId: string; code: string }[] = [];
+    for (const input of members) {
+      const result = await runMemberSync(ctx, input);
+      if (!result.success) {
+        failed.push({ discordId: input.discordId, code: result.error?.code ?? 'UNKNOWN' });
+      }
+    }
+    return { synced: members.length - failed.length, failed };
   },
-  handler: async (ctx, input) =>
-    toConvex(
-      await registry().execute(
-        { name: 'member-sync', input, caller: systemCaller(GUILD_ID) },
-        deps(ctx),
-      ),
-    ),
 });

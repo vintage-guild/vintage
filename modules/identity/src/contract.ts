@@ -74,6 +74,8 @@ export const IDENTITY_COMMANDS = [
   'character-update',
   'character-remove',
   'character-list',
+  'guild-roles-get',
+  'guild-roles-set',
 ] as const;
 export type IdentityCommandName = (typeof IDENTITY_COMMANDS)[number];
 

@@ -5,6 +5,7 @@ modules/identity/ @Falkicon
 apps/api/ @Falkicon
 apps/gateway/ @Falkicon
 libs/ @Falkicon
+vendor/ @Falkicon
 .github/ @Falkicon
 scripts/ @Falkicon
 tooling/ @Falkicon

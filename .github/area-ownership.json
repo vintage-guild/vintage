@@ -6,6 +6,7 @@
     "api": { "paths": ["apps/api/"], "owners": ["@Falkicon"] },
     "gateway": { "paths": ["apps/gateway/"], "owners": ["@Falkicon"] },
     "libs": { "paths": ["libs/"], "owners": ["@Falkicon"] },
+    "vendor": { "paths": ["vendor/"], "owners": ["@Falkicon"] },
     "repo": {
       "paths": [".github/", "scripts/", "tooling/", "AGENTS.md", "INIT.md", "PLAN.md"],
       "owners": ["@Falkicon"]

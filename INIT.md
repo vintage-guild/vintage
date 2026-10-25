@@ -33,6 +33,7 @@ Start from the command, not the UI. Business logic belongs in module commands an
 | `packages/` | Platform glue (`guild-kit`, `testing`, `config`) |
 | `modules/` | Features with their own data (`identity`) |
 | `apps/` | Composition and transport (`api` on Convex, `gateway` on Vercel) |
+| `vendor/` | Built FAST-AF packages, pinned; never edit ([VENDORED.md](vendor/VENDORED.md)) |
 | `tooling/botcore/` | Repo commands for humans, CI, and agents |
 | `scripts/` | Gate scripts CI and `validate:*` run |
 

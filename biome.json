@@ -15,6 +15,7 @@
       "!.claude",
       "!tooling/botcore",
       "!PLAN.md",
+      "!vendor",
       "!commands.manifest.json"
     ]
   },

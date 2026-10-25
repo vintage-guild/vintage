@@ -19,6 +19,7 @@ Docs change **in the same PR** as the code. A stale doc is worse than none: agen
 | A spike or open question answered | Feature doc Spikes table, PLAN.md §9 row, and tick it in issue #30 |
 | A task in the plan | Phase checkboxes in `PLAN.md` §8 and the feature doc; close or comment on the GitHub issue |
 | A foundation gap (AFD, botcore, Violet, FAST-AF, Mechanic, FenUI/FenCore) | File it upstream, link it, update PLAN.md §7.5 |
+| `vendor/` (re-synced FAST-AF) | The pinned commit in `vendor/VENDORED.md` and its "Known upstream gaps"; `pnpm check:vendor` |
 | A repeatable workflow agents keep re-deriving | Write or update a `vintage-*` skill |
 
 ## Skills

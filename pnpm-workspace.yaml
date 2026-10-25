@@ -3,6 +3,7 @@ packages:
   - "modules/*"
   - "packages/*"
   - "libs/*"
+  - "vendor/*"
 
 allowBuilds:
   esbuild: true

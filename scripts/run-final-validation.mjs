@@ -12,6 +12,7 @@ const steps = [
   ['lint', 'pnpm lint'],
   ['boundaries', 'pnpm check:boundaries'],
   ['agent docs', 'pnpm check:agent-docs'],
+  ['vendor', 'pnpm check:vendor'],
   ['command manifest', 'pnpm check:manifest'],
   ['type-check', 'pnpm type-check'],
   ['tests', 'pnpm test:run'],

@@ -9,7 +9,7 @@ export const LANES = ['ts', 'contract', 'addon', 'botcore', 'workflowContracts']
 const DOCS =
   /^(docs\/|PLAN\.md$|README\.md$|INIT\.md$|CONTRIBUTING\.md$|.*\/AGENTS\.md$|AGENTS\.md$|\.claude\/)/;
 const TS =
-  /^(apps|modules|packages|libs)\/|^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|turbo\.json|tsconfig\.base\.json|biome\.json|vitest\.config\.ts)$/;
+  /^(apps|modules|packages|libs|vendor)\/|^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|turbo\.json|tsconfig\.base\.json|biome\.json|vitest\.config\.ts)$/;
 const CONTRACT =
   /^(modules\/[^/]+\/src\/(commands|contract)|packages\/guild-kit\/|apps\/api\/src\/registry|commands\.manifest\.json$)/;
 const ADDON = /^(addon\/|libs\/bridge-format\/)/;

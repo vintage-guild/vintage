@@ -1,0 +1,14 @@
+{
+  "name": "@lushly-dev/violet-elements",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Vendored from lushly-dev/fast-af@4a9afe0 (packages/violet-elements). Do not edit; see vendor/VENDORED.md.",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "dependencies": {
+    "@lushly-dev/fast-element": "workspace:*",
+    "@tanstack/virtual-core": "3.13.23"
+  }
+}

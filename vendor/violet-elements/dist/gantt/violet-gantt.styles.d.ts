@@ -1,0 +1,1 @@
+export declare const violetGanttStyles: import("@lushly-dev/fast-element").ElementStyles;

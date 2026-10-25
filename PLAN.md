@@ -317,7 +317,7 @@ afd-site                    base: AFD site palette, type roles, spacing, motion
 
 **Rules for `packages/ui-kit`:** read only token CSS variables; any data-changing action is a `@command` calling the matching server command; every component's schema is exported to the Custom Elements Manifest in CI; a missing primitive is filed upstream (`upstream:fast-af`) and stubbed locally with a link to the issue.
 
-**Packaging gap:** FAST-AF isn't on npm. Vintage consumes it as a git dependency pinned to a commit until the element and violet-elements packages are published (§7.5).
+**Packaging gap:** FAST-AF isn't on npm. Until it is, Vintage vendors the built `fast-element`, `fast-router`, and `violet-elements` packages in `vendor/`, pinned to a FAST-AF commit (`vendor/VENDORED.md`). Vendored files are never edited: fixes go upstream and are re-synced with `scripts/vendor-fast-af.mjs`. When FAST-AF publishes, swap to npm and delete `vendor/` (§7.5).
 
 ### 3.10 Hosted guild agent
 
@@ -373,6 +373,7 @@ vintage/
 │  ├─ wow-data/             classes, specs, roles, buffs, raid/boss metadata
 │  ├─ design-tokens/        Violet node defs (afd-site → vintage → themes) → CSS / TS / FenUI Lua
 │  └─ discord-kit/          signature verification, embeds, components, timestamps
+├─ vendor/                  built FAST-AF packages, pinned (VENDORED.md); never edited
 ├─ packages/                platform glue (knows Convex / AFD / Vercel / OpenAI / FAST-AF)
 │  ├─ guild-kit/            AFD policy: caller resolution, permissions, guildId, Convex binding, dryRun/confirm
 │  ├─ agent/                hosted agent wiring (§3.10)
@@ -668,7 +669,7 @@ AFD, botcore, Mechanic, FenCore, FenUI, MechanicLib, Violet, FAST-AF, and the AF
 | AFD | Stateless Streamable HTTP in `afd-server`, `afd-client`, and `afd-cli` on the v2 SDK (§3.7) | In progress in a separate AFD session (2.2); Vintage consumes it |
 | AFD site | `design-system.json` vs `styles.css` drift (§3.8) | Not needed: the drift is only in a local working copy; the published AFD site is consistent |
 | Violet | Lua/FenUI exporter; CLI export from in-repo files without the API server (§3.8, Q14) | Filed: [lushly-dev/violet#30](https://github.com/lushly-dev/violet/issues/30) |
-| FAST-AF | Publish `element` and `violet-elements` to npm (§3.9) | To file |
+| FAST-AF | Publish `element` and `violet-elements` to npm (§3.9). Vendored in `vendor/` meanwhile | To file |
 | FAST-AF | Ultraviolet stack naming (Ultra vs. Violet) and the broken VISION link | Filed: [lushly-dev/fast-af#165](https://github.com/lushly-dev/fast-af/issues/165) |
 | FenUI | External theme table that overrides semantic tokens (Q13) | Not needed: `FenUI:RegisterTheme` exists; confirm in game in Phase 2 |
 | Mechanic | Sandbox API stubs for Forever (Mainline family plus the 1.60.1 removals); release commands passing the packager's `-t` option for a monorepo subdirectory (§3.6) | To check in Phase 1–2 |
@@ -700,7 +701,8 @@ Phase 0 has about ten days and one maintainer, so it is cut to the minimum that 
 - [ ] Better Auth with Discord sign-in (`@convex-dev/better-auth`) and the MCP OAuth plugin; sign-in + cron role sync
 - [ ] `/mcp` on `afd-server`'s stateless handler with AFD's meta-tools and the confirm-token flow; `apps/cli` = `afd-cli --transport streamable`; verified from Claude and the CLI
 - [x] `libs/design-tokens`: `afd-site` + `vintage` nodes exporting CSS/TS as-is (no reskin yet); `docs/design/` forked from the AFD site Includes the emblem palette and a FenUI Lua theme (#45); `docs/design/` still to do.
-- [ ] `packages/ui-kit` on FAST-AF + `violet-elements` (git dependency): sign-in, profile, and character components with `@command`; Custom Elements Manifest in CI
+- [x] FAST-AF vendored in `vendor/` (fast-element, fast-router, violet-elements), pinned to a commit
+- [ ] `packages/ui-kit` on FAST-AF + `violet-elements` (vendored): sign-in, profile, and character components with `@command`; Custom Elements Manifest in CI
 - [ ] `apps/web`: shell on the FAST-AF Router, public about/recruitment page, member profile + characters, deployed to Vercel
 - [ ] Discord application created ✅; `/discord/interactions` built and tested (#43), **not yet deployed or verified by Discord**
 

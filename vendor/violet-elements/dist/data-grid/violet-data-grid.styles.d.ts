@@ -1,0 +1,1 @@
+export declare const styles: import("@lushly-dev/fast-element").ElementStyles;

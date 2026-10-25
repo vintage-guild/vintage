@@ -138,8 +138,10 @@ are enforced by `pnpm check:boundaries`; the full table is in PLAN.md §4.1.
 
 - **Each module owns its tables** in its own Convex component (`modules/<m>/convex/schema.ts`).
   `apps/api/convex/convex.config.ts` composes the components. ✅ (identity)
-- **App-level tables** in `apps/api/convex/schema.ts`: `guildSettings` (role → tier map) and
-  `events` (the cross-module bus). ✅ schema · 📋 bus
+- **App-level tables** in `apps/api/convex/schema.ts`: `events` (the cross-module bus).
+  ✅ schema · 📋 bus. The Discord role → rank map belongs to identity (`roleRanks`). ✅
+- **Crons** in `apps/api/convex/crons.ts`: role sync every 15 minutes keeps ranks and tiers in
+  step with Discord roles. ✅ (live Discord path unverified until the bot exists)
 - **Every record carries `guildId`**, even though Vintage is single-guild today.
 - **Codegen** (`convex/_generated`) is committed. Regenerate with
   `pnpm --filter @vintage/api dev:local`, which runs an anonymous local backend (no account).

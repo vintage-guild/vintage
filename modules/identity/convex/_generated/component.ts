@@ -140,4 +140,33 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         Name
       >;
     };
+    roleRanks: {
+      list: FunctionReference<
+        "query",
+        "internal",
+        { guildId: string },
+        any,
+        Name
+      >;
+      replace: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          entries: Array<{
+            discordRoleId: string;
+            rank:
+              | "officer"
+              | "raid-leader"
+              | "raider"
+              | "flex-raider"
+              | "recruit"
+              | "member"
+              | "friend";
+          }>;
+          guildId: string;
+        },
+        any,
+        Name
+      >;
+    };
   };

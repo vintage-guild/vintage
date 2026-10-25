@@ -68,7 +68,8 @@ export const memberSync = command({
     roleIds: z.array(z.string()),
   }),
   handler: async (input, { guildId, deps, now }) => {
-    const rank = resolveRank(input.inServer, input.roleIds, await deps.roleRankMap());
+    const map = await deps.identity.getRoleRankMap(guildId);
+    const rank = resolveRank(input.inServer, input.roleIds, map);
     const tier = tierForRank(rank);
     const before = await deps.identity.getMemberByDiscordId(guildId, input.discordId);
     const member = await deps.identity.upsertMember({

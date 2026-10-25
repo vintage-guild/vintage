@@ -11,7 +11,7 @@
     "dev": "convex dev",
     "codegen": "convex codegen",
     "dev:local": "node scripts/dev-local.mjs",
-    "type-check": "tsc6 -p tsconfig.json && tsc6 -p convex/tsconfig.json",
+    "type-check": "tsc6 -p tsconfig.json --noEmit && tsc6 -p convex/tsconfig.json --noEmit",
     "manifest:check": "tsx scripts/command-manifest.ts --check",
     "manifest:write": "tsx scripts/command-manifest.ts --write",
     "dev:local:watch": "node scripts/dev-local.mjs --watch"

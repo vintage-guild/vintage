@@ -51,6 +51,10 @@ lives in skills and module `AGENTS.md` files.
 |---|---|
 | `vintage-afd-commands` | Adding or changing a command, tier, or the confirm flow |
 | `vintage-convex-modules` | Adding a module, a table, or a Convex component function |
+| `vintage-discord` | Discord code, the bot, slash commands, role sync |
+| `vintage-design-tokens` | Changing tokens or styling anything (website, embeds, addon theme) |
+| `vintage-pr-workflow` | Committing, opening a PR, CI failures, CodeQL, merging |
+| `vintage-maintain-docs` | Finishing any PR that changes behavior, structure, or setup |
 
 ## Commits and attribution
 

@@ -4,7 +4,8 @@
 //   - every relative markdown link in AGENTS.md / INIT.md resolves
 //   - every skill named as `vintage-*` in AGENTS.md exists in .claude/skills
 //   - every module has its own AGENTS.md
-import { existsSync, readFileSync } from 'node:fs';
+//   - every .claude/skills/vintage-* skill is listed in AGENTS.md
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { ROOT, rel, workspacePackages } from './lib/workspace.mjs';
 
@@ -36,6 +37,16 @@ function checkNamedSkills(root, agents) {
     );
 }
 
+/** Every project skill must be routed from AGENTS.md, or agents never find it. */
+function checkSkillsRouted(root, agents) {
+  const dir = join(root, '.claude', 'skills');
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir)
+    .filter((name) => name.startsWith('vintage-') && existsSync(join(dir, name, 'SKILL.md')))
+    .filter((name) => !agents.includes(`\`${name}\``))
+    .map((name) => `.claude/skills/${name} is not listed in AGENTS.md's Skills table`);
+}
+
 function checkModuleDocs(root) {
   return workspacePackages(root)
     .filter((p) => p.layer === 'modules' && !existsSync(join(p.dir, 'AGENTS.md')))
@@ -51,6 +62,7 @@ export function checkAgentDocs(root = ROOT) {
     ...checkLinks(root, 'AGENTS.md'),
     ...checkLinks(root, 'INIT.md'),
     ...checkNamedSkills(root, agents),
+    ...checkSkillsRouted(root, agents),
     ...checkModuleDocs(root),
   ];
 }

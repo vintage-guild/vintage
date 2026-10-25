@@ -43,6 +43,20 @@ the preview plus a 5-minute `confirmToken` bound to command, exact input, and ca
 handler must not change anything when `dryRun` is true. Test with `previewAndConfirm` from
 `@vintage/testing`.
 
+## Rank vs. tier
+
+`tier` (public < member < recruit < raider < leader < officer) is what a command checks. A
+member's **guild rank** (officer, raid-leader, raider, flex-raider, recruit, member, friend) comes
+from Discord roles and decides their tier through `RANK_TIER` in the identity contract. Gate
+commands on tier; use rank only for priority (e.g. raiders before flex raiders). Discord-only
+friends and unranked accounts are `public`.
+
+## Guard against self-inflicted damage
+
+If a command can leave the guild unable to fix its own mistake, refuse that input. Examples:
+`guild-roles-set` rejects a map with no officer role, and role sync refuses an empty member list
+when members are known. Return a clear error code and a suggestion.
+
 ## Permissions inside a handler
 
 The tier gate is coarse. Ownership rules ("only your own characters, officers anyone") live in

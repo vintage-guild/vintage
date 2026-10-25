@@ -12,25 +12,25 @@ adds characters, and an officer's agent lists members over MCP from Claude or th
 | Q8: Convex local components from a workspace package | **Pass** (2026-10-25). `modules/identity/convex` installs as component `identity`; the module package must export `./_generated/component.js` for the app's codegen. |
 | AFD 2.2 stateless Streamable HTTP | In progress in a separate AFD session; `/mcp` waits on it |
 | Q14: Violet CLI export from in-repo nodes | **Fail → plain-DTCG fallback** (2026-10-25). Not installable: `@lushly-dev/violet-cli` and `violet-core` 404 on npm (control: `afd-core` resolves 2.1.0); `lushly-dev/violet` is private, `dist/` is gitignored, and the CLI depends on `violet-core` and `violet-server` via `workspace:*`, so a git dependency means cloning with a token and building the Violet monorepo in CI. No server needed (the CLI runs commands against SQLite via `better-sqlite3` or `--memory`), but no file-based input: nodes live in the database (`~/.violet/violet.db`), `--memory` lasts one process, and `import json` reads Style Dictionary `value` (not DTCG `$value`) and drops `$type` / `$description`. CI would replay `node create` + `import json` per node into a scratch DB before `export css/ts`. Exporters: json, css, scss, ts, swift, kotlin, dart, tailwind; no Lua. `libs/design-tokens` keeps the same node names and tiers as plain DTCG with a pure resolver. |
-| Q10: Vercel plan (Pro seat vs public repo) | Open with the GM |
+| Q10: Vercel plan (Pro seat vs public repo) | **Public repo** (2026-10-25), so the Vercel Hobby plan can deploy it. Convex plan and OpenAI budget still open |
 
 ## Tasks
 
 - [x] Monorepo: pnpm workspaces + catalog, Turborepo, Biome, lefthook, commitlint
 - [x] Gates: boundaries, agent docs, command manifest, CI lane selection, `validate:final` / `check`
 - [x] CI: `select` → lanes → `ci-ok`
-- [x] Agent setup: AGENTS.md, INIT.md, two `vintage-*` skills, three reviewer agents, settings
+- [x] Agent setup: AGENTS.md, INIT.md, `vintage-*` skills, three reviewer agents, settings; architecture, setup, and model-routing docs
 - [x] `packages/guild-kit`: commands, tiers, registry, confirm tokens, manifest
-- [x] `modules/identity`: members, characters, role → tier; memory store; Convex component
+- [x] `modules/identity`: members, characters, guild rank → tier (#42); memory store; Convex component
 - [x] `apps/api`: Convex app composing `identity`, `commands.read` / `commands.run` / `syncMember`
 - [x] `botcore-vintage` plugin: `module-new`, `repo-check`
-- [ ] GitHub org + remote; branch protection requiring `ci-ok`
+- [x] GitHub org + remote (`vintage-guild/vintage`, public); ruleset requiring `ci-ok`; CodeQL, secret scanning, Dependabot
 - [ ] Better Auth with Discord sign-in (`@convex-dev/better-auth`) → `resolveCaller` uses it
-- [ ] Role-sync cron calling `commands:syncMember`
+- [x] Role sync: role → rank map in identity, `guild-roles-get`/`-set`, 15-minute cron (#44). Live Discord path waits on the bot invite
 - [ ] `/mcp` on AFD 2.2 with meta-tools; `apps/cli` = `afd-cli`
 - [x] `libs/design-tokens` (plain DTCG; Q14): CSS per theme, TS map, interim FenUI Lua table
 - [ ] `packages/ui-kit` on FAST-AF; `apps/web` shell
-- [ ] Discord application + `/discord/interactions`
+- [ ] Discord: app and bot created ✅, `libs/discord-kit` + `/discord/interactions` built and tested (#43) ✅; bot invite (Stridulent), Server Members intent, deploy + endpoint verification still to do
 
 ## Decisions
 

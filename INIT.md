@@ -29,10 +29,10 @@ Start from the command, not the UI. Business logic belongs in module commands an
 
 | Folder | Holds |
 |---|---|
-| `libs/` | Pure TS, platform-free (`wow-data`) |
+| `libs/` | Pure TS, platform-free (`wow-data`, `discord-kit`, `design-tokens`) |
 | `packages/` | Platform glue (`guild-kit`, `testing`, `config`) |
 | `modules/` | Features with their own data (`identity`) |
-| `apps/` | Composition and transport (`api`) |
+| `apps/` | Composition and transport (`api` on Convex, `gateway` on Vercel) |
 | `tooling/botcore/` | Repo commands for humans, CI, and agents |
 | `scripts/` | Gate scripts CI and `validate:*` run |
 

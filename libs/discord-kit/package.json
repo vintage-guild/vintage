@@ -1,0 +1,17 @@
+{
+  "name": "@vintage/discord-kit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Pure Discord interactions toolkit: Ed25519 verification, response and component builders, timestamps, and a small REST client.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "type-check": "tsc6 -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@vintage/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

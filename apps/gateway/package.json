@@ -1,0 +1,20 @@
+{
+  "name": "@vintage/gateway",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Vercel functions: the public HTTP surfaces (/discord/interactions now, /mcp later) in front of Convex.",
+  "scripts": {
+    "type-check": "tsc6 -p tsconfig.json",
+    "register-commands": "tsx scripts/register-commands.ts"
+  },
+  "dependencies": {
+    "@vintage/discord-kit": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "@vintage/config": "workspace:*",
+    "tsx": "^4.23.15",
+    "typescript": "catalog:"
+  }
+}

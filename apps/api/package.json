@@ -1,0 +1,33 @@
+{
+  "name": "@vintage/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Convex backend: composes module components, registers commands through guild-kit, runs crons and events.",
+  "exports": {
+    "./registry": "./src/registry.ts"
+  },
+  "scripts": {
+    "dev": "convex dev",
+    "codegen": "convex codegen",
+    "dev:local": "node scripts/dev-local.mjs",
+    "type-check": "tsc6 -p tsconfig.json && tsc6 -p convex/tsconfig.json",
+    "manifest:check": "tsx scripts/command-manifest.ts --check",
+    "manifest:write": "tsx scripts/command-manifest.ts --write",
+    "dev:local:watch": "node scripts/dev-local.mjs --watch"
+  },
+  "dependencies": {
+    "@vintage/guild-kit": "workspace:*",
+    "@vintage/identity": "workspace:*",
+    "@vintage/wow-data": "workspace:*",
+    "convex": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "@vintage/config": "workspace:*",
+    "@vintage/testing": "workspace:*",
+    "tsx": "^4.23.15",
+    "typescript": "catalog:"
+  }
+}

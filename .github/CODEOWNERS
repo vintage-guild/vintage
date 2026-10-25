@@ -1,0 +1,12 @@
+# Generated from .github/area-ownership.json. Notification-only: required reviews are not
+# enforced; the `ci-ok` check is the merge gate (PLAN §7.3).
+packages/guild-kit/ @Falkicon
+modules/identity/ @Falkicon
+apps/api/ @Falkicon
+libs/ @Falkicon
+.github/ @Falkicon
+scripts/ @Falkicon
+tooling/ @Falkicon
+AGENTS.md @Falkicon
+INIT.md @Falkicon
+PLAN.md @Falkicon

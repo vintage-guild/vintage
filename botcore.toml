@@ -1,0 +1,16 @@
+language = "typescript"
+linter = "biome"
+test_runner = "vitest"
+formatter = "biome"
+file_size_warn = 300
+file_size_error = 500
+circular_deps_allowed = 0
+check_agents = true
+
+[skills]
+source_dir = ".claude/skills"
+# do-documentation-update would regenerate a CLAUDE.md that shadows AGENTS.md (Lushly precedent).
+skip = ["do-commit", "do-documentation-update"]
+
+[plugins.vintage]
+modules_dir = "modules"

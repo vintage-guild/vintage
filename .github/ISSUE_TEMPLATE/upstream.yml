@@ -1,0 +1,21 @@
+name: Upstream dependency issue
+description: Track a bug or gap in a foundation project (AFD, botcore, Mechanic, FenUI, FenCore, Violet, FAST-AF) that Vintage depends on.
+labels: ["upstream", "status:triage"]
+body:
+  - type: dropdown
+    id: project
+    attributes:
+      label: Project
+      options: [afd, botcore, mechanic, fenui, fencore, violet, fast-af]
+    validations: { required: true }
+  - type: input
+    id: link
+    attributes:
+      label: Upstream issue
+      description: Link to the issue filed in the upstream repo.
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact on Vintage
+      description: What it blocks, and the temporary workaround (with file paths) if any.
+    validations: { required: true }

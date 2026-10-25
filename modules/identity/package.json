@@ -1,0 +1,29 @@
+{
+  "name": "@vintage/identity",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Members, characters, and Discord role → permission tier sync.",
+  "exports": {
+    "./contract": "./src/contract.ts",
+    "./commands": "./src/commands/index.ts",
+    "./testing": "./src/testing.ts",
+    "./convex.config": "./convex/convex.config.ts",
+    "./package.json": "./package.json",
+    "./_generated/component.js": "./convex/_generated/component.ts"
+  },
+  "scripts": {
+    "type-check": "tsc6 -p tsconfig.json"
+  },
+  "dependencies": {
+    "@vintage/guild-kit": "workspace:*",
+    "@vintage/wow-data": "workspace:*",
+    "convex": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@vintage/config": "workspace:*",
+    "@vintage/testing": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

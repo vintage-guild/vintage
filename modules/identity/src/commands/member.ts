@@ -1,0 +1,116 @@
+import { error, success } from '@vintage/guild-kit';
+import { z } from 'zod';
+import { resolveTier } from '../domain/tier';
+import { command } from '../store';
+
+export const notSignedIn = () =>
+  error('NOT_SIGNED_IN', 'Sign in with Discord to see your member profile', {
+    suggestion: 'Sign in on the website, or connect your agent through /mcp with OAuth',
+    retryable: false,
+  });
+
+export const memberMe = command({
+  name: 'member-me',
+  description: 'Your member profile: tier, Discord roles, preferences, and characters.',
+  tier: 'member',
+  input: z.object({}),
+  handler: async (_input, { caller, guildId, deps }) => {
+    if (!caller.memberId) return notSignedIn();
+    const member = await deps.identity.getMember(guildId, caller.memberId);
+    if (!member) return notSignedIn();
+    const characters = await deps.identity.listCharacters(guildId, { memberId: member.id });
+    return success({ member, characters });
+  },
+});
+
+export const memberList = command({
+  name: 'member-list',
+  description: 'Guild members with their tier and main character.',
+  tier: 'trial',
+  input: z.object({ tier: z.enum(['member', 'trial', 'raider', 'officer']).optional() }),
+  handler: async ({ tier }, { guildId, deps }) => {
+    const [members, characters] = await Promise.all([
+      deps.identity.listMembers(guildId),
+      deps.identity.listCharacters(guildId),
+    ]);
+    const mains = new Map(characters.filter((c) => c.isMain).map((c) => [c.memberId, c]));
+    const rows = members
+      .filter((m) => m.tier !== 'public' && (!tier || m.tier === tier))
+      .sort((a, b) => a.displayName.localeCompare(b.displayName))
+      .map((m) => ({
+        id: m.id,
+        displayName: m.displayName,
+        tier: m.tier,
+        main: mains.get(m.id) ?? null,
+      }));
+    return success(rows, { reasoning: `${rows.length} member(s)` });
+  },
+});
+
+/**
+ * Upsert a member from Discord data. The host calls it at sign-in and from the role-sync cron
+ * (system caller); officers can also force a resync.
+ */
+export const memberSync = command({
+  name: 'member-sync',
+  description: "Sync one member's tier from their Discord guild membership and roles.",
+  tier: 'officer',
+  mutation: true,
+  input: z.object({
+    discordId: z.string().min(1),
+    displayName: z.string().min(1),
+    inGuild: z.boolean(),
+    roleIds: z.array(z.string()),
+  }),
+  handler: async (input, { guildId, deps, now }) => {
+    const tier = resolveTier(input.inGuild, input.roleIds, await deps.roleTierMap());
+    const before = await deps.identity.getMemberByDiscordId(guildId, input.discordId);
+    const member = await deps.identity.upsertMember({
+      guildId,
+      discordId: input.discordId,
+      displayName: input.displayName,
+      roleIds: input.roleIds,
+      tier,
+      syncedAt: now(),
+    });
+    const previousTier = before?.tier ?? null;
+    return success(
+      { member, previousTier },
+      { reasoning: previousTier === tier ? `Tier unchanged (${tier})` : `Tier set to ${tier}` },
+    );
+  },
+});
+
+export const memberPrefsSet = command({
+  name: 'member-prefs-set',
+  description: 'Update your preferences: DM opt-out, default character, timezone.',
+  tier: 'member',
+  mutation: true,
+  input: z.object({
+    dmOptOut: z.boolean().optional(),
+    defaultCharacterId: z.string().optional(),
+    timezone: z.string().optional(),
+  }),
+  handler: async (patch, { caller, guildId, deps }) => {
+    if (!caller.memberId) return notSignedIn();
+    const member = await deps.identity.getMember(guildId, caller.memberId);
+    if (!member) return notSignedIn();
+    if (patch.defaultCharacterId) {
+      const character = await deps.identity.getCharacter(guildId, patch.defaultCharacterId);
+      if (!character || character.memberId !== member.id) {
+        return error('CHARACTER_NOT_FOUND', 'That character is not one of yours', {
+          suggestion: 'Use character-list to see your characters',
+          retryable: false,
+        });
+      }
+    }
+    const definedPatch = Object.fromEntries(
+      Object.entries(patch).filter(([, v]) => v !== undefined),
+    );
+    const updated = await deps.identity.setPrefs(guildId, member.id, {
+      ...member.prefs,
+      ...definedPatch,
+    });
+    return success(updated.prefs);
+  },
+});

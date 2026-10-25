@@ -1,0 +1,42 @@
+{
+  "name": "vintage",
+  "private": true,
+  "type": "module",
+  "description": "Guild platform for Vintage on WoW: Forever: raid coordinator, website, loot, and addon on one AFD command surface.",
+  "packageManager": "pnpm@10.26.2",
+  "engines": {
+    "node": ">=24.18.0 <25",
+    "pnpm": ">=10.26.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "biome check --error-on-warnings .",
+    "format": "biome format --write .",
+    "type-check": "turbo run type-check",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "check:affected": "turbo run type-check build --affected && vitest run --changed origin/main",
+    "check:boundaries": "node scripts/check-boundaries.mjs",
+    "check:manifest": "pnpm --filter @vintage/api manifest:check",
+    "check:agent-docs": "node scripts/check-agent-docs.mjs",
+    "check:ci-selection": "node --test scripts/ci-selection.test.mjs",
+    "validate:final": "node scripts/run-final-validation.mjs",
+    "validate:full": "node scripts/run-final-validation.mjs --full",
+    "check": "pnpm validate:full",
+    "manifest:write": "pnpm --filter @vintage/api manifest:write",
+    "prepare": "lefthook install"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4",
+    "@types/node": "^24.10.0",
+    "@vitest/coverage-v8": "^4.1.12",
+    "lefthook": "^2.2.2",
+    "tsx": "^4.23.15",
+    "turbo": "^2.11.9",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vitest": "^4.1.12"
+  }
+}

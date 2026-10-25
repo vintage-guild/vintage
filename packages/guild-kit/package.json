@@ -1,0 +1,21 @@
+{
+  "name": "@vintage/guild-kit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Vintage policy layer over AFD: callers, permission tiers, guild context, dryRun/confirm, command manifest.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "type-check": "tsc6 -p tsconfig.json"
+  },
+  "dependencies": {
+    "@lushly-dev/afd-core": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@vintage/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

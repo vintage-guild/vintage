@@ -1,0 +1,13 @@
+{
+  "$comment": "Source of truth for ownership (PLAN §7.3). CODEOWNERS is generated from this and is notification-only.",
+  "areas": {
+    "guild-kit": { "paths": ["packages/guild-kit/"], "owners": ["@Falkicon"] },
+    "identity": { "paths": ["modules/identity/"], "owners": ["@Falkicon"] },
+    "api": { "paths": ["apps/api/"], "owners": ["@Falkicon"] },
+    "libs": { "paths": ["libs/"], "owners": ["@Falkicon"] },
+    "repo": {
+      "paths": [".github/", "scripts/", "tooling/", "AGENTS.md", "INIT.md", "PLAN.md"],
+      "owners": ["@Falkicon"]
+    }
+  }
+}

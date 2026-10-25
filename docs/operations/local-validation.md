@@ -1,0 +1,32 @@
+# Local validation
+
+The same commands run locally and in CI (PLAN §7.2).
+
+| Command | Runs | When |
+|---|---|---|
+| `pnpm validate:final` | lint, boundaries, agent docs, command manifest, type-check, tests | Before every PR (also the pre-push hook) |
+| `pnpm check` | everything above, plus the CI-selection self-test and botcore plugin tests | Before merging gate or tooling changes |
+| `pnpm check:boundaries` | layer, module, and cycle rules (`scripts/check-boundaries.mjs`) | Any change under `apps/ modules/ packages/ libs/` |
+| `pnpm check:manifest` | `commands.manifest.json` matches the registry | Any command change; fix with `pnpm manifest:write` |
+| `pnpm check:agent-docs` | AGENTS.md budget, live links, named skills exist, module AGENTS.md | Any docs/skills change |
+
+## Hooks (lefthook)
+
+- **pre-commit:** Biome on staged files (auto-fixes), boundaries when packages change
+- **commit-msg:** commitlint (Conventional Commits, scopes in `commitlint.config.mjs`)
+- **pre-push:** `pnpm validate:final`
+
+## Convex locally
+
+`pnpm --filter @vintage/api dev:local` starts an anonymous local backend (no account),
+pushes functions, and regenerates `convex/_generated`. Set the confirm secret once:
+
+```bash
+cd apps/api
+npx convex env set VINTAGE_CONFIRM_SECRET local-dev-secret
+```
+
+## Gate discipline
+
+When you add or change a gate, make it fail once on purpose and watch it fail before relying
+on it. Record the check in the PR description.

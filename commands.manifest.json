@@ -116,6 +116,53 @@
       }
     },
     {
+      "name": "guild-roles-get",
+      "description": "The Discord role id → guild rank map that member-sync uses to set rank and tier.",
+      "tier": "leader",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "guild-roles-set",
+      "description": "Replace the Discord role id → guild rank map. Shows the diff first; confirm to save. Tiers follow at the next role sync.",
+      "tier": "officer",
+      "mutation": true,
+      "destructive": true,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "roles": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "pattern": "^\\d{17,20}$"
+            },
+            "additionalProperties": {
+              "type": "string",
+              "enum": [
+                "officer",
+                "raid-leader",
+                "raider",
+                "flex-raider",
+                "recruit",
+                "member",
+                "friend"
+              ]
+            }
+          }
+        },
+        "required": [
+          "roles"
+        ]
+      }
+    },
+    {
       "name": "member-list",
       "description": "Guild members with their rank, tier, and main character. Discord-only friends are not listed.",
       "tier": "recruit",

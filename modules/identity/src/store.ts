@@ -22,12 +22,15 @@ export interface IdentityStore {
     patch: Partial<Omit<Character, 'id' | 'guildId' | 'memberId'>>,
   ): Promise<Character>;
   deleteCharacter(guildId: string, characterId: string): Promise<void>;
+
+  /** The guild's Discord role id → guild rank map (empty until an officer sets it). */
+  getRoleRankMap(guildId: string): Promise<RoleRankMap>;
+  /** Replace the guild's whole role → rank map. Returns the stored map. */
+  setRoleRankMap(guildId: string, map: RoleRankMap): Promise<RoleRankMap>;
 }
 
 export interface IdentityDeps {
   identity: IdentityStore;
-  /** Current Discord role id → guild rank mapping for this guild. */
-  roleRankMap: () => Promise<RoleRankMap>;
 }
 
 export const command = commandsFor<IdentityDeps>();

@@ -10,8 +10,8 @@ export const tier = v.union(
   v.literal('officer'),
 );
 
-/** Guild rank from Discord roles (null when the member has none). */
-export const rank = v.union(
+/** A guild rank (PLAN §3.4). */
+export const guildRank = v.union(
   v.literal('officer'),
   v.literal('raid-leader'),
   v.literal('raider'),
@@ -19,8 +19,10 @@ export const rank = v.union(
   v.literal('recruit'),
   v.literal('member'),
   v.literal('friend'),
-  v.null(),
 );
+
+/** Guild rank from Discord roles (null when the member has none). */
+export const rank = v.union(guildRank, v.null());
 
 export const role = v.union(
   v.literal('tank'),
@@ -62,4 +64,11 @@ export default defineSchema({
     .index('by_guild', ['guildId'])
     .index('by_guild_member', ['guildId', 'memberId'])
     .index('by_guild_name', ['guildId', 'name']),
+
+  /** Officer-editable map from a Discord role id to the guild rank it grants (PLAN §3.4). */
+  roleRanks: defineTable({
+    guildId: v.string(),
+    discordRoleId: v.string(),
+    rank: guildRank,
+  }).index('by_guild', ['guildId']),
 });

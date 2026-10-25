@@ -7,6 +7,8 @@ import { execSync, spawnSync } from 'node:child_process';
 const full = process.argv.includes('--full');
 
 const steps = [
+  // CI installs with --frozen-lockfile; catch a stale lockfile before it does.
+  ['lockfile', 'pnpm install --frozen-lockfile --lockfile-only --silent'],
   ['lint', 'pnpm lint'],
   ['boundaries', 'pnpm check:boundaries'],
   ['agent docs', 'pnpm check:agent-docs'],

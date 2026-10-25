@@ -83,7 +83,7 @@ export const syncMember = internalMutation({
   args: {
     discordId: v.string(),
     displayName: v.string(),
-    inGuild: v.boolean(),
+    inServer: v.boolean(),
     roleIds: v.array(v.string()),
   },
   handler: async (ctx, input) =>

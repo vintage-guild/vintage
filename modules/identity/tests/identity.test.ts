@@ -3,25 +3,46 @@ import { makeCaller, previewAndConfirm, TEST_GUILD_ID, testRegistry } from '@vin
 import { beforeEach, describe, expect, it } from 'vitest';
 import { identityCommands } from '../src/commands';
 import type { Character, Member } from '../src/contract';
-import { resolveTier } from '../src/domain/tier';
+import { resolveRank, tierForRank } from '../src/domain/rank';
 import type { IdentityDeps } from '../src/store';
 import { createMemoryIdentityDeps } from '../src/testing';
 
+// Mirrors the Vintage Discord's rank roles (ids are placeholders until the bot reads real ones).
 const ROLE_MAP = {
   'role-officer': 'officer',
+  'role-raid-leader': 'raid-leader',
   'role-raider': 'raider',
-  'role-trial': 'trial',
+  'role-flex': 'flex-raider',
+  'role-recruit': 'recruit',
+  'role-member': 'member',
+  'role-friend': 'friend',
 } as const;
 
-describe('resolveTier', () => {
-  it('uses the highest mapped role, with member as the floor', () => {
-    expect(resolveTier(true, ['role-trial', 'role-officer'], ROLE_MAP)).toBe('officer');
-    expect(resolveTier(true, ['unmapped'], ROLE_MAP)).toBe('member');
-    expect(resolveTier(true, [], ROLE_MAP)).toBe('member');
+describe('resolveRank / tierForRank', () => {
+  it('uses the highest guild rank among the roles', () => {
+    expect(resolveRank(true, ['role-recruit', 'role-officer'], ROLE_MAP)).toBe('officer');
+    expect(resolveRank(true, ['role-flex', 'role-raider'], ROLE_MAP)).toBe('raider');
+    expect(resolveRank(true, ['role-member', 'role-friend'], ROLE_MAP)).toBe('member');
   });
 
-  it('is public for someone not in the guild, whatever roles are cached', () => {
-    expect(resolveTier(false, ['role-officer'], ROLE_MAP)).toBe('public');
+  it('gives no rank to unranked accounts or anyone outside the server', () => {
+    expect(resolveRank(true, ['unmapped'], ROLE_MAP)).toBeNull();
+    expect(resolveRank(true, [], ROLE_MAP)).toBeNull();
+    expect(resolveRank(false, ['role-officer'], ROLE_MAP)).toBeNull();
+  });
+
+  it('maps ranks to permission tiers', () => {
+    expect(tierForRank('officer')).toBe('officer');
+    expect(tierForRank('raid-leader')).toBe('leader');
+    expect(tierForRank('raider')).toBe('raider');
+    expect(tierForRank('flex-raider')).toBe('raider');
+    expect(tierForRank('recruit')).toBe('recruit');
+    expect(tierForRank('member')).toBe('member');
+  });
+
+  it('treats Discord-only friends and unranked accounts as public', () => {
+    expect(tierForRank('friend')).toBe('public');
+    expect(tierForRank(null)).toBe('public');
   });
 });
 
@@ -39,30 +60,61 @@ describe('identity commands', () => {
     deps = createMemoryIdentityDeps({ ...ROLE_MAP });
     const synced = await run(
       'member-sync',
-      { discordId: 'd-aeryn', displayName: 'Aeryn', inGuild: true, roleIds: ['role-raider'] },
+      { discordId: 'd-aeryn', displayName: 'Aeryn', inServer: true, roleIds: ['role-raider'] },
       system,
     );
     aeryn = (synced.data as { member: Member }).member;
     asAeryn = makeCaller(aeryn.tier, { memberId: aeryn.id, discordId: aeryn.discordId });
   });
 
-  it('member-sync derives the tier from Discord roles and reports changes', async () => {
-    expect(aeryn.tier).toBe('raider');
+  it('member-sync derives rank and tier from Discord roles and reports changes', async () => {
+    expect(aeryn).toMatchObject({ rank: 'raider', tier: 'raider' });
     const promoted = await run(
       'member-sync',
-      { discordId: 'd-aeryn', displayName: 'Aeryn', inGuild: true, roleIds: ['role-officer'] },
+      { discordId: 'd-aeryn', displayName: 'Aeryn', inServer: true, roleIds: ['role-officer'] },
       system,
     );
     expect(promoted).toMatchObject({
       success: true,
-      data: { member: { id: aeryn.id, tier: 'officer' }, previousTier: 'raider' },
+      data: { member: { id: aeryn.id, rank: 'officer', tier: 'officer' }, previousRank: 'raider' },
     });
+  });
+
+  it('member-sync makes Discord-only friends and unranked accounts public', async () => {
+    const friend = await run(
+      'member-sync',
+      { discordId: 'd-pal', displayName: 'Pal', inServer: true, roleIds: ['role-friend'] },
+      system,
+    );
+    expect(friend).toMatchObject({ data: { member: { rank: 'friend', tier: 'public' } } });
+
+    const unranked = await run(
+      'member-sync',
+      { discordId: 'd-new', displayName: 'New', inServer: true, roleIds: [] },
+      system,
+    );
+    expect(unranked).toMatchObject({ data: { member: { rank: null, tier: 'public' } } });
+  });
+
+  it('flex raiders get raider permissions; raid leaders get the leader tier', async () => {
+    const flex = await run(
+      'member-sync',
+      { discordId: 'd-flex', displayName: 'Flex', inServer: true, roleIds: ['role-flex'] },
+      system,
+    );
+    expect(flex).toMatchObject({ data: { member: { rank: 'flex-raider', tier: 'raider' } } });
+    const lead = await run(
+      'member-sync',
+      { discordId: 'd-lead', displayName: 'Lead', inServer: true, roleIds: ['role-raid-leader'] },
+      system,
+    );
+    expect(lead).toMatchObject({ data: { member: { rank: 'raid-leader', tier: 'leader' } } });
   });
 
   it('member-sync is not available to raiders', async () => {
     const result = await run(
       'member-sync',
-      { discordId: 'x', displayName: 'X', inGuild: true, roleIds: [] },
+      { discordId: 'x', displayName: 'X', inServer: true, roleIds: [] },
       asAeryn,
     );
     expect(result).toMatchObject({ success: false, error: { code: 'COMMAND_NOT_FOUND' } });
@@ -164,13 +216,31 @@ describe('identity commands', () => {
     expect(anon).toMatchObject({ success: false, error: { code: 'COMMAND_NOT_FOUND' } });
   });
 
-  it('member-list is for trials and up and shows each main', async () => {
+  it('member-list is for recruits and up, shows rank and main, and hides friends', async () => {
     await run('character-add', { name: 'Aeryn', class: 'druid', spec: 'balance' }, asAeryn);
+    await run(
+      'member-sync',
+      { discordId: 'd-pal', displayName: 'Pal', inServer: true, roleIds: ['role-friend'] },
+      system,
+    );
+    await run(
+      'member-sync',
+      { discordId: 'd-flex', displayName: 'Bangarang', inServer: true, roleIds: ['role-flex'] },
+      system,
+    );
+
     const list = await run('member-list', {}, asAeryn);
     expect(list).toMatchObject({
       success: true,
-      data: [{ displayName: 'Aeryn', main: { name: 'Aeryn' } }],
+      data: [
+        { displayName: 'Aeryn', rank: 'raider', main: { name: 'Aeryn' } },
+        { displayName: 'Bangarang', rank: 'flex-raider', main: null },
+      ],
     });
+    expect((list.data as { displayName: string }[]).map((m) => m.displayName)).not.toContain('Pal');
+
+    const flexOnly = await run('member-list', { rank: 'flex-raider' }, asAeryn);
+    expect(flexOnly).toMatchObject({ data: [{ displayName: 'Bangarang' }] });
 
     const member = await run('member-list', {}, makeCaller('member'));
     expect(member).toMatchObject({ success: false });

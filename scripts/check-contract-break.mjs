@@ -6,7 +6,8 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 export function findBreaks(before, after) {
-  const TIERS = ['public', 'member', 'trial', 'raider', 'officer'];
+  // Keep in step with packages/guild-kit/src/tiers.ts.
+  const TIERS = ['public', 'member', 'recruit', 'raider', 'leader', 'officer'];
   const next = new Map(after.commands.map((c) => [c.name, c]));
   const breaks = [];
   for (const old of before.commands) {

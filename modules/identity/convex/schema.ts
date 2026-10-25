@@ -4,9 +4,22 @@ import { v } from 'convex/values';
 export const tier = v.union(
   v.literal('public'),
   v.literal('member'),
-  v.literal('trial'),
+  v.literal('recruit'),
   v.literal('raider'),
+  v.literal('leader'),
   v.literal('officer'),
+);
+
+/** Guild rank from Discord roles (null when the member has none). */
+export const rank = v.union(
+  v.literal('officer'),
+  v.literal('raid-leader'),
+  v.literal('raider'),
+  v.literal('flex-raider'),
+  v.literal('recruit'),
+  v.literal('member'),
+  v.literal('friend'),
+  v.null(),
 );
 
 export const role = v.union(
@@ -28,6 +41,8 @@ export default defineSchema({
     discordId: v.string(),
     displayName: v.string(),
     roleIds: v.array(v.string()),
+    // Optional so rows written before ranks existed stay valid; read as null until the next sync.
+    rank: v.optional(rank),
     tier,
     prefs,
     syncedAt: v.number(),

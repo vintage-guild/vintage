@@ -18,7 +18,7 @@ export const command = commandsFor<MyDeps>();
 export const thingAdd = command({
   name: 'thing-add',            // kebab-case <noun>-<verb>; defineGuildCommand throws otherwise
   description: 'One sentence an agent can act on.',
-  tier: 'member',               // public | member | trial | raider | officer
+  tier: 'member',               // public | member | recruit | raider | leader | officer
   mutation: true,               // changes data → runs via commands.run, not read
   input: z.object({ ... }),     // validated by the registry before the handler runs
   handler: async (input, { caller, guildId, deps, dryRun, now }) => {

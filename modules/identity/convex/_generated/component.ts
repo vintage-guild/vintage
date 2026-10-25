@@ -122,9 +122,19 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           discordId: string;
           displayName: string;
           guildId: string;
+          rank:
+            | "officer"
+            | "raid-leader"
+            | "raider"
+            | "flex-raider"
+            | "recruit"
+            | "member"
+            | "friend"
+            | null;
           roleIds: Array<string>;
           syncedAt: number;
-          tier: "public" | "member" | "trial" | "raider" | "officer";
+          tier:
+            "public" | "member" | "recruit" | "raider" | "leader" | "officer";
         },
         any,
         Name

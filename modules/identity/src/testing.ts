@@ -1,5 +1,4 @@
-import type { Tier } from '@vintage/guild-kit';
-import type { Character, Member } from './contract';
+import type { Character, Member, RoleRankMap } from './contract';
 import type { IdentityDeps, IdentityStore } from './store';
 
 /** In-memory IdentityStore for tests and local agents. Same behavior contract as the Convex store. */
@@ -75,8 +74,8 @@ export function createMemoryIdentityStore(): IdentityStore & {
 }
 
 /** Deps for identity commands backed by the memory store. */
-export function createMemoryIdentityDeps(roleTierMap: Record<string, Tier> = {}): IdentityDeps & {
+export function createMemoryIdentityDeps(roleRankMap: RoleRankMap = {}): IdentityDeps & {
   identity: ReturnType<typeof createMemoryIdentityStore>;
 } {
-  return { identity: createMemoryIdentityStore(), roleTierMap: async () => roleTierMap };
+  return { identity: createMemoryIdentityStore(), roleRankMap: async () => roleRankMap };
 }

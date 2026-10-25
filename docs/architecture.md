@@ -81,7 +81,8 @@ Outside that set, the main platforms are **Convex** (database, functions, crons)
 |---|---|
 | **Command** | A named operation (`character-add`) with a Zod input, a minimum tier, and a handler returning `CommandResult`. Kebab-case `<noun>-<verb>`, per AFD. Defined with `commandsFor<Deps>()` from `guild-kit` |
 | **Registry** | The single execution path in `guild-kit`: lookup → tier check → input validation → (dryRun → confirm token for destructive commands) → handler. Every surface uses it |
-| **Tier** | Permission level: `public < member < trial < raider < officer`, derived from Discord roles by `member-sync` |
+| **Guild rank** | Standing in the guild, from Discord roles: Officer, Raid Leader, Raider, Flex Raider, Recruit, Member, Friend. The coordinator uses it for priority |
+| **Tier** | Permission level derived from rank: `public < member < recruit < raider < leader < officer`. Friends and unranked accounts are `public`. Written only by `member-sync` |
 | **Caller** | Who is calling, resolved by the host before a command runs: surface, guild, tier, member id |
 | **Module** | A workspace package under `modules/` that owns one feature area and its data |
 | **Contract** | `src/contract.ts`: a module's public types, command names, and events. The only file other modules may import |

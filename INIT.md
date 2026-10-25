@@ -49,4 +49,4 @@ npx convex run commands:read '{"name":"member-list","input":{}}'
 ```
 
 The last call returns `COMMAND_NOT_FOUND`: the CLI runs as a public caller and `member-list`
-needs `trial`. Sign-in (Better Auth + Discord) is the next Phase 0 item.
+needs `recruit`. Sign-in (Better Auth + Discord) is the next Phase 0 item.

@@ -1,6 +1,7 @@
 import { error, success } from '@vintage/guild-kit';
 import { z } from 'zod';
-import { resolveTier } from '../domain/tier';
+import { GUILD_RANKS } from '../contract';
+import { resolveRank, tierForRank } from '../domain/rank';
 import { command } from '../store';
 
 export const notSignedIn = () =>
@@ -11,7 +12,7 @@ export const notSignedIn = () =>
 
 export const memberMe = command({
   name: 'member-me',
-  description: 'Your member profile: tier, Discord roles, preferences, and characters.',
+  description: 'Your member profile: guild rank, tier, Discord roles, preferences, and characters.',
   tier: 'member',
   input: z.object({}),
   handler: async (_input, { caller, guildId, deps }) => {
@@ -25,21 +26,23 @@ export const memberMe = command({
 
 export const memberList = command({
   name: 'member-list',
-  description: 'Guild members with their tier and main character.',
-  tier: 'trial',
-  input: z.object({ tier: z.enum(['member', 'trial', 'raider', 'officer']).optional() }),
-  handler: async ({ tier }, { guildId, deps }) => {
+  description:
+    'Guild members with their rank, tier, and main character. Discord-only friends are not listed.',
+  tier: 'recruit',
+  input: z.object({ rank: z.enum(GUILD_RANKS).exclude(['friend']).optional() }),
+  handler: async ({ rank }, { guildId, deps }) => {
     const [members, characters] = await Promise.all([
       deps.identity.listMembers(guildId),
       deps.identity.listCharacters(guildId),
     ]);
     const mains = new Map(characters.filter((c) => c.isMain).map((c) => [c.memberId, c]));
     const rows = members
-      .filter((m) => m.tier !== 'public' && (!tier || m.tier === tier))
+      .filter((m) => m.tier !== 'public' && (!rank || m.rank === rank))
       .sort((a, b) => a.displayName.localeCompare(b.displayName))
       .map((m) => ({
         id: m.id,
         displayName: m.displayName,
+        rank: m.rank,
         tier: m.tier,
         main: mains.get(m.id) ?? null,
       }));
@@ -53,30 +56,36 @@ export const memberList = command({
  */
 export const memberSync = command({
   name: 'member-sync',
-  description: "Sync one member's tier from their Discord guild membership and roles.",
+  description:
+    "Sync one member's guild rank and tier from their Discord server membership and roles.",
   tier: 'officer',
   mutation: true,
   input: z.object({
     discordId: z.string().min(1),
     displayName: z.string().min(1),
-    inGuild: z.boolean(),
+    /** Whether they're in the guild's Discord server at all. */
+    inServer: z.boolean(),
     roleIds: z.array(z.string()),
   }),
   handler: async (input, { guildId, deps, now }) => {
-    const tier = resolveTier(input.inGuild, input.roleIds, await deps.roleTierMap());
+    const rank = resolveRank(input.inServer, input.roleIds, await deps.roleRankMap());
+    const tier = tierForRank(rank);
     const before = await deps.identity.getMemberByDiscordId(guildId, input.discordId);
     const member = await deps.identity.upsertMember({
       guildId,
       discordId: input.discordId,
       displayName: input.displayName,
       roleIds: input.roleIds,
+      rank,
       tier,
       syncedAt: now(),
     });
-    const previousTier = before?.tier ?? null;
+    const previousRank = before ? before.rank : null;
+    const changed = !before || previousRank !== rank || before.tier !== tier;
+    const label = rank ? `${rank} (${tier})` : `no guild rank (${tier})`;
     return success(
-      { member, previousTier },
-      { reasoning: previousTier === tier ? `Tier unchanged (${tier})` : `Tier set to ${tier}` },
+      { member, previousRank },
+      { reasoning: changed ? `Now ${label}` : `Unchanged: ${label}` },
     );
   },
 });

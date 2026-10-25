@@ -49,7 +49,7 @@
     },
     {
       "name": "character-list",
-      "description": "Characters for a member (yours by default), or the whole guild for trials and up.",
+      "description": "Characters for a member (yours by default), or the whole guild for recruits and up.",
       "tier": "member",
       "mutation": false,
       "destructive": false,
@@ -117,21 +117,23 @@
     },
     {
       "name": "member-list",
-      "description": "Guild members with their tier and main character.",
-      "tier": "trial",
+      "description": "Guild members with their rank, tier, and main character. Discord-only friends are not listed.",
+      "tier": "recruit",
       "mutation": false,
       "destructive": false,
       "input": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
         "properties": {
-          "tier": {
+          "rank": {
             "type": "string",
             "enum": [
-              "member",
-              "trial",
+              "officer",
+              "raid-leader",
               "raider",
-              "officer"
+              "flex-raider",
+              "recruit",
+              "member"
             ]
           }
         }
@@ -139,7 +141,7 @@
     },
     {
       "name": "member-me",
-      "description": "Your member profile: tier, Discord roles, preferences, and characters.",
+      "description": "Your member profile: guild rank, tier, Discord roles, preferences, and characters.",
       "tier": "member",
       "mutation": false,
       "destructive": false,
@@ -173,7 +175,7 @@
     },
     {
       "name": "member-sync",
-      "description": "Sync one member's tier from their Discord guild membership and roles.",
+      "description": "Sync one member's guild rank and tier from their Discord server membership and roles.",
       "tier": "officer",
       "mutation": true,
       "destructive": false,
@@ -189,7 +191,7 @@
             "type": "string",
             "minLength": 1
           },
-          "inGuild": {
+          "inServer": {
             "type": "boolean"
           },
           "roleIds": {
@@ -202,7 +204,7 @@
         "required": [
           "discordId",
           "displayName",
-          "inGuild",
+          "inServer",
           "roleIds"
         ]
       }

@@ -159,15 +159,20 @@ Destructive: `raid.cancel`, `roster.remove`, `loot.award`, `character.remove`, `
 ### 3.4 Identity and Discord roles
 
 - **Sign-in:** Discord OAuth only (scopes: `identify`, `guilds.members.read`).
-- **Role → permission tier** (config, officer-editable):
+- **Discord role → guild rank → permission tier** (Q1, answered 2026-10-25 from the Vintage Discord). The role → rank map is officer-editable config keyed by Discord role id; rank → tier is fixed in code (`RANK_TIER` in the identity contract):
 
-  | Discord role | Tier | Can |
-  |---|---|---|
-  | `@Officer` (TBD) | officer | everything: schedules, roster moves, loot awards, site pages, agent controls |
-  | `@Raider` (TBD) | raider | sign up, wishlist, view standings and loot history |
-  | `@Trial` (TBD) | trial | sign up, wishlist |
-  | `@Social` / any member | member | profile, characters, public + member pages |
-  | not in guild | public | public pages only |
+  | Discord role | Guild rank | Tier | Can |
+  |---|---|---|---|
+  | `@Officer` | officer | officer | everything: guild settings, loot policy and awards, roster, schedules, site pages, agent controls |
+  | `@Raid Leader` | raid-leader | leader | run the night: roster moves, comp, schedules, coordinator controls; no loot policy or site admin |
+  | `@Raider` | raider | raider | sign up, wishlist, standings and loot history; **first dibs** in coordinator priority |
+  | `@Flex Raider` | flex-raider | raider | same permissions as Raider; pulled in by availability and comp needs |
+  | `@Recruit` | recruit | recruit | sign up, wishlist; under evaluation (~2 weeks) |
+  | `@Member` | member | member | profile, characters, member pages; no raiding intent |
+  | `@Friend` (Discord only) | friend | public | public pages only; not in the guild |
+  | no rank role, or not in the server | — | public | public pages only |
+
+  Rank and tier are separate: rank is guild standing (used for coordinator priority), tier is permission. Being in the Discord server alone grants nothing.
 
 - **Sync:** on every sign-in (member object via `GET /users/@me/guilds/{id}/member`) and on a cron via the bot (`GET /guilds/{id}/members`, which requires the Server Members privileged intent; a bot in under 100 servers can enable it in the developer portal without verification).
 - **Characters:** members register mains/alts (name, class, spec, role). Later: Battle.net linking to verify ownership.
@@ -753,7 +758,7 @@ Phase 0 has about ten days and one maintainer, so it is cut to the minimum that 
 
 | # | Question | Owner | Blocks |
 |---|---|---|---|
-| 1 | Discord role names and which tier each maps to | GM | Phase 0 role map |
+| 1 | ~~Discord role names and which tier each maps to~~ **Answered** (§3.4); role ids come from the bot | GM | — |
 | 2 | Raid nights/times and the channels the bot posts in | GM | Phase 1 schedules |
 | 3 | Reminder etiquette: are DMs OK, or channel pings only? | GM | Phase 1 reminders |
 | 4 | Who adds the bot (needs Manage Server), and is the Server Members intent OK? | GM | Phase 0 role sync |

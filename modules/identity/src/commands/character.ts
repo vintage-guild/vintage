@@ -122,7 +122,8 @@ export const characterRemove = command({
 
 export const characterList = command({
   name: 'character-list',
-  description: 'Characters for a member (yours by default), or the whole guild for trials and up.',
+  description:
+    'Characters for a member (yours by default), or the whole guild for recruits and up.',
   tier: 'member',
   input: z.object({
     memberId: z.string().optional(),
@@ -130,8 +131,8 @@ export const characterList = command({
   }),
   handler: async ({ memberId, allGuild }, { caller, guildId, deps }) => {
     if (allGuild || (memberId && memberId !== caller.memberId)) {
-      if (!tierAllows(caller.tier, 'trial')) {
-        return error('FORBIDDEN', 'Only guild trials and up can see other members’ characters', {
+      if (!tierAllows(caller.tier, 'recruit')) {
+        return error('FORBIDDEN', 'Only recruits and up can see other members’ characters', {
           retryable: false,
         });
       }

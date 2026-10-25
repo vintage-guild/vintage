@@ -1,5 +1,5 @@
-import { commandsFor, type Tier } from '@vintage/guild-kit';
-import type { Character, Member, MemberPrefs } from './contract';
+import { commandsFor } from '@vintage/guild-kit';
+import type { Character, Member, MemberPrefs, RoleRankMap } from './contract';
 
 /**
  * The identity module's data port. Commands depend on this, not on Convex: production
@@ -26,8 +26,8 @@ export interface IdentityStore {
 
 export interface IdentityDeps {
   identity: IdentityStore;
-  /** Current Discord role id → tier mapping for this guild. */
-  roleTierMap: () => Promise<Record<string, Tier>>;
+  /** Current Discord role id → guild rank mapping for this guild. */
+  roleRankMap: () => Promise<RoleRankMap>;
 }
 
 export const command = commandsFor<IdentityDeps>();

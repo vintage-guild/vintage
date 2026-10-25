@@ -3,11 +3,11 @@
 import { v } from 'convex/values';
 import type { Doc } from './_generated/dataModel';
 import { mutation, query } from './_generated/server';
-import { prefs, tier } from './schema';
+import { prefs, rank, tier } from './schema';
 
 const toMember = (doc: Doc<'members'>) => {
-  const { _id, _creationTime, ...rest } = doc;
-  return { id: _id as string, ...rest };
+  const { _id, _creationTime, rank, ...rest } = doc;
+  return { id: _id as string, rank: rank ?? null, ...rest };
 };
 
 export const get = query({
@@ -47,6 +47,7 @@ export const upsert = mutation({
     discordId: v.string(),
     displayName: v.string(),
     roleIds: v.array(v.string()),
+    rank,
     tier,
     syncedAt: v.number(),
   },

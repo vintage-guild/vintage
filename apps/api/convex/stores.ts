@@ -1,8 +1,7 @@
 // Adapters from module ports to Convex: each module's store calls its own component.
 // Commands never see Convex; they get these through `deps` (PLAN §3.3).
-import type { Tier } from '@vintage/guild-kit';
 import type { IdentityDeps, IdentityStore } from '@vintage/identity/commands';
-import type { Character, Member } from '@vintage/identity/contract';
+import type { Character, Member, RoleRankMap } from '@vintage/identity/contract';
 import type { WowClass } from '@vintage/wow-data';
 import type { GenericMutationCtx, GenericQueryCtx } from 'convex/server';
 import { components } from './_generated/api';
@@ -74,12 +73,12 @@ export function identityStore(ctx: Ctx): IdentityStore {
 export function identityDeps(ctx: Ctx, guildId: string): IdentityDeps {
   return {
     identity: identityStore(ctx),
-    roleTierMap: async () => {
+    roleRankMap: async () => {
       const settings = await ctx.db
         .query('guildSettings')
         .withIndex('by_guild', (q) => q.eq('guildId', guildId))
         .unique();
-      return (settings?.roleTierMap ?? {}) as Record<string, Tier>;
+      return (settings?.roleRankMap ?? {}) as RoleRankMap;
     },
   };
 }

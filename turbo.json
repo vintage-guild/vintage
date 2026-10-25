@@ -1,0 +1,11 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "cacheDir": ".turbo/cache",
+  "globalDependencies": ["tsconfig.base.json"],
+  "globalPassThroughEnv": ["CI", "NODE_ENV", "CONVEX_DEPLOYMENT", "CONVEX_AGENT_MODE"],
+  "tasks": {
+    "build": { "dependsOn": ["^build"], "outputs": ["dist/**"] },
+    "dev": { "cache": false, "persistent": true },
+    "type-check": { "dependsOn": ["^build"] }
+  }
+}

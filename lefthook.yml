@@ -1,0 +1,28 @@
+output:
+  - summary
+  - failure
+  - execution_info
+
+pre-commit:
+  parallel: false
+  commands:
+    lint:
+      glob: "*.{ts,mts,cts,js,mjs,cjs,json,jsonc}"
+      exclude:
+        - ".claude/**"
+        - "**/_generated/**"
+      run: pnpm exec biome check --error-on-warnings --no-errors-on-unmatched --write {staged_files}
+      stage_fixed: true
+    boundaries:
+      glob: "{apps,modules,packages,libs}/**"
+      run: pnpm check:boundaries
+
+commit-msg:
+  commands:
+    commitlint:
+      run: pnpm exec commitlint --edit "{1}"
+
+pre-push:
+  commands:
+    validate-final:
+      run: pnpm validate:final

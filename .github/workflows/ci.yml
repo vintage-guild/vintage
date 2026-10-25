@@ -1,0 +1,160 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 9 * * 0' # weekly full validation
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  select:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      docsOnly: ${{ steps.selection.outputs.docsOnly }}
+      fullValidation: ${{ steps.selection.outputs.fullValidation }}
+      ts: ${{ steps.selection.outputs.ts }}
+      contract: ${{ steps.selection.outputs.contract }}
+      addon: ${{ steps.selection.outputs.addon }}
+      botcore: ${{ steps.selection.outputs.botcore }}
+      workflowContracts: ${{ steps.selection.outputs.workflowContracts }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          # no pnpm in this job; setup-node@v5 would auto-enable the pnpm cache from packageManager
+          package-manager-cache: false
+      - id: selection
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: >
+          node scripts/ci-selection.mjs --event "$EVENT" --base "$BASE" --head "$HEAD"
+          --labels "$LABELS" --output "$RUNNER_TEMP/ci-selection.json" --github-output "$GITHUB_OUTPUT"
+
+  ts:
+    needs: select
+    if: needs.select.outputs.ts == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm check:boundaries
+      - run: pnpm check:agent-docs
+      - run: pnpm type-check
+      - run: pnpm test:run
+
+  contract:
+    needs: select
+    if: needs.select.outputs.contract == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Manifest matches the registry
+        run: pnpm check:manifest
+      - name: Breaking changes need the breaking-contract label
+        if: github.event_name == 'pull_request'
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: node scripts/check-contract-break.mjs --base "$BASE" --labels "$LABELS"
+
+  addon:
+    needs: select
+    if: needs.select.outputs.addon == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - name: Addon not scaffolded yet
+        run: |
+          if [ -f addon/Vintage/Tools/validate.py ]; then
+            sudo apt-get update && sudo apt-get install --yes lua5.1 luarocks
+            python3 addon/Vintage/Tools/install_lua_tools.py
+            python3 addon/Vintage/Tools/validate.py --lua lua5.1
+          else
+            echo "addon/Vintage is scaffolded in Phase 1 (PLAN §8); nothing to validate yet."
+          fi
+
+  botcore:
+    needs: select
+    if: needs.select.outputs.botcore == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - run: uv run --directory tooling/botcore pytest -q
+
+  workflow-contracts:
+    needs: select
+    if: needs.select.outputs.workflowContracts == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+      - run: node --test scripts/ci-selection.test.mjs
+
+  ci-ok:
+    if: always()
+    needs: [select, ts, contract, addon, botcore, workflow-contracts]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Every owed lane passed
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          node -e '
+            const needs = JSON.parse(process.env.NEEDS);
+            if (needs.select.result !== "success") {
+              console.error(`select: ${needs.select.result}`); process.exit(1);
+            }
+            const owed = needs.select.outputs;
+            const lanes = { ts: "ts", contract: "contract", addon: "addon", botcore: "botcore",
+                            "workflow-contracts": "workflowContracts" };
+            let failed = false;
+            for (const [job, flag] of Object.entries(lanes)) {
+              const required = owed[flag] === "true";
+              const result = needs[job].result;
+              const ok = required ? result === "success" : result === "skipped" || result === "success";
+              console.log(`${ok ? "ok  " : "FAIL"} ${job}: owed=${required} result=${result}`);
+              if (!ok) failed = true;
+            }
+            process.exit(failed ? 1 : 0);
+          '

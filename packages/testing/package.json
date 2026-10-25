@@ -1,0 +1,20 @@
+{
+  "name": "@vintage/testing",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared test fixtures: callers, clocks, and registry helpers.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "type-check": "tsc6 -p tsconfig.json"
+  },
+  "dependencies": {
+    "@vintage/guild-kit": "workspace:*"
+  },
+  "devDependencies": {
+    "@vintage/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

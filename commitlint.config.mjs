@@ -1,0 +1,47 @@
+export default {
+  extends: ['@commitlint/config-conventional'],
+  rules: {
+    'type-enum': [
+      2,
+      'always',
+      ['feat', 'fix', 'docs', 'style', 'refactor', 'test', 'chore', 'perf', 'build', 'ci', 'merge'],
+    ],
+    'scope-enum': [
+      2,
+      'always',
+      [
+        // modules
+        'identity',
+        'raids',
+        'coordinator',
+        'loot',
+        'wishlist',
+        'site',
+        'labs',
+        // packages, libs, apps
+        'guild-kit',
+        'agent',
+        'ui-kit',
+        'testing',
+        'config',
+        'libs',
+        'api',
+        'gateway',
+        'web',
+        'cli',
+        // surfaces
+        'addon',
+        'botcore',
+        'design',
+        'docs',
+        'ci',
+        'deps',
+        'deps-dev',
+        'repo',
+      ],
+    ],
+    'subject-max-length': [2, 'always', 72],
+    'subject-full-stop': [2, 'never', '.'],
+    'subject-case': [2, 'never', ['sentence-case', 'start-case', 'pascal-case', 'upper-case']],
+  },
+};

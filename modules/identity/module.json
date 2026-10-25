@@ -1,0 +1,7 @@
+{
+  "name": "identity",
+  "maturity": "core",
+  "owners": ["@Falkicon"],
+  "dependsOn": [],
+  "description": "Members, characters, and Discord role → permission tier sync (PLAN §3.4)."
+}

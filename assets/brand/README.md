@@ -1,5 +1,7 @@
 # Brand assets
 
+> **All rights reserved** — not covered by the repo's MIT license. See [LICENSE.md](LICENSE.md).
+
 | File | Use |
 |---|---|
 | `vintage-logo.png` | Original raster (1536×1024), the source for the traces |

@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "description": "Guild platform for Vintage on WoW: Forever: raid coordinator, website, loot, and addon on one AFD command surface.",
+  "license": "MIT",
   "packageManager": "pnpm@10.26.2",
   "engines": {
     "node": ">=24.18.0 <25",

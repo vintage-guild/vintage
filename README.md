@@ -27,3 +27,8 @@ Node 24, pnpm 10, and `uv` for the botcore repo tooling.
 pnpm install
 pnpm validate:final
 ```
+
+## License
+
+Code is [MIT](LICENSE). The Vintage logos and brand artwork in [`assets/brand/`](assets/brand/)
+are **all rights reserved** ([details](assets/brand/LICENSE.md)); forks must use their own branding.

@@ -46,6 +46,19 @@ test('workflow change owes workflow contracts', () => {
   assert.equal(s.ts, false);
 });
 
+test('gate script change owes ts, which runs the gate and lints scripts', () => {
+  for (const path of ['scripts/check-boundaries.mjs', 'scripts/lib/workspace.mjs']) {
+    const s = selectCi({ eventName: 'pull_request', paths: [path] });
+    assert.equal(s.ts, true, path);
+    assert.equal(s.workflowContracts, true, path);
+  }
+});
+
+test('contract-break script change owes contract, which runs it', () => {
+  const s = selectCi({ eventName: 'pull_request', paths: ['scripts/check-contract-break.mjs'] });
+  assert.equal(s.contract, true);
+});
+
 test('full-validation label owes every lane', () => {
   const s = selectCi({
     eventName: 'pull_request',

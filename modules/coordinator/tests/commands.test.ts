@@ -1,3 +1,4 @@
+import { decodeRaidImport } from '@vintage/bridge-format';
 import { DEFAULT_TIMINGS, type RaidEvent, type Signup } from '@vintage/raids/contract';
 import { fixedClock, makeCaller, testRegistry } from '@vintage/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -100,6 +101,63 @@ describe('coordinator commands', () => {
           },
         ],
       },
+    });
+  });
+
+  it('gives leaders the addon import string for an upcoming raid, and nobody below', async () => {
+    const tank: Signup = {
+      id: 'signup-1',
+      guildId: 'guild-test',
+      eventId: 'raid-1',
+      memberId: 'member-1',
+      characterId: 'char-1',
+      characterName: 'Bloodfen Il',
+      class: 'warrior',
+      spec: 'protection',
+      role: 'tank',
+      status: 'accepted',
+      note: null,
+      signedUpAt: clock.now() - 3600 * 1000,
+      updatedAt: clock.now() - 3600 * 1000,
+      roster: 'rostered',
+      group: 1,
+      queued: false,
+      promotedAt: null,
+    };
+    deps = createMemoryCoordinatorDeps(() => ({
+      guildId: 'guild-test',
+      events: [{ event, timings: DEFAULT_TIMINGS, signups: [tank] }],
+      members: [
+        {
+          memberId: 'member-1',
+          discordId: '200000000000000001',
+          displayName: 'Bloodfen',
+          rank: 'flex-raider',
+          dmOptOut: false,
+        },
+      ],
+    }));
+
+    const got = await run('addon-import-get', { eventId: 'raid-1' });
+    expect(got).toMatchObject({
+      success: true,
+      data: { eventId: 'raid-1', name: 'MC', characters: 1 },
+    });
+    const decoded = decodeRaidImport((got as { data: { importString: string } }).data.importString);
+    expect(decoded).toMatchObject({
+      ok: true,
+      value: {
+        raid: { eventId: 'raid-1', title: 'MC' },
+        roster: [{ characterId: 'char-1', name: 'Bloodfen Il', role: 'tank' }],
+        groups: [{ group: 1, characterIds: ['char-1'] }],
+      },
+    });
+
+    expect(
+      await run('addon-import-get', { eventId: 'raid-1' }, makeCaller('raider')),
+    ).toMatchObject({ error: { code: 'COMMAND_NOT_FOUND' } });
+    expect(await run('addon-import-get', { eventId: 'raid-99' })).toMatchObject({
+      error: { code: 'RAID_NOT_UPCOMING' },
     });
   });
 

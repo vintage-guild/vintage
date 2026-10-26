@@ -156,13 +156,16 @@ export function finalRoster(
   };
 }
 
-/** The addon import string (libs/bridge-format) for officers to paste in game. */
-export function renderImportString(
+/**
+ * The addon import string (libs/bridge-format) for a raid: who goes by the comp, with their
+ * groups. Shared by the officer-channel post and `addon-import-get`, so both give the same string.
+ */
+export function buildImportString(
   tick: TickEvent,
   members: TickMember[],
   guildId: string,
   now: number,
-): MessageData {
+): { characters: number; encoded: ReturnType<typeof encodeBridge> } {
   const { going } = finalRoster(tick, members);
   const groups = new Map<number, string[]>();
   for (const s of going) {
@@ -195,7 +198,18 @@ export function renderImportString(
     },
     candidates: [],
   });
-  const header = `Addon import for **${tick.event.name}** (${going.length} characters). Paste it into the Vintage addon:`;
+  return { characters: going.length, encoded };
+}
+
+/** The addon import string as the officer-channel message. */
+export function renderImportString(
+  tick: TickEvent,
+  members: TickMember[],
+  guildId: string,
+  now: number,
+): MessageData {
+  const { characters, encoded } = buildImportString(tick, members, guildId, now);
+  const header = `Addon import for **${tick.event.name}** (${characters} characters). Paste it into the Vintage addon:`;
   if (!encoded.ok) {
     return {
       content: `${header}\nCould not build it: ${encoded.error.message}`,

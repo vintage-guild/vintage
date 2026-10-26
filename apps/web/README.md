@@ -14,6 +14,7 @@ pnpm --filter @vintage/web build   # dist/
 | `/about` | About and recruitment (placeholder copy until the `site` module) |
 | `/profile` | Member profile; signed out until Discord sign-in (#7) |
 | `/characters` | Character registration; signed out until #7, then `vintage-character-form` |
+| `/officers` | The officers' quarters, for leaders and officers (others get a sign-in card or a note): the Tonight tab (`vintage-tonight`) over `raid-list`, `signup-list`, `comp-suggest`, `coordinator-status`, the roster commands, and `addon-import-get`; the other tabs are listed and disabled until built |
 | `/ui` | Dev only: every ui-kit element (and the theme switch), for checking both themes |
 
 - `index.html` is the shell: the sticky `vintage-logo-header` (the single-color vector logo

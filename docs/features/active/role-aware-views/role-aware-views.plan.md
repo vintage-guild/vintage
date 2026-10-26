@@ -208,13 +208,34 @@ New jobs for [docs/jtbd](../../../jtbd/README.md), each as a scenario test and a
 - The page doesn't decide who is a non-responder or what a gap is; both come from commands, so
   Discord, the site, and an agent agree.
 
+**Pass 3 (2026-10-26): `/officers` and the Tonight tab.**
+
+- `/officers` in `apps/web`: leaders and officers get the room; signed-out visitors get a
+  sign-in card and lower tiers a plain note. The header gains an "Officers" link for them, and
+  the strip on the home page now links here. The tabs are listed by job; only Tonight is built,
+  the rest are disabled with what they will hold.
+- `vintage-tonight` (ui-kit): the picked raid (the next one by default, a picker when there are
+  several), counts, comp gaps, who hasn't answered, signups by role with answer, place (group,
+  benched, queued, unplaced), and note, and declines in one line. Every action is an
+  `@command`: lock and unlock (`roster-lock` / `roster-unlock`), place in a group
+  (`roster-move`, five to a group), bench (`roster-bench`), remove (`roster-remove`), and copy
+  the addon import. Removal shows the server's preview and runs only with its confirm token;
+  the confirm line is built from the preview's signup, not the registry's agent-facing hint.
+- New command `addon-import-get` (coordinator, leader, read): the addon import string for an
+  upcoming raid. It shares `buildImportString` with the officer-channel post, so the site and
+  Discord hand out the same string.
+- The dev fixtures' page client no longer auto-confirms destructive commands, so the preview and
+  confirm step shows in dev exactly as it will against Convex. Seeding still auto-confirms.
+- Phone: the room fits at 375 px without sideways scroll, but each signup row stacks to about
+  140 px, so a forty-player list is long. A compact row is worth doing once officers use it.
+
 ## Tasks
 
 - [x] `view` from the session; home page composes by view; dev fixture switch
 - [x] `vintage-hero` compact mode and member-bound figures
 - [ ] Signup card: queued and how many ahead, lock time; `notes` on `RaidEvent` (raids contract, manifest)
 - [x] `vintage-officer-strip`
-- [ ] `/officers` route, tier guard, Tonight tab (digest, non-responders, roster controls, import string)
+- [x] `/officers` route, tier guard, Tonight tab (digest, non-responders, roster controls, import string)
 - [ ] Calendar, Coordinator, Polls, Progress tabs
 - [ ] `site` module: `site-recruiting-get` / `site-recruiting-set`, Recruiting tab, band reads it
 - [ ] Trial start date on identity; Roster tab

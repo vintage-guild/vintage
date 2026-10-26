@@ -37,8 +37,18 @@ export interface FixtureHost {
   deps: FixtureDeps;
   /** What the coordinator "sent" to Discord during seeding and after. */
   discord: ReturnType<typeof createFakeDiscord>;
-  /** Run a command as `caller`; destructive commands are confirmed automatically. */
+  /** Run a command as `caller`; destructive commands are confirmed automatically (seeding). */
   run<T = unknown>(caller: Caller, name: string, input?: unknown): Promise<CommandResult<T>>;
+  /**
+   * Run a command as `caller` the way the server does: a destructive command without a token
+   * answers with its preview and a `confirmToken`, and runs only when called again with it.
+   */
+  execute<T = unknown>(
+    caller: Caller,
+    name: string,
+    input?: unknown,
+    confirmToken?: string,
+  ): Promise<CommandResult<T>>;
   /** The caller for a synced member, with the tier identity gave them. */
   callerFor(member: Member): Caller;
   /** A member by display name, once seeded. */
@@ -173,6 +183,10 @@ export function createFixtureHost(guildId = FIXTURE_GUILD_ID): FixtureHost {
     deps,
     discord,
     run,
+    execute: (caller, name, input = {}, confirmToken) =>
+      registry.execute({ name, input, caller, confirmToken }, deps) as Promise<
+        CommandResult<never>
+      >,
     system,
     callerFor: (member) => ({
       surface: 'web',
@@ -189,9 +203,13 @@ export function createFixtureHost(guildId = FIXTURE_GUILD_ID): FixtureHost {
 }
 
 /** A ui-kit command client that runs every call through the host as one caller. */
+/**
+ * The pages' client: no auto-confirm, so a destructive command shows its preview and waits for
+ * the confirm token, exactly as it will against Convex.
+ */
 export function createHostClient(host: FixtureHost, caller: Caller): CommandClient {
   return {
-    read: (name, input) => host.run(caller, name, input ?? {}),
-    run: (name, input) => host.run(caller, name, input ?? {}),
+    read: (name, input) => host.execute(caller, name, input ?? {}),
+    run: (name, input, options) => host.execute(caller, name, input ?? {}, options?.confirmToken),
   };
 }

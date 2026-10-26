@@ -2,6 +2,26 @@
   "schemaVersion": 1,
   "commands": [
     {
+      "name": "addon-import-get",
+      "description": "The addon import string for an upcoming raid: who goes by the comp, with their groups, ready to paste into the Vintage addon. The same string the coordinator posts to the officer channel after lock.",
+      "tier": "leader",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "eventId"
+        ]
+      }
+    },
+    {
       "name": "character-add",
       "description": "Register one of your characters (main or alt).",
       "tier": "member",

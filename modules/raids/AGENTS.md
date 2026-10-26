@@ -22,15 +22,21 @@ directly. Maturity: **core**.
 - **Materializing is idempotent.** `schedule-materialize` skips any occurrence that already has
   an event, including a cancelled one, so cancelling a night sticks. Keep it that way: the
   coordinator runs it on a cron.
-- **One signup per member per raid.** Changing your answer or character updates that signup and
-  keeps `signedUpAt`, so people keep their place in line. Swapping characters or declining drops
-  the roster spot.
+- **One signup per member per raid.** Changing your character, or switching between accepted
+  and late, keeps `signedUpAt` (your place in line). Stepping down to tentative, bench, or
+  declined resets it to now, so you go to the back. Swapping characters or declining drops the
+  roster spot.
+- **The queue** (`domain/queue.ts`): when more people are going (accepted or late) than the raid
+  holds, the earliest are in and the rest are `queued`. Every signup change and removal re-runs
+  `syncQueue`; a queued person whose turn comes gets `promotedAt` and a `signup-promoted` event.
+  Queued people count as bench in `comp-suggest`.
 - **Identity is read through `RaidsMembers`**, never its tables. Signups snapshot the
   character's name, class, spec, and role at signup time.
 - **Leaders override** (tier `leader`): signing up anyone's character, changing locked raids,
   and every `roster-*` command. `raid-cancel` and `roster-remove` are destructive (confirm flow).
 - **Events:** `signup-changed` on every real change (not on a no-op re-answer) and on removal
-  (`to: null`); `raid-completed` with attendance from `raid-complete`.
+  (`to: null`), then `signup-promoted` for anyone it moved up; `raid-completed` with attendance
+  from `raid-complete`.
 - **Comp priority comes from guild rank** (`RANK_PRIORITY` in `comp.ts`): raiders and above,
   then flex raiders, then recruits. Gate on tier, rank only orders.
 - Nullable fields use `null`, not `undefined`, so Convex patches can clear them.

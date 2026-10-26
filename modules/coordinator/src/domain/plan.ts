@@ -2,12 +2,14 @@
 // clock it lists actions; the executor (tick.ts) performs and logs them. Rules per raid:
 //   post           once, as soon as the raid exists (events exist only inside the lead window)
 //   refresh        edit the post when what it would show has changed (not logged as an action)
+//   promoted-…     when someone moves up from the queue, tell them in the signup channel
 //   remind-<h>h    at each reminder offset before lock, ping only the non-responders
 //   dm-<h>h        at the last reminder, DM non-responders who haven't opted out (if enabled)
 //   digest         at the last reminder, comp gaps and non-responders to the officer channel
 //   lock           at the lock offset: signups lock
 //   final-roster   after lock, the roster to the signup channel
 //   import-string  after lock, the addon import string to the officer channel
+import type { Signup } from '@vintage/raids/contract';
 import type { CoordinatorAction } from '../contract';
 import type { TickEvent, TickMember, TickState } from '../store';
 
@@ -16,6 +18,7 @@ const HOUR = 60 * 60 * 1000;
 export type PlannedAction =
   | { kind: 'post'; tick: TickEvent; rule: 'post'; target: string }
   | { kind: 'refresh'; tick: TickEvent; post: CoordinatorAction }
+  | { kind: 'promote'; tick: TickEvent; rule: string; target: string; signup: Signup }
   | { kind: 'remind'; tick: TickEvent; rule: string; target: string; waiting: TickMember[] }
   | { kind: 'dm'; tick: TickEvent; rule: string; target: string; member: TickMember }
   | { kind: 'digest'; tick: TickEvent; rule: 'digest'; target: string; waiting: TickMember[] }
@@ -92,6 +95,18 @@ function planReminders(
   return out;
 }
 
+/** One notice per promotion: the rule names the signup and when it was promoted. */
+function planPromotions(state: TickState, tick: TickEvent, done: Set<string>): PlannedAction[] {
+  const channel = state.config.signupChannelId!;
+  return tick.signups
+    .filter(
+      (s) => s.promotedAt !== null && !s.queued && (s.status === 'accepted' || s.status === 'late'),
+    )
+    .map((s) => ({ s, rule: `promoted-${s.id}-${s.promotedAt}` }))
+    .filter(({ rule }) => !done.has(`${rule}|${channel}`))
+    .map(({ s, rule }) => ({ kind: 'promote' as const, tick, rule, target: channel, signup: s }));
+}
+
 function planDigest(
   state: TickState,
   tick: TickEvent,
@@ -154,6 +169,7 @@ export function planTick(
     }
     if (post.renderHash !== renderHash(tick)) out.push({ kind: 'refresh', tick, post });
     out.push(
+      ...planPromotions(state, tick, done),
       ...planReminders(state, tick, done, now),
       ...planDigest(state, tick, done, now),
       ...planLock(state, tick, done, now),

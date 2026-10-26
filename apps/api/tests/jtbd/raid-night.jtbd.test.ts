@@ -94,7 +94,7 @@ describe('JTBD: raid night', () => {
     const buttons = posts[0]!.message.components?.[0]?.components.map((c) =>
       'label' in c ? c.label : '',
     );
-    expect(buttons).toEqual(['Accept', 'Tentative', 'Bench', 'Decline']);
+    expect(buttons).toEqual(['Accept', 'Late', 'Tentative', 'Bench', 'Decline']);
     // Running again posts nothing new.
     await g.host.tick();
     expect(g.host.sentTo(SIGNUP_CHANNEL)).toHaveLength(2);
@@ -107,6 +107,7 @@ describe('JTBD: raid night', () => {
     const edit = g.host.editsTo(SIGNUP_CHANNEL).at(-1)!;
     const embed = edit.message.embeds![0]!;
     expect(embed.description).toMatch(/1\/40 going/);
+    expect(embed.description).toMatch(/Tanks 1 · Healers 0 · DPS 0/);
     expect(embed.fields?.find((f) => f.name.startsWith('Tanks'))?.value).toMatch(
       /Aeryn \(protection warrior\)/,
     );
@@ -295,5 +296,89 @@ describe('JTBD: raid night', () => {
     await g.host.ok(g.rook, 'coordinator-resume');
     await g.host.tick();
     expect(g.host.sentTo(SIGNUP_CHANNEL)).toHaveLength(1);
+  });
+
+  it('J12 · a raider who will be late says so, with a reason everyone can see', async () => {
+    const { wed } = await scheduleRaidNights(g);
+    await g.host.ok(g.bram, 'signup-set', {
+      eventId: wed.id,
+      characterId: g.chars.bram,
+      status: 'late',
+      note: 'after work, ~20 min',
+    });
+    await g.host.tick();
+    const embed = g.host.editsTo(SIGNUP_CHANNEL).at(-1)!.message.embeds![0]!;
+    expect(embed.description).toMatch(/1\/40 going/); // late still takes a spot
+    expect(embed.fields?.find((f) => f.name.startsWith('Healers'))?.value).toBe(
+      'Bramble (holy priest) · late: after work, ~20 min',
+    );
+    g.host.clock.advance(WED - 24 * HOUR - g.host.clock.now());
+    await g.host.tick();
+    const digest = g.host.sentTo(OPS_CHANNEL).find((m) => m.message.content?.includes('confirmed'));
+    expect(digest?.message.content).toMatch(/Late \(1\): Bramble \(after work, ~20 min\)/);
+  });
+
+  it('J13 · when a raid is full, extra people queue and the first in line is told when a spot opens', async () => {
+    const raid = await g.host.ok<RaidEvent>(g.rook, 'raid-create', {
+      name: 'ZG',
+      instance: "Zul'Gurub",
+      size: 10,
+      startsAt: WED,
+    });
+    await g.host.configureCoordinator();
+    // Eleven raiders answer, one minute apart.
+    const people: Caller[] = [];
+    for (let i = 0; i < 11; i++) {
+      const who = await g.host.discordMember(`51000000000000${100 + i}`, `Raider${i}`, [
+        ROLES.raider,
+      ]);
+      const char = await g.host.ok<{ id: string }>(who, 'character-add', {
+        name: `Raiderchar${String.fromCharCode(97 + i)}`,
+        class: 'warrior',
+        spec: 'fury',
+      });
+      await g.host.ok(who, 'signup-set', {
+        eventId: raid.id,
+        characterId: char.id,
+        status: 'accepted',
+      });
+      people.push(who);
+      g.host.clock.advance(60 * 1000);
+    }
+    const eleventh = await g.host.ok<Signup | null>(people[10]!, 'signup-get', {
+      eventId: raid.id,
+    });
+    expect(eleventh?.queued).toBe(true);
+    await g.host.tick();
+    const post = g.host.sentTo(SIGNUP_CHANNEL)[0]!.message.embeds![0]!;
+    expect(post.description).toMatch(/10\/10 going · 1 queued/);
+
+    // Someone ahead drops out: the queued raider is in and gets told, once.
+    const third = await g.host.ok<Signup>(people[2]!, 'signup-get', { eventId: raid.id });
+    await g.host.ok(people[2]!, 'signup-set', {
+      eventId: raid.id,
+      characterId: third.characterId,
+      status: 'declined',
+    });
+    await g.host.tick();
+    await g.host.tick();
+    const notices = g.host
+      .sentTo(SIGNUP_CHANNEL)
+      .filter((m) => m.message.content?.includes('a spot opened up'));
+    expect(notices).toHaveLength(1);
+    expect(notices[0]!.message.allowed_mentions?.users).toEqual([people[10]!.discordId]);
+  });
+
+  it('J14 · stepping down to tentative gives up your place in line', async () => {
+    const { wed } = await scheduleRaidNights(g);
+    await answer(g, g.aeryn, 'aeryn', wed.id, 'accepted');
+    g.host.clock.advance(HOUR);
+    await answer(g, g.bram, 'bram', wed.id, 'accepted');
+    g.host.clock.advance(HOUR);
+    await answer(g, g.aeryn, 'aeryn', wed.id, 'tentative');
+    g.host.clock.advance(HOUR);
+    await answer(g, g.aeryn, 'aeryn', wed.id, 'accepted');
+    const list = await g.host.ok<Signup[]>(g.dara, 'signup-list', { eventId: wed.id });
+    expect(list.map((x) => x.characterName)).toEqual(['Bramble', 'Aeryn']);
   });
 });

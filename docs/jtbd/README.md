@@ -14,7 +14,7 @@ Job ids (`J01`…) are shared: the doc, the test name, and the live run all use 
 
 | Suite | Jobs | Automated | Live |
 |---|---|---|---|
-| [Raid night](raid-night.md) | J01–J11 | ✅ `raid-night.jtbd.test.ts` | ✅ checklist |
+| [Raid night](raid-night.md) | J01–J14 | ✅ `raid-night.jtbd.test.ts` | ✅ checklist |
 
 ## Rules
 

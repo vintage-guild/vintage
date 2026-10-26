@@ -93,6 +93,9 @@ export const signupFields = {
   updatedAt: v.number(),
   roster: rosterState,
   group: v.union(v.number(), v.null()),
+  // Optional so rows written before the queue existed stay valid; read as false / null.
+  queued: v.optional(v.boolean()),
+  promotedAt: v.optional(v.union(v.number(), v.null())),
 };
 
 // Every table carries guildId and is read through a guild-scoped index.

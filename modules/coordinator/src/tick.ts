@@ -10,6 +10,7 @@ import {
   renderFailure,
   renderFinalRoster,
   renderImportString,
+  renderPromotion,
   renderReminder,
   renderSignupPost,
 } from './domain/render';
@@ -52,6 +53,14 @@ async function perform(
       const message = renderSignupPost(tick, state.members);
       return { ...(await send(message)), renderHash: hashMessage(message) };
     }
+    case 'promote':
+      return send(
+        renderPromotion(
+          tick,
+          action.signup,
+          state.members.find((m) => m.memberId === action.signup.memberId),
+        ),
+      );
     case 'remind':
       return send(renderReminder(tick, action.waiting));
     case 'dm':

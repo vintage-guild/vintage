@@ -29,7 +29,8 @@ export const compSuggest = command({
         class: s.class,
         spec: s.spec,
         role: s.role,
-        status: s.status,
+        // Queued people only play if nobody ahead of them fits.
+        status: s.queued ? 'bench' : s.status,
         priority: rank ? RANK_PRIORITY[rank] : 0,
         signedUpAt: s.signedUpAt,
       };

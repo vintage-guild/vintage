@@ -92,6 +92,10 @@ export interface Signup {
   roster: RosterState;
   /** Raid group 1–8 when rostered, otherwise null. */
   group: number | null;
+  /** Going, but past the raid size: waiting in line for a spot (see domain/queue.ts). */
+  queued: boolean;
+  /** When a spot opened and they moved from the queue into the raid; null if never. */
+  promotedAt: number | null;
 }
 
 /**
@@ -148,6 +152,8 @@ export interface RaidsEvents {
     from: SignupStatus | null;
     to: SignupStatus | null;
   };
+  /** A queued member got a spot because someone ahead dropped out. The coordinator tells them. */
+  'signup-promoted': { eventId: string; memberId: string; characterId: string };
   /** A raid finished. Loot and attendance (#29) start from here. */
   'raid-completed': {
     eventId: string;

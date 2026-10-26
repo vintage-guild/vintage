@@ -2,8 +2,10 @@ import { SIGNUP_STATUSES, type SignupStatus, signupStatusSchema } from '@vintage
 import { error, success } from '@vintage/guild-kit';
 import type { Character } from '@vintage/identity/contract';
 import { z } from 'zod';
-import type { Signup } from '../contract';
+import type { RaidEvent, Signup } from '../contract';
+import { LOSES_PLACE } from '../domain/queue';
 import { command, type RaidsDeps } from '../store';
+import { syncQueue } from './queue';
 import { eventNotFound, isLeader, notSignedIn, raidClosed } from './shared';
 
 const characterNotFound = () =>
@@ -23,7 +25,10 @@ interface SignupWrite {
   existing: Signup | null;
 }
 
-/** Insert the member's signup, or update it in place so they keep their place in line. */
+/**
+ * Insert the member's signup, or update it in place. They keep their place in line unless they
+ * step down to tentative, bench, or declined, which puts them at the back.
+ */
 function writeSignup(deps: RaidsDeps, w: SignupWrite, at: number): Promise<Signup> {
   const snapshot = {
     characterId: w.character.id,
@@ -35,9 +40,11 @@ function writeSignup(deps: RaidsDeps, w: SignupWrite, at: number): Promise<Signu
   if (w.existing) {
     // Swapping characters or declining drops any roster spot; the leader re-places them.
     const keepRoster = w.existing.characterId === w.character.id && w.status !== 'declined';
+    const stepsDown = w.status !== w.existing.status && LOSES_PLACE.has(w.status);
     return deps.raids.updateSignup(w.guildId, w.existing.id, {
       ...snapshot,
       status: w.status,
+      ...(stepsDown ? { signedUpAt: at } : {}),
       ...(w.note === undefined ? {} : { note: w.note }),
       updatedAt: at,
       ...(keepRoster ? {} : { roster: 'pending' as const, group: null }),
@@ -54,7 +61,21 @@ function writeSignup(deps: RaidsDeps, w: SignupWrite, at: number): Promise<Signu
     updatedAt: at,
     roster: 'pending',
     group: null,
+    queued: false,
+    promotedAt: null,
   });
+}
+
+/** Why this caller can't change signups for the raid any more, or null when they can. */
+function closedTo(event: RaidEvent, leader: boolean, now: number) {
+  if (event.status !== 'open' && !(leader && event.status === 'locked')) return raidClosed(event);
+  if (event.startsAt <= now && !leader) {
+    return error('RAID_STARTED', `${event.name} has already started`, {
+      suggestion: 'Ask a raid leader to update your signup',
+      retryable: false,
+    });
+  }
+  return null;
 }
 
 export const signupSet = command({
@@ -76,15 +97,8 @@ export const signupSet = command({
     const event = await deps.raids.getEvent(guildId, eventId);
     if (!event) return eventNotFound();
     const leader = isLeader(caller);
-    if (event.status !== 'open' && !(leader && event.status === 'locked')) {
-      return raidClosed(event);
-    }
-    if (event.startsAt <= now() && !leader) {
-      return error('RAID_STARTED', `${event.name} has already started`, {
-        suggestion: 'Ask a raid leader to update your signup',
-        retryable: false,
-      });
-    }
+    const closed = closedTo(event, leader, now());
+    if (closed) return closed;
 
     const character = await deps.members.getCharacter(guildId, characterId);
     if (!character || (character.memberId !== caller.memberId && !leader)) {
@@ -92,7 +106,7 @@ export const signupSet = command({
     }
 
     const existing = await deps.raids.getSignupByMember(guildId, eventId, character.memberId);
-    const signup = await writeSignup(
+    const written = await writeSignup(
       deps,
       { guildId, eventId, character, status, note, existing },
       now(),
@@ -106,7 +120,13 @@ export const signupSet = command({
         to: status,
       });
     }
-    return success(signup, { reasoning: `${character.name}: ${status} for ${event.name}` });
+    // After the change is recorded: a drop-out may promote someone from the queue.
+    await syncQueue(deps, guildId, event, now());
+    const signup = (await deps.raids.getSignup(guildId, written.id)) ?? written;
+    const reasoning = signup.queued
+      ? `${character.name}: ${status} for ${event.name}, queued (the raid is full)`
+      : `${character.name}: ${status} for ${event.name}`;
+    return success(signup, { reasoning });
   },
 });
 

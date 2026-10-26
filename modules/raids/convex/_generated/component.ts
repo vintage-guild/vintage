@@ -190,6 +190,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           guildId: string;
           memberId: string;
           note: string | null;
+          promotedAt?: number | null;
+          queued?: boolean;
           role: "tank" | "healer" | "melee" | "ranged";
           roster: "pending" | "rostered" | "benched";
           signedUpAt: number;
@@ -225,6 +227,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             class?: string;
             group?: number | null;
             note?: string | null;
+            promotedAt?: number | null;
+            queued?: boolean;
             role?: "tank" | "healer" | "melee" | "ranged";
             roster?: "pending" | "rostered" | "benched";
             signedUpAt?: number;

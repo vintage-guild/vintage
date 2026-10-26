@@ -10,7 +10,7 @@ holds the guild-specific pieces (PLAN §3.9).
 | `vintage-member-menu` | The signed-in member: round avatar (Discord's once sign-in supplies it, the initial until then), name, rank, and a menu with Profile and Characters |
 | `vintage-roster-wall` | Every member grouped by rank, each as their main's name in its class color with spec and role; the signed-in member's row marked. Fed from `member-list` |
 | `vintage-poll-card` | A single-choice poll with live shares; choosing an option runs the `vintage.vote-cast` command → server `vote-cast` |
-| `vintage-hero` | The home page opener: full-bleed art under a dark fade, with slots for eyebrow pills, the heading, a standfirst, actions, and figures |
+| `vintage-hero` | The home page opener: full-bleed art under a dark fade, with slots for eyebrow pills, the heading, a standfirst, actions, and figures; `compact` makes it a band for signed-in members (heading and figures only), `art-phone-src` a portrait for phones |
 | `vintage-figure` | One big tabular number with a unit and caption; rows of them sit in the hero |
 | `vintage-class-badge` / `vintage-role-badge` | Class (and spec) or raid role with its color token, from `@vintage/wow-data` |
 | `vintage-character-form` | Name, class, spec, main; submits through the `vintage.character-add` command |

@@ -27,6 +27,25 @@ describe('vintage-hero', () => {
     expect(el.shadowRoot!.querySelector('img')).toBeNull();
   });
 
+  it('compact keeps the heading and figures and hides the standfirst and actions', async () => {
+    const el = await mount<VintageHero>(
+      '<vintage-hero compact><h1>Welcome back</h1><p slot="standfirst">Pitch.</p><a slot="actions" href="#">Apply</a></vintage-hero>',
+    );
+    expect(el.compact).toBe(true);
+    const shown = (part: string) =>
+      getComputedStyle(el.shadowRoot!.querySelector(`[part="${part}"]`)!).display !== 'none';
+    expect([shown('heading'), shown('standfirst'), shown('actions')]).toEqual([true, false, false]);
+
+    // Without it, the full hero. (A fresh mount: happy-dom keeps computed styles after a toggle.)
+    const full = await mount<VintageHero>(
+      '<vintage-hero><h1>Forming</h1><p slot="standfirst">Pitch.</p><a slot="actions" href="#">Apply</a></vintage-hero>',
+    );
+    expect(full.hasAttribute('compact')).toBe(false);
+    const fullShown = (part: string) =>
+      getComputedStyle(full.shadowRoot!.querySelector(`[part="${part}"]`)!).display !== 'none';
+    expect([fullShown('standfirst'), fullShown('actions')]).toEqual([true, true]);
+  });
+
   it('offers the phone art as a source for narrow screens only when given', async () => {
     const plain = await mount<VintageHero>('<vintage-hero art-src="/art/x.webp"></vintage-hero>');
     expect(plain.shadowRoot!.querySelector('source')).toBeNull();

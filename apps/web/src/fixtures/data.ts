@@ -26,8 +26,7 @@ export interface FixtureMember {
   rank: Exclude<GuildRank, 'friend'>;
 }
 
-/** The signed-in member during development, and the time zone in their profile. */
-export const FIXTURE_ME = 'Bloodfen';
+/** The time zone in the signed-in fixture member's profile (who that is: persona.ts). */
 export const FIXTURE_TIMEZONE = 'America/New_York';
 
 export const MEMBERS: readonly FixtureMember[] = [

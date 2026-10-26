@@ -31,6 +31,11 @@ const styles = css`
     font-family: var(--font-family-sans);
   }
 
+  /* The host's own display would otherwise beat the [hidden] the shell sets while signed out. */
+  :host([hidden]) {
+    display: none;
+  }
+
   .menu {
     position: relative;
   }

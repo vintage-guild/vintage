@@ -44,12 +44,20 @@ pnpm --filter @vintage/web build   # dist/
   over the modules' memory stores), seeded only through commands: `member-sync`,
   `character-add`, `raid-create`, `signup-set`, `coordinator-config-set` and `coordinator-run`
   (a real tick against a fake Discord, whose logged actions feed the News section),
-  `poll-create` and `vote-cast`. It signs in an example flex raider. No kills are seeded (today
+  `poll-create` and `vote-cast`. It signs in a fixture member chosen by the dev switch
+  (`src/fixtures/persona.ts`): `?as=visitor|member|recruit|raider|leader|officer`, remembered
+  for the tab and set by the floating "View as" control; the default is Bloodfen, a flex raider,
+  and visitor signs in nobody and runs commands as a public caller. No kills are seeded (today
   is before the raids unlock), so the ledger shows the pre-launch state; `/ui` shows a raiding
   one. Pages read through the normal `CommandClient`, so swapping to Convex changes `main.ts`,
   not the pages. Production stays on the stub client until sign-in (#7) and a hosted
   deployment exist.
 - `src/session.ts` is the sign-in seam: `currentSession()` is null until sign-in sets it.
+- **Views** (`src/view.ts`, [feature plan](../../docs/features/active/role-aware-views/role-aware-views.plan.md)):
+  the home page composes by the session's tier. Visitors get the storefront; members, recruits,
+  and raiders get a compact hero with their own figures, "Your next raid" on top, and
+  recruiting as one line at the foot; leaders and officers get the same for now. The view only
+  orders sections; each command's tier is still the gate, and refused reads say who they are for.
 - **Times** (`src/dates.ts`) always show their zone, in the member's profile zone when they
   have set one (`member-prefs-set timezone`), else the browser's. The hero's "8 pm ET" pill is
   the guild's stated time; the cards show the viewer's.

@@ -41,6 +41,11 @@ describe('vintage-member-menu', () => {
     );
     expect(links).toEqual(['/profile', '/characters']);
   });
+
+  it('stays hidden while the shell marks it hidden (signed out)', async () => {
+    const el = await mount<VintageMemberMenu>('<vintage-member-menu hidden></vintage-member-menu>');
+    expect(getComputedStyle(el).display).toBe('none');
+  });
 });
 
 describe('vintage-roster-wall', () => {

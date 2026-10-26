@@ -157,6 +157,24 @@ const styles = css`
     grid-template-columns: repeat(4, 1fr);
   }
 
+  /* Compact: a band for signed-in members, who have read the pitch. The heading stays (the
+     page's one h1, now a greeting); the standfirst and actions go, and the art sits behind a
+     shorter block. Pages restate the heading size, as for the full hero. */
+  :host([compact]) .content {
+    gap: var(--space-sm);
+    padding-block: var(--space-xl) var(--space-sm);
+  }
+
+  :host([compact]) .standfirst,
+  :host([compact]) .actions {
+    display: none;
+  }
+
+  :host([compact]) ::slotted(h1) {
+    font-size: clamp(2rem, 4.2vw, 3.4rem);
+    max-inline-size: none;
+  }
+
   @media (max-width: 62rem) {
     .art::after {
       background: linear-gradient(
@@ -205,8 +223,8 @@ const styles = css`
  * @summary Full-bleed hero with art, heading, standfirst, actions, and figures.
  * @slot eyebrow - Short labels above the heading (ruleset, raid nights, size).
  * @slot - The heading (`<h1>`).
- * @slot standfirst - One paragraph under the heading.
- * @slot actions - Links or buttons.
+ * @slot standfirst - One paragraph under the heading. Hidden when `compact`.
+ * @slot actions - Links or buttons. Hidden when `compact`.
  * @slot figures - A row of `vintage-figure` elements.
  * @csspart hero - The band.
  * @csspart art - The art and its fade. `art-phone-src` swaps in a portrait on phones.
@@ -224,6 +242,8 @@ export class VintageHero extends FASTElement {
   @attr({ attribute: 'art-phone-src' }) artPhoneSrc = '';
   /** `object-position` for the phone art. */
   @attr({ attribute: 'art-phone-position' }) artPhonePosition = '50% 62%';
+  /** A short band for signed-in members: heading and figures, no standfirst or actions. */
+  @attr({ mode: 'boolean' }) compact = false;
 }
 
 if (!customElements.get('vintage-hero')) {

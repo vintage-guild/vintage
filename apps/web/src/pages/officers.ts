@@ -8,9 +8,11 @@ import {
   when,
 } from '@lushly-dev/fast-element';
 import { type Tier, tierAllows } from '@vintage/guild-kit';
-import type { RaidEvent, Signup } from '@vintage/raids/contract';
+import type { RaidEvent, Schedule, Signup } from '@vintage/raids/contract';
 import type { GuildProfile, Recruiting } from '@vintage/site/contract';
 import {
+  type CalendarRaid,
+  type CalendarSchedule,
   getCommandClient,
   type PollsDeskPoll,
   type PollsDeskResults,
@@ -31,7 +33,7 @@ const AHEAD_MS = 30 * 86_400_000;
  */
 const TABS = [
   { id: 'tonight', label: 'Tonight', ready: true, hint: '' },
-  { id: 'calendar', label: 'Calendar', ready: false, hint: 'schedules and one-off raids' },
+  { id: 'calendar', label: 'Calendar', ready: true, hint: '' },
   { id: 'coordinator', label: 'Coordinator', ready: false, hint: 'status, settings, the log' },
   { id: 'roster', label: 'Roster', ready: false, hint: 'ranks, sync, recruits on trial' },
   { id: 'guild', label: 'Guild', ready: true, hint: '' },
@@ -55,6 +57,47 @@ type PollRow = Omit<PollsDeskPoll, 'results'> & { results: PollsDeskResults | nu
 /** One row of `raid-list`. */
 interface RaidRow {
   event: RaidEvent;
+  counts?: Record<'accepted' | 'late' | 'tentative' | 'bench' | 'declined', number>;
+}
+
+/** How far back and ahead the Calendar tab reads: last month, and the two months after. */
+const CALENDAR_BEHIND_MS = 31 * 86_400_000;
+const CALENDAR_AHEAD_MS = 62 * 86_400_000;
+
+/** A `raid-list` row as the calendar desk reads it. */
+export function calendarRaid({ event, counts }: RaidRow): CalendarRaid {
+  return {
+    id: event.id,
+    scheduleId: event.scheduleId,
+    name: event.name,
+    instance: event.instance,
+    size: event.size,
+    startsAt: event.startsAt,
+    durationMinutes: event.durationMinutes,
+    status: event.status,
+    counts: counts
+      ? {
+          accepted: counts.accepted,
+          late: counts.late,
+          tentative: counts.tentative,
+          bench: counts.bench,
+        }
+      : null,
+  };
+}
+
+/** A `schedule-list` row as the calendar desk reads it. */
+export function calendarSchedule(s: Schedule): CalendarSchedule {
+  return {
+    id: s.id,
+    name: s.name,
+    instance: s.instance,
+    size: s.size,
+    recurrence: { ...s.recurrence, weekdays: [...s.recurrence.weekdays] },
+    durationMinutes: s.durationMinutes,
+    timings: { ...s.timings, reminderHours: [...s.timings.reminderHours] },
+    active: s.active,
+  };
 }
 
 /** The slices of `coordinator-status` and `comp-suggest` Tonight reads. */
@@ -121,6 +164,21 @@ const template = html<Page>`
               (x) => x.pollsError,
               html<Page>`<p class="error" role="alert">${(x) => x.pollsError}</p>`,
             )}
+          `,
+        )}
+
+        ${when(
+          (x) => x.tab === 'calendar',
+          html<Page>`
+            <vintage-calendar-desk
+              time-zone="${() => preferredTimeZone() ?? ''}"
+              ?can-edit="${(x) => x.canEditCalendar}"
+              ?loading="${(x) => !x.calendarLoaded}"
+              error="${(x) => x.calendarError}"
+              :raids="${(x) => x.calendarRaids}"
+              :schedules="${(x) => x.calendarSchedules}"
+              @calendar-changed="${(x) => x.loadCalendar()}"
+            ></vintage-calendar-desk>
           `,
         )}
 
@@ -302,6 +360,14 @@ export class Page extends FASTElement {
   @observable recruitingError = '';
   @observable profile: GuildProfile | null = null;
   @observable profileError = '';
+  @observable calendarRaids: CalendarRaid[] = [];
+  @observable calendarSchedules: CalendarSchedule[] = [];
+  @observable calendarError = '';
+  @observable calendarLoaded = false;
+  /** Bumped per calendar read, so a slow earlier read never lands over a newer one. */
+  private calendarRead = 0;
+  /** Every calendar command is leader tier; a preview below that reads it without the buttons. */
+  readonly canEditCalendar = tierAllows((currentSession()?.tier ?? 'public') as Tier, 'leader');
   /**
    * `recruiting-set` and `guild-profile-set` are officer tier; raid leaders read the band and
    * the profile here but can't save them.
@@ -323,6 +389,7 @@ export class Page extends FASTElement {
     if (this.tab === 'polls') void this.loadPolls();
     if (this.tab === 'recruiting') void this.loadRecruiting();
     if (this.tab === 'guild') void this.loadProfile();
+    if (this.tab === 'calendar') void this.loadCalendar();
   }
 
   /** Switch tabs and keep the choice in the address, so `/officers?tab=polls` links work. */
@@ -336,6 +403,35 @@ export class Page extends FASTElement {
     if (id === 'polls') void this.loadPolls();
     if (id === 'recruiting') void this.loadRecruiting();
     if (id === 'guild') void this.loadProfile();
+    if (id === 'calendar') void this.loadCalendar();
+  }
+
+  /**
+   * Every raid from a month back to two months ahead, whatever its status, with signup counts,
+   * and every schedule, paused ones included. Each change on the desk reads again; only the
+   * latest read is kept.
+   */
+  async loadCalendar(): Promise<void> {
+    const client = getCommandClient();
+    const now = Date.now();
+    const read = ++this.calendarRead;
+    try {
+      const [raids, schedules] = await Promise.all([
+        client.read<RaidRow[]>('raid-list', {
+          from: now - CALENDAR_BEHIND_MS,
+          to: now + CALENDAR_AHEAD_MS,
+          statuses: ['open', 'locked', 'cancelled', 'completed'],
+        }),
+        client.read<Schedule[]>('schedule-list', { includeInactive: true }),
+      ]);
+      if (read !== this.calendarRead) return;
+      const failed = !raids.success ? raids : !schedules.success ? schedules : null;
+      this.calendarError = failed ? (failed.error?.message ?? 'Could not read the calendar') : '';
+      if (raids.success) this.calendarRaids = (raids.data ?? []).map(calendarRaid);
+      if (schedules.success) this.calendarSchedules = (schedules.data ?? []).map(calendarSchedule);
+    } finally {
+      this.calendarLoaded = true;
+    }
   }
 
   /**

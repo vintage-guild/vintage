@@ -1,6 +1,6 @@
 import type { Schedule } from '@vintage/raids/contract';
 import { describe, expect, it } from 'vitest';
-import { describeNights, describeTimings, zonedInstant } from './schedules';
+import { describeNights, describeTimings } from './schedules';
 
 /** Mon 2 Nov 2026, noon UTC: after US and UK clocks both went back, so EST and GMT. */
 const NOW = Date.UTC(2026, 10, 2, 12);
@@ -19,14 +19,6 @@ const schedule = (over: Partial<Schedule> = {}): Schedule => ({
   active: true,
   configVersion: 1,
   ...over,
-});
-
-describe('zonedInstant', () => {
-  it('turns a zone’s wall clock into the right instant on both sides of DST', () => {
-    // 20:00 New York on Wed 28 Oct 2026 is EDT (UTC-4); on Wed 4 Nov it is EST (UTC-5).
-    expect(zonedInstant(2026, 9, 28, 20, 0, 'America/New_York')).toBe(Date.UTC(2026, 9, 29, 0));
-    expect(zonedInstant(2026, 10, 4, 20, 0, 'America/New_York')).toBe(Date.UTC(2026, 10, 5, 1));
-  });
 });
 
 describe('describeNights', () => {

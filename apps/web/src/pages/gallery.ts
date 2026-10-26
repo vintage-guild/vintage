@@ -1,6 +1,8 @@
 import { css, FASTElement, html, repeat } from '@lushly-dev/fast-element';
 import { LAUNCH_RAIDS, RAIDS_OPEN_ON } from '@vintage/progress/contract';
 import {
+  type CalendarRaid,
+  type CalendarSchedule,
   type LedgerKill,
   type LedgerRaid,
   type ListedCharacter,
@@ -13,6 +15,73 @@ import {
 import { CLASS_NAMES, CLASSES, ROLES, type Role, type WowClass } from '@vintage/wow-data';
 import { ART } from '../content/art';
 import { pageStyles } from './page-styles';
+
+/**
+ * The calendar's clock: Mon 26 Oct 2026, the week London has gone back to GMT and New York
+ * hasn't, so the gallery shows the "hour off" note.
+ */
+const CALENDAR_NOW = Date.UTC(2026, 9, 26, 12);
+const nyEvening = (month: number, day: number) =>
+  Date.UTC(2026, month, day + 1, month === 9 ? 0 : 1);
+
+const GALLERY_SCHEDULES: CalendarSchedule[] = [
+  {
+    id: 's1',
+    name: 'Raid night',
+    instance: "Onyxia's Lair",
+    size: 40,
+    recurrence: { weekdays: ['wed', 'thu'], time: '20:00', timeZone: 'America/New_York' },
+    durationMinutes: 180,
+    timings: { leadDays: 7, reminderHours: [72, 24], lockHours: 2 },
+    active: true,
+  },
+  {
+    id: 's2',
+    name: 'Sunday tens',
+    instance: 'Barrow Deeps',
+    size: 10,
+    recurrence: { weekdays: ['sun'], time: '18:00', timeZone: 'America/New_York' },
+    durationMinutes: 120,
+    timings: { leadDays: 5, reminderHours: [24], lockHours: 1 },
+    active: false,
+  },
+];
+
+const calendarRaid = (
+  over: Partial<CalendarRaid> & Pick<CalendarRaid, 'id' | 'startsAt'>,
+): CalendarRaid => ({
+  scheduleId: 's1',
+  name: 'Raid night',
+  instance: "Onyxia's Lair",
+  size: 40,
+  durationMinutes: 180,
+  status: 'open',
+  counts: { accepted: 22, late: 2, tentative: 4, bench: 1 },
+  ...over,
+});
+
+const GALLERY_RAIDS: CalendarRaid[] = [
+  calendarRaid({ id: 'r-past', startsAt: nyEvening(9, 22), status: 'completed' }),
+  calendarRaid({ id: 'r-cancel', startsAt: nyEvening(9, 21), status: 'cancelled', counts: null }),
+  calendarRaid({ id: 'r1', startsAt: nyEvening(9, 28), status: 'locked' }),
+  calendarRaid({ id: 'r2', startsAt: nyEvening(9, 29) }),
+  calendarRaid({
+    id: 'r-alt',
+    scheduleId: null,
+    name: 'Alt run',
+    instance: 'Barrow Deeps',
+    size: 10,
+    durationMinutes: 120,
+    startsAt: nyEvening(9, 29) + 3_600_000,
+    counts: { accepted: 0, late: 0, tentative: 0, bench: 0 },
+  }),
+  calendarRaid({
+    id: 'r3',
+    startsAt: nyEvening(10, 4),
+    counts: { accepted: 9, late: 0, tentative: 2, bench: 0 },
+  }),
+  calendarRaid({ id: 'r4', startsAt: nyEvening(10, 5), counts: null }),
+];
 
 const firstSpec = (c: WowClass) => Object.keys(CLASSES[c])[0] ?? '';
 
@@ -160,6 +229,36 @@ const template = html<Page>`
       ></vintage-tonight>
     </section>
     <section>
+      <h2>Calendar</h2>
+      <p>The quarters' Calendar tab, in London on Oct 26: the guild's clock beside the viewer's, the week the clocks disagree, an overlap, a paused schedule, and history folded under Earlier. Actions report the gallery client's refusal.</p>
+      <vintage-calendar-desk
+        can-edit
+        time-zone="Europe/London"
+        :now="${() => CALENDAR_NOW}"
+        :raids="${() => GALLERY_RAIDS}"
+        :schedules="${() => GALLERY_SCHEDULES}"
+      ></vintage-calendar-desk>
+      <h3>Month</h3>
+      <vintage-calendar-desk
+        can-edit
+        view="month"
+        time-zone="America/New_York"
+        :now="${() => CALENDAR_NOW}"
+        :raids="${() => GALLERY_RAIDS}"
+        :schedules="${() => GALLERY_SCHEDULES}"
+      ></vintage-calendar-desk>
+      <h3>Before any schedule, read-only</h3>
+      <vintage-calendar-desk time-zone="America/New_York" :now="${() => CALENDAR_NOW}"></vintage-calendar-desk>
+      <h3>Month at phone width</h3>
+      <div class="phone">
+        <vintage-raid-month
+          time-zone="America/New_York"
+          :now="${() => CALENDAR_NOW}"
+          :raids="${() => GALLERY_RAIDS}"
+        ></vintage-raid-month>
+      </div>
+    </section>
+    <section>
       <h2>Characters and profile</h2>
       <p>The member's characters (Characters page) and their raid settings (Profile).</p>
       <vintage-character-list :characters="${() => GALLERY_CHARACTERS}"></vintage-character-list>
@@ -260,6 +359,10 @@ const styles = css`
   .figures {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
+  }
+
+  .phone {
+    max-inline-size: 22rem;
   }
 
   .cards {

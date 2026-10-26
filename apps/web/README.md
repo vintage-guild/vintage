@@ -15,6 +15,8 @@ pnpm --filter @vintage/web build   # dist/
 | `/about` | About and recruitment (placeholder copy until the `site` module) |
 | `/profile` | Member profile; a sign-in card when signed out |
 | `/characters` | Character registration; a sign-in card when signed out, then `vintage-character-form` |
+| `/privacy` | What the site keeps, why, and how to have it removed (`pages/privacy.ts`); keep it true when a module stores something new |
+| `/terms` | Ground rules, the Blizzard non-affiliation notice (`pages/terms.ts`); `content/legal.ts` holds the updated date |
 | `/officers` | The officers' quarters, for leaders and officers (others get a sign-in card or a note): the Tonight tab (`vintage-tonight`) over `raid-list`, `signup-list`, `comp-suggest`, `coordinator-status`, the roster commands, and `addon-import-get`; the Polls tab (`vintage-polls-desk`, `?tab=polls`) over `poll-list` and `poll-results`, with open, close and cancel (preview, then confirm) and the sweep; the other tabs are listed and disabled until built |
 | `/ui` | Dev only: every ui-kit element (and the theme switch), for checking both themes |
 

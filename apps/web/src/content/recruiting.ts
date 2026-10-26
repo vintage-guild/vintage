@@ -17,7 +17,7 @@ export interface ClassNeed {
 }
 
 export const RECRUITING = {
-  postedOn: 'Oct 25, 2026',
+  updatedOn: 'Oct 25, 2026',
   headline: 'We need a second main tank, and two healers for the twenties.',
   pitch:
     'Semi-hardcore: come prepared, be on time, be kind. Loot is decided before the first raid ' +

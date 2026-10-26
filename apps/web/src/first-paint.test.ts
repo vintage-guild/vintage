@@ -38,3 +38,19 @@ describe('first paint', () => {
     );
   });
 });
+
+describe('first reveal', () => {
+  it('keeps the page transparent until data-ready, with a fallback that never waits forever', () => {
+    expect(html).toContain('html:not([data-ready]) body > :not(script) { opacity: 0; }');
+    // The head sets data-ready on its own after 4s, independent of the app script.
+    expect(html).toMatch(
+      /setTimeout\(\(\) => \{ document\.documentElement\.dataset\.ready = ''; \}, 4000\);/,
+    );
+  });
+
+  it('is revealed by the shell once the first page renders', () => {
+    const main = readFileSync(new URL('./main.ts', import.meta.url), 'utf8');
+    expect(main).toContain("document.documentElement.dataset.ready = '';");
+    expect(main).toMatch(/READY_CAP_MS = \d+/);
+  });
+});

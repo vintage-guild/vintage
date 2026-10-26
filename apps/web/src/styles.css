@@ -35,6 +35,13 @@ vintage-logo-header [slot="logo"]:hover {
   color: var(--color-text-accent);
 }
 
+/* Light-DOM prose (the footer, anything outside a page's shadow root): no widows. */
+p,
+li,
+small {
+  text-wrap: pretty;
+}
+
 .site-footer {
   border-block-start: var(--border-width-thin) solid var(--color-border-default);
   background: var(--color-surface-sunken);
@@ -67,6 +74,16 @@ html[data-theme="vintage-dark"] .site-footer {
   max-inline-size: 80rem;
   margin-inline: auto;
   padding: var(--space-2xl) var(--space-inset) var(--space-lg);
+}
+
+.site-footer .fine {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.site-footer .fine small {
+  font-size: var(--font-size-xs);
+  opacity: 0.8;
 }
 
 .site-footer nav {

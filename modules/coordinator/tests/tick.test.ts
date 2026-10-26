@@ -48,6 +48,8 @@ const signup = (memberId: string, overrides: Partial<Signup> = {}): Signup => ({
   updatedAt: START - 100 * HOUR,
   roster: 'pending',
   group: null,
+  queued: false,
+  promotedAt: null,
   ...overrides,
 });
 
@@ -117,6 +119,7 @@ describe('runTick', () => {
     );
     expect(buttons).toEqual([
       'signup:raid-1:accepted',
+      'signup:raid-1:late',
       'signup:raid-1:tentative',
       'signup:raid-1:bench',
       'signup:raid-1:declined',
@@ -279,5 +282,60 @@ describe('runTick', () => {
     await tick(START - 24 * HOUR);
     discord.dm = original;
     expect((await statuses())[`dm-24h|bram`]).toBe('skipped');
+  });
+
+  it('shows role counters, late people with their reason, and the queue', async () => {
+    signups = [
+      signup('aeryn'),
+      signup('bram', {
+        class: 'priest',
+        spec: 'holy',
+        role: 'healer',
+        status: 'late',
+        note: 'after work',
+      }),
+      signup('cade', { status: 'tentative', note: 'maybe' }),
+      signup('pip', { class: 'mage', spec: 'frost', role: 'ranged', queued: true }),
+    ];
+    await tick(START - 100 * HOUR);
+    const post = discord.sent[0]!.message.embeds![0]!;
+    expect(post.description).toMatch(/Tanks 1 · Healers 1 · DPS 0/); // Pip is queued, not counted
+    expect(post.description).toMatch(/2\/10 going · 1 queued/);
+    const field = (prefix: string) => post.fields!.find((f) => f.name.startsWith(prefix))!.value;
+    expect(field('Healers')).toBe('Bram (holy priest) · late: after work');
+    expect(field('Queue')).toBe('1. Pip (frost mage)');
+    expect(field('Tentative')).toBe('Cade (protection warrior) · maybe');
+    const buttons = discord.sent[0]!.message.components![0]!.components.map((c) =>
+      'label' in c ? c.label : '',
+    );
+    expect(buttons).toEqual(['Accept', 'Late', 'Tentative', 'Bench', 'Decline']);
+  });
+
+  it('lists late, tentative, and bench reasons in the officer digest', async () => {
+    signups = [
+      signup('aeryn'),
+      signup('bram', { status: 'late', note: 'after work' }),
+      signup('cade', { status: 'bench', note: 'happy to sit' }),
+    ];
+    await tick(START - 100 * HOUR);
+    await tick(START - 24 * HOUR);
+    const digest = discord.sent.find(
+      (m) => m.to === OPS && m.message.content?.includes('confirmed'),
+    )!;
+    expect(digest.message.content).toMatch(/Tanks \d · Healers \d · DPS \d/);
+    expect(digest.message.content).toMatch(/Late \(1\): Bram \(after work\)/);
+    expect(digest.message.content).toMatch(/Bench \(1\): Cade \(happy to sit\)/);
+  });
+
+  it('tells someone promoted from the queue that they are in, once', async () => {
+    await tick(START - 100 * HOUR);
+    signups = [signup('bram', { promotedAt: START - 99 * HOUR })];
+    await tick(START - 99 * HOUR);
+    await tick(START - 98 * HOUR);
+    const notices = discord.sent.filter((m) => m.message.content?.includes('a spot opened up'));
+    expect(notices).toHaveLength(1);
+    expect(notices[0]!.message.allowed_mentions?.users).toEqual([
+      member('bram', 'flex-raider').discordId,
+    ]);
   });
 });

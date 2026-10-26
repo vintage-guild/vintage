@@ -56,6 +56,10 @@ may already know its signup post, so matching its familiar shapes costs little a
 Recommended order: 4 and 3 (small, visible), then 1 and 2 together (one place-in-line rule),
 then 5 once buttons work. 6–10 fit their phases.
 
+**Adopted (2026-10-25):** 1 (queue and promotion notice), 2 (lose place on stepping down), 3
+(Late button and reasons on the post and digest; the reason prompt arrives with buttons), and 4
+(role counter line). Jobs J12–J14 in docs/jtbd/raid-night.md cover them.
+
 ## Where Vintage is already ahead
 
 - **Signups are characters, not Discord names.** Community addons had to build name → character

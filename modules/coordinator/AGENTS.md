@@ -23,6 +23,7 @@ and posts the final roster and addon import string. Maturity: **core**.
 |---|---|---|
 | `post` | as soon as the raid exists | signup channel, with answer buttons |
 | refresh | whenever the post's content changed (not logged) | edits the post |
+| `promoted-<signup>-<time>` | when raids promotes someone from the queue | signup channel, mentions them once |
 | `remind-<h>h` | each reminder offset, before lock; only the latest due one is sent | signup channel, pings non-responders only |
 | `dm-<h>h` | the last reminder offset, if `dmReminders`; skips members who opted out | DM |
 | `digest` | the last reminder offset | ops channel |
@@ -40,4 +41,9 @@ and posts the final roster and addon import string. Maturity: **core**.
   A member who doesn't accept DMs (Discord 50007) is logged as skipped.
 - Raids work goes through raids **commands** with the system caller (`schedule-materialize`,
   `roster-lock`), never raids tables.
-- Button clicks (`signup:<eventId>:<status>`) are handled by the gateway once it calls Convex (#10).
+- **The signup post** shows a role counter line ("Tanks 4 · Healers 9 · DPS 25"), who's in by
+  role with late people marked and everyone's reason (the signup `note`), the queue when the raid
+  is full, tentative and bench with reasons, and comp gaps. The digest lists late, tentative, and
+  bench reasons too. (Ideas from Raid-Helper: docs/research/raid-helper.md.)
+- Button clicks (`signup:<eventId>:<status>` for accepted, late, tentative, bench, declined) are
+  handled by the gateway once it calls Convex (#10); Late and Tentative will ask for a reason.

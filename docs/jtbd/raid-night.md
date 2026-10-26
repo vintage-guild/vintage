@@ -30,7 +30,8 @@ stop posting signups by hand.
 ### J02 · Answer a raid and see myself on the post
 **When** I can make a raid, **I (raider) want** to answer quickly, **so I can** trust I'm counted.
 - [ ] `signup-set` (accepted), then a tick: the post is edited in place, shows me under my role,
-  and the going count goes up. (The buttons do this once the gateway is live, #10.)
+  and the going count and the "Tanks · Healers · DPS" counter line go up. (The buttons do this
+  once the gateway is live, #10.)
 
 ### J03 · Only the people who haven't answered get pinged
 **When** a raid is three days out, **I (raider who answered) want** not to be pinged, **so I can**
@@ -82,3 +83,21 @@ chasing people for it.
 **so I can** fix it without spamming people.
 - [ ] `coordinator-pause`: ticks do nothing and `coordinator-run` is refused.
   `coordinator-resume`: whatever came due goes out on the next tick.
+
+### J12 · Say I'll be late, and why
+**When** I'll be late, **I (raider) want** to say so with a reason, **so I can** keep my spot
+and let the leader plan around me.
+- [ ] `signup-set` with `late` and a note: the post shows me under my role as "· late: <note>",
+  I still count as going, and the officer digest lists "Late (1): <name> (<note>)".
+
+### J13 · A full raid queues the rest, and tells the first in line when a spot opens
+**When** a raid fills up, **I (raider) want** to wait in line, **so I can** get in if someone
+drops out without watching the channel.
+- [ ] In a full raid, my answer comes back queued and the post shows "N queued" and a Queue list.
+- [ ] Someone ahead declines: I'm in, and the bot mentions me once in the signup channel.
+
+### J14 · Stepping down gives up my place
+**When** I switch to tentative or bench, **I (raider) expect** to lose my spot in line, **so
+that** people who committed first stay ahead of me.
+- [ ] Accepted → tentative → accepted puts me behind people who accepted after my first answer.
+  Changing character, or switching between accepted and late, keeps my place.

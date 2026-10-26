@@ -2,6 +2,7 @@ import { error, success } from '@vintage/guild-kit';
 import { z } from 'zod';
 import type { RaidEvent, Signup } from '../contract';
 import { command, type RaidsDeps } from '../store';
+import { syncQueue } from './queue';
 import { eventNotFound, isLive, raidClosed, signupNotFound } from './shared';
 
 const GROUP_SIZE = 5;
@@ -128,7 +129,7 @@ export const rosterRemove = command({
   tier: 'leader',
   destructive: true,
   input: z.object({ signupId: z.string().min(1) }),
-  handler: async ({ signupId }, { guildId, deps, dryRun }) => {
+  handler: async ({ signupId }, { guildId, deps, dryRun, now }) => {
     const found = await liveSignup(deps, guildId, signupId);
     if (found.failure) return found.failure;
     const { signup, event } = found;
@@ -146,6 +147,7 @@ export const rosterRemove = command({
       from: signup.status,
       to: null,
     });
+    await syncQueue(deps, guildId, event, now());
     return success({ removed: signup });
   },
 });

@@ -25,7 +25,30 @@ const mention = (m: TickMember) => `<@${m.discordId}>`;
 
 const label = (s: Signup) => `${s.characterName} (${s.spec} ${s.class})`;
 
-const list = (signups: Signup[]) => (signups.length ? signups.map(label).join('\n') : '—');
+/** A signup line with its late marker and reason, e.g. "Bramble (holy priest) · late: after work". */
+const detailed = (s: Signup) => {
+  const tag = s.status === 'late' ? 'late' : null;
+  const reason = s.note ? s.note : null;
+  const extra = [tag, reason].filter(Boolean).join(': ');
+  return extra ? `${label(s)} · ${extra}` : label(s);
+};
+
+const list = (signups: Signup[], line: (s: Signup) => string = detailed) =>
+  signups.length ? signups.map(line).join('\n') : '—';
+
+const GOING = new Set(['accepted', 'late']);
+
+/** Going and inside the raid size (not waiting in the queue). */
+const inRaid = (s: Signup) => GOING.has(s.status) && !s.queued;
+
+type CompRoleName = 'tank' | 'healer' | 'dps';
+
+/** "Tanks 4 · Healers 9 · DPS 25": who's in, per role. */
+export function roleCounters(signups: Signup[]): string {
+  const n = (role: CompRoleName) =>
+    signups.filter((s) => inRaid(s) && compRoleOf(s.role) === role).length;
+  return `Tanks ${n('tank')} · Healers ${n('healer')} · DPS ${n('dps')}`;
+}
 
 /** The comp for a raid's signups, ranked like comp-suggest. */
 export function compFor(tick: TickEvent, members: TickMember[]): CompResult {
@@ -44,7 +67,8 @@ export function compFor(tick: TickEvent, members: TickMember[]): CompResult {
         class: s.class,
         spec: s.spec,
         role: s.role,
-        status: s.status,
+        // Queued people only play if nobody ahead of them fits.
+        status: s.queued ? 'bench' : s.status,
         priority: r ? RANK_PRIORITY[r] : 0,
         signedUpAt: s.signedUpAt,
       };
@@ -57,17 +81,24 @@ const gapLine = (comp: CompResult) =>
 
 const SIGNUP_BUTTONS = [
   ['accepted', 'Accept', ButtonStyle.SUCCESS],
+  ['late', 'Late', ButtonStyle.PRIMARY],
   ['tentative', 'Tentative', ButtonStyle.SECONDARY],
   ['bench', 'Bench', ButtonStyle.SECONDARY],
   ['declined', 'Decline', ButtonStyle.DANGER],
 ] as const;
 
-/** The signup post: roster by role, comp gaps, and answer buttons. Edited as signups change. */
+/**
+ * The signup post: a counter line, who's in by role (late people marked, with reasons), the queue
+ * when the raid is full, tentative and bench with reasons, comp gaps, and answer buttons. Edited
+ * as signups change.
+ */
 export function renderSignupPost(tick: TickEvent, members: TickMember[]): MessageData {
   const { event, signups } = tick;
-  const going = signups.filter((s) => s.status === 'accepted' || s.status === 'late');
-  const byRole = (role: 'tank' | 'healer' | 'dps') =>
-    going.filter((s) => compRoleOf(s.role) === role);
+  const going = signups.filter(inRaid);
+  const byRole = (role: CompRoleName) => going.filter((s) => compRoleOf(s.role) === role);
+  const queue = signups
+    .filter((s) => GOING.has(s.status) && s.queued)
+    .sort((a, b) => a.signedUpAt - b.signedUpAt);
   const maybe = signups.filter((s) => s.status === 'tentative');
   const bench = signups.filter((s) => s.status === 'bench');
   const declined = signups.filter((s) => s.status === 'declined').length;
@@ -81,6 +112,14 @@ export function renderSignupPost(tick: TickEvent, members: TickMember[]): Messag
     { name: `Tanks (${tanks.length})`, value: list(tanks), inline: true },
     { name: `Healers (${healers.length})`, value: list(healers), inline: true },
     { name: `DPS (${dps.length})`, value: list(dps), inline: true },
+    ...(queue.length
+      ? [
+          {
+            name: `Queue (${queue.length})`,
+            value: list(queue, (s) => `${queue.indexOf(s) + 1}. ${detailed(s)}`),
+          },
+        ]
+      : []),
     { name: `Tentative (${maybe.length})`, value: list(maybe), inline: true },
     { name: `Bench (${bench.length})`, value: list(bench), inline: true },
     { name: 'Comp', value: gapLine(comp) },
@@ -88,8 +127,10 @@ export function renderSignupPost(tick: TickEvent, members: TickMember[]): Messag
   const post: Embed = embed({
     title: `${event.name} — ${event.instance}`,
     description:
-      `${when(event.startsAt)}\n${event.size}-person · ${going.length}/${event.size} going · ` +
-      `${declined} declined · signups ${locked ? 'locked' : 'open'}`,
+      `${when(event.startsAt)}\n${roleCounters(signups)}\n` +
+      `${event.size}-person · ${going.length}/${event.size} going` +
+      `${queue.length ? ` · ${queue.length} queued` : ''} · ${declined} declined · ` +
+      `signups ${locked ? 'locked' : 'open'}`,
     fields,
     footer: { text: 'Answer with the buttons, or sign up on the guild site.' },
   });
@@ -124,6 +165,21 @@ export function renderReminder(tick: TickEvent, waiting: TickMember[]): MessageD
   };
 }
 
+/** Tells someone from the queue that a spot opened and they're in. */
+export function renderPromotion(
+  tick: TickEvent,
+  signup: Signup,
+  member: TickMember | undefined,
+): MessageData {
+  const who = member ? `<@${member.discordId}>` : `**${signup.characterName}**`;
+  return {
+    content:
+      `${who} a spot opened up: ${signup.characterName} is in for **${tick.event.name}** ` +
+      `${when(tick.event.startsAt)}. Can't make it after all? Change your answer on the signup post.`,
+    allowed_mentions: { users: member ? [member.discordId] : [] },
+  };
+}
+
 export function renderDm(tick: TickEvent, member: TickMember): MessageData {
   return {
     content:
@@ -144,12 +200,25 @@ export function renderDigest(
   const waitingLine = waiting.length
     ? `Not answered (${waiting.length}): ${waiting.map((m) => m.displayName).join(', ')}`
     : 'Everyone expected has answered.';
+  const withReasons = (status: Signup['status'], title: string) => {
+    const people = tick.signups.filter((s) => s.status === status);
+    if (!people.length) return null;
+    const names = people.map((s) => (s.note ? `${s.characterName} (${s.note})` : s.characterName));
+    return `${title} (${people.length}): ${names.join(', ')}`;
+  };
+  const queued = tick.signups.filter((s) => s.queued).length;
   return {
     content: [
       `**${tick.event.name}** ${when(tick.event.startsAt)}`,
-      `${comp.counts.confirmed}/${tick.event.size} confirmed · ${gapLine(comp)}`,
+      `${comp.counts.confirmed}/${tick.event.size} confirmed · ${roleCounters(tick.signups)}` +
+        `${queued ? ` · ${queued} queued` : ''}`,
+      gapLine(comp),
+      withReasons('late', 'Late'),
+      withReasons('tentative', 'Tentative'),
+      withReasons('bench', 'Bench'),
       waitingLine,
     ]
+      .filter((line): line is string => line !== null)
       .join('\n')
       .slice(0, MAX_CONTENT),
     allowed_mentions: { parse: [] },

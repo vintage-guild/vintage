@@ -702,8 +702,8 @@ Phase 0 has about ten days and one maintainer, so it is cut to the minimum that 
 - [ ] `/mcp` on `afd-server`'s stateless handler with AFD's meta-tools and the confirm-token flow; `apps/cli` = `afd-cli --transport streamable`; verified from Claude and the CLI
 - [x] `libs/design-tokens`: `afd-site` + `vintage` nodes exporting CSS/TS as-is (no reskin yet); `docs/design/` forked from the AFD site Includes the emblem palette and a FenUI Lua theme (#45); `docs/design/` still to do.
 - [x] FAST-AF vendored in `vendor/` (fast-element, fast-router, violet-elements), pinned to a commit
-- [ ] `packages/ui-kit` on FAST-AF + `violet-elements` (vendored): sign-in, profile, and character components with `@command`; Custom Elements Manifest in CI
-- [ ] `apps/web`: shell on the FAST-AF Router, public about/recruitment page, member profile + characters, deployed to Vercel
+- [ ] `packages/ui-kit` on FAST-AF + `violet-elements` (vendored): sign-in, profile, and character components with `@command`; Custom Elements Manifest in CI Built: logo header, badges, character form (`@command` → `character-add`), signup and sign-in cards, CEM checked in CI; the command client is stubbed until sign-in (#7) and Convex are wired.
+- [ ] `apps/web`: shell on the FAST-AF Router, public about/recruitment page, member profile + characters, deployed to Vercel Shell, routes, and theme switching built; member pages wait on sign-in (#7); Vercel deploy not set up.
 - [ ] Discord application created ✅; `/discord/interactions` built and tested (#43), **not yet deployed or verified by Discord**
 
 **Done when:** a guildie signs in with Discord, sees the tier matching their Discord role, adds characters, and an officer's agent lists members over MCP from Claude or the CLI.

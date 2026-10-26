@@ -3,8 +3,10 @@
   "areas": {
     "guild-kit": { "paths": ["packages/guild-kit/"], "owners": ["@Falkicon"] },
     "identity": { "paths": ["modules/identity/"], "owners": ["@Falkicon"] },
+    "ui-kit": { "paths": ["packages/ui-kit/"], "owners": ["@Falkicon"] },
     "api": { "paths": ["apps/api/"], "owners": ["@Falkicon"] },
     "gateway": { "paths": ["apps/gateway/"], "owners": ["@Falkicon"] },
+    "web": { "paths": ["apps/web/"], "owners": ["@Falkicon"] },
     "libs": { "paths": ["libs/"], "owners": ["@Falkicon"] },
     "vendor": { "paths": ["vendor/"], "owners": ["@Falkicon"] },
     "repo": {

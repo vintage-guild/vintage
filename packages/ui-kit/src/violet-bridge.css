@@ -1,0 +1,74 @@
+/*
+ * Theme violet-elements with Vintage tokens. Violet primitives read Violet's semantic
+ * variable names (falling back to Violet's own light palette); this maps each one onto a
+ * Vintage token so the primitives follow data-theme. Load it after the token CSS.
+ *
+ * Names Violet shares with Vintage (--color-text-primary, --color-text-secondary,
+ * --color-focus-ring, --color-border-strong) need no mapping.
+ */
+:root,
+[data-theme] {
+  --color-surface-page: var(--color-surface-canvas);
+  --color-surface-card: var(--card-bg);
+  --color-surface-subtle: var(--color-surface-sunken);
+  --color-surface-floating: var(--color-surface-raised);
+  --color-surface-highlight: color-mix(in srgb, var(--color-accent-primary) 18%, transparent);
+  --color-text-muted: var(--color-text-secondary);
+  --color-border-subtle: var(--color-border-default);
+
+  --color-action-primary-background: var(--button-primary-bg);
+  --color-action-primary-text: var(--button-primary-text);
+  --color-action-primary-hover: color-mix(
+    in srgb,
+    var(--button-primary-bg) 85%,
+    var(--color-text-primary)
+  );
+  --color-action-primary-pressed: color-mix(
+    in srgb,
+    var(--button-primary-bg) 75%,
+    var(--color-text-primary)
+  );
+  --color-action-secondary-background: var(--color-surface-raised);
+  --color-action-secondary-text: var(--color-text-primary);
+  --color-action-secondary-border: var(--color-border-strong);
+  --color-action-secondary-hover: color-mix(
+    in srgb,
+    var(--color-surface-raised) 85%,
+    var(--color-text-primary)
+  );
+  --color-action-secondary-pressed: color-mix(
+    in srgb,
+    var(--color-surface-raised) 75%,
+    var(--color-text-primary)
+  );
+
+  --color-field-border-hover: var(--color-text-secondary);
+  --color-field-border-invalid: var(--color-feedback-danger);
+  --color-control-selected-background: var(--color-accent-primary);
+  --color-control-selected-foreground: var(--color-accent-contrast);
+  --color-control-selected-border: var(--color-accent-primary);
+
+  --color-state-success-background: color-mix(
+    in srgb,
+    var(--color-feedback-success) 16%,
+    transparent
+  );
+  --color-state-success-border: var(--color-feedback-success);
+  --color-state-success-text: var(--color-text-primary);
+  --color-state-success-foreground: var(--color-feedback-success);
+  --color-state-warning-background: color-mix(
+    in srgb,
+    var(--color-signup-tentative) 16%,
+    transparent
+  );
+  --color-state-warning-border: var(--color-signup-tentative);
+  --color-state-warning-text: var(--color-text-primary);
+  --color-state-danger-background: color-mix(
+    in srgb,
+    var(--color-feedback-danger) 16%,
+    transparent
+  );
+  --color-state-danger-border: var(--color-feedback-danger);
+  --color-state-danger-text: var(--color-text-primary);
+  --color-state-danger-foreground: var(--color-feedback-danger);
+}

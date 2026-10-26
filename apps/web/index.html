@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en" data-theme="vintage-dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Vintage, a guild on WoW: Forever: recruitment, raids, and the member area." />
+    <meta name="color-scheme" content="dark light" />
+    <title>Vintage</title>
+    <script>
+      // Apply the saved theme before first paint (src/theme.ts owns the key and values).
+      try {
+        const saved = localStorage.getItem('vintage-theme');
+        if (saved === 'vintage-dark' || saved === 'vintage-parchment') {
+          document.documentElement.dataset.theme = saved;
+        }
+      } catch {}
+    </script>
+    <script type="module" src="/src/main.ts"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#content">Skip to content</a>
+    <vintage-logo-header tagline="A guild on WoW: Forever">
+      <a slot="logo" href="/"><span class="visually-hidden">Vintage home</span><!-- brand:logo --></a>
+      <a href="/">About</a>
+      <a href="/profile">Profile</a>
+      <a href="/characters">Characters</a>
+      <vintage-theme-switch slot="actions"></vintage-theme-switch>
+    </vintage-logo-header>
+    <main id="content" tabindex="-1">
+      <fast-router></fast-router>
+    </main>
+  </body>
+</html>

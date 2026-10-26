@@ -1,0 +1,31 @@
+{
+  "name": "@vintage/ui-kit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Vintage web composites on FAST-AF and violet-elements: logo header, class and role badges, character form, signup and sign-in cards, theme switch. Styled only by design-token CSS variables.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./client": "./src/client.ts",
+    "./violet-bridge.css": "./src/violet-bridge.css",
+    "./custom-elements.json": "./dist/custom-elements.json"
+  },
+  "customElements": "dist/custom-elements.json",
+  "scripts": {
+    "build": "cem analyze && node scripts/check-cem.mjs",
+    "type-check": "tsc6 -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@lushly-dev/fast-element": "workspace:*",
+    "@lushly-dev/violet-elements": "workspace:*",
+    "@vintage/design-tokens": "workspace:*",
+    "@vintage/guild-kit": "workspace:*",
+    "@vintage/wow-data": "workspace:*"
+  },
+  "devDependencies": {
+    "@custom-elements-manifest/analyzer": "^0.11.0",
+    "@vintage/config": "workspace:*",
+    "happy-dom": "^21.0.3",
+    "typescript": "catalog:"
+  }
+}

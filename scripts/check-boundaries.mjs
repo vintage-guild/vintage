@@ -24,6 +24,7 @@ const LIB_FORBIDDEN = [
   /^@lushly-dev\/afd-(server|client|cli)/,
   /^@microsoft\/fast/,
   /^@lushly-dev\/fast/,
+  /^@lushly-dev\/violet/,
   /^node:/,
 ];
 const MODULE_EXPORTS = new Set([

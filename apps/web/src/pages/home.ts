@@ -33,6 +33,7 @@ import {
   titleCase,
 } from '@vintage/ui-kit';
 import { characterLabel } from '../characters';
+import { classIcon } from '../class-icons';
 import { ART } from '../content/art';
 import { type ClassNeed, DISCORD_INVITE_URL, RECRUITING } from '../content/recruiting';
 import {
@@ -353,7 +354,18 @@ const template = html<Page>`
                   () => RECRUITING.needs,
                   html<ClassNeed>`
                     <tr>
-                      <td class="cls">${(n) => n.wowClass}</td>
+                      <td class="cls">
+                        <img
+                          src="${(n) => classIcon(n.wowClass)}"
+                          alt=""
+                          width="28"
+                          height="28"
+                          loading="lazy"
+                          decoding="async"
+                          referrerpolicy="no-referrer"
+                        />
+                        <span>${(n) => n.wowClass}</span>
+                      </td>
                       <td class="muted">${(n) => n.specs}</td>
                       <td class="end"><span class="need ${(n) => n.need}">${(n) => n.need}</span></td>
                     </tr>
@@ -956,6 +968,27 @@ const styles = css`
     letter-spacing: var(--font-tracking-wider);
     text-transform: uppercase;
     color: var(--color-leather-700);
+  }
+
+  /* Blizzard's class icon (Wowhead's CDN, as the bot uses), framed like an in-game icon. */
+  .needs .cls {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-weight: var(--font-weight-bold);
+  }
+
+  .needs .cls img {
+    flex: none;
+    inline-size: 1.75rem;
+    block-size: 1.75rem;
+    border-radius: 0.3rem;
+    border: var(--border-width-thin) solid color-mix(in srgb, var(--color-leather-900) 55%, transparent);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 25%);
+  }
+
+  .needs td {
+    vertical-align: middle;
   }
 
   .needs .end {

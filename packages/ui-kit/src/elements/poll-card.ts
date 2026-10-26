@@ -1,4 +1,13 @@
-import { attr, css, FASTElement, html, observable, repeat, when } from '@lushly-dev/fast-element';
+import {
+  attr,
+  css,
+  FASTElement,
+  html,
+  observable,
+  repeat,
+  volatile,
+  when,
+} from '@lushly-dev/fast-element';
 import { command, failure } from '@lushly-dev/fast-element/command.js';
 import { getCommandClient } from '../client';
 import { describeError, type ElementResult, toElementResult } from '../result';
@@ -235,6 +244,7 @@ export class VintagePollCard extends FASTElement {
   }
 
   /** Reactive availability for `vintage.vote-cast`. */
+  @volatile
   get voteCanExecute(): boolean {
     return !this.busy && !this.readonly && Boolean(this.pollId);
   }

@@ -1,4 +1,12 @@
-import { css, FASTElement, html, observable, repeat, when } from '@lushly-dev/fast-element';
+import {
+  css,
+  FASTElement,
+  html,
+  observable,
+  repeat,
+  volatile,
+  when,
+} from '@lushly-dev/fast-element';
 import type { RaidEvent, Signup } from '@vintage/raids/contract';
 import { getCommandClient, type TonightRaid, type TonightSignup } from '@vintage/ui-kit';
 import { formatMonthDay, formatWeekday, preferredTimeZone } from '../dates';
@@ -204,6 +212,7 @@ export class Page extends FASTElement {
   @observable waiting: string[] = [];
   @observable loadError = '';
 
+  @volatile
   get raid(): TonightRaid | null {
     const e = this.raids.find((r) => r.event.id === this.selectedId)?.event;
     return e

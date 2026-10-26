@@ -6,6 +6,7 @@ import {
   html,
   observable,
   repeat,
+  volatile,
   when,
 } from '@lushly-dev/fast-element';
 import { command, failure } from '@lushly-dev/fast-element/command.js';
@@ -583,10 +584,12 @@ export class VintageTonight extends FASTElement {
     return this.raid?.status === 'locked';
   }
 
+  @volatile
   get canAct(): boolean {
     return !this.busy && Boolean(this.raid);
   }
 
+  @volatile
   get startsLabel(): string {
     if (!this.raid) return 'nothing posted';
     const options: Intl.DateTimeFormatOptions = {
@@ -607,6 +610,7 @@ export class VintageTonight extends FASTElement {
     }
   }
 
+  @volatile
   get countsLine(): string {
     if (!this.raid) return '';
     const count = (pred: (s: TonightSignup) => boolean) => this.signups.filter(pred).length;

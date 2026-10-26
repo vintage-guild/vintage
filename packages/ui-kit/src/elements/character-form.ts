@@ -1,4 +1,13 @@
-import { attr, css, FASTElement, html, observable, repeat, when } from '@lushly-dev/fast-element';
+import {
+  attr,
+  css,
+  FASTElement,
+  html,
+  observable,
+  repeat,
+  volatile,
+  when,
+} from '@lushly-dev/fast-element';
 import { command, failure } from '@lushly-dev/fast-element/command.js';
 import {
   CLASS_NAMES,
@@ -171,10 +180,12 @@ export class VintageCharacterForm extends FASTElement {
     return this.wowClass ? Object.keys(CLASSES[this.wowClass]) : [];
   }
 
+  @volatile
   get role(): string {
     return (this.wowClass && roleFor(this.wowClass, this.spec)) || '';
   }
 
+  @volatile
   get nameError(): string {
     if (!this.nameTouched) return '';
     const parsed = characterNameSchema.safeParse(this.name);
@@ -191,6 +202,7 @@ export class VintageCharacterForm extends FASTElement {
   }
 
   /** Reactive availability for `vintage.character-add` (read by FAST-AF's CommandBehavior). */
+  @volatile
   get addCharacterCanExecute(): boolean {
     return !this.busy && this.input !== null;
   }

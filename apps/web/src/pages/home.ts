@@ -1,5 +1,7 @@
 import { css, FASTElement, html, observable, repeat, when } from '@lushly-dev/fast-element';
+import type { CoordinatorAction } from '@vintage/coordinator/contract';
 import type { Character } from '@vintage/identity/contract';
+import type { Poll, PollResults } from '@vintage/polls/contract';
 import {
   LAUNCH_BOSS_COUNT,
   LAUNCH_RAIDS,
@@ -13,11 +15,21 @@ import {
   getCommandClient,
   type LedgerKill,
   type LedgerRaid,
+  type PollCardOption,
+  type RosterMember,
   type SignupCounts,
   titleCase,
 } from '@vintage/ui-kit';
+import { type ClassNeed, RECRUITING } from '../content/recruiting';
 import { daysUntil, LAUNCH_AT, RAIDS_OPEN_AT as RAIDS_OPEN_ISO } from '../dates';
-import { sectionContext, setSiteContext, watchSections } from '../site-context';
+import { currentSession } from '../session';
+import {
+  consumePendingSection,
+  scrollToSection,
+  sectionContext,
+  setSiteContext,
+  watchSections,
+} from '../site-context';
 import { pageStyles } from './page-styles';
 
 /** How far ahead the calendar looks. */
@@ -25,10 +37,7 @@ const CALENDAR_DAYS = 60;
 const DAY_MS = 86_400_000;
 
 /** One row of `member-list`. */
-interface MemberRow {
-  id: string;
-  displayName: string;
-}
+type MemberRow = RosterMember;
 
 /** One row of `raid-list`. */
 interface RaidRow {
@@ -50,8 +59,8 @@ const template = html<Page>`
     data-section
     data-section-eyebrow="Vintage"
     data-section-title="A guild on WoW: Forever"
-    data-section-action="Join the Discord"
-    data-section-href="#discord"
+    data-section-action="Apply to raid"
+    data-section-href="/#recruiting"
   >
     <span slot="eyebrow" class="pill">Normal ruleset</span>
     <span slot="eyebrow" class="pill">Wed + Thu · 8 pm ET</span>
@@ -64,8 +73,8 @@ const template = html<Page>`
       Raids open December 9.
     </p>
     <div slot="actions">
-      <a class="btn primary" href="/about">Apply to raid</a>
-      <a class="btn" href="#discord">Join the Discord</a>
+      <a class="btn primary" href="/#recruiting" data-section-link="recruiting">Apply to raid</a>
+      <a class="btn" href="/#news" data-section-link="news">What’s new</a>
     </div>
     <div slot="figures">
       <vintage-figure value="${(x) => x.daysToLaunch}" unit="days" caption="to launch · Wed Nov 4"></vintage-figure>
@@ -162,7 +171,159 @@ const template = html<Page>`
       ></vintage-boss-ledger>
     </div>
   </section>
+
+  <section
+    class="sec cream"
+    id="recruiting"
+    data-section
+    data-section-eyebrow="Recruiting"
+    data-section-title="Open roles"
+    data-section-action="Apply to raid"
+    aria-labelledby="h-recruiting"
+  >
+    <div class="wrap">
+      <div class="two recruit">
+        <div class="lead">
+          <span class="eyebrow">Recruiting · posted ${RECRUITING.postedOn}</span>
+          <h2 id="h-recruiting">${RECRUITING.headline}</h2>
+          <p class="pitch">${RECRUITING.pitch}</p>
+          <p class="actions"><a class="btn primary" href="/about">How we raid</a> <a class="btn" href="/#roster" data-section-link="roster">Who’s in</a></p>
+        </div>
+        <table class="needs">
+          <thead><tr><th>Class</th><th>Specs</th><th class="end">Need</th></tr></thead>
+          <tbody>
+            ${repeat(
+              () => RECRUITING.needs,
+              html<ClassNeed>`
+                <tr>
+                  <td class="cls">${(n) => n.wowClass}</td>
+                  <td class="muted">${(n) => n.specs}</td>
+                  <td class="end"><span class="need ${(n) => n.need}">${(n) => n.need}</span></td>
+                </tr>
+              `,
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section
+    class="sec"
+    id="roster"
+    data-section
+    data-section-eyebrow="Roster"
+    data-section-title="On the rolls"
+    data-section-action="Find me"
+    aria-labelledby="h-roster"
+  >
+    <div class="wrap">
+      <header>
+        <div class="lead"><span class="eyebrow">Roster</span><h2 id="h-roster">On the rolls</h2></div>
+        <span class="mono">${(x) => x.rosterNote}</span>
+      </header>
+      <vintage-roster-wall :members="${(x) => x.members}" me="${(x) => x.meId}"></vintage-roster-wall>
+    </div>
+  </section>
+
+  <section
+    class="sec"
+    id="news"
+    data-section
+    data-section-eyebrow="News"
+    data-section-title="From the coordinator"
+    data-section-action="Open the log"
+    aria-labelledby="h-news"
+  >
+    <div class="wrap">
+      <header>
+        <div class="lead"><span class="eyebrow">News</span><h2 id="h-news">From the coordinator</h2></div>
+        <span class="mono">the bot's log · newest first</span>
+      </header>
+      <div class="two">
+        <div class="card">
+          <span class="eyebrow">What the bot did</span>
+          <div class="feed">
+            ${repeat(
+              (x) => x.feed,
+              html<FeedItem>`
+                <div class="item">
+                  <time datetime="${(f) => new Date(f.at).toISOString()}">${(f) => monthDay(f.at)}</time>
+                  <p><b>${(f) => f.title}</b><small>${(f) => f.detail}</small></p>
+                </div>
+              `,
+            )}
+            ${when(
+              (x) => x.feed.length === 0,
+              html`<p class="muted">Nothing yet. The coordinator posts signups a week ahead and logs every reminder here.</p>`,
+            )}
+          </div>
+        </div>
+        ${when(
+          (x) => x.poll,
+          html<Page>`
+            <vintage-poll-card
+              poll-id="${(x) => x.poll?.id}"
+              question="${(x) => x.poll?.question}"
+              description="${(x) => x.poll?.description ?? ''}"
+              note="${(x) => x.pollNote}"
+              ?readonly="${(x) => x.poll?.status !== 'open'}"
+              :options="${(x) => x.pollOptions}"
+              :myVote="${(x) => x.myVote}"
+              @vote-cast="${(x) => x.loadPoll()}"
+            ></vintage-poll-card>
+          `,
+        )}
+        ${when(
+          (x) => !x.poll,
+          html`<div class="card"><span class="eyebrow">The question</span><p class="muted">No open poll. Raid leaders open one with <code>poll-create</code>, in Discord or here.</p></div>`,
+        )}
+      </div>
+    </div>
+  </section>
 `;
+
+/** One line of the coordinator feed: an action, in words. */
+interface FeedItem {
+  at: number;
+  title: string;
+  detail: string;
+}
+
+/** What `poll-get` answers: the poll (with its live tally when visible) and my ballot. */
+interface PollGet {
+  poll: Poll & { results?: PollResults | null; tally?: PollResults | null };
+  myVote: string[] | null;
+  ballots: number;
+}
+
+/** The coordinator's rule kinds (modules/coordinator tick.ts), in words. */
+const RULE_LABELS: [prefix: string, label: string][] = [
+  ['post', 'Posted the signups'],
+  ['refresh', 'Updated the signup post'],
+  ['remind', 'Reminded the people who haven’t answered'],
+  ['dm', 'Sent reminder DMs'],
+  ['digest', 'Sent officers the comp digest'],
+  ['lock', 'Locked the roster'],
+  ['final', 'Posted the final roster'],
+  ['promote', 'Told the next in line a spot opened'],
+];
+
+function describeAction(action: CoordinatorAction, eventName: string): FeedItem {
+  const match = RULE_LABELS.find(([prefix]) => action.rule.startsWith(prefix));
+  const what = match ? match[1] : titleCase(action.rule);
+  const status =
+    action.status === 'sent'
+      ? ''
+      : action.status === 'skipped'
+        ? ' · skipped'
+        : ` · ${action.status}`;
+  return {
+    at: action.finishedAt ?? action.claimedAt,
+    title: `${what} for ${eventName}${status}`,
+    detail: action.detail ?? '',
+  };
+}
 
 /** "27 going · 4 tentative", or the member's own answer when they have one. */
 function summarize(row: RaidRow): string {
@@ -393,8 +554,158 @@ const styles = css`
     color: var(--color-text-accent);
   }
 
+  /* the cream band: recruiting, on the inverse surface tokens */
+  .sec.cream {
+    background: var(--color-surface-inverse);
+    color: var(--color-text-inverse);
+    border-block-start: 0;
+    box-shadow:
+      inset 0 12px 30px rgb(0 0 0 / 8%),
+      inset 0 -12px 30px rgb(0 0 0 / 6%);
+  }
+
+  .sec.cream h2 {
+    color: var(--color-text-inverse);
+    font-size: clamp(2rem, 4vw, 3.4rem);
+    line-height: 1.02;
+  }
+
+  .sec.cream .eyebrow,
+  .sec.cream .muted,
+  .sec.cream .pitch {
+    color: var(--color-leather-700);
+  }
+
+  .sec.cream .lead .eyebrow {
+    color: var(--color-rose-700);
+  }
+
+  .two.recruit {
+    grid-template-columns: 1fr 1.1fr;
+    align-items: start;
+  }
+
+  .two.recruit .lead {
+    display: grid;
+    gap: var(--space-sm);
+  }
+
+  .pitch {
+    margin: 0;
+    max-inline-size: 52ch;
+  }
+
+  .sec.cream .btn.primary {
+    background: var(--color-verdigris-700);
+    color: var(--color-parchment-50);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 20%),
+      0 6px 16px rgb(43 112 120 / 30%);
+  }
+
+  .needs {
+    inline-size: 100%;
+    border-collapse: collapse;
+    font-size: var(--font-size-sm);
+  }
+
+  .needs th,
+  .needs td {
+    text-align: start;
+    padding-block: 0.6rem;
+    border-block-end: var(--border-width-thin) solid var(--color-border-inverse);
+    vertical-align: top;
+  }
+
+  .needs th {
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    letter-spacing: var(--font-tracking-wider);
+    text-transform: uppercase;
+    color: var(--color-leather-700);
+  }
+
+  .needs .end {
+    text-align: end;
+    white-space: nowrap;
+  }
+
+  .needs .cls {
+    font-weight: var(--font-weight-bold);
+  }
+
+  .need {
+    display: inline-block;
+    padding: 0.2rem 0.55rem;
+    border-radius: 0.2rem;
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xs);
+    letter-spacing: var(--font-tracking-wider);
+    text-transform: uppercase;
+  }
+
+  .need.high {
+    background: var(--color-verdigris-700);
+    color: var(--color-parchment-50);
+  }
+
+  .need.medium {
+    background: var(--color-parchment-200);
+    color: var(--color-text-inverse);
+  }
+
+  .need.closed {
+    border: var(--border-width-thin) solid var(--color-border-inverse);
+    color: var(--color-leather-700);
+  }
+
+  /* the coordinator feed */
+  .feed {
+    display: grid;
+  }
+
+  .item {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--space-sm);
+    padding-block: var(--space-xs);
+    border-block-start: var(--border-width-thin) solid var(--color-border-default);
+    font-size: var(--font-size-sm);
+  }
+
+  .item:first-child {
+    border-block-start: 0;
+  }
+
+  .item time {
+    padding-block-start: 0.2rem;
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xs);
+    letter-spacing: var(--font-tracking-wide);
+    text-transform: uppercase;
+    color: var(--color-text-accent);
+    white-space: nowrap;
+  }
+
+  .item p {
+    margin: 0;
+    min-inline-size: 0;
+  }
+
+  .item small {
+    display: block;
+    color: var(--color-text-secondary);
+  }
+
+  code {
+    font-family: var(--font-family-mono);
+    font-size: 0.9em;
+  }
+
   @media (max-width: 62rem) {
-    .two {
+    .two,
+    .two.recruit {
       grid-template-columns: 1fr;
     }
   }
@@ -419,6 +730,12 @@ const styles = css`
  */
 export class Page extends FASTElement {
   @observable memberCount: number | null = null;
+  @observable members: MemberRow[] = [];
+  @observable feed: FeedItem[] = [];
+  @observable poll: PollGet['poll'] | null = null;
+  @observable pollOptions: PollCardOption[] = [];
+  @observable myVote = '';
+  @observable pollBallots = 0;
   @observable raids: RaidRow[] = [];
   @observable nextCounts: SignupCounts = EMPTY_COUNTS;
   @observable main: Character | null = null;
@@ -496,6 +813,26 @@ export class Page extends FASTElement {
     return this.progress?.total ?? LAUNCH_BOSS_COUNT;
   }
 
+  get meId(): string {
+    return currentSession()?.memberId ?? '';
+  }
+
+  get rosterNote(): string {
+    if (this.memberCount === null) return '';
+    const mains = this.members.filter((m) => m.main).length;
+    return `${this.memberCount} members · ${mains} with a main registered · ranks from Discord`;
+  }
+
+  get pollNote(): string {
+    if (!this.poll) return '';
+    const closes = this.poll.closesAt
+      ? ` · closes ${new Date(this.poll.closesAt).toLocaleDateString(undefined, { weekday: 'long' })}`
+      : '';
+    const who =
+      this.poll.eligibleTier === 'member' ? 'everyone' : `${this.poll.eligibleTier}s and up`;
+    return `${this.pollBallots} ballot${this.pollBallots === 1 ? '' : 's'} · ${who}${closes}`;
+  }
+
   get progressNote(): string {
     if (!this.progress) return this.progressFailed ? 'sign in to see first kills' : '';
     if (!this.progress.open) return `raids unlock Dec 9 · ${this.daysToRaids} days`;
@@ -505,13 +842,22 @@ export class Page extends FASTElement {
   connectedCallback(): void {
     super.connectedCallback();
     void this.loadMembers();
-    void this.loadRaids();
+    void this.loadRaids().then(() => this.loadFeed());
     void this.loadMain();
     void this.loadProgress();
+    void this.loadPoll();
     const sections = this.shadowRoot?.querySelectorAll('[data-section]') ?? [];
     this.stopWatching = watchSections(sections, (section) =>
       setSiteContext(sectionContext(section)),
     );
+    const pending = consumePendingSection();
+    if (pending) {
+      // The router resets scroll after it renders a page; land after that, and once the first
+      // reads have changed the layout.
+      const go = () => scrollToSection(pending, 'instant');
+      requestAnimationFrame(() => requestAnimationFrame(go));
+      setTimeout(go, 250);
+    }
   }
 
   disconnectedCallback(): void {
@@ -522,7 +868,54 @@ export class Page extends FASTElement {
 
   async loadMembers(): Promise<void> {
     const result = await getCommandClient().read<MemberRow[]>('member-list');
-    this.memberCount = result.success ? (result.data ?? []).length : null;
+    this.members = result.success ? (result.data ?? []) : [];
+    this.memberCount = result.success ? this.members.length : null;
+  }
+
+  /** The coordinator's log across the upcoming raids, newest first. */
+  async loadFeed(): Promise<void> {
+    const client = getCommandClient();
+    const logs = await Promise.all(
+      this.raids.map(async (row) => {
+        const result = await client.read<CoordinatorAction[]>('coordinator-log', {
+          eventId: row.event.id,
+          limit: 20,
+        });
+        return (result.success ? (result.data ?? []) : []).map((a) =>
+          describeAction(a, row.event.name),
+        );
+      }),
+    );
+    this.feed = logs
+      .flat()
+      .sort((a, b) => b.at - a.at)
+      .slice(0, 6);
+  }
+
+  /** The first open poll the member may see, with its live tally and their own ballot. */
+  async loadPoll(): Promise<void> {
+    const client = getCommandClient();
+    const list = await client.read<{ id: string }[]>('poll-list');
+    const first = list.success ? (list.data ?? [])[0] : undefined;
+    if (!first) {
+      this.poll = null;
+      return;
+    }
+    const got = await client.read<PollGet>('poll-get', { pollId: first.id });
+    if (!got.success || !got.data) {
+      this.poll = null;
+      return;
+    }
+    const { poll, myVote, ballots } = got.data;
+    const tally = poll.tally ?? poll.results ?? null;
+    this.poll = poll;
+    this.pollBallots = ballots;
+    this.myVote = myVote?.[0] ?? '';
+    this.pollOptions = poll.options.map((o) => ({
+      id: o.id,
+      label: o.label,
+      votes: tally?.options.find((t) => t.optionId === o.id)?.votes ?? 0,
+    }));
   }
 
   async loadMain(): Promise<void> {

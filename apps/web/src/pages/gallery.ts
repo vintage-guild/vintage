@@ -3,6 +3,8 @@ import { LAUNCH_RAIDS, RAIDS_OPEN_ON } from '@vintage/progress/contract';
 import {
   type LedgerKill,
   type LedgerRaid,
+  type PollCardOption,
+  type RosterMember,
   SIGNUP_STATUSES,
   type SignupStatus,
 } from '@vintage/ui-kit';
@@ -53,11 +55,71 @@ function raidingLedger(): { raids: LedgerRaid[]; latest: LedgerKill } {
 const LEDGER_LOCKED = emptyLedger();
 const LEDGER_RAIDING = raidingLedger();
 
+const GALLERY_ROSTER: RosterMember[] = [
+  {
+    id: 'm1',
+    displayName: 'Stridulent',
+    rank: 'officer',
+    main: { name: 'Stridulent', class: 'warrior', spec: 'protection', role: 'tank' },
+  },
+  {
+    id: 'm3',
+    displayName: 'Aeryn',
+    rank: 'officer',
+    main: { name: 'Aeryn', class: 'priest', spec: 'holy', role: 'healer' },
+  },
+  {
+    id: 'm4',
+    displayName: 'Morwenna',
+    rank: 'raider',
+    main: { name: 'Morwenna', class: 'mage', spec: 'frost', role: 'ranged' },
+  },
+  {
+    id: 'm5',
+    displayName: 'Kaelthir',
+    rank: 'raider',
+    main: { name: 'Kaelthir', class: 'rogue', spec: 'combat', role: 'melee' },
+  },
+  {
+    id: 'm2',
+    displayName: 'Bloodfen',
+    rank: 'flex-raider',
+    main: { name: 'Bloodfen Il', class: 'warrior', spec: 'protection', role: 'tank' },
+  },
+  { id: 'm6', displayName: 'Wendeline', rank: 'recruit', main: null },
+];
+
+const GALLERY_POLL: PollCardOption[] = [
+  { id: 'o1', label: 'Sunday', votes: 14 },
+  { id: 'o2', label: 'Monday', votes: 9 },
+  { id: 'o3', label: 'Either', votes: 3 },
+];
+
 // Dev only (see routes.ts): every ui-kit element with sample data.
 const template = html<Page>`
   <div class="page">
     <h1>Components</h1>
-    <p class="lead">Every @vintage/ui-kit element. Switch the theme in the header to check both.</p>
+    <p class="lead">Every @vintage/ui-kit element. Switch the theme to check both: <vintage-theme-switch></vintage-theme-switch></p>
+    <section>
+      <h2>Member menu</h2>
+      <p>The signed-in member in the header: avatar (or initial), name, rank, and a menu.</p>
+      <div class="row">
+        <vintage-member-menu name="Bloodfen" detail="Flex raider"></vintage-member-menu>
+        <vintage-member-menu name="Aeryn" detail="Officer" avatar-src="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='32' fill='%234aa5ad'/%3E%3C/svg%3E"></vintage-member-menu>
+      </div>
+    </section>
+    <section>
+      <h2>Roster wall</h2>
+      <vintage-roster-wall me="m2" :members="${() => GALLERY_ROSTER}"></vintage-roster-wall>
+    </section>
+    <section>
+      <h2>Poll card</h2>
+      <p>Voting runs <code>vote-cast</code> through the command client.</p>
+      <div class="cards">
+        <vintage-poll-card poll-id="demo" question="Off-night dungeons: Sunday or Monday?" description="For attunement runs." note="26 ballots · raiders and up · closes Friday" :options="${() => GALLERY_POLL}" myVote="o2"></vintage-poll-card>
+        <vintage-poll-card poll-id="demo" question="A closed poll" note="closed" readonly :options="${() => GALLERY_POLL}"></vintage-poll-card>
+      </div>
+    </section>
     <section>
       <h2>Class badges</h2>
       <p class="row">

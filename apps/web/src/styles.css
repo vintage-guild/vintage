@@ -4,6 +4,14 @@ html {
   color: var(--color-text-primary);
   font-family: var(--font-family-sans);
   font-size: 100%;
+  /* Sections land below the sticky header when scrolled to. */
+  scroll-padding-block-start: 4.6rem;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
 body {
@@ -12,18 +20,57 @@ body {
   background: var(--color-surface-canvas);
 }
 
-/* The inline two-tone logo; vintage-logo-header sizes the slotted link around it. */
+/* The inline single-color logo takes the text color; vintage-logo-header sizes the link. */
+vintage-logo-header [slot="logo"] {
+  color: var(--color-text-primary);
+}
+
 vintage-logo-header [slot="logo"] svg {
   display: block;
   inline-size: 100%;
   block-size: auto;
-  filter: drop-shadow(0 2px 6px rgb(0 0 0 / 45%));
 }
 
-/* The signed-in member in the header: name in the class color once characters are known. */
-#member-chip b {
+vintage-logo-header [slot="logo"]:hover {
+  color: var(--color-text-accent);
+}
+
+.site-footer {
+  border-block-start: var(--border-width-thin) solid var(--color-border-default);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.site-footer .wrap {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-sm) var(--space-lg);
+  max-inline-size: 80rem;
+  margin-inline: auto;
+  padding: var(--space-md) var(--space-inset) var(--space-xl);
+}
+
+.site-footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+}
+
+.site-footer a {
   color: var(--color-text-primary);
-  font-weight: var(--font-weight-bold);
+  text-decoration: none;
+}
+
+.site-footer a:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.site-footer a:focus-visible {
+  outline: var(--border-width-thin) solid var(--color-focus-ring);
+  outline-offset: var(--border-width-thin);
 }
 
 .visually-hidden {

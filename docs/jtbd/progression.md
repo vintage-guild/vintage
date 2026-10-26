@@ -1,7 +1,7 @@
 # Progression
 
 The guild's first kills, from a raid leader recording them to the ledger every member sees on
-the home page (`docs/features/proposed/home-page`, section 4). Automated in
+the home page (`docs/features/active/home-page`, section 4). Automated in
 `apps/api/tests/jtbd/progression.jtbd.test.ts`.
 
 **Cast** (the same as the raid night): Ana (Officer), Rook (Raid Leader), Aeryn (Raider),

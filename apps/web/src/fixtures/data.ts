@@ -89,6 +89,42 @@ export interface FixtureRaid {
 
 const raiders = MEMBERS.filter((m) => m.rank !== 'member');
 
+/** Discord channel ids for the example guild, for the coordinator's posts. */
+export const CHANNELS = { signups: '400000000000000001', ops: '400000000000000002' } as const;
+
+/** The example poll, created by a raid leader for raiders and up (`poll-create`). */
+export const POLL = {
+  createdBy: 'Garrick',
+  question: 'Off-night dungeons: Sunday or Monday?',
+  description: 'For attunement runs and the recruits’ Deadmines nights.',
+  options: ['Sunday', 'Monday', 'Either'] as const,
+  /** Who votes, and for which option (by index). The signed-in member has not voted yet. */
+  votes: [
+    ['Stridulent', 0],
+    ['Aeryn', 0],
+    ['Garrick', 1],
+    ['Morwenna', 0],
+    ['Kaelthir', 1],
+    ['Brannoch', 0],
+    ['Ysolde', 2],
+    ['Tamsin', 0],
+    ['Nimue', 1],
+    ['Oswyn', 0],
+    ['Fenwick', 0],
+    ['Isolde', 1],
+    ['Rhoswen', 0],
+    ['Caddoc', 2],
+    ['Elowen', 1],
+    ['Jorund', 0],
+    ['Thessaly', 0],
+    ['Maelis', 1],
+    ['Peregrin', 0],
+    ['Sable', 1],
+  ] as const satisfies readonly (readonly [string, number])[],
+  /** ISO 8601; the Friday after the poll opens. */
+  closesAt: '2026-10-30T23:00:00-04:00',
+};
+
 export const RAIDS: readonly FixtureRaid[] = [
   {
     name: 'Launch night',

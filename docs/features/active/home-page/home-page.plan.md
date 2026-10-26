@@ -1,6 +1,6 @@
 # Home page
 
-> Status: proposed · Created 2026-10-25 · Owner: Bloodfen · Branch: `claude/wow-guild-homepage-37008f`
+> Status: active · Created 2026-10-25 · Owner: Bloodfen · Branch: `claude/wow-guild-homepage-37008f`
 >
 > The public front page of the Vintage website: what a prospective recruit, a guildie, and an
 > officer each see first. Bold and modern with WoW hints, not a parchment-and-gold theme park.
@@ -348,6 +348,38 @@ upstream (`upstream:fast-af`) and gets a local stub with the issue link.
   the pre-launch state; the `/ui` gallery shows both states. JTBD J16 covers the job.
 - Verified: dark theme at desktop and phone width, both states, no console errors.
 
+**Pass 4 (2026-10-26), the rest of the page:**
+
+- **Nav moves down the page, not between pages.** The header's links are section links
+  (Raids, Progress, Recruiting, Roster, News). The sections live in the home page's shadow
+  root, and the router read `/#raids` as a route, so `site-context.ts` takes section-link
+  clicks before the router: scroll on the home page, or navigate home and scroll once it
+  mounts. The link for the section in view is marked. The theme switch left the header (it
+  lives on `/ui`); the logo is the single-color vector in the text color.
+- **Member menu.** `vintage-member-menu`: round avatar, name, rank, and a menu with Profile and
+  Characters. Discord sign-in can supply the avatar (its OAuth profile carries the avatar hash;
+  the image is `cdn.discordapp.com/avatars/<id>/<hash>.png`), so `Session.avatarUrl` is the
+  seam; the fixtures draw the member's initial until then.
+- **Recruiting** is a cream band on the inverse surface tokens with the open roles table.
+  The content is a static module (`apps/web/src/content/recruiting.ts`), not a fixture, so
+  production shows the same thing; a `site` module takes it over later.
+- **Roster** is `vintage-roster-wall` over `member-list`: class-colored mains grouped by rank,
+  the member's own row marked.
+- **News** is real coordinator output: the fixture host now carries the coordinator (memory
+  store, a tick source over the memory stores, a fake Discord) and the seed runs
+  `coordinator-config-set` then `coordinator-run`, so `coordinator-log` answers with actions
+  the real tick logged. The page reads the log per upcoming raid and shows the newest six, with
+  the tick's rule kinds in words.
+- **Polls** run the polls module: the seed has a raid leader `poll-create` an off-night poll
+  for raiders and up and twenty members `vote-cast`. `vintage-poll-card` shows the live tally
+  from `poll-get` and votes through `vote-cast` as the `vintage.vote-cast` command.
+- Footer with the build date (`__BUILD_TIME__` from the Vite config) and links.
+- Verified: every section at desktop and phone width, the section links on the home page and
+  from About, the member menu, the `/ui` gallery; `validate:final` green.
+- Not done here: a JTBD job for voting from the website (the polls module's own jobs cover the
+  commands); preloading the display face; alpha shadows and highlights in ui-kit styles are
+  literal `rgb()` values rather than tokens.
+
 ## Tasks
 
 - [x] Research pass folded into this doc; direction chosen (concept E, 2026-10-25)
@@ -357,13 +389,15 @@ upstream (`upstream:fast-af`) and gets a local stub with the issue link.
 - [x] Sticky header with section context, both themes, phone width
 - [x] Next raid block (`raid-list` / `signup-list`): the member's own answer as `@command` → `signup-set`
 - [x] Progression ledger (`progress-get`; `kill-record` for leaders)
-- [ ] Recruiting band (parchment theme inline)
-- [ ] Roster wall (`member-list` / `character-list`)
-- [ ] Coordinator feed cards
-- [ ] Polls concept card
-- [ ] Footer; `/ui` gallery entries for every new element; CEM check
-- [ ] Docs: `apps/web/README.md`, `packages/ui-kit/README.md`, architecture status line
-- [ ] Review: `vintage-reviewer`, a11y pass (contrast on crimson fields, focus, reduced motion)
+- [x] Recruiting band (cream, on the inverse surface tokens)
+- [x] Roster wall (`member-list`)
+- [x] Coordinator feed (`coordinator-log` from a real tick in the fixtures)
+- [x] Poll card on the polls module (`poll-get` / `vote-cast`)
+- [x] Footer; `/ui` gallery entries for every new element; CEM check
+- [x] Docs: `apps/web/README.md`, `packages/ui-kit/README.md`, architecture status line
+- [x] Section nav, member menu with avatar, vector logo, theme switch out of the header
+- [ ] Preload the display face; shadow and highlight tokens; a JTBD job for voting from the website
+- [ ] Once sign-in (#7) lands: Discord avatar into `Session.avatarUrl`, Sign out in the member menu
 
 ## Decisions
 
@@ -372,6 +406,8 @@ upstream (`upstream:fast-af`) and gets a local stub with the issue link.
 | 2026-10-25 | Dev fixtures are the real registry over memory stores, seeded through commands; no fixture client fakes a command's answer | Keeps the page honest to AFD, and the seed exercises the real tier rules; swapping to Convex is one line in `main.ts` |
 | 2026-10-25 | The site palette is plum, verdigris, rose, and gold 500 on top of the emblem palette; Bitter / IBM Plex as token families | Concept E, chosen by Bloodfen after three rounds; the emblem's gold and crimson stay for the logo and WoW frames |
 | 2026-10-25 | Sections with no command yet use marked local fixtures and no fake command names | The manifest is the contract; no phantom commands |
+| 2026-10-26 | The header navigates within the home page's sections; routes stay for About, Profile, and Characters | Bloodfen: the concept moves down the page, the first build swapped pages |
+| 2026-10-26 | Recruiting copy is static site content, not a fixture, until a `site` module owns it | Production must show it too; a fixture would leave production empty |
 | 2026-10-25 | Raids and bosses are data in the `progress` contract, not rows; kills are the records. Datamined names carry a flag every surface shows | Blizzard's launch raids don't vary per guild; the flag keeps the page honest until the names are official |
 
 ## Open questions

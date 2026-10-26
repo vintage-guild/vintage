@@ -2,9 +2,9 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
 
-const logoPath = fileURLToPath(
-  new URL('../../assets/brand/vintage-logo-two-tone.svg', import.meta.url),
-);
+// The single-color trace: `fill="currentColor"` takes the header's text color and the letters
+// are knockouts, so it reads as a mark rather than the painted emblem.
+const logoPath = fileURLToPath(new URL('../../assets/brand/vintage-logo.svg', import.meta.url));
 
 /**
  * Inlines the two-tone logo into index.html at build time. It has to be inline SVG (not an
@@ -25,6 +25,7 @@ function brandLogo(): Plugin {
 
 export default defineConfig({
   plugins: [brandLogo()],
+  define: { __BUILD_TIME__: JSON.stringify(new Date().toISOString()) },
   // violet-elements and fast-router use top-level await to register their elements.
   build: { target: 'es2022' },
   server: { port: 5173, strictPort: true },

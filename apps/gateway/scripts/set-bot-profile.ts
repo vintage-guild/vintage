@@ -3,7 +3,7 @@
 //   DISCORD_BOT_TOKEN=… [DISCORD_GUILD_ID=…] pnpm --filter @vintage/gateway set-bot-profile \
 //     [--username Random] [--avatar path/to/avatar.png]
 //
-// The username is display only: slash commands stay /vintage. The avatar must be PNG, JPEG, or
+// The username is display only: the slash command is /random. The avatar must be PNG, JPEG, or
 // GIF; Discord rejects WebP, so convert the site art first (any image editor, or a browser canvas).
 // Discord allows about two username changes per hour. With DISCORD_GUILD_ID it also reports the
 // bot's nickname in that server, which overrides the username there. The token is never printed.

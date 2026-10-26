@@ -61,12 +61,12 @@ describe('interactions endpoint', () => {
     expect(res.status).toBe(401);
   });
 
-  it('answers /vintage ping with an immediate reply and a timestamp', async () => {
+  it('answers /random ping with an immediate reply and a timestamp', async () => {
     const res = await handler()(
       await signedRequest({
         ...base,
         type: InteractionType.APPLICATION_COMMAND,
-        data: { name: 'vintage', options: [{ name: 'ping', type: 1 }] },
+        data: { name: 'random', options: [{ name: 'ping', type: 1 }] },
       }),
     );
     expect(res.status).toBe(200);
@@ -80,9 +80,16 @@ describe('interactions endpoint', () => {
     const unknownCommand = await signedRequest({
       ...base,
       type: InteractionType.APPLICATION_COMMAND,
-      data: { name: 'vintage', options: [{ name: 'nope', type: 1 }] },
+      data: { name: 'random', options: [{ name: 'nope', type: 1 }] },
     });
     expect((await handler()(unknownCommand)).status).toBe(400);
+    // The command was /vintage until the bot became Random; the old name is no longer answered.
+    const retired = await signedRequest({
+      ...base,
+      type: InteractionType.APPLICATION_COMMAND,
+      data: { name: 'vintage', options: [{ name: 'ping', type: 1 }] },
+    });
+    expect((await handler()(retired)).status).toBe(400);
     const unknownType = await signedRequest({
       ...base,
       type: InteractionType.APPLICATION_COMMAND_AUTOCOMPLETE,
@@ -151,13 +158,13 @@ describe('interactions endpoint', () => {
     });
   });
 
-  describe('/vintage poll', () => {
+  describe('/random poll', () => {
     const pollCreate = {
       ...base,
       type: InteractionType.APPLICATION_COMMAND,
       guild_id: 'g1',
       data: {
-        name: 'vintage',
+        name: 'random',
         options: [
           {
             name: 'poll',
@@ -192,7 +199,7 @@ describe('interactions endpoint', () => {
       expect(bodies).toEqual([pollCreate]);
     });
 
-    it('keeps /vintage ping local', async () => {
+    it('keeps /random ping local', async () => {
       const calls: unknown[] = [];
       const fakeFetch = (async () => {
         calls.push(1);
@@ -201,7 +208,7 @@ describe('interactions endpoint', () => {
       const ping = {
         ...base,
         type: InteractionType.APPLICATION_COMMAND,
-        data: { name: 'vintage', options: [{ name: 'ping', type: 1 }] },
+        data: { name: 'random', options: [{ name: 'ping', type: 1 }] },
       };
       const handle = createInteractionHandler({
         publicKey,

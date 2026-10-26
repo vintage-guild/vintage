@@ -2,8 +2,8 @@
 // code runs on Vercel functions and in tests. Verify first, over the raw body: Discord probes the
 // URL with bad signatures and drops it unless those get a 401 (PLAN §6.2).
 //
-// Button clicks, modal submits, and `/vintage poll` are forwarded to Convex, which runs them through
-// the command registry (apps/api convex/http.ts → discord.ts). `/vintage ping` answers locally.
+// Button clicks, modal submits, and `/random poll` are forwarded to Convex, which runs them through
+// the command registry (apps/api convex/http.ts → discord.ts). `/random ping` answers locally.
 import {
   discordTimestamp,
   type Interaction,
@@ -17,7 +17,7 @@ import {
   TIMESTAMP_HEADER,
   verifyInteraction,
 } from '@vintage/discord-kit';
-import { FORWARDED_GROUPS, VINTAGE_COMMAND } from './commands';
+import { FORWARDED_GROUPS, RANDOM_COMMAND } from './commands';
 
 /** Where verified component and modal interactions go: the Convex HTTP route and its secret. */
 export interface ConvexForward {
@@ -30,7 +30,7 @@ export interface ConvexForward {
 export interface InteractionHandlerOptions {
   /** The application's public key (hex), from the Discord Developer Portal. */
   publicKey: string;
-  /** Forward buttons, modals, and `/vintage poll` here. Without it they get a "not set up yet" reply. */
+  /** Forward buttons, modals, and `/random poll` here. Without it they get a "not set up yet" reply. */
   convex?: ConvexForward;
   now?: () => Date;
 }
@@ -92,7 +92,7 @@ async function route(
   }
   if (
     interaction.type === InteractionType.APPLICATION_COMMAND &&
-    interaction.data?.name === VINTAGE_COMMAND.name
+    interaction.data?.name === RANDOM_COMMAND.name
   ) {
     const [sub] = subcommandPath(interaction);
     if (sub === 'ping') return reply(`pong · ${discordTimestamp(now)}`, { ephemeral: true });

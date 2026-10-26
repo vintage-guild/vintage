@@ -47,13 +47,22 @@ npx vercel deploy --prod
 pnpm --filter @vintage/gateway register-commands
 ```
 
+The script reads `DISCORD_APP_ID`, `DISCORD_BOT_TOKEN`, and optionally `DISCORD_GUILD_ID` from the
+environment. It upserts each command by name and leaves others alone. After renaming or removing a
+command, add `--prune` to delete what the code no longer defines, in the same scope (the guild, or
+global). From `apps/gateway`, with the token from `apps/api/.env.local`:
+
+```bash
+DISCORD_GUILD_ID=<server id> node --env-file=../api/.env.local --import tsx scripts/register-commands.ts --prune
+```
+
 ## Bot name and avatar
 
 The bot is **Random**, the raven the site calls Random Raven in its News section. Its avatar is the
 animated head crop in `assets/brand/random-avatar.gif`. The application in the Developer Portal is
-named Random too, with the raven as its icon (set by hand in General Information). The names are
-display only: commands stay `/vintage`, and the app id, token, and OAuth client are unchanged. To
-change the bot's name or avatar:
+named Random too, with the raven as its icon (set by hand in General Information), and the slash
+command is `/random` (it was `/vintage` until 2026-10-26). The app id, token, and OAuth client are
+unchanged. To change the bot's name or avatar:
 
 ```bash
 node --env-file=../api/.env.local --import tsx scripts/set-bot-profile.ts --username Random --avatar ../../assets/brand/random-avatar.gif

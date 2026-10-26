@@ -4,7 +4,7 @@ import { type ApplicationCommand, ApplicationCommandOptionType } from '@vintage/
 
 const T = ApplicationCommandOptionType;
 
-/** `/vintage poll create`: Discord checks the option types and ranges; poll-create checks the rest. */
+/** `/random poll create`: Discord checks the option types and ranges; poll-create checks the rest. */
 const POLL_GROUP = {
   type: T.SUB_COMMAND_GROUP,
   name: 'poll',
@@ -85,8 +85,8 @@ const POLL_GROUP = {
   ],
 };
 
-export const VINTAGE_COMMAND = {
-  name: 'vintage',
+export const RANDOM_COMMAND = {
+  name: 'random',
   description: 'Vintage guild tools',
   contexts: [0],
   options: [
@@ -102,4 +102,4 @@ export const VINTAGE_COMMAND = {
 /** Subcommand groups whose work runs in Convex; the gateway forwards them. */
 export const FORWARDED_GROUPS: ReadonlySet<string> = new Set([POLL_GROUP.name]);
 
-export const COMMANDS: readonly ApplicationCommand[] = [VINTAGE_COMMAND];
+export const COMMANDS: readonly ApplicationCommand[] = [RANDOM_COMMAND];

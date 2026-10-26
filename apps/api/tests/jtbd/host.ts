@@ -295,13 +295,13 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     );
   }
 
-  /** `/vintage poll create`, and clicks or picks on a poll post or its private replies. */
+  /** `/random poll create`, and clicks or picks on a poll post or its private replies. */
   const pollUi = {
     create: (discordId: string, options: Record<string, string | number | boolean>) =>
       pollInteract(discordId, {
         type: InteractionType.APPLICATION_COMMAND,
         data: {
-          name: 'vintage',
+          name: 'random',
           options: [
             {
               name: 'poll',

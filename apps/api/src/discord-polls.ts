@@ -1,6 +1,6 @@
 // Polls in Discord (#62). Pure over ports, so Convex (convex/discord.ts) and the JTBD host run the
 // same flow:
-//   /vintage poll create …           → poll-create as the member, then the post goes up in this channel
+//   /random poll create …           → poll-create as the member, then the post goes up in this channel
 //   button  poll:v:<pollId>:<option>  → vote-cast with that option
 //   select  poll:s:<pollId>           → vote-cast with the picked options
 //   button  poll:x:<pollId>           → vote-retract
@@ -31,6 +31,9 @@ import type { Poll, PollResults } from '@vintage/polls/contract';
 
 export const DEFAULT_POLL_HOURS = 24;
 
+/** The bot's slash command; the same name as RANDOM_COMMAND in apps/gateway/src/commands.ts. */
+export const SLASH_COMMAND = 'random';
+
 export interface PollPorts {
   /** The guild's Discord server id; interactions from any other server are refused. */
   discordGuildId: string | undefined;
@@ -53,7 +56,7 @@ export interface PollPorts {
 
 const ephemeral = (content: string) => reply(content, { ephemeral: true });
 
-/** The leaf options of `/vintage poll create`, by name. */
+/** The leaf options of `/random poll create`, by name. */
 function commandOptions(interaction: Interaction): Record<string, string | number | boolean> {
   const values: Record<string, string | number | boolean> = {};
   const walk = (options: CommandInteractionOption[] | undefined) => {
@@ -211,10 +214,10 @@ async function pollFor(ports: PollPorts, caller: Caller, pollId: string): Promis
   return result.success ? (result.data as { poll: Poll }).poll : null;
 }
 
-/** Is this one of ours? A poll control, or `/vintage poll …`. */
+/** Is this one of ours? A poll control, or `/random poll …`. */
 export function isPollInteraction(interaction: Interaction): boolean {
   if (interaction.type === InteractionType.APPLICATION_COMMAND) {
-    return interaction.data?.name === 'vintage' && subcommandPath(interaction)[0] === 'poll';
+    return interaction.data?.name === SLASH_COMMAND && subcommandPath(interaction)[0] === 'poll';
   }
   return (
     interaction.type === InteractionType.MESSAGE_COMPONENT &&

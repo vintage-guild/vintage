@@ -94,6 +94,12 @@ how the pieces fit.
 | Convex production | project `jason-falk/vintage`, deployment `dusty-sardine-902` (`https://dusty-sardine-902.convex.cloud`, HTTP routes on `.convex.site`) | `npx convex deploy` in `apps/api` |
 | Convex dev | `cautious-ant-152` (what `npx convex dev` in `apps/api` pushes to) | `npx convex dev` |
 | Gateway | Vercel project `vintage-gateway`, `https://vintage-gateway.vercel.app` | `npx vercel deploy --prod` from the repo root |
+| Website | Vercel project `vintage-web` (root directory `apps/web`, Node 24, `apps/web/vercel.json`), `https://vintage-web-pi.vercel.app` | From the repo root: `VERCEL_ORG_ID=team_XXxAohn4xk9zQOEGH6WsJUSs VERCEL_PROJECT_ID=prj_OTILApEA5n4u7RnslTNgppvt26Zp npx vercel deploy --prod`. The ids pick the website project; without them the root's link deploys the gateway |
+
+The website talks to Convex production and signs in through it, so its origin must be in
+production's `VINTAGE_TRUSTED_ORIGINS` (alongside `SITE_URL`). It deploys from the CLI until
+Vercel's GitHub app is installed on the vintage-guild org; then `vercel git connect` gives a
+deploy per push and a preview per PR.
 
 Production runs the role-sync and coordinator crons; dev has no Discord env, so its crons do
 nothing. Run `npx convex env list --prod` (in `apps/api`) to see which variables production has.

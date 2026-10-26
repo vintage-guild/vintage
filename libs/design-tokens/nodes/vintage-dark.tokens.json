@@ -1,5 +1,5 @@
 {
-  "$description": "Member app default: iron surfaces, parchment text, gold accent. People use it at night next to the game.",
+  "$description": "Member app default: plum ink surfaces, parchment text, verdigris actions, rose emphasis (home page concept E, 2026-10-25). People use it at night next to the game.",
   "$extensions": {
     "dev.vintage.node": {
       "name": "vintage-dark",
@@ -9,30 +9,30 @@
   "semantic": {
     "color": {
       "surface": {
-        "canvas": { "$value": "{color.iron.900}" },
-        "raised": { "$value": "{color.iron.700}" },
-        "sunken": { "$value": "{color.iron.950}" },
+        "canvas": { "$value": "{color.plum.950}" },
+        "raised": { "$value": "{color.plum.800}" },
+        "sunken": { "$value": "{color.plum.975}" },
         "inverse": { "$value": "{color.parchment.100}" }
       },
       "text": {
-        "primary": { "$value": "{color.parchment.100}" },
-        "secondary": { "$value": "{color.parchment.400}" },
+        "primary": { "$value": "{color.parchment.50}" },
+        "secondary": { "$value": "{color.plum.300}" },
         "inverse": { "$value": "{color.leather.900}" },
-        "accent": { "$value": "{color.gold.300}" }
+        "accent": { "$value": "{color.rose.300}" }
       },
       "accent": {
-        "primary": { "$value": "{color.gold.300}" },
-        "contrast": { "$value": "{color.iron.900}" },
-        "secondary": { "$value": "{color.crimson.700}" },
-        "on-secondary": { "$value": "{color.gold.300}" }
+        "primary": { "$value": "{color.verdigris.500}" },
+        "contrast": { "$value": "{color.plum.950}" },
+        "secondary": { "$value": "{color.gold.500}" },
+        "on-secondary": { "$value": "{color.plum.950}" }
       },
       "border": {
-        "default": { "$value": "#f3ead733" },
+        "default": { "$value": "{color.plum.700}" },
         "inverse": { "$value": "#2b211833" },
-        "strong": { "$value": "{color.iron.300}" }
+        "strong": { "$value": "{color.plum.600}" }
       },
       "focus": {
-        "ring": { "$value": "{color.gold.300}" }
+        "ring": { "$value": "{color.verdigris.500}" }
       },
       "feedback": {
         "danger": { "$value": "{color.crimson.300}" },

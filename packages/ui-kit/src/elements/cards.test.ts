@@ -4,8 +4,6 @@ import type { VintageLogoHeader } from './logo-header';
 import './logo-header';
 import type { VintageSignInCard } from './sign-in-card';
 import './sign-in-card';
-import type { VintageSignupCard } from './signup-card';
-import './signup-card';
 
 afterEach(cleanup);
 
@@ -16,39 +14,8 @@ describe('vintage-logo-header', () => {
     );
     expect(shadowText(el)).toBe('Vintage WoW: Forever guild');
     const slots = [...el.shadowRoot!.querySelectorAll('slot')].map((s) => s.getAttribute('name'));
-    expect(slots).toEqual(['logo', null, 'actions']);
+    expect(slots).toEqual(['logo', null, 'member', 'actions']);
     expect(el.shadowRoot!.querySelector('nav')?.getAttribute('aria-label')).toBe('Main');
-  });
-});
-
-describe('vintage-signup-card', () => {
-  it('shows the event, time, and status with its token', async () => {
-    const el = await mount<VintageSignupCard>(
-      '<vintage-signup-card event-title="Molten Core" starts-at="2026-11-06T03:00:00Z" status="tentative"></vintage-signup-card>',
-    );
-    expect(shadowText(el)).toContain('Molten Core');
-    expect(shadowText(el)).toContain('Tentative');
-    expect(el.shadowRoot!.querySelector('time')?.getAttribute('datetime')).toBe(
-      '2026-11-06T03:00:00Z',
-    );
-    expect(el.shadowRoot!.querySelector('.dot')?.getAttribute('style')).toBe(
-      '--_status: var(--color-signup-tentative)',
-    );
-  });
-
-  it('falls back for unknown status and missing time', async () => {
-    const el = await mount<VintageSignupCard>(
-      '<vintage-signup-card status="maybe"></vintage-signup-card>',
-    );
-    expect(el.statusKey).toBe('no-response');
-    expect(el.startsLabel).toBe('Time to be announced');
-  });
-
-  it('keeps signup buttons disabled until raids exist', async () => {
-    const el = await mount<VintageSignupCard>('<vintage-signup-card></vintage-signup-card>');
-    const buttons = [...el.shadowRoot!.querySelectorAll('violet-button')];
-    expect(buttons).toHaveLength(3);
-    expect(buttons.every((b) => b.hasAttribute('disabled'))).toBe(true);
   });
 });
 

@@ -8,10 +8,21 @@ export {
 } from './client';
 export { type CharacterInput, VintageCharacterForm } from './elements/character-form';
 export { VintageClassBadge } from './elements/class-badge';
+export { VintageFigure } from './elements/figure';
+export { VintageHero } from './elements/hero';
 export { VintageLogoHeader } from './elements/logo-header';
 export { VintageRoleBadge } from './elements/role-badge';
 export { VintageSignInCard } from './elements/sign-in-card';
-export { SIGNUP_STATUSES, type SignupStatus, VintageSignupCard } from './elements/signup-card';
+export {
+  ANSWER_LABELS,
+  ANSWERS,
+  type Answer,
+  EMPTY_COUNTS,
+  SIGNUP_STATUSES,
+  type SignupCounts,
+  type SignupStatus,
+  VintageSignupCard,
+} from './elements/signup-card';
 export { VintageThemeSwitch } from './elements/theme-switch';
 export { titleCase } from './labels';
 export { describeError, type ElementResult, toElementResult } from './result';

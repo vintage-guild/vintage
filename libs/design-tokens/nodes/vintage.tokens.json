@@ -1,5 +1,5 @@
 {
-  "$description": "Vintage brand node: palette sampled from the color emblem (assets/brand/vintage-logo-color.png), the display face, and the WoW semantic tokens (item quality, class, role, signup status). Not exported on its own; the theme nodes below it set surfaces and text.",
+  "$description": "Vintage brand node: palette sampled from the color emblem (assets/brand/vintage-logo-color.png), the chosen site palette (plum, verdigris, rose), the type faces, and the WoW semantic tokens (item quality, class, role, signup status). Not exported on its own; the theme nodes below it set surfaces and text.",
   "$extensions": {
     "dev.vintage.node": {
       "name": "vintage",
@@ -67,13 +67,60 @@
           "$value": "#2b2118",
           "$description": "Derived: dark leather; body text on parchment."
         }
+      },
+      "plum": {
+        "$description": "Chosen (home page concept E, 2026-10-25): the dark theme's ink. Near-black with a violet cast, after the dusk sky on Blizzard's Forever page, instead of the emblem's warm iron.",
+        "300": { "$value": "#b8b0bf", "$description": "Muted text on plum." },
+        "400": { "$value": "#7f7989", "$description": "Faint text and placeholders on plum." },
+        "600": { "$value": "#3d3c4e", "$description": "Strong borders on plum." },
+        "700": { "$value": "#2a2935", "$description": "Quiet borders and dividers." },
+        "800": { "$value": "#23222c", "$description": "Raised surfaces: cards." },
+        "900": { "$value": "#1a1921", "$description": "Flat surfaces." },
+        "950": { "$value": "#100f15", "$description": "The page canvas." },
+        "975": { "$value": "#0b0a10", "$description": "Recessed wells below the canvas." }
+      },
+      "verdigris": {
+        "$description": "Chosen (concept E): the action color. A muted teal, after the Forever roadmap's banners.",
+        "200": {
+          "$value": "#93d0d4",
+          "$description": "Verdigris as text on plum: open, going, next."
+        },
+        "400": { "$value": "#5fb8bf", "$description": "Hovered actions." },
+        "500": {
+          "$value": "#4aa5ad",
+          "$description": "Actions: primary buttons, focus, progress."
+        },
+        "700": { "$value": "#2b7078", "$description": "Actions on parchment." }
+      },
+      "rose": {
+        "$description": "Chosen (concept E): emphasis. A dusty rose, after the Forever dusk sky.",
+        "300": {
+          "$value": "#dd9d96",
+          "$description": "Emphasis text on plum: the accent word, eyebrows, the signed-in member."
+        },
+        "700": { "$value": "#a9655f", "$description": "Rose dark enough for parchment." }
       }
     },
     "font": {
+      "weight": {
+        "heavy": {
+          "$type": "fontWeight",
+          "$value": 800,
+          "$description": "Display headings and big figures (concept E); Bitter is variable, so any weight renders."
+        }
+      },
       "family": {
         "display": {
-          "$value": ["Cinzel", "Georgia", "serif"],
-          "$description": "Fantasy-inscription display face. Cinzel (OFL) stands in for Friz Quadrata, which is licensed; the addon keeps Friz via FenUI. Self-host; final pick with Q12."
+          "$value": ["Bitter Variable", "Bitter", "Georgia", "serif"],
+          "$description": "Slab serif display face, chosen 2026-10-25 (concept E). Bitter (OFL), self-hosted by apps/web from @fontsource-variable/bitter. The addon keeps Friz Quadrata via FenUI."
+        },
+        "sans": {
+          "$value": ["IBM Plex Sans", "system-ui", "-apple-system", "sans-serif"],
+          "$description": "Body and UI face (OFL), self-hosted from @fontsource/ibm-plex-sans. Replaces the AFD site's Darker Grotesque."
+        },
+        "mono": {
+          "$value": ["IBM Plex Mono", "ui-monospace", "monospace"],
+          "$description": "Labels, counters, and code (OFL), self-hosted from @fontsource/ibm-plex-mono."
         }
       }
     }
@@ -112,6 +159,7 @@
       "signup": {
         "$description": "Signup status. Tuned for text on iron; parchment overrides them darker.",
         "accepted": { "$value": "#6fcf5a", "$description": "Accepted into the raid." },
+        "late": { "$value": "#f0a05a", "$description": "Coming, but late." },
         "tentative": { "$value": "#f0b44c", "$description": "Tentative." },
         "bench": { "$value": "#8fb3d9", "$description": "Benched: available, not in the comp." },
         "declined": { "$value": "{color.crimson.300}", "$description": "Declined." },

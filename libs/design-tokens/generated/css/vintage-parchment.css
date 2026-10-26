@@ -7,10 +7,10 @@
   --color-charcoal: #181818;
   --color-red: #e53935;
   --color-teal: #008085;
-  --font-family-display: "Cinzel", "Georgia", serif;
+  --font-family-display: "Bitter Variable", "Bitter", "Georgia", serif;
   --font-family-serif: "Playfair Display", serif;
-  --font-family-sans: "Darker Grotesque", system-ui, -apple-system, sans-serif;
-  --font-family-mono: "JetBrains Mono", monospace;
+  --font-family-sans: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --font-family-mono: "IBM Plex Mono", ui-monospace, monospace;
   --font-size-xs: 0.75rem;
   --font-size-sm: 0.875rem;
   --font-size-md: 1.1rem;
@@ -73,6 +73,21 @@
   --color-parchment-400: #b5a485;
   --color-leather-700: #5c4a3a;
   --color-leather-900: #2b2118;
+  --color-plum-300: #b8b0bf;
+  --color-plum-400: #7f7989;
+  --color-plum-600: #3d3c4e;
+  --color-plum-700: #2a2935;
+  --color-plum-800: #23222c;
+  --color-plum-900: #1a1921;
+  --color-plum-950: #100f15;
+  --color-plum-975: #0b0a10;
+  --color-verdigris-200: #93d0d4;
+  --color-verdigris-400: #5fb8bf;
+  --color-verdigris-500: #4aa5ad;
+  --color-verdigris-700: #2b7078;
+  --color-rose-300: #dd9d96;
+  --color-rose-700: #a9655f;
+  --font-weight-heavy: 800;
 
   /* semantic */
   --color-surface-canvas: var(--color-parchment-100);
@@ -113,6 +128,7 @@
   --color-role-melee: #8f1d21;
   --color-role-ranged: #6a3d9a;
   --color-signup-accepted: #2e6b1f;
+  --color-signup-late: #8a4a0e;
   --color-signup-tentative: #855400;
   --color-signup-bench: #2f5a87;
   --color-signup-declined: var(--color-crimson-500);

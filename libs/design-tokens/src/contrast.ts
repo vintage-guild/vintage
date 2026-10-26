@@ -16,7 +16,7 @@ const group = (name: string, keys: string[]) => keys.map((k) => `color.${name}.$
 const SURFACES = group('surface', ['canvas', 'raised', 'sunken']);
 const PAGE = group('surface', ['canvas', 'raised']);
 export const ROLE_KEYS = ['tank', 'healer', 'melee', 'ranged'];
-export const SIGNUP_KEYS = ['accepted', 'tentative', 'bench', 'declined', 'no-response'];
+export const SIGNUP_KEYS = ['accepted', 'late', 'tentative', 'bench', 'declined', 'no-response'];
 export const QUALITY_KEYS = ['poor', 'common', 'uncommon', 'rare', 'epic', 'legendary'];
 export const CLASS_KEYS = [
   'warrior',

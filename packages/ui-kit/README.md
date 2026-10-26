@@ -6,10 +6,12 @@ holds the guild-specific pieces (PLAN §3.9).
 
 | Element | What it is |
 |---|---|
-| `vintage-logo-header` | Site header with the two-tone logo (slot), wordmark, nav, and actions |
+| `vintage-logo-header` | Sticky site header: the two-tone logo (slot), nav, a section context block with its action, the signed-in member (slot), actions, and a scroll-progress line |
+| `vintage-hero` | The home page opener: full-bleed art under a dark fade, with slots for eyebrow pills, the heading, a standfirst, actions, and figures |
+| `vintage-figure` | One big tabular number with a unit and caption; rows of them sit in the hero |
 | `vintage-class-badge` / `vintage-role-badge` | Class (and spec) or raid role with its color token, from `@vintage/wow-data` |
 | `vintage-character-form` | Name, class, spec, main; submits through the `vintage.character-add` command |
-| `vintage-signup-card` | Placeholder raid signup card; buttons wait on the raids module (#14) |
+| `vintage-signup-card` | One raid: its counts (statuses from `raid-list`, roles from `signup-list`) and the member's own answer. Going / Late / Tentative / Can't run the `vintage.signup-set` command → server `signup-set` with the member's character |
 | `vintage-sign-in-card` | What member pages show when signed out; enabled once sign-in (#7) gives it an `href` |
 | `vintage-theme-switch` | Dark / parchment switch (`data-theme` on `<html>`), also the `vintage.theme-toggle` command |
 

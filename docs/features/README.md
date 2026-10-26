@@ -12,3 +12,4 @@ when they affect every contributor, in the Decisions table in [AGENTS.md](../../
 | Feature | Status | Doc |
 |---|---|---|
 | Phase 0 foundation | active | [phase-0-foundation](active/phase-0-foundation/phase-0-foundation.plan.md) |
+| Home page | proposed | [home-page](proposed/home-page/home-page.plan.md) |

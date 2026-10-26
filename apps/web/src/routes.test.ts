@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { daysUntil, LAUNCH_AT } from './dates';
 import { markCurrentLink } from './nav';
 import { VintageRoutes } from './routes';
-import { currentSession } from './session';
+import { currentSession, setSession } from './session';
+import { sectionContext, setSiteContext, watchSections } from './site-context';
 
 describe('VintageRoutes', () => {
   const routes = new VintageRoutes();
@@ -11,7 +13,8 @@ describe('VintageRoutes', () => {
     ((await routes.recognizeRoute(path))?.command as { title?: string } | undefined)?.title;
 
   it.each([
-    ['', 'About'],
+    ['', 'Home'],
+    ['about', 'About'],
     ['profile', 'Profile'],
     ['characters', 'Characters'],
     ['ui', 'Components'],
@@ -29,7 +32,7 @@ describe('markCurrentLink', () => {
     document.body.innerHTML = `
       <vintage-logo-header>
         <a slot="logo" href="/">logo</a>
-        <a href="/">About</a>
+        <a href="/">Home</a>
         <a href="/characters">Characters</a>
       </vintage-logo-header>`;
     markCurrentLink('/characters/');
@@ -40,13 +43,47 @@ describe('markCurrentLink', () => {
 
     markCurrentLink('/');
     expect([...document.querySelectorAll('[aria-current]')].map((a) => a.textContent)).toEqual([
-      'About',
+      'Home',
     ]);
   });
 });
 
 describe('session', () => {
-  it('is signed out until Discord sign-in lands (#7)', () => {
+  it('is signed out until sign-in or the dev fixtures set a member', () => {
     expect(currentSession()).toBeNull();
+    setSession({ memberId: 'm1', displayName: 'Bloodfen', tier: 'raider', rank: 'flex-raider' });
+    expect(currentSession()?.displayName).toBe('Bloodfen');
+    setSession(null);
+  });
+});
+
+describe('dates', () => {
+  it('counts whole days and never goes negative', () => {
+    const nov1 = Date.parse('2026-11-01T12:00:00-05:00');
+    expect(daysUntil(LAUNCH_AT, nov1)).toBe(3);
+    expect(daysUntil(LAUNCH_AT, Date.parse('2026-12-01T00:00:00Z'))).toBe(0);
+  });
+});
+
+describe('site context', () => {
+  it('puts a section context on the header and reads it from data attributes', () => {
+    document.body.innerHTML = `
+      <vintage-logo-header></vintage-logo-header>
+      <section id="raids" data-section data-section-eyebrow="Raids" data-section-title="Next on the calendar" data-section-action="Sign up"></section>`;
+    const section = document.querySelector('section')!;
+    expect(sectionContext(section)).toEqual({
+      eyebrow: 'Raids',
+      title: 'Next on the calendar',
+      actionLabel: 'Sign up',
+      actionHref: '#raids',
+    });
+    const seen: Element[] = [];
+    watchSections([section], (s) => seen.push(s));
+    expect(seen).toEqual([section]);
+    setSiteContext(sectionContext(section));
+    const header = document.querySelector('vintage-logo-header') as HTMLElement & {
+      contextTitle: string;
+    };
+    expect(header.contextTitle).toBe('Next on the calendar');
   });
 });

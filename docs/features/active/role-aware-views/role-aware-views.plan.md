@@ -128,11 +128,11 @@ confirm button, never a one-click delete.
 
 New jobs for [docs/jtbd](../../../jtbd/README.md), each as a scenario test and a live checklist:
 
-- **J17** When it is raid day, I want the first screen of the site to say whether I'm in, when
+- **J19** When it is raid day, I want the first screen of the site to say whether I'm in, when
   we pull, and what to bring, so I can get ready without hunting.
-- **J18** When tonight's roster is set, I want to lock it from the site and copy the addon import
+- **J20** When tonight's roster is set, I want to lock it from the site and copy the addon import
   string, so I can form the raid in game without opening Discord or the CLI.
-- **J19** When our needs change, I want to edit the open roles on the site, so the public
+- **J21** When our needs change, I want to edit the open roles on the site, so the public
   recruiting band and the hero's figures change without a deploy.
 
 ## Order
@@ -242,8 +242,9 @@ storefront. The dev switch gained `live` for the real server.
 - [ ] Signup card: queued and how many ahead, lock time; `notes` on `RaidEvent` (raids contract, manifest)
 - [x] `vintage-officer-strip`
 - [x] `/officers` route, tier guard, Tonight tab (digest, non-responders, roster controls, import string)
-- [ ] Calendar, Coordinator, Polls, Progress tabs
+- [x] Polls tab: open and closed polls with results, open, close and cancel with confirm, the sweep (#63)
+- [ ] Calendar, Coordinator, Progress tabs
 - [ ] `site` module: `site-recruiting-get` / `site-recruiting-set`, Recruiting tab, band reads it
 - [ ] Trial start date on identity; Roster tab
-- [ ] J17, J18, J19 in `docs/jtbd` and `apps/api/tests/jtbd`
+- [ ] J19, J20, J21 in `docs/jtbd` and `apps/api/tests/jtbd`
 - [ ] Docs: `apps/web/README.md` routes table, `packages/ui-kit/README.md`, architecture status

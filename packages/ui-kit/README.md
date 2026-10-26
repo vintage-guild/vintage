@@ -11,7 +11,8 @@ holds the guild-specific pieces (PLAN §3.9).
 | `vintage-officer-strip` | Leaders' and officers' glance at the next raid: who hasn't answered (`coordinator-status` → `waiting`), comp gaps (`comp-suggest`), the coordinator's state, and a link to the quarters once it exists |
 | `vintage-member-menu` | The signed-in member: round avatar (Discord's, or the initial), name, rank, and a menu with Profile and Characters, plus anything slotted (the app adds Sign out) |
 | `vintage-roster-wall` | Every member grouped by rank, each as their main's name in its class color with spec and role; the signed-in member's row marked. Fed from `member-list` |
-| `vintage-poll-card` | A single-choice poll with live shares; choosing an option runs the `vintage.vote-cast` command → server `vote-cast` |
+| `vintage-poll-card` | A poll: pick one votes on a click; pick any and ranked collect a draft, then vote. Shares only when the server shows the tally (`results-hidden`), the winner once closed. `vintage.vote-cast` / `vintage.vote-retract` → server `vote-cast` / `vote-retract` |
+| `vintage-polls-desk` | The officers’ Polls tab: open polls with the live tally, closed ones with the result. `vintage.poll-open`, `vintage.poll-close` and `vintage.poll-cancel` (preview, then confirm), `vintage.poll-sweep` |
 | `vintage-hero` | The home page opener: full-bleed art under a dark fade, with slots for eyebrow pills, the heading, a standfirst, actions, and figures; `compact` makes it a band for signed-in members (heading and figures only), `art-phone-src` a portrait for phones |
 | `vintage-figure` | One big tabular number with a unit and caption; rows of them sit in the hero |
 | `vintage-class-badge` / `vintage-role-badge` | Class (and spec) or raid role with its color token, from `@vintage/wow-data` |

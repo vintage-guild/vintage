@@ -22,6 +22,7 @@ import {
 import { createMemoryProgressStore } from '@vintage/progress/testing';
 import type { Signup } from '@vintage/raids/contract';
 import { createMemoryRaidsStore, createRecordingEventSink } from '@vintage/raids/testing';
+import { createMemorySiteStore } from '@vintage/site/testing';
 import { fixedClock, testRegistry } from '@vintage/testing';
 import { handlePollInteraction } from '../../src/discord-polls';
 import { handleSignupInteraction } from '../../src/discord-signups';
@@ -101,6 +102,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
       get: (g, id) => polls.getPoll(g, id),
     },
     progress: createMemoryProgressStore(),
+    site: createMemorySiteStore(),
   };
   const registry = testRegistry<VintageDeps>(commands, clock);
   const discord = createFakeDiscord();

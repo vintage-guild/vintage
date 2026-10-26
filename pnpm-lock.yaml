@@ -89,6 +89,9 @@ importers:
       '@vintage/raids':
         specifier: workspace:*
         version: link:../../modules/raids
+      '@vintage/site':
+        specifier: workspace:*
+        version: link:../../modules/site
       '@vintage/wow-data':
         specifier: workspace:*
         version: link:../../libs/wow-data
@@ -181,6 +184,9 @@ importers:
       '@vintage/raids':
         specifier: workspace:*
         version: link:../../modules/raids
+      '@vintage/site':
+        specifier: workspace:*
+        version: link:../../modules/site
       '@vintage/ui-kit':
         specifier: workspace:*
         version: link:../../packages/ui-kit
@@ -411,6 +417,31 @@ importers:
       '@vintage/identity':
         specifier: workspace:*
         version: link:../identity
+      '@vintage/wow-data':
+        specifier: workspace:*
+        version: link:../../libs/wow-data
+      convex:
+        specifier: 'catalog:'
+        version: 1.47.0(react@19.3.1)
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.7
+    devDependencies:
+      '@vintage/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@vintage/testing':
+        specifier: workspace:*
+        version: link:../../packages/testing
+      typescript:
+        specifier: 'catalog:'
+        version: '@typescript/typescript6@6.0.2'
+
+  modules/site:
+    dependencies:
+      '@vintage/guild-kit':
+        specifier: workspace:*
+        version: link:../../packages/guild-kit
       '@vintage/wow-data':
         specifier: workspace:*
         version: link:../../libs/wow-data

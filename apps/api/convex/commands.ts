@@ -12,6 +12,7 @@ import {
   pollsDeps,
   progressDeps,
   raidsDeps,
+  siteDeps,
 } from './stores';
 
 /** Single-guild deployment for now; every record still carries guildId (PLAN §3.11). */
@@ -31,6 +32,7 @@ const deps = (ctx: Ctx): VintageDeps => ({
   ...coordinatorDeps(ctx, (caller, name, input) => runAs(ctx, caller, { name, input })),
   ...pollsDeps(ctx),
   ...progressDeps(ctx),
+  ...siteDeps(ctx),
 });
 
 /** The website caller: the signed-in member from the token's Discord id (convex/auth.ts), else public. */

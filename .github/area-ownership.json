@@ -7,6 +7,7 @@
     "coordinator": { "paths": ["modules/coordinator/"], "owners": ["@Falkicon"] },
     "polls": { "paths": ["modules/polls/"], "owners": ["@Falkicon"] },
     "progress": { "paths": ["modules/progress/"], "owners": ["@Falkicon"] },
+    "site": { "paths": ["modules/site/"], "owners": ["@Falkicon"] },
     "ui-kit": { "paths": ["packages/ui-kit/"], "owners": ["@Falkicon"] },
     "api": { "paths": ["apps/api/"], "owners": ["@Falkicon"] },
     "gateway": { "paths": ["apps/gateway/"], "owners": ["@Falkicon"] },

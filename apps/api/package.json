@@ -25,6 +25,7 @@
     "@vintage/polls": "workspace:*",
     "@vintage/progress": "workspace:*",
     "@vintage/raids": "workspace:*",
+    "@vintage/site": "workspace:*",
     "@vintage/wow-data": "workspace:*",
     "better-auth": "1.6.33",
     "convex": "catalog:",

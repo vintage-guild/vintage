@@ -71,4 +71,5 @@ export declare const components: {
   coordinator: import("@vintage/coordinator/_generated/component.js").ComponentApi<"coordinator">;
   polls: import("@vintage/polls/_generated/component.js").ComponentApi<"polls">;
   progress: import("@vintage/progress/_generated/component.js").ComponentApi<"progress">;
+  site: import("@vintage/site/_generated/component.js").ComponentApi<"site">;
 };

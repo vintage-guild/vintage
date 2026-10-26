@@ -33,6 +33,11 @@ export {
   type PollsDeskResults,
   VintagePollsDesk,
 } from './elements/polls-desk';
+export {
+  type RecruitingDeskBand,
+  type RecruitingNeed,
+  VintageRecruitingDesk,
+} from './elements/recruiting-desk';
 export { VintageRoleBadge } from './elements/role-badge';
 export { RANK_GROUPS, type RosterMember, VintageRosterWall } from './elements/roster-wall';
 export { VintageSignInCard } from './elements/sign-in-card';

@@ -34,12 +34,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           loot: Array<{
             name: string;
             quality:
-              | "poor"
-              | "common"
-              | "uncommon"
-              | "rare"
-              | "epic"
-              | "legendary";
+              "poor" | "common" | "uncommon" | "rare" | "epic" | "legendary";
           }>;
           note: string | null;
           raidId: "barrow-deeps" | "hyjal-summit" | "onyxias-lair";

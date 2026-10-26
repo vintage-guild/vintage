@@ -119,6 +119,33 @@ messages with `DISCORD_BOT_TOKEN` (no new permissions). After changing `apps/gat
 register the commands again (`pnpm --filter @vintage/gateway register-commands`). Optional:
 set `VINTAGE_SITE_URL` in the Convex env so ranked polls link to the website (once #63 adds the page).
 
+### Website sign-in (Discord)
+
+Members sign in to the website with Discord only (#7). Better Auth runs inside Convex
+(`apps/api/convex/auth.ts`); the website uses `@vintage/web-session`. To turn it on:
+
+1. Developer Portal → OAuth2 → **Redirects**: add
+   `https://<deployment>.convex.site/api/auth/callback/discord` (production is
+   `https://dusty-sardine-902.convex.site/api/auth/callback/discord`).
+2. In the Convex env (`npx convex env set … --prod` in `apps/api`), set `DISCORD_CLIENT_ID` and
+   `DISCORD_CLIENT_SECRET` (OAuth2 page), `BETTER_AUTH_SECRET` (a long random string), and
+   `SITE_URL` (the website origin; `http://localhost:5173` for local work). More origins, like
+   preview deploys, go in `VINTAGE_TRUSTED_ORIGINS`, comma-separated.
+3. Deploy (`npx convex deploy`).
+
+Sign-in asks Discord only for `identify`; rank and tier come from the bot's view of the server,
+synced the moment someone signs in (and every 15 minutes after). Someone not in the server can
+sign in but stays public. The variables, all in the Convex env and never in the repo:
+
+| Variable | What |
+|---|---|
+| `BETTER_AUTH_SECRET` | Signs sessions; rotating it signs everyone out |
+| `DISCORD_CLIENT_ID` | OAuth2 → Client ID (not secret) |
+| `DISCORD_CLIENT_SECRET` | OAuth2 → Client Secret |
+| `SITE_URL` | The website origin sign-in returns to |
+| `VINTAGE_TRUSTED_ORIGINS` | Optional: more website origins, comma-separated |
+| `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID` | Already set for role sync; sign-in reads the member with them |
+
 ### Coordinator (raid posts and reminders)
 
 The coordinator cron (every 5 minutes) does nothing until it knows where to post. Point it at

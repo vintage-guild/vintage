@@ -1,8 +1,10 @@
-// Convex HTTP routes. Only the gateway calls these, with a shared secret; the public Discord
-// endpoint (signature checks, PING) stays in apps/gateway.
+// Convex HTTP routes: Better Auth's sign-in endpoints under /api/auth (#7), and the gateway's
+// interaction route, called with a shared secret. The public Discord endpoint (signature checks,
+// PING) stays in apps/gateway.
 import { httpRouter } from 'convex/server';
 import { internal } from './_generated/api';
 import { httpAction } from './_generated/server';
+import { authComponent, createAuth, siteOrigins } from './auth';
 
 /** Compare secrets without leaking their length or content through timing. */
 function sameSecret(given: string, expected: string): boolean {
@@ -17,6 +19,8 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
 const http = httpRouter();
+
+authComponent.registerRoutes(http, createAuth, { cors: { allowedOrigins: siteOrigins() } });
 
 /**
  * POST /gateway/interaction: a verified Discord component or modal interaction from the gateway.

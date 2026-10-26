@@ -1,0 +1,23 @@
+{
+  "name": "@vintage/web-session",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The website's connection to the guild server: Discord sign-in and the signed-in member's session, and a CommandClient over Convex. Keeps Better Auth and Convex out of page code.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "type-check": "tsc6 -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@convex-dev/better-auth": "0.12.5",
+    "@vintage/guild-kit": "workspace:*",
+    "better-auth": "1.6.33",
+    "convex": "catalog:"
+  },
+  "devDependencies": {
+    "@vintage/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

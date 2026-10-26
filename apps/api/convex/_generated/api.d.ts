@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as auth from "../auth.js";
 import type * as commands from "../commands.js";
 import type * as coordinator from "../coordinator.js";
 import type * as crons from "../crons.js";
@@ -25,6 +26,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  auth: typeof auth;
   commands: typeof commands;
   coordinator: typeof coordinator;
   crons: typeof crons;
@@ -63,6 +65,7 @@ export declare const internal: FilterApi<
 >;
 
 export declare const components: {
+  betterAuth: import("@convex-dev/better-auth/_generated/component.js").ComponentApi<"betterAuth">;
   identity: import("@vintage/identity/_generated/component.js").ComponentApi<"identity">;
   raids: import("@vintage/raids/_generated/component.js").ComponentApi<"raids">;
   coordinator: import("@vintage/coordinator/_generated/component.js").ComponentApi<"coordinator">;

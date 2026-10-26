@@ -79,6 +79,30 @@ export function discordGuildDirectory(options: DiscordDirectoryOptions): GuildDi
   };
 }
 
+/** Discord's error code for "that user isn't in this server". */
+const UNKNOWN_MEMBER = 10007;
+
+/**
+ * One guild member by Discord id (sign-in, #7), or null when they aren't in the server. Other
+ * failures throw, including an unknown guild, so a misconfigured server id isn't read as "left".
+ */
+export async function fetchGuildMember(
+  options: Pick<DiscordDirectoryOptions, 'token' | 'guildId' | 'fetch'>,
+  discordId: string,
+): Promise<DirectoryMember | null> {
+  const doFetch = options.fetch ?? fetch;
+  const url = `${API}/guilds/${encodeURIComponent(options.guildId)}/members/${encodeURIComponent(discordId)}`;
+  const res = await doFetch(url, {
+    headers: { Authorization: `Bot ${options.token}`, 'User-Agent': USER_AGENT },
+  });
+  if (res.status === 404) {
+    const body = (await res.json().catch(() => ({}))) as { code?: number };
+    if (body.code === UNKNOWN_MEMBER) return null;
+  }
+  if (!res.ok) throw failure(res.status, 'get guild member');
+  return toDirectoryMember((await res.json()) as ApiGuildMember)[0] ?? null;
+}
+
 /** How long a 429 asks us to wait: `retry_after` (seconds) in the body, else the header. */
 async function retryAfterMs(res: Response): Promise<number> {
   const body = (await res.json().catch(() => ({}))) as { retry_after?: number };
@@ -92,9 +116,9 @@ function resetAfterMs(res: Response): number {
   return Math.ceil(Number(res.headers.get('x-ratelimit-reset-after') ?? 0) * 1000);
 }
 
-function failure(status: number): Error {
+function failure(status: number, what = 'list guild members'): Error {
   const hint = HINTS[status];
-  return new Error(`Discord list guild members failed: ${status}${hint ? `, ${hint}` : ''}`);
+  return new Error(`Discord ${what} failed: ${status}${hint ? `, ${hint}` : ''}`);
 }
 
 /** Bots are never guild members; rows without a user can't be synced. */

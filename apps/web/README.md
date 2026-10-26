@@ -85,5 +85,5 @@ pnpm --filter @vintage/web build   # dist/
 - **Discord invite:** `DISCORD_INVITE_URL` in `src/content/recruiting.ts`, null until the GM
   sets it; the calls to action then point at the recruiting band.
 - **Deployed** on Vercel as `vintage-web`: https://vintage-web-pi.vercel.app. `vercel.json`
-  here sets the build and an SPA fallback, so deep links like `/officers` load the app. Deploys
-  run from the CLI (SETUP.md → Deployments) until Vercel's GitHub app is on the org.
+  here sets the build and an SPA fallback, so deep links like `/officers` load the app. Every push
+  to `main` deploys it, and each PR gets a preview (SETUP.md → Deployments).

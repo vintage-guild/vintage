@@ -646,7 +646,10 @@ const styles = css`
   }
 
   /* sections: one rhythm, a rule between them, no bands of empty space */
+  /* Block, not the shared page styles' grid: in a grid the centered .wrap shrinks to its
+     content, so a short section (a one-member roster) would sit narrow and centered. */
   .sec {
+    display: block;
     padding-block: var(--space-xl) var(--space-2xl);
     border-block-start: var(--border-width-thin) solid var(--color-border-default);
   }

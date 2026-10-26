@@ -1,7 +1,7 @@
 import { css, FASTElement, html, observable, repeat, when } from '@lushly-dev/fast-element';
 import { command, failure } from '@lushly-dev/fast-element/command.js';
 import { getCommandClient } from '../client';
-import { titleCase } from '../labels';
+import { roleLabel, titleCase } from '../labels';
 import { describeError, type ElementResult, toElementResult } from '../result';
 
 /** One of the member's characters: the slice of `character-list` / `member-me` this shows. */
@@ -21,13 +21,6 @@ interface PendingRemoval {
   token: string;
 }
 
-const ROLE_WORDS: Record<string, string> = {
-  tank: 'Tank',
-  healer: 'Healer',
-  melee: 'Melee DPS',
-  ranged: 'Ranged DPS',
-};
-
 const template = html<VintageCharacterList>`
   <div class="list" part="list">
     ${when(
@@ -41,7 +34,7 @@ const template = html<VintageCharacterList>`
           <li class="row ${(c) => (c.isMain ? 'main' : '')}">
             <span class="who">
               <b style="color: var(--color-class-${(c) => c.class})">${(c) => c.name}</b>
-              <small>${(c) => titleCase(c.class)} · ${(c) => ROLE_WORDS[c.role] ?? titleCase(c.role)} · ${(c) => titleCase(c.spec)}</small>
+              <small>${(c) => titleCase(c.class)} · ${(c) => roleLabel(c.role)} · ${(c) => titleCase(c.spec)}</small>
             </span>
             ${when((c) => c.isMain, html`<span class="badge" part="main-badge">Main</span>`)}
             <span class="controls">

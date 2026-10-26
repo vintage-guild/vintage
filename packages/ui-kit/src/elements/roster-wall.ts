@@ -1,5 +1,5 @@
 import { attr, css, FASTElement, html, observable, repeat, when } from '@lushly-dev/fast-element';
-import { titleCase } from '../labels';
+import { roleLabel, titleCase } from '../labels';
 
 /** One member on the wall: a row of `member-list`. */
 export interface RosterMember {
@@ -42,7 +42,7 @@ const template = html<VintageRosterWall>`
                   <span class="name" style="${(m) => (m.main ? `color: var(--color-class-${m.main.class})` : '')}">${(m) => m.main?.name ?? m.displayName}</span>
                   ${when(
                     (m) => m.main,
-                    html<Row>`<small>${(m) => titleCase(m.main?.spec ?? '')} · ${(m) => m.main?.role}</small>`,
+                    html<Row>`<small>${(m) => titleCase(m.main?.class ?? '')} · ${(m) => roleLabel(m.main?.role ?? '')}</small>`,
                   )}
                   ${when((m) => !m.main, html`<small>no character yet</small>`)}
                   ${when((m) => m.me, html`<span class="tag">you</span>`)}
@@ -145,7 +145,7 @@ const styles = css`
 
 /**
  * Every member on the rolls, grouped by guild rank, each shown as their main character's name
- * in its class color with spec and role. The signed-in member's row is marked.
+ * in its class color with class and role. The signed-in member's row is marked.
  *
  * @tagname vintage-roster-wall
  * @summary Class-colored roster grouped by rank, fed from `member-list`.

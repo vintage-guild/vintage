@@ -16,7 +16,7 @@ Job ids (`J01`…) are shared: the doc, the test name, and the live run all use 
 |---|---|---|---|
 | [Raid night](raid-night.md) | J01–J15 | ✅ `raid-night.jtbd.test.ts` | ✅ checklist |
 | [Progression](progression.md) | J16 | ✅ `progression.jtbd.test.ts` | ✅ checklist |
-| [Polls](polls.md) | J17–J18 | ✅ `polls.jtbd.test.ts` | 📋 checklist (needs `/vintage poll` registered in the test server) |
+| [Polls](polls.md) | J17–J18 | ✅ `polls.jtbd.test.ts` | ✅ checklist (J17 partly run live on 2026-10-26) |
 
 ## Rules
 

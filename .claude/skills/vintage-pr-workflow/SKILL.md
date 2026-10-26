@@ -30,8 +30,9 @@ description: Take a Vintage change from branch to merged PR — branch naming, s
 ## CI
 
 `select` decides which lanes the diff owes and also checks PR-title format and commit sign-offs.
-Lanes: `ts` (lint, boundaries, agent docs, types, tests), `contract` (manifest + breaking
-changes), `addon`, `botcore`, `workflow-contracts`. **`ci-ok` is the only required check** and
+Lanes: `ts` (lint, boundaries, agent docs, types, tests; also owed by any `scripts/*.mjs`
+change, since it runs those gates), `contract` (manifest + breaking changes), `addon`, `botcore`,
+`workflow-contracts`. **`ci-ok` is the only required check** and
 fails if any owed lane didn't pass.
 
 CodeQL runs separately. A CodeQL alert blocks merging even when `ci-ok` is green: read it with

@@ -1,134 +1,327 @@
-import { attr, css, FASTElement, html } from '@lushly-dev/fast-element';
+import { attr, css, FASTElement, html, observable, repeat, when } from '@lushly-dev/fast-element';
+import { command, failure } from '@lushly-dev/fast-element/command.js';
+import { SIGNUP_STATUSES, type SignupStatus } from '@vintage/comp-solver';
+import { getCommandClient } from '../client';
 import '../primitives';
+import { describeError, type ElementResult, toElementResult } from '../result';
 
-/** Signup states, matching the `--color-signup-*` tokens. The raids module (#14) owns the real list. */
-export const SIGNUP_STATUSES = [
+export { SIGNUP_STATUSES, type SignupStatus };
+
+/** How a member answers from the card; bench is a leader's decision, not an answer. */
+export const ANSWERS = [
   'accepted',
+  'late',
   'tentative',
-  'bench',
   'declined',
-  'no-response',
-] as const;
-export type SignupStatus = (typeof SIGNUP_STATUSES)[number];
+] as const satisfies readonly SignupStatus[];
+export type Answer = (typeof ANSWERS)[number];
 
-const STATUS_LABELS: Record<SignupStatus, string> = {
-  accepted: 'Signed up',
+export const ANSWER_LABELS: Record<Answer, string> = {
+  accepted: 'Going',
+  late: 'Late',
   tentative: 'Tentative',
-  bench: 'Bench',
-  declined: 'Declined',
-  'no-response': 'No response',
+  declined: "Can't",
+};
+
+const STATUS_LABELS: Record<SignupStatus | 'none', string> = {
+  accepted: 'Going',
+  late: 'Coming late',
+  tentative: 'Tentative',
+  bench: 'On the bench',
+  declined: 'Not coming',
+  none: 'No answer yet',
+};
+
+/** Counts the card shows: `raid-list` gives the statuses, `signup-list` the roles. */
+export interface SignupCounts {
+  accepted: number;
+  late: number;
+  tentative: number;
+  bench: number;
+  declined: number;
+  tank: number;
+  healer: number;
+  dps: number;
+  queued: number;
+}
+
+export const EMPTY_COUNTS: SignupCounts = {
+  accepted: 0,
+  late: 0,
+  tentative: 0,
+  bench: 0,
+  declined: 0,
+  tank: 0,
+  healer: 0,
+  dps: 0,
+  queued: 0,
 };
 
 const isStatus = (value: string): value is SignupStatus =>
   (SIGNUP_STATUSES as readonly string[]).includes(value);
+const isAnswer = (value: unknown): value is Answer =>
+  (ANSWERS as readonly unknown[]).includes(value);
 
 const template = html<VintageSignupCard>`
-  <violet-card appearance="outline" padding="medium" part="card">
-    <div slot="header" class="header">
-      <h3 class="title" part="title">${(x) => x.eventTitle}</h3>
-      <time class="when" part="when" datetime="${(x) => x.startsAt}">${(x) => x.startsLabel}</time>
-    </div>
-    <p class="status" part="status">
-      <span class="dot" style="${(x) => `--_status: var(--color-signup-${x.statusKey})`}"></span>
-      ${(x) => STATUS_LABELS[x.statusKey]}
+  <article class="card" part="card">
+    <span class="eyebrow" part="eyebrow">${(x) => x.eyebrow}</span>
+    <h3 class="title" part="title">${(x) => x.eventTitle}</h3>
+    <p class="when" part="when">
+      <time datetime="${(x) => x.startsAt}">${(x) => x.startsLabel}</time>
+      ${when((x) => x.lockLabel, html<VintageSignupCard>` · ${(x) => x.lockLabel}`)}
     </p>
     <slot></slot>
-    <div slot="footer" class="footer">
-      <violet-button appearance="primary" disabled>Sign up</violet-button>
-      <violet-button appearance="secondary" disabled>Tentative</violet-button>
-      <violet-button appearance="quiet" disabled>Decline</violet-button>
-      <span class="note" part="note">${(x) => x.note}</span>
+    <div class="counts" part="counts">
+      ${repeat(
+        (x) => x.countRows,
+        html<[string, number, string]>`
+          <div class="${(r) => r[2]}"><b class="num">${(r) => r[1]}</b> <span>${(r) => r[0]}</span></div>
+        `,
+      )}
     </div>
-  </violet-card>
+    <div class="answer" part="answer">
+      <span class="eyebrow">Your answer</span>
+      <div class="row">
+        <div class="seg" role="group" aria-label="Your answer">
+          ${repeat(
+            () => ANSWERS,
+            html<Answer, VintageSignupCard>`
+              <button
+                type="button"
+                class="${(a) => a}"
+                aria-pressed="${(a, c) => String(c.parent.statusKey === a)}"
+                ?disabled="${(_, c) => !c.parent.answerCanExecute}"
+                @click="${(a, c) => c.parent.answer(a)}"
+              >${(a) => ANSWER_LABELS[a]}</button>
+            `,
+          )}
+        </div>
+        ${when(
+          (x) => x.characterLabel,
+          html<VintageSignupCard>`<span class="as">as <b part="character">${(x) => x.characterLabel}</b></span>`,
+        )}
+      </div>
+      <p class="status ${(x) => x.statusKind}" part="status" role="status" aria-live="polite">
+        ${(x) => x.statusText}
+      </p>
+    </div>
+  </article>
 `;
 
 const styles = css`
   :host {
     display: block;
-    max-inline-size: 26rem;
     color: var(--color-text-primary);
     font-family: var(--font-family-sans);
-    --violet-card-background: var(--card-bg);
-    --violet-card-border-color: var(--card-border);
   }
 
-  .header {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-xs);
+  .card {
+    display: grid;
+    gap: var(--space-sm);
+    padding: var(--space-md);
+    border-radius: 0.4rem;
+    border: var(--border-width-thin) solid var(--color-border-strong);
+    background: linear-gradient(180deg, var(--color-surface-raised), var(--card-bg));
+    box-shadow:
+      inset 0 1px 0 rgb(255 244 228 / 6%),
+      0 14px 34px rgb(0 0 0 / 45%);
+  }
+
+  .eyebrow {
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xs);
+    letter-spacing: var(--font-tracking-wider);
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
   }
 
   .title {
     margin: 0;
     font-family: var(--font-family-display);
     font-size: var(--font-size-lg);
-    color: var(--color-text-accent);
+    font-weight: var(--font-weight-bold);
+    letter-spacing: var(--font-tracking-tight);
   }
 
   .when,
-  .note {
+  .as,
+  .status {
+    margin: 0;
     font-size: var(--font-size-sm);
     color: var(--color-text-secondary);
   }
 
-  .status {
-    display: flex;
-    align-items: center;
+  .counts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(5rem, 1fr));
     gap: var(--space-xs);
-    margin: 0;
-    font-weight: var(--font-weight-medium);
   }
 
-  .dot {
-    inline-size: 0.7em;
-    block-size: 0.7em;
-    border-radius: 50%;
-    background: var(--_status);
+  .counts div {
+    display: grid;
+    gap: 0.1rem;
+    padding-block-start: var(--space-xs);
+    border-block-start: var(--border-width-thin) solid var(--color-border-default);
   }
 
-  .footer {
+  .counts b {
+    font-family: var(--font-family-display);
+    font-weight: var(--font-weight-heavy);
+    font-size: var(--font-size-xl);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .counts span {
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xs);
+    letter-spacing: var(--font-tracking-wider);
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+  }
+
+  .counts .queued b {
+    color: var(--color-signup-bench);
+  }
+
+  .answer {
+    display: grid;
+    gap: var(--space-xs);
+    padding: var(--space-sm);
+    border-radius: 0.3rem;
+    border: var(--border-width-thin) solid var(--color-border-default);
+    background: var(--color-surface-canvas);
+    box-shadow: inset 0 1px 0 rgb(255 244 228 / 6%);
+  }
+
+  .row {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: var(--space-xs);
   }
 
-  violet-button {
-    font-family: var(--font-family-sans);
+  .seg {
+    display: inline-flex;
+    border: var(--border-width-thin) solid var(--color-border-strong);
+    border-radius: 0.25rem;
+    overflow: hidden;
+  }
+
+  .seg button {
+    font: var(--font-weight-medium) var(--font-size-sm) var(--font-family-sans);
+    padding: 0.5rem 0.9rem;
+    background: transparent;
+    color: var(--color-text-secondary);
+    border: 0;
+    border-inline-end: var(--border-width-thin) solid var(--color-border-strong);
+    cursor: pointer;
+  }
+
+  .seg button:last-child {
+    border-inline-end: 0;
+  }
+
+  .seg button:hover:not(:disabled) {
+    color: var(--color-text-primary);
+  }
+
+  .seg button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  .seg button[aria-pressed='true'] {
+    background: var(--color-accent-primary);
+    color: var(--color-accent-contrast);
+  }
+
+  .seg button.late[aria-pressed='true'] {
+    background: var(--color-signup-late);
+    color: var(--color-accent-contrast);
+  }
+
+  .seg button.tentative[aria-pressed='true'] {
+    background: var(--color-signup-tentative);
+    color: var(--color-accent-contrast);
+  }
+
+  .seg button.declined[aria-pressed='true'] {
+    background: var(--color-feedback-danger);
+    color: var(--color-accent-contrast);
+  }
+
+  .seg button:focus-visible {
+    outline: var(--border-width-thin) solid var(--color-focus-ring);
+    outline-offset: calc(-1 * var(--border-width-thick));
+  }
+
+  .as b {
+    color: var(--color-text-primary);
+  }
+
+  .status {
+    min-block-size: var(--font-leading-relaxed);
+  }
+
+  .status.error {
+    color: var(--color-feedback-danger);
+  }
+
+  .status.success {
+    color: var(--color-feedback-success);
   }
 `;
 
 /**
- * Placeholder for a raid signup: the event, its start time, and the member's status. The
- * buttons stay disabled until the raids module's signup commands exist (#14); they will become
- * `@command`s that call them, like the character form does.
+ * One raid, its signup counts, and the member's own answer. Clicking an answer runs the
+ * `vintage.signup-set` component command, which calls the server's `signup-set` with the
+ * member's character; the server applies the lock, queue, and tier rules and answers with
+ * the stored signup.
  *
  * @tagname vintage-signup-card
- * @summary Raid signup card placeholder (event, time, status).
- * @slot - Extra content, such as the signed-up character's badges.
- * @csspart card - The violet-card surface.
- * @csspart title - The event name.
- * @csspart when - The start time.
- * @csspart status - The signup status line.
- * @csspart note - The note next to the buttons.
- * @cssprop --color-signup-accepted - One `--color-signup-<status>` token per status (from @vintage/design-tokens).
+ * @summary A raid's signups and the member's answer, backed by `signup-set`.
+ * @fires signup-changed - The server accepted the answer; `detail` is the stored signup.
+ * @slot - Extra content between the time and the counts, such as the raid's notes.
+ * @csspart card - The surface.
+ * @csspart eyebrow - The label above the title.
+ * @csspart title - The raid's name.
+ * @csspart when - The start time and lock note.
+ * @csspart counts - The counts grid.
+ * @csspart answer - The member's answer block.
+ * @csspart character - The character the answer is for.
+ * @csspart status - The result line (`role="status"`).
  */
 export class VintageSignupCard extends FASTElement {
+  /** The raid's id; answers go to this event. */
+  @attr({ attribute: 'event-id' }) eventId = '';
   /** The raid's name. */
   @attr({ attribute: 'event-title' }) eventTitle = 'Raid night';
-  /** ISO 8601 start time; shown in the viewer's time zone. */
+  /** Small label above the title. */
+  @attr eyebrow = 'Next up';
+  /** ISO 8601 or epoch-ms start time; shown in the viewer's time zone. */
   @attr({ attribute: 'starts-at' }) startsAt = '';
-  /** One of SIGNUP_STATUSES; anything else shows as no response. */
-  @attr status = 'no-response';
-  /** The note shown while signups are unavailable. */
-  @attr note = 'Signups open here once raids are scheduled.';
+  /** Shown after the time, e.g. "signups lock 6:00 pm". */
+  @attr({ attribute: 'lock-label' }) lockLabel = '';
+  /** The member's current signup status, or `none`. */
+  @attr status = 'none';
+  /** The character the member answers with; empty disables answering. */
+  @attr({ attribute: 'character-id' }) characterId = '';
+  /** How that character is shown, e.g. "Bloodfen · Protection". */
+  @attr({ attribute: 'character-label' }) characterLabel = '';
 
-  get statusKey(): SignupStatus {
-    return isStatus(this.status) ? this.status : 'no-response';
+  @observable counts: SignupCounts = EMPTY_COUNTS;
+  @observable busy = false;
+  @observable statusText = '';
+  @observable statusKind: 'idle' | 'error' | 'success' = 'idle';
+
+  get statusKey(): SignupStatus | 'none' {
+    return isStatus(this.status) ? this.status : 'none';
   }
 
   get startsLabel(): string {
-    const date = new Date(this.startsAt);
+    const raw = /^\d+$/.test(this.startsAt) ? Number(this.startsAt) : this.startsAt;
+    const date = new Date(raw);
     if (!this.startsAt || Number.isNaN(date.getTime())) return 'Time to be announced';
     return date.toLocaleString(undefined, {
       weekday: 'short',
@@ -137,6 +330,77 @@ export class VintageSignupCard extends FASTElement {
       hour: 'numeric',
       minute: '2-digit',
     });
+  }
+
+  /** The counts as [label, value, class] rows, in display order. */
+  get countRows(): [string, number, string][] {
+    const c = this.counts;
+    return [
+      ['Going', c.accepted, 'accepted'],
+      ['Late', c.late, 'late'],
+      ['Tentative', c.tentative, 'tentative'],
+      ['Tanks', c.tank, 'tank'],
+      ['Healers', c.healer, 'healer'],
+      ['DPS', c.dps, 'dps'],
+      ['Queued', c.queued, 'queued'],
+    ];
+  }
+
+  /** Reactive availability for `vintage.signup-set`. */
+  get answerCanExecute(): boolean {
+    return !this.busy && Boolean(this.eventId) && Boolean(this.characterId);
+  }
+
+  @command('vintage.signup-set', {
+    label: 'Answer a raid',
+    description:
+      'Sign up for the raid, or change your answer: accepted, late, tentative, or declined.',
+    category: 'Raids',
+    parameters: {
+      type: 'object',
+      properties: { status: { type: 'string', enum: [...ANSWERS] } },
+      required: ['status'],
+    },
+  })
+  async answer(status: unknown): Promise<ElementResult<unknown>> {
+    if (!isAnswer(status)) {
+      return failure({
+        code: 'INVALID_PARAMETERS',
+        message: `Answer with one of ${ANSWERS.join(', ')}`,
+      });
+    }
+    if (!this.answerCanExecute) {
+      return failure({
+        code: 'COMMAND_DISABLED',
+        message: this.busy ? 'Already sending an answer' : 'No raid or character to answer with',
+      });
+    }
+    this.busy = true;
+    try {
+      const result = toElementResult(
+        await getCommandClient().run('signup-set', {
+          eventId: this.eventId,
+          characterId: this.characterId,
+          status,
+        }),
+      );
+      this.report(result, status);
+      return result;
+    } finally {
+      this.busy = false;
+    }
+  }
+
+  private report(result: ElementResult<unknown>, status: Answer): void {
+    if (!result.success) {
+      this.statusKind = 'error';
+      this.statusText = describeError(result);
+      return;
+    }
+    this.status = status;
+    this.statusKind = 'success';
+    this.statusText = String(result.metadata?.reasoning ?? STATUS_LABELS[status]);
+    this.$emit('signup-changed', result.data);
   }
 }
 

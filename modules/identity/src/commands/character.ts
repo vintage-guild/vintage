@@ -1,5 +1,10 @@
 import { type Caller, error, success, tierAllows } from '@vintage/guild-kit';
-import { characterNameSchema, classSchema, roleFor } from '@vintage/wow-data';
+import {
+  characterNameSchema,
+  classSchema,
+  normalizeCharacterName,
+  roleFor,
+} from '@vintage/wow-data';
 import { z } from 'zod';
 import type { Character } from '../contract';
 import { command } from '../store';
@@ -22,8 +27,6 @@ function canEdit(caller: Caller, character: Character): boolean {
   return character.memberId === caller.memberId || tierAllows(caller.tier, 'officer');
 }
 
-const capitalize = (name: string) => name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
-
 export const characterAdd = command({
   name: 'character-add',
   description: 'Register one of your characters (main or alt).',
@@ -40,7 +43,7 @@ export const characterAdd = command({
     const role = roleFor(input.class, input.spec);
     if (!role) return badSpec(input.class, input.spec);
 
-    const name = capitalize(input.name);
+    const name = normalizeCharacterName(input.name);
     const all = await deps.identity.listCharacters(guildId);
     if (all.some((c) => c.name === name)) {
       return error('CHARACTER_EXISTS', `${name} is already registered`, {

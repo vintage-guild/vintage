@@ -13,9 +13,7 @@
         "properties": {
           "name": {
             "type": "string",
-            "minLength": 2,
-            "maxLength": 12,
-            "pattern": "^\\p{L}+$"
+            "pattern": "^\\p{L}{2,12}( \\p{L}{1,12})?$"
           },
           "class": {
             "type": "string",

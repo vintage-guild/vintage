@@ -46,6 +46,7 @@
       },
       "signup": {
         "accepted": { "$value": "#2e6b1f" },
+        "late": { "$value": "#8a4a0e" },
         "tentative": { "$value": "#855400" },
         "bench": { "$value": "#2f5a87" },
         "declined": { "$value": "{color.crimson.500}" },

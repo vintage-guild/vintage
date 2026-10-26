@@ -11,7 +11,8 @@ export class VintageRoutes extends RouterConfiguration {
   configure(): void {
     this.title = 'Vintage';
     this.routes.map(
-      { path: '', title: 'About', element: page(() => import('./pages/about')) },
+      { path: '', title: 'Home', element: page(() => import('./pages/home')) },
+      { path: 'about', title: 'About', element: page(() => import('./pages/about')) },
       { path: 'profile', title: 'Profile', element: page(() => import('./pages/profile')) },
       {
         path: 'characters',

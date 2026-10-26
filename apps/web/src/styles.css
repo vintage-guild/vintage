@@ -17,6 +17,13 @@ vintage-logo-header [slot="logo"] svg {
   display: block;
   inline-size: 100%;
   block-size: auto;
+  filter: drop-shadow(0 2px 6px rgb(0 0 0 / 45%));
+}
+
+/* The signed-in member in the header: name in the class color once characters are known. */
+#member-chip b {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-bold);
 }
 
 .visually-hidden {

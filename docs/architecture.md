@@ -142,14 +142,14 @@ Current packages:
 | `libs/bridge-format` | lib | Game ↔ web paste strings: import/export Zod schemas, LibSerialize + LibDeflate compatible codec, golden fixtures | 🚧 TS side built and tested; Lua side (addon) not built |
 | `packages/guild-kit` | package | Commands, tiers, registry, confirm tokens, manifest | ✅ |
 | `packages/testing` | package | Test callers, clock, registry helpers | ✅ |
-| `packages/ui-kit` | package | Web composites on FAST-AF + violet-elements: logo header, class/role badges, character form (`@command` → `character-add`), signup and sign-in cards, theme switch; a `CommandClient` port (stubbed until Convex is wired); Violet → Vintage token bridge; Custom Elements Manifest | ✅ |
+| `packages/ui-kit` | package | Web composites on FAST-AF + violet-elements: sticky site header with section context, hero and figures, class/role badges, character form (`@command` → `character-add`), signup and sign-in cards, theme switch; a `CommandClient` port (stubbed until Convex is wired); Violet → Vintage token bridge; Custom Elements Manifest | ✅ |
 | `modules/identity` | module | Members, characters, guild ranks, role → rank map, role sync planner | ✅ |
 | `modules/coordinator` | module | The raid coordinator loop on a 5-minute cron: signup posts, reminders (pings + optional DMs), officer digest, lock, final roster, addon import string; `CoordinatorAction` log | 🚧 built, tested, and run live on the test server; button clicks wait on the gateway (#10) |
 | `modules/raids` | module | Schedules (DST-safe recurrence), raid events, signups, roster groups, `comp-suggest`; emits `signup-changed` and `raid-completed` | ✅ built and tested; not yet driven by the coordinator |
 | `modules/polls` | module | Polls and ballots shared by Discord, the website, and MCP: contract, store port, memory store, pure tally (single, multi, instant-runoff ranked) | 🚧 contract and tally built and tested; commands (#60), component (#61), and surfaces wait |
 | `apps/api` | app | Convex: composes components, command surface, crons | ✅ |
 | `apps/gateway` | app | Vercel functions: `/discord/interactions` (signature check, PING, `/vintage ping`; signup buttons and modals forwarded to Convex), later `/mcp` | 🚧 built and tested locally end to end; not deployed |
-| `apps/web` | app | The website: Vite SPA on the FAST-AF router; about/recruitment, profile, and characters pages; `data-theme` switching. Member pages are signed out until sign-in (#7); not deployed yet | 🚧 |
+| `apps/web` | app | The website: Vite SPA on the FAST-AF router; home (hero, with the rest of the page in progress), about/recruitment, profile, and characters pages; `data-theme` switching; self-hosted fonts. In dev, an in-memory guild behind the real registry seeds the pages through commands. Member pages are signed out until sign-in (#7); not deployed yet | 🚧 |
 | `vendor/*` | vendored | Built FAST-AF: `@lushly-dev/fast-element`, `@microsoft/fast-router`, `@lushly-dev/violet-elements`. Never edited; re-synced by script | ✅ used by `ui-kit` and `web` |
 
 Dependencies only point down: `apps → modules → packages → libs`. Modules reach each other only

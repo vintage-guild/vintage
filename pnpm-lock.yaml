@@ -124,6 +124,15 @@ importers:
 
   apps/web:
     dependencies:
+      '@fontsource-variable/bitter':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/ibm-plex-mono':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/ibm-plex-sans':
+        specifier: ^5.3.0
+        version: 5.3.0
       '@lushly-dev/fast-element':
         specifier: workspace:*
         version: link:../../vendor/fast-element
@@ -133,6 +142,15 @@ importers:
       '@vintage/design-tokens':
         specifier: workspace:*
         version: link:../../libs/design-tokens
+      '@vintage/guild-kit':
+        specifier: workspace:*
+        version: link:../../packages/guild-kit
+      '@vintage/identity':
+        specifier: workspace:*
+        version: link:../../modules/identity
+      '@vintage/raids':
+        specifier: workspace:*
+        version: link:../../modules/raids
       '@vintage/ui-kit':
         specifier: workspace:*
         version: link:../../packages/ui-kit
@@ -385,6 +403,9 @@ importers:
       '@lushly-dev/violet-elements':
         specifier: workspace:*
         version: link:../../vendor/violet-elements
+      '@vintage/comp-solver':
+        specifier: workspace:*
+        version: link:../../libs/comp-solver
       '@vintage/design-tokens':
         specifier: workspace:*
         version: link:../../libs/design-tokens
@@ -928,6 +949,15 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@fontsource-variable/bitter@5.3.0':
+    resolution: {integrity: sha512-TNGusdX+fjWE2b8pTG7kH1A615DbjjSj8/PwVm+iyiFiLFtioHXt6eH5jIFE2kmiA3Ogp03jEyZDsukotzC+4Q==}
+
+  '@fontsource/ibm-plex-mono@5.3.0':
+    resolution: {integrity: sha1-GHlpnRBGAtUzHijhA/M8Oxt2axc=}
+
+  '@fontsource/ibm-plex-sans@5.3.0':
+    resolution: {integrity: sha1-gJmVC0BOYl9l572DO8uE/+a81Aw=}
 
   '@github/catalyst@1.8.1':
     resolution: {integrity: sha1-82CZttTGKDqhJk4oyd0thJ1UrXY=}
@@ -2478,6 +2508,12 @@ snapshots:
 
   '@esbuild/win32-x64@0.28.2':
     optional: true
+
+  '@fontsource-variable/bitter@5.3.0': {}
+
+  '@fontsource/ibm-plex-mono@5.3.0': {}
+
+  '@fontsource/ibm-plex-sans@5.3.0': {}
 
   '@github/catalyst@1.8.1': {}
 

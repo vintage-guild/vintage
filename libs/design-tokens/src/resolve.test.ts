@@ -94,10 +94,11 @@ describe('resolveNode inheritance', () => {
 
   it('resolves the real tree: dark surfaces flow into AFD component tokens', () => {
     const dark = resolveNode('vintage-dark', NODES);
-    expect(dark.get('card.bg')).toMatchObject({ resolved: '#292526', origin: 'afd-site' });
+    expect(dark.get('card.bg')).toMatchObject({ resolved: '#23222c', origin: 'afd-site' });
     expect(dark.get('color.surface.raised')?.lineage).toEqual(['afd-site', 'vintage-dark']);
     expect(dark.get('font.family.display')?.origin).toBe('vintage');
-    expect(dark.get('font.family.mono')?.origin).toBe('afd-site');
+    expect(dark.get('font.family.mono')?.origin).toBe('vintage');
+    expect(dark.get('font.family.serif')?.origin).toBe('afd-site');
   });
 });
 

@@ -55,7 +55,9 @@ describe('CSS', () => {
   });
 
   it('writes literal values in CSS syntax', () => {
-    expect(darkCss).toContain('--font-family-display: "Cinzel", "Georgia", serif;');
+    expect(darkCss).toContain(
+      '--font-family-display: "Bitter Variable", "Bitter", "Georgia", serif;',
+    );
     expect(darkCss).toContain('--motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);');
     expect(darkCss).toContain('--color-quality-epic: #a335ee;');
     expect(parchmentCss).toContain('--color-surface-canvas: var(--color-parchment-100);');

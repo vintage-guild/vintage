@@ -11,9 +11,15 @@
     "type-check": "tsc6 -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@fontsource-variable/bitter": "^5.3.0",
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@fontsource/ibm-plex-sans": "^5.3.0",
     "@lushly-dev/fast-element": "workspace:*",
     "@microsoft/fast-router": "workspace:*",
     "@vintage/design-tokens": "workspace:*",
+    "@vintage/guild-kit": "workspace:*",
+    "@vintage/identity": "workspace:*",
+    "@vintage/raids": "workspace:*",
     "@vintage/ui-kit": "workspace:*",
     "@vintage/wow-data": "workspace:*"
   },

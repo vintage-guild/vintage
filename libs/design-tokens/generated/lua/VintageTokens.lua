@@ -11,18 +11,18 @@ local VintageTokens = {}
 
 -- Primitives to merge into FenUI.Tokens.colors: { r, g, b, a } in 0-1.
 VintageTokens.colors = {
-	vintageDarkSurfaceCanvas = { 0.075, 0.071, 0.071, 1 }, -- #131212 color.surface.canvas
-	vintageDarkSurfaceRaised = { 0.161, 0.145, 0.149, 1 }, -- #292526 color.surface.raised
-	vintageDarkSurfaceSunken = { 0.043, 0.039, 0.039, 1 }, -- #0b0a0a color.surface.sunken
-	vintageDarkTextPrimary = { 0.953, 0.918, 0.843, 1 }, -- #f3ead7 color.text.primary
-	vintageDarkTextSecondary = { 0.71, 0.643, 0.522, 1 }, -- #b5a485 color.text.secondary
-	vintageDarkAccentContrast = { 0.075, 0.071, 0.071, 1 }, -- #131212 color.accent.contrast
-	vintageDarkTextAccent = { 0.984, 0.824, 0.459, 1 }, -- #fbd275 color.text.accent
+	vintageDarkSurfaceCanvas = { 0.063, 0.059, 0.082, 1 }, -- #100f15 color.surface.canvas
+	vintageDarkSurfaceRaised = { 0.137, 0.133, 0.173, 1 }, -- #23222c color.surface.raised
+	vintageDarkSurfaceSunken = { 0.043, 0.039, 0.063, 1 }, -- #0b0a10 color.surface.sunken
+	vintageDarkTextPrimary = { 0.98, 0.961, 0.918, 1 }, -- #faf5ea color.text.primary
+	vintageDarkTextSecondary = { 0.722, 0.69, 0.749, 1 }, -- #b8b0bf color.text.secondary
+	vintageDarkAccentContrast = { 0.063, 0.059, 0.082, 1 }, -- #100f15 color.accent.contrast
+	vintageDarkTextAccent = { 0.867, 0.616, 0.588, 1 }, -- #dd9d96 color.text.accent
 	vintageDarkFeedbackDanger = { 0.91, 0.404, 0.42, 1 }, -- #e8676b color.feedback.danger
-	vintageDarkBorderStrong = { 0.314, 0.302, 0.31, 1 }, -- #504d4f color.border.strong
-	vintageDarkBorderDefault = { 0.953, 0.918, 0.843, 0.2 }, -- #f3ead733 color.border.default
-	vintageDarkFocusRing = { 0.984, 0.824, 0.459, 1 }, -- #fbd275 color.focus.ring
-	vintageDarkAccentPrimary = { 0.984, 0.824, 0.459, 1 }, -- #fbd275 color.accent.primary
+	vintageDarkBorderStrong = { 0.239, 0.235, 0.306, 1 }, -- #3d3c4e color.border.strong
+	vintageDarkBorderDefault = { 0.165, 0.161, 0.208, 1 }, -- #2a2935 color.border.default
+	vintageDarkFocusRing = { 0.29, 0.647, 0.678, 1 }, -- #4aa5ad color.focus.ring
+	vintageDarkAccentPrimary = { 0.29, 0.647, 0.678, 1 }, -- #4aa5ad color.accent.primary
 	vintageDarkFeedbackSuccess = { 0.435, 0.812, 0.353, 1 }, -- #6fcf5a color.feedback.success
 	vintageParchmentSurfaceCanvas = { 0.953, 0.918, 0.843, 1 }, -- #f3ead7 color.surface.canvas
 	vintageParchmentSurfaceRaised = { 0.98, 0.961, 0.918, 1 }, -- #faf5ea color.surface.raised
@@ -127,6 +127,7 @@ VintageTokens.wow = {
 		},
 		signup = {
 			accepted = { 0.435, 0.812, 0.353, 1 }, -- #6fcf5a
+			late = { 0.941, 0.627, 0.353, 1 }, -- #f0a05a
 			tentative = { 0.941, 0.706, 0.298, 1 }, -- #f0b44c
 			bench = { 0.561, 0.702, 0.851, 1 }, -- #8fb3d9
 			declined = { 0.91, 0.404, 0.42, 1 }, -- #e8676b
@@ -161,6 +162,7 @@ VintageTokens.wow = {
 		},
 		signup = {
 			accepted = { 0.18, 0.42, 0.122, 1 }, -- #2e6b1f
+			late = { 0.541, 0.29, 0.055, 1 }, -- #8a4a0e
 			tentative = { 0.522, 0.329, 0, 1 }, -- #855400
 			bench = { 0.184, 0.353, 0.529, 1 }, -- #2f5a87
 			declined = { 0.459, 0.039, 0.055, 1 }, -- #750a0e

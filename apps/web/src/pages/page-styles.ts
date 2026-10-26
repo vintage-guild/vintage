@@ -24,12 +24,12 @@ export const pageStyles = css`
     font-family: var(--font-family-display);
     font-weight: var(--font-weight-bold);
     line-height: var(--font-leading-normal);
-    color: var(--color-text-accent);
+    letter-spacing: var(--font-tracking-tight);
+    color: var(--color-text-primary);
   }
 
   h1 {
     font-size: var(--font-size-2xl);
-    letter-spacing: var(--font-tracking-wide);
   }
 
   h2 {

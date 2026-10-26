@@ -100,4 +100,17 @@ crimson) were added to reach contrast targets.
 | Iron (frame) | 300 `#504d4f` · 500 `#383031` · 600 `#302a2b` · 700 `#292526` · 900 `#131212` | 950 `#0b0a0a` |
 | Parchment / leather | | 50 `#faf5ea` · 100 `#f3ead7` · 200 `#e8dcc0` · 400 `#b5a485` · leather 700 `#5c4a3a` · 900 `#2b2118` |
 
-The guild colors are still open (Q12); a reskin changes `vintage` and the tests guard contrast.
+The site palette was chosen with the home page concepts (2026-10-25, [feature
+plan](../../docs/features/proposed/home-page/home-page.plan.md)), after the dusk sky and teal
+banners of Blizzard's Forever page, pulled toward vintage tones. The dark theme is built on it;
+the emblem's gold and crimson stay for the logo and WoW frames.
+
+| Family | Values | Role |
+|---|---|---|
+| Plum (ink) | 300 `#b8b0bf` · 400 `#7f7989` · 600 `#3d3c4e` · 700 `#2a2935` · 800 `#23222c` · 900 `#1a1921` · 950 `#100f15` · 975 `#0b0a10` | Dark surfaces, borders, muted text |
+| Verdigris | 200 `#93d0d4` · 400 `#5fb8bf` · 500 `#4aa5ad` · 700 `#2b7078` | Actions, focus, progress, "open / going" |
+| Rose | 300 `#dd9d96` · 700 `#a9655f` | Emphasis: the accent word, eyebrows, the signed-in member |
+| Gold 500 | `#e49d2b` | The secondary accent on dark: kills, the hairline over figures |
+
+Type: Bitter (variable) for display, IBM Plex Sans for body and UI, IBM Plex Mono for labels;
+all OFL and self-hosted by `apps/web`.

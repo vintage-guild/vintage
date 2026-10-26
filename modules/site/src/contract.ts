@@ -27,11 +27,23 @@ export const RECRUITING_LIMITS = {
   needs: CLASS_NAMES.length,
 } as const;
 
+/** High, medium, closed: the order the band lists needs in. */
+export function byNeed<T extends { need: NeedLevel }>(needs: readonly T[]): T[] {
+  const rank = (n: NeedLevel) => NEED_LEVELS.indexOf(n);
+  return needs
+    .map((n, i) => ({ n, i }))
+    .sort((a, b) => rank(a.n.need) - rank(b.n.need) || a.i - b.i)
+    .map(({ n }) => n);
+}
+
 /** What `recruiting-get` answers. */
 export interface Recruiting {
   headline: string;
   pitch: string;
-  /** In the order officers set; the band shows them as given. One row per class at most. */
+  /**
+   * High first, then medium, then closed, whatever order they were saved in; within a level,
+   * the order officers gave. One row per class at most.
+   */
   needs: ClassNeed[];
   /**
    * Epoch ms of the last `recruiting-set`, or null while the band shows the starter text. Who

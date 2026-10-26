@@ -54,7 +54,14 @@ function needsFrom(rows: Row[]): RecruitingDeskBand['needs'] {
 const template = html<VintageRecruitingDesk>`
   <form class="desk" part="desk" @submit="${(x, c) => x.submit(c.event)}">
     <p class="meta" part="meta">${(x) => x.metaLine()}</p>
+    ${when(
+      (x) => !x.recruiting && x.error,
+      html<VintageRecruitingDesk>`<p class="error" part="error" role="alert">${(x) => x.error}</p>`,
+    )}
 
+    ${when(
+      (x) => x.recruiting,
+      html<VintageRecruitingDesk>`
     <div class="field">
       <label for="headline">Headline</label>
       <input
@@ -93,15 +100,13 @@ const template = html<VintageRecruitingDesk>`
               <span class="cls">${(r) => titleCase(r.wowClass)}</span>
               <select
                 aria-label="${(r) => `${titleCase(r.wowClass)} need`}"
+                :value="${(r) => r.need}"
                 @change="${(r, c) => c.parent.setNeed(r, (c.event.target as HTMLSelectElement).value)}"
               >
-                ${repeat(
-                  () => NEED_CHOICES,
-                  html<
-                    (typeof NEED_CHOICES)[number],
-                    Row
-                  >`<option value="${(o) => o.value}" :selected="${(o, c) => c.parent.need === o.value}">${(o) => o.label}</option>`,
-                )}
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="closed">Closed</option>
+                <option value="none">Not listed</option>
               </select>
               <input
                 aria-label="${(r) => `${titleCase(r.wowClass)} specs`}"
@@ -112,6 +117,9 @@ const template = html<VintageRecruitingDesk>`
               />
             </div>
           `,
+          // Fresh rows on every reset: a reused row would keep the need or specs typed into the
+          // class that sat there before the save re-sorted the list.
+          { recycle: false },
         )}
       </div>
     </fieldset>
@@ -128,6 +136,8 @@ const template = html<VintageRecruitingDesk>`
     ${when(
       (x) => !x.canEdit,
       html`<p class="note">Officers edit the recruiting band. You can read it here.</p>`,
+    )}
+      `,
     )}
     <p class="status ${(x) => x.statusKind}" part="status" role="status" aria-live="polite">${(x) => x.statusText}</p>
   </form>
@@ -262,6 +272,12 @@ const styles = css`
     opacity: 0.55;
   }
 
+  .error {
+    margin: 0;
+    color: var(--color-feedback-danger);
+    text-wrap: pretty;
+  }
+
   .status {
     margin: 0;
     font-size: var(--font-size-sm);
@@ -292,6 +308,7 @@ const styles = css`
  * @fires recruiting-changed - After a save succeeds.
  * @csspart desk - The whole form.
  * @csspart meta - When it was last saved, or that it shows the starter text.
+ * @csspart error - Why the band could not be read; shown instead of the form.
  * @csspart needs - The class rows.
  * @csspart status - What just happened.
  */
@@ -310,6 +327,8 @@ export class VintageRecruitingDesk extends FASTElement {
   @observable busy = false;
   @observable statusText = '';
   @observable statusKind: 'idle' | 'error' | 'success' = 'idle';
+  /** Why `recruiting-get` failed, if it did. With no band to edit, the desk shows only this. */
+  @observable error = '';
 
   recruitingChanged(): void {
     this.reset();
@@ -325,7 +344,7 @@ export class VintageRecruitingDesk extends FASTElement {
 
   metaLine(): string {
     const at = this.recruiting?.updatedAt;
-    if (!this.recruiting) return 'Loading the band…';
+    if (!this.recruiting) return this.error ? '' : 'Loading the band…';
     if (at == null) return 'Showing the starter text. Nobody has saved the band yet.';
     const options: Intl.DateTimeFormatOptions = {
       month: 'short',
@@ -376,6 +395,12 @@ export class VintageRecruitingDesk extends FASTElement {
   async save(): Promise<ElementResult<unknown>> {
     if (!this.canEdit) {
       return failure({ code: 'COMMAND_DISABLED', message: 'Officers edit the band' });
+    }
+    if (!this.recruiting) {
+      return failure({
+        code: 'COMMAND_DISABLED',
+        message: 'The band hasn’t loaded, so there is nothing to save',
+      });
     }
     if (this.busy) return failure({ code: 'COMMAND_DISABLED', message: 'Busy' });
     this.busy = true;

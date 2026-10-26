@@ -130,12 +130,9 @@ const template = html<Page>`
               time-zone="${() => preferredTimeZone() ?? ''}"
               ?can-edit="${(x) => x.canEditRecruiting}"
               :recruiting="${(x) => x.recruiting}"
+              :error="${(x) => x.recruitingError}"
               @recruiting-changed="${(x) => x.loadRecruiting()}"
             ></vintage-recruiting-desk>
-            ${when(
-              (x) => x.recruitingError,
-              html<Page>`<p class="error" role="alert">${(x) => x.recruitingError}</p>`,
-            )}
           `,
         )}
 
@@ -179,6 +176,17 @@ const template = html<Page>`
     )}
   </div>
 `;
+
+/**
+ * Why the Recruiting tab has nothing to edit. `recruiting-get` is public, so "not found" can
+ * only mean the guild server predates the site module: it needs a deploy, not a higher rank.
+ */
+export function recruitingReadError(error?: { code?: string; message?: string }): string {
+  if (error?.code === 'COMMAND_NOT_FOUND') {
+    return 'The guild server doesn’t have the recruiting band yet. It needs the latest deploy; until then the home page shows the starter text.';
+  }
+  return `Couldn’t read the recruiting band: ${error?.message ?? 'the server didn’t answer'}. Try again in a moment.`;
+}
 
 const raidOption = (e: RaidEvent) =>
   `${formatWeekday(e.startsAt)} ${formatMonthDay(e.startsAt)} · ${e.name} (${e.size})`;
@@ -337,9 +345,7 @@ export class Page extends FASTElement {
   /** The band as it reads now, for the editor. */
   async loadRecruiting(): Promise<void> {
     const result = await getCommandClient().read<Recruiting>('recruiting-get');
-    this.recruitingError = result.success
-      ? ''
-      : (result.error?.message ?? 'Could not read the band');
+    this.recruitingError = result.success ? '' : recruitingReadError(result.error);
     if (result.success && result.data) this.recruiting = result.data;
   }
 

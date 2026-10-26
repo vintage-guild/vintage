@@ -139,19 +139,25 @@ set `VINTAGE_SITE_URL` in the Convex env so ranked polls link to the website (on
 ### Website sign-in (Discord)
 
 Members sign in to the website with Discord only (#7). Better Auth runs inside Convex
-(`apps/api/convex/auth.ts`); the website uses `@vintage/web-session`. To turn it on:
+(`apps/api/convex/auth.ts`); the website uses `@vintage/web-session`.
 
-1. Developer Portal → OAuth2 → **Redirects**: add
+Sign-in has its **own Discord application, named Vintage** with the guild emblem, apart from
+the bot's (Random). Discord's consent screen shows the application's name and icon, so members
+sign in to Vintage, not to the bot; the bot keeps its name everywhere in Discord. The sign-in
+application has no bot and needs only OAuth2. To turn it on:
+
+1. Developer Portal → **New Application**, named Vintage, icon from `assets/brand`. On its
+   OAuth2 page → **Redirects**: add
    `https://<deployment>.convex.site/api/auth/callback/discord` (production is
    `https://dusty-sardine-902.convex.site/api/auth/callback/discord`).
 2. In the Convex env (`npx convex env set … --prod` in `apps/api`), set `DISCORD_CLIENT_ID` and
-   `DISCORD_CLIENT_SECRET` (OAuth2 page), `BETTER_AUTH_SECRET` (a long random string), and
+   `DISCORD_CLIENT_SECRET` (the Vintage application's OAuth2 page), `BETTER_AUTH_SECRET` (a long random string), and
    `SITE_URL` (the website origin; `http://localhost:5173` for local work). More origins, like
    preview deploys, go in `VINTAGE_TRUSTED_ORIGINS`, comma-separated. Production has
    `SITE_URL=https://vintageguild.gg` (Better Auth's primary site and default return target) and
    `VINTAGE_TRUSTED_ORIGINS=https://vintage-web-pi.vercel.app,http://localhost:5173`, so local sign-in
    works against production too.
-3. Deploy (`npx convex deploy`).
+3. Deploy (`npx convex deploy`). Changing only the env needs no deploy: Convex reads it at runtime.
 
 Sign-in asks Discord only for `identify`; rank and tier come from the bot's view of the server,
 synced the moment someone signs in (and every 15 minutes after). Someone not in the server can
@@ -160,8 +166,8 @@ sign in but stays public. The variables, all in the Convex env and never in the 
 | Variable | What |
 |---|---|
 | `BETTER_AUTH_SECRET` | Signs sessions; rotating it signs everyone out |
-| `DISCORD_CLIENT_ID` | OAuth2 → Client ID (not secret) |
-| `DISCORD_CLIENT_SECRET` | OAuth2 → Client Secret |
+| `DISCORD_CLIENT_ID` | The Vintage (sign-in) application's OAuth2 → Client ID (not secret) |
+| `DISCORD_CLIENT_SECRET` | The Vintage (sign-in) application's OAuth2 → Client Secret |
 | `SITE_URL` | The website origin sign-in returns to |
 | `VINTAGE_TRUSTED_ORIGINS` | Optional: more website origins, comma-separated |
 | `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID` | Already set for role sync; sign-in reads the member with them |

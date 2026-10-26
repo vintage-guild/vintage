@@ -40,6 +40,33 @@ export const pageStyles = css`
     margin: 0;
   }
 
+  /* No widows: browsers that support it rebalance a paragraph's last lines so it never ends on
+     one short word, and headings split evenly. Unsupported browsers just wrap as before. */
+  p,
+  li,
+  figcaption,
+  blockquote {
+    text-wrap: pretty;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  ul {
+    margin: 0;
+    padding-inline-start: 1.2rem;
+    display: grid;
+    gap: var(--space-xs);
+  }
+
+  code {
+    font-family: var(--font-family-mono);
+    font-size: 0.9em;
+  }
+
   .lead {
     font-size: var(--font-size-lg);
     color: var(--color-text-secondary);

@@ -21,6 +21,11 @@
       html { background: #100f15; color: #faf5ea; }
       html[data-theme='vintage-parchment'] { background: #f3ead7; color: #2b2118; }
       vintage-logo-header:not(:defined) { display: block; min-block-size: 4.1rem; visibility: hidden; }
+      /* Nothing shows until the first page has rendered (main.ts sets data-ready, capped at
+         2.5s), so the header and footer art never appear ahead of the page. */
+      body > :not(script) { transition: opacity 0.2s ease-out; }
+      html:not([data-ready]) body > :not(script) { opacity: 0; }
+      @media (prefers-reduced-motion: reduce) { body > :not(script) { transition: none; } }
     </style>
     <script>
       // Apply the saved theme before first paint (src/theme.ts owns the key and values).
@@ -30,6 +35,8 @@
           document.documentElement.dataset.theme = saved;
         }
       } catch {}
+      // Whatever happens to the app script, never leave the page hidden for long.
+      setTimeout(() => { document.documentElement.dataset.ready = ''; }, 4000);
     </script>
     <script type="module" src="/src/main.ts"></script>
   </head>
@@ -51,11 +58,14 @@
     </main>
     <footer class="site-footer">
       <div class="wrap">
-        <span>Vintage · a guild on WoW: Forever · updated <time id="updated"></time></span>
+        <div class="fine">
+          <span>Vintage · a guild on WoW: Forever · updated <time id="updated"></time></span>
+          <small>World of Warcraft is a trademark of Blizzard Entertainment. Vintage is a player guild, not affiliated with Blizzard.</small>
+        </div>
         <nav aria-label="Footer">
           <a href="/about">About</a>
-          <a href="https://github.com/vintage-guild/vintage" rel="noopener">GitHub</a>
-          <a href="https://github.com/lushly-dev/afd" rel="noopener">Built on AFD</a>
+          <a href="/privacy">Privacy</a>
+          <a href="/terms">Terms</a>
         </nav>
       </div>
     </footer>

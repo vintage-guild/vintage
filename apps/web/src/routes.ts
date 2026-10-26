@@ -13,6 +13,8 @@ export class VintageRoutes extends RouterConfiguration {
     this.routes.map(
       { path: '', title: 'Home', element: page(() => import('./pages/home')) },
       { path: 'about', title: 'About', element: page(() => import('./pages/about')) },
+      { path: 'privacy', title: 'Privacy', element: page(() => import('./pages/privacy')) },
+      { path: 'terms', title: 'Terms', element: page(() => import('./pages/terms')) },
       { path: 'profile', title: 'Profile', element: page(() => import('./pages/profile')) },
       {
         path: 'characters',

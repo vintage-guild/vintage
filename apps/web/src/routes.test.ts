@@ -21,6 +21,8 @@ describe('VintageRoutes', () => {
   it.each([
     ['', 'Home'],
     ['about', 'About'],
+    ['privacy', 'Privacy'],
+    ['terms', 'Terms'],
     ['profile', 'Profile'],
     ['characters', 'Characters'],
     ['polls', 'Polls'],

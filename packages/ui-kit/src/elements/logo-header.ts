@@ -176,9 +176,11 @@ const styles = css`
     font-weight: var(--font-weight-bold);
     text-decoration: none;
     white-space: nowrap;
+    border: var(--border-width-thin) solid color-mix(in srgb, var(--button-primary-bg) 55%, black);
     box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 28%),
-      0 6px 18px color-mix(in srgb, var(--button-primary-bg) 35%, transparent);
+      inset 0 1px 0 rgb(255 255 255 / 32%),
+      inset 0 -2px 0 rgb(0 0 0 / 18%),
+      0 4px 14px color-mix(in srgb, var(--button-primary-bg) 28%, transparent);
   }
 
   .action:focus-visible {

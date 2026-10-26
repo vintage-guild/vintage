@@ -117,8 +117,8 @@ const template = html<Page>`
     art-phone-src="${ART.heroPhone}"
     ?compact="${(x) => x.view !== 'visitor'}"
     data-section
-    data-section-eyebrow="Vintage"
-    data-section-title="A guild on WoW: Forever"
+    data-section-eyebrow=""
+    data-section-title=""
     data-section-action="${(x) => (x.view === 'visitor' ? 'Apply to raid' : 'Sign up')}"
     data-section-href="${(x) => (x.view === 'visitor' ? '/#recruiting' : '/#raids')}"
   >
@@ -141,8 +141,9 @@ const template = html<Page>`
       `,
     )}
     <p slot="standfirst">
-      A raiding guild for WoW: Forever. ${(x) => x.rollsClause} raid nights a week, and a bot
-      that posts the signups so nobody has to chase a spreadsheet. Raids open December 9.
+      We're building a raid team for Forever's first tier: people who show up prepared, on time,
+      and good company. Signups, reminders, and loot rules are settled before the first pull, so
+      raid night is just the raid. Raids open December 9.
     </p>
     <div slot="actions">
       <a class="btn primary" href="/#recruiting" data-section-link="recruiting">Apply to raid</a>
@@ -328,7 +329,7 @@ const template = html<Page>`
         <div class="wrap">
           <div class="two recruit">
             <div class="lead">
-              <span class="eyebrow">Recruiting · posted ${RECRUITING.postedOn}</span>
+              <span class="eyebrow">Recruiting · updated ${RECRUITING.updatedOn}</span>
               <h2 id="h-recruiting">${RECRUITING.headline}</h2>
               <p class="pitch">${RECRUITING.pitch}</p>
               <p class="actions">
@@ -487,7 +488,7 @@ const template = html<Page>`
       >
         <div class="wrap">
           <div class="lead">
-            <span class="eyebrow">Recruiting · posted ${RECRUITING.postedOn}</span>
+            <span class="eyebrow">Recruiting · updated ${RECRUITING.updatedOn}</span>
             <h2 id="h-recruiting">${RECRUITING.headline}</h2>
           </div>
           <p class="ask">Know a <b>${HIGH_NEEDS}</b> who wants a home for Forever? Send them this site: signed out, the front page has the open roles and how to join.</p>
@@ -617,13 +618,16 @@ const styles = css`
     box-shadow: inset 0 1px 0 rgb(255 244 228 / 6%);
   }
 
+  /* A defined edge (a darker rim and a light top bevel) so the glow reads as a lit button,
+     not a wash of color. */
   .btn.primary {
-    border-color: transparent;
+    border-color: color-mix(in srgb, var(--button-primary-bg) 55%, black);
     background: var(--button-primary-bg);
     color: var(--button-primary-text);
     box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 28%),
-      0 6px 18px color-mix(in srgb, var(--button-primary-bg) 35%, transparent);
+      inset 0 1px 0 rgb(255 255 255 / 32%),
+      inset 0 -2px 0 rgb(0 0 0 / 18%),
+      0 4px 14px color-mix(in srgb, var(--button-primary-bg) 28%, transparent);
   }
 
   .btn:hover {
@@ -632,7 +636,7 @@ const styles = css`
 
   .btn.primary:hover {
     background: var(--color-verdigris-400);
-    border-color: transparent;
+    border-color: color-mix(in srgb, var(--color-verdigris-400) 55%, black);
   }
 
   [slot='actions'] {
@@ -921,10 +925,12 @@ const styles = css`
 
   .sec.cream .btn.primary {
     background: var(--color-verdigris-700);
+    border-color: color-mix(in srgb, var(--color-verdigris-700) 60%, black);
     color: var(--color-parchment-50);
     box-shadow:
       inset 0 1px 0 rgb(255 255 255 / 20%),
-      0 6px 16px rgb(43 112 120 / 30%);
+      inset 0 -2px 0 rgb(0 0 0 / 18%),
+      0 4px 12px rgb(43 112 120 / 24%);
   }
 
   .needs {
@@ -1140,11 +1146,6 @@ export class Page extends FASTElement {
 
   get memberCountText(): string {
     return this.memberCount === null ? '—' : String(this.memberCount);
-  }
-
-  /** "33 names on the rolls, two", or "Two" when the roster is members-only to this caller. */
-  get rollsClause(): string {
-    return this.memberCount === null ? 'Two' : `${this.memberCount} names on the rolls, two`;
   }
 
   get memberCaption(): string {

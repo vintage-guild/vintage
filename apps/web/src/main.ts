@@ -120,3 +120,20 @@ const router = document.querySelector('fast-router') as HTMLElement & {
   config: VintageRoutes | null;
 };
 router.config = new VintageRoutes();
+
+// Reveal the page once the first route has rendered and the fonts are in, so nothing (header,
+// footer art) shows ahead of it. index.html keeps everything transparent until data-ready; the
+// cap means a slow font or a stuck route can never leave the page blank.
+const READY_CAP_MS = 2500;
+const firstPage = new Promise<void>((resolve) => {
+  const check = () => {
+    if ([...router.children].some((c) => c.tagName.startsWith('VINTAGE-'))) resolve();
+    else setTimeout(check, 30);
+  };
+  check();
+});
+await Promise.race([
+  Promise.all([firstPage, document.fonts?.ready]),
+  new Promise((resolve) => setTimeout(resolve, READY_CAP_MS)),
+]);
+document.documentElement.dataset.ready = '';

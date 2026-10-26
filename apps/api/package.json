@@ -19,6 +19,7 @@
   "dependencies": {
     "@vintage/guild-kit": "workspace:*",
     "@vintage/identity": "workspace:*",
+    "@vintage/raids": "workspace:*",
     "@vintage/wow-data": "workspace:*",
     "convex": "catalog:",
     "zod": "catalog:"

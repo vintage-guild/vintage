@@ -1,0 +1,56 @@
+import { type CompSignup, defaultTemplate, solveComp } from '@vintage/comp-solver';
+import { success } from '@vintage/guild-kit';
+import type { GuildRank } from '@vintage/identity/contract';
+import { z } from 'zod';
+import { command } from '../store';
+import { eventNotFound } from './shared';
+
+/** Coordinator priority by guild rank: raiders get first dibs over flex raiders (PLAN §3.4). */
+const RANK_PRIORITY: Record<GuildRank, number> = {
+  officer: 3,
+  'raid-leader': 3,
+  raider: 3,
+  'flex-raider': 2,
+  recruit: 1,
+  member: 0,
+  friend: 0,
+};
+
+export const compSuggest = command({
+  name: 'comp-suggest',
+  description:
+    'Suggest a raid comp from the signups: who plays, who sits, and what the raid is missing ' +
+    '("need 1 healer", "no Mark of the Wild"), each with a reason.',
+  tier: 'raider',
+  input: z.object({ eventId: z.string().min(1) }),
+  handler: async ({ eventId }, { guildId, deps }) => {
+    const event = await deps.raids.getEvent(guildId, eventId);
+    if (!event) return eventNotFound();
+    const signups = await deps.raids.listSignups(guildId, eventId);
+    const ranks = new Map<string, GuildRank | null>();
+    for (const memberId of new Set(signups.map((s) => s.memberId))) {
+      ranks.set(memberId, (await deps.members.getMember(guildId, memberId))?.rank ?? null);
+    }
+    const compSignups: CompSignup[] = signups.map((s) => {
+      const rank = ranks.get(s.memberId);
+      return {
+        id: s.id,
+        name: s.characterName,
+        class: s.class,
+        spec: s.spec,
+        role: s.role,
+        status: s.status,
+        priority: rank ? RANK_PRIORITY[rank] : 0,
+        signedUpAt: s.signedUpAt,
+      };
+    });
+    const template = event.roleTargets
+      ? { ...defaultTemplate(event.size), targets: event.roleTargets }
+      : defaultTemplate(event.size);
+    const result = solveComp({ raidSize: event.size, template, signups: compSignups });
+    const reasoning = result.gaps.length
+      ? result.gaps.map((g) => g.reason).join(' · ')
+      : `${result.counts.selected}/${event.size}, no gaps`;
+    return success({ event, ...result }, { reasoning });
+  },
+});

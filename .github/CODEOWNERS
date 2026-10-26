@@ -2,6 +2,7 @@
 # enforced; the `ci-ok` check is the merge gate (PLAN §7.3).
 packages/guild-kit/ @Falkicon
 modules/identity/ @Falkicon
+modules/raids/ @Falkicon
 apps/api/ @Falkicon
 apps/gateway/ @Falkicon
 libs/ @Falkicon

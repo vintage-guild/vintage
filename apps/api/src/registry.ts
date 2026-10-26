@@ -2,8 +2,12 @@
 // Convex functions, /mcp, Discord, the CLI, the hosted agent, and the command manifest.
 import type { AnyGuildCommand } from '@vintage/guild-kit';
 import { type IdentityDeps, identityCommands } from '@vintage/identity/commands';
+import { type RaidsDeps, raidsCommands } from '@vintage/raids/commands';
 
 /** Union of every module's deps. Each host builds this from its own stores. */
-export type VintageDeps = IdentityDeps;
+export type VintageDeps = IdentityDeps & RaidsDeps;
 
-export const commands: readonly AnyGuildCommand<VintageDeps>[] = [...identityCommands];
+export const commands: readonly AnyGuildCommand<VintageDeps>[] = [
+  ...identityCommands,
+  ...raidsCommands,
+];

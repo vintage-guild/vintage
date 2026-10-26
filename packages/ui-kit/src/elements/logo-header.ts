@@ -178,9 +178,8 @@ const styles = css`
     white-space: nowrap;
     border: var(--border-width-thin) solid color-mix(in srgb, var(--button-primary-bg) 55%, black);
     box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 32%),
-      inset 0 -2px 0 rgb(0 0 0 / 18%),
-      0 4px 14px color-mix(in srgb, var(--button-primary-bg) 28%, transparent);
+      inset 0 1px 0 rgb(255 255 255 / 30%),
+      0 1px 0 rgb(0 0 0 / 45%);
   }
 
   .action:focus-visible {

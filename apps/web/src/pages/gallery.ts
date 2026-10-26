@@ -3,6 +3,7 @@ import { LAUNCH_RAIDS, RAIDS_OPEN_ON } from '@vintage/progress/contract';
 import {
   type LedgerKill,
   type LedgerRaid,
+  type ListedCharacter,
   type PollCardOption,
   type RosterMember,
   SIGNUP_STATUSES,
@@ -112,6 +113,18 @@ const GALLERY_TONIGHT_SIGNUPS: TonightSignup[] = [
   group: group as number | null,
 }));
 
+const GALLERY_CHARACTERS: ListedCharacter[] = [
+  {
+    id: 'g1',
+    name: 'Bloodfen Il',
+    class: 'warrior',
+    spec: 'protection',
+    role: 'tank',
+    isMain: true,
+  },
+  { id: 'g2', name: 'Bloodfen Ii', class: 'warrior', spec: 'fury', role: 'melee', isMain: false },
+];
+
 const GALLERY_POLL: PollCardOption[] = [
   { id: 'o1', label: 'Sunday', votes: 14 },
   { id: 'o2', label: 'Monday', votes: 9 },
@@ -145,6 +158,12 @@ const template = html<Page>`
         :gaps="${() => ['need 1 more healer']}"
         :waiting="${() => ['Elowen', 'Fenwick']}"
       ></vintage-tonight>
+    </section>
+    <section>
+      <h2>Characters and profile</h2>
+      <p>The member's characters (Characters page) and their raid settings (Profile).</p>
+      <vintage-character-list :characters="${() => GALLERY_CHARACTERS}"></vintage-character-list>
+      <vintage-member-prefs timezone="America/New_York" :characters="${() => GALLERY_CHARACTERS}"></vintage-member-prefs>
     </section>
     <section>
       <h2>Member menu</h2>

@@ -9,6 +9,8 @@ holds the guild-specific pieces (PLAN §3.9).
 | `vintage-logo-header` | Sticky site header: the logo (slot), nav, a section context block with its action, the signed-in member (slot), actions, and a scroll-progress line |
 | `vintage-tonight` | The officers' Tonight tab: the raid, counts, comp gaps, non-responders, and signups by role, with lock and unlock, group, bench, remove (preview, then confirm), and copy the addon import, each an `@command` |
 | `vintage-officer-strip` | Leaders' and officers' glance at the next raid: who hasn't answered (`coordinator-status` → `waiting`), comp gaps (`comp-suggest`), the coordinator's state, and a link to the quarters once it exists |
+| `vintage-character-list` | The member's characters, main first, with Make main (`character-update`) and Remove (`character-remove`, the server's preview, then confirm) |
+| `vintage-member-prefs` | The member's main character, time zone, and reminder DMs (`character-update`, `member-prefs-set`); emits `prefs-changed` |
 | `vintage-member-menu` | The signed-in member: round avatar (Discord's, or the initial), name, rank, and a menu with Profile and Characters, plus anything slotted (the app adds Sign out) |
 | `vintage-roster-wall` | Every member grouped by rank, each as their main's name in its class color with spec and role; the signed-in member's row marked. Fed from `member-list` |
 | `vintage-poll-card` | A poll: pick one votes on a click; pick any and ranked collect a draft, then vote. Shares only when the server shows the tally (`results-hidden`), the winner once closed. `vintage.vote-cast` / `vintage.vote-retract` → server `vote-cast` / `vote-retract` |

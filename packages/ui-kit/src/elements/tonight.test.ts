@@ -228,3 +228,16 @@ describe('vintage-tonight, data arriving late', () => {
     expect(el.shadowRoot!.querySelector('.counts')?.textContent).toBe('1 / 40 going');
   });
 });
+
+describe('vintage-tonight while loading', () => {
+  it('says it is loading instead of "no raid" and "no gaps"', async () => {
+    const el = await mount<VintageTonight>('<vintage-tonight loading></vintage-tonight>');
+    expect(el.shadowRoot!.querySelector('h2')?.textContent).toBe('Loading tonight…');
+    expect(text(el, 'gaps')).toBe('Comp Checking…');
+    expect(text(el, 'waiting')).toBe('Waiting on … Checking…');
+    el.loading = false;
+    await settle();
+    expect(el.shadowRoot!.querySelector('h2')?.textContent).toBe('No raid on the calendar');
+    expect(text(el, 'gaps')).toBe('Comp No gaps.');
+  });
+});

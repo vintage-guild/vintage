@@ -235,6 +235,14 @@ The page reloads when who is signed in or their tier changes, which keeps the co
 design. Someone signed in with Discord who isn't in the server is `public` and gets the
 storefront. The dev switch gained `live` for the real server.
 
+**Pass 5 (2026-10-27): no placeholders, honest loading.** Bloodfen: sections a group can't see
+should not show. `HOME_SECTIONS` in `src/view.ts` gives each home section the tier its reads
+need; the page renders only those, and the header drops links to the rest. Visitors see the hero
+and recruiting; `member` tier sees all but the roster. Pending reads now show a loading state
+(home calendar, Coming up, the news log, the officer strip, Tonight) distinct from empty and
+from refused. Open: `progress-get` is `member` tier, so the ledger is hidden from visitors; making
+it public would let recruits see the scoreboard (a command change).
+
 ## Tasks
 
 - [x] `view` from the session; home page composes by view; dev fixture switch

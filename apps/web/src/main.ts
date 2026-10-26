@@ -13,7 +13,7 @@ import { fastRouterRegistration } from '@microsoft/fast-router';
 import { VintageRoutes } from './routes';
 import { canSignIn, currentSession, signIn, signOut } from './session';
 import { installSectionLinks, trackScrollProgress } from './site-context';
-import { currentView } from './view';
+import { currentView, HOME_SECTIONS, type HomeSection, sectionsFor } from './view';
 
 /** The guild server: VITE_CONVEX_URL, else production. */
 const convexUrl = (): Promise<string> =>
@@ -104,6 +104,15 @@ if (updated) {
 }
 
 trackScrollProgress();
+// Header links to home sections this session doesn't see go too, so nothing points at nothing.
+const visible = sectionsFor(session);
+for (const link of document.querySelectorAll<HTMLAnchorElement>(
+  'vintage-logo-header > a[data-section-link]',
+)) {
+  const target = link.dataset.sectionLink ?? '';
+  if (target in HOME_SECTIONS && !visible.has(target as HomeSection)) link.remove();
+}
+
 installSectionLinks();
 
 await fastRouterRegistration;

@@ -148,6 +148,7 @@ const template = html<Page>`
               :signups="${(x) => x.signups}"
               :gaps="${(x) => x.gaps}"
               :waiting="${(x) => x.waiting}"
+              ?loading="${(x) => !x.loaded}"
               @tonight-changed="${(x) => x.load()}"
             ></vintage-tonight>
             ${when(
@@ -248,6 +249,8 @@ export class Page extends FASTElement {
   @observable gaps: string[] = [];
   @observable waiting: string[] = [];
   @observable loadError = '';
+  /** The first load has settled; later re-reads keep showing the last answer. */
+  @observable loaded = false;
   /** The open tab, from `?tab=` (Tonight by default). */
   @observable tab: TabId = tabFromUrl(location.search);
   @observable polls: PollsDeskPoll[] = [];
@@ -313,6 +316,14 @@ export class Page extends FASTElement {
 
   /** Read the calendar, then tonight's signups, gaps, and non-responders for the picked raid. */
   async load(): Promise<void> {
+    try {
+      await this.read();
+    } finally {
+      this.loaded = true;
+    }
+  }
+
+  private async read(): Promise<void> {
     const client = getCommandClient();
     const list = await client.read<RaidRow[]>('raid-list', { to: Date.now() + AHEAD_MS });
     if (!list.success) {

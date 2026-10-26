@@ -52,7 +52,7 @@ import {
   setSiteContext,
   watchSections,
 } from '../site-context';
-import { canSignUp, currentView, type View } from '../view';
+import { canSignUp, currentView, type HomeSection, sectionsFor, type View } from '../view';
 import { pageStyles } from './page-styles';
 
 /** How far ahead the calendar looks. */
@@ -106,6 +106,7 @@ const template = html<Page>`
         state-detail="${(x) => x.coordinator.detail}"
         :waiting="${(x) => x.officerWaiting}"
         :gaps="${(x) => x.officerGaps}"
+        ?loading="${(x) => !x.officerLoaded}"
         href="/officers"
       ></vintage-officer-strip>
     `,
@@ -185,121 +186,131 @@ const template = html<Page>`
     )}
   </vintage-hero>
 
-  <section
-    class="sec"
-    id="raids"
-    data-section
-    data-section-eyebrow="Raids"
-    data-section-title="${(x) => x.raidsTitle}"
-    data-section-action="Sign up"
-    aria-labelledby="h-raids"
-  >
-    <div class="wrap">
-      <header>
-        <div class="lead"><span class="eyebrow">Raids</span><h2 id="h-raids">${(x) => x.raidsTitle}</h2></div>
-        <span class="mono">${(x) => x.raidsNote}</span>
-      </header>
-      <div class="two">
-        ${when(
-          (x) => x.next,
-          html<Page>`
-            <vintage-signup-card
-              event-id="${(x) => x.next?.event.id}"
-              event-title="${(x) => x.next?.event.name}"
-              starts-at="${(x) => x.next?.event.startsAt}"
-              lock-label="${(x) => x.lockLabel}"
-              status="${(x) => x.next?.myStatus ?? 'none'}"
-              character-id="${(x) => (x.signUpAllowed ? (x.main?.id ?? '') : '')}"
-              character-label="${(x) => x.mainLabel}"
-              time-zone="${() => preferredTimeZone() ?? ''}"
-              :counts="${(x) => x.nextCounts}"
-              @signup-changed="${(x) => x.loadRaids().then(() => (x.view === 'officer' ? x.loadOfficer() : undefined))}"
-            >
-              <p class="note">${(x) => x.next?.event.instance} · ${(x) => x.next?.event.size} players</p>
-              ${when(
-                (x) => !x.signUpAllowed,
-                html`<p class="note">Signups open to recruits and up. Ask an officer about raiding with us.</p>`,
-              )}
-            </vintage-signup-card>
-          `,
-        )}
-        ${when(
-          (x) => !x.next,
-          html<Page>`<div class="card empty"><span class="eyebrow">Next up</span><p>${(x) => (x.raidsFailed ? 'Raid nights are Wednesday and Thursday at 8 pm Eastern. Sign in with Discord to see the calendar and answer signups.' : 'Nothing on the calendar yet. Raid nights are posted a week ahead.')}</p></div>`,
-        )}
-        <div class="card">
-          <span class="eyebrow">Coming up</span>
-          <div class="events">
-            ${repeat(
-              (x) => x.later,
-              html<RaidRow>`
-                <div class="ev">
-                  <time datetime="${(r) => new Date(r.event.startsAt).toISOString()}">
-                    ${(r) => weekday(r.event.startsAt)}<b>${(r) => monthDay(r.event.startsAt)}</b>
-                  </time>
-                  <div class="t">
-                    <b>${(r) => r.event.name}</b>
-                    <span>${(r) => timeOf(r.event.startsAt)} · ${(r) => r.event.size} players</span>
-                  </div>
-                  <span class="s ${(r) => (r.myStatus ? 'mine' : '')}">${(r) => summarize(r)}</span>
-                </div>
+  ${when(
+    (x) => x.shows('raids'),
+    html<Page>`
+      <section
+        class="sec"
+        id="raids"
+        data-section
+        data-section-eyebrow="Raids"
+        data-section-title="${(x) => x.raidsTitle}"
+        data-section-action="Sign up"
+        aria-labelledby="h-raids"
+      >
+        <div class="wrap">
+          <header>
+            <div class="lead"><span class="eyebrow">Raids</span><h2 id="h-raids">${(x) => x.raidsTitle}</h2></div>
+            <span class="mono">${(x) => x.raidsNote}</span>
+          </header>
+          <div class="two">
+            ${when(
+              (x) => x.next,
+              html<Page>`
+                <vintage-signup-card
+                  event-id="${(x) => x.next?.event.id}"
+                  event-title="${(x) => x.next?.event.name}"
+                  starts-at="${(x) => x.next?.event.startsAt}"
+                  lock-label="${(x) => x.lockLabel}"
+                  status="${(x) => x.next?.myStatus ?? 'none'}"
+                  character-id="${(x) => (x.signUpAllowed ? (x.main?.id ?? '') : '')}"
+                  character-label="${(x) => x.mainLabel}"
+                  time-zone="${() => preferredTimeZone() ?? ''}"
+                  :counts="${(x) => x.nextCounts}"
+                  @signup-changed="${(x) => x.loadRaids().then(() => (x.view === 'officer' ? x.loadOfficer() : undefined))}"
+                >
+                  <p class="note">${(x) => x.next?.event.instance} · ${(x) => x.next?.event.size} players</p>
+                  ${when(
+                    (x) => !x.signUpAllowed,
+                    html`<p class="note">Signups open to recruits and up. Ask an officer about raiding with us.</p>`,
+                  )}
+                </vintage-signup-card>
               `,
             )}
             ${when(
-              (x) => x.later.length === 0,
-              html<Page>`<p class="muted">${(x) => (x.raidsFailed ? 'The calendar is for members.' : 'No other raids in the next two months.')}</p>`,
+              (x) => !x.next,
+              html<Page>`<div class="card empty" aria-busy="${(x) => !x.raidsLoaded}"><span class="eyebrow">Next up</span><p>${(x) => x.nextEmptyText}</p></div>`,
             )}
-          </div>
-          <p class="how">
-            Raid nights are Wednesday and Thursday. Signups post ${DEFAULT_TIMINGS.leadDays} days
-            ahead and lock ${DEFAULT_TIMINGS.lockHours} hours before the pull; anyone who hasn’t
-            answered is reminded at ${DEFAULT_TIMINGS.reminderHours.join('h and ')}h. Times are
-            shown in ${(x) => x.timeZoneLabel}.
-          </p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section
-    class="sec"
-    id="progress"
-    data-section
-    data-section-eyebrow="Progress"
-    data-section-title="Three raids, twenty-two bosses"
-    data-section-action="See the ledger"
-    aria-labelledby="h-progress"
-  >
-    <div class="wrap">
-      <header>
-        <div class="lead"><span class="eyebrow">Progress</span><h2 id="h-progress">Three raids, twenty-two bosses</h2></div>
-        <span class="mono">${(x) => x.progressNote}</span>
-      </header>
-      ${when(
-        (x) => !x.ledgerOpen,
-        html<Page>`
-          <div class="callout">
-            <div>
-              <span class="eyebrow">Opens Wednesday, December 9</span>
-              <p class="big">${(x) => x.daysToRaids} days until the first pull.</p>
+            <div class="card">
+              <span class="eyebrow">Coming up</span>
+              <div class="events">
+                ${repeat(
+                  (x) => x.later,
+                  html<RaidRow>`
+                    <div class="ev">
+                      <time datetime="${(r) => new Date(r.event.startsAt).toISOString()}">
+                        ${(r) => weekday(r.event.startsAt)}<b>${(r) => monthDay(r.event.startsAt)}</b>
+                      </time>
+                      <div class="t">
+                        <b>${(r) => r.event.name}</b>
+                        <span>${(r) => timeOf(r.event.startsAt)} · ${(r) => r.event.size} players</span>
+                      </div>
+                      <span class="s ${(r) => (r.myStatus ? 'mine' : '')}">${(r) => summarize(r)}</span>
+                    </div>
+                  `,
+                )}
+                ${when(
+                  (x) => x.later.length === 0,
+                  html<Page>`<p class="muted">${(x) => (!x.raidsLoaded ? 'Loading…' : x.raidsFailed ? 'The calendar is for members.' : 'No other raids in the next two months.')}</p>`,
+                )}
+              </div>
+              <p class="how">
+                Raid nights are Wednesday and Thursday. Signups post ${DEFAULT_TIMINGS.leadDays} days
+                ahead and lock ${DEFAULT_TIMINGS.lockHours} hours before the pull; anyone who hasn’t
+                answered is reminded at ${DEFAULT_TIMINGS.reminderHours.join('h and ')}h. Times are
+                shown in ${(x) => x.timeZoneLabel}.
+              </p>
             </div>
-            <p class="muted">
-              Barrow Deeps for ten, Hyjal Summit for twenty, Onyxia for forty. Each slot below
-              is a boss; first kills get dated here. Onyxia needs the Drakefire Amulet chain per
-              character and fire resistance, so the attunement runs start in November.
-            </p>
           </div>
-        `,
-      )}
-      <vintage-boss-ledger
-        :raids="${(x) => x.ledgerRaids}"
-        :latest="${(x) => x.latestKill}"
-        :art="${() => ART.raids}"
-        ?open="${(x) => x.ledgerOpen}"
-        opens-on="${RAIDS_OPEN_ON}"
-      ></vintage-boss-ledger>
-    </div>
-  </section>
+        </div>
+      </section>
+    `,
+  )}
+
+  ${when(
+    (x) => x.shows('progress'),
+    html<Page>`
+      <section
+        class="sec"
+        id="progress"
+        data-section
+        data-section-eyebrow="Progress"
+        data-section-title="Three raids, twenty-two bosses"
+        data-section-action="See the ledger"
+        aria-labelledby="h-progress"
+      >
+        <div class="wrap">
+          <header>
+            <div class="lead"><span class="eyebrow">Progress</span><h2 id="h-progress">Three raids, twenty-two bosses</h2></div>
+            <span class="mono">${(x) => x.progressNote}</span>
+          </header>
+          ${when(
+            (x) => !x.ledgerOpen,
+            html<Page>`
+              <div class="callout">
+                <div>
+                  <span class="eyebrow">Opens Wednesday, December 9</span>
+                  <p class="big">${(x) => x.daysToRaids} days until the first pull.</p>
+                </div>
+                <p class="muted">
+                  Barrow Deeps for ten, Hyjal Summit for twenty, Onyxia for forty. Each slot below
+                  is a boss; first kills get dated here. Onyxia needs the Drakefire Amulet chain per
+                  character and fire resistance, so the attunement runs start in November.
+                </p>
+              </div>
+            `,
+          )}
+          <vintage-boss-ledger
+            :raids="${(x) => x.ledgerRaids}"
+            :latest="${(x) => x.latestKill}"
+            :art="${() => ART.raids}"
+            ?open="${(x) => x.ledgerOpen}"
+            opens-on="${RAIDS_OPEN_ON}"
+          ></vintage-boss-ledger>
+        </div>
+      </section>
+    `,
+  )}
 
   ${when(
     (x) => x.view === 'visitor',
@@ -354,105 +365,115 @@ const template = html<Page>`
     `,
   )}
 
-  <section
-    class="sec"
-    id="roster"
-    data-section
-    data-section-eyebrow="Roster"
-    data-section-title="On the rolls"
-    data-section-action="Find me"
-    aria-labelledby="h-roster"
-  >
-    <div class="wrap">
-      <header>
-        <div class="lead"><span class="eyebrow">Roster</span><h2 id="h-roster">On the rolls</h2></div>
-        <span class="mono">${(x) => x.rosterNote}</span>
-      </header>
-      ${when(
-        (x) => !x.membersFailed,
-        html<Page>`<vintage-roster-wall :members="${(x) => x.members}" me="${(x) => x.meId}"></vintage-roster-wall>`,
-      )}
-      ${when((x) => x.membersFailed, html<Page>`<p class="muted">${(x) => x.rosterRefused}</p>`)}
-    </div>
-  </section>
-
-  <section
-    class="sec"
-    id="news"
-    data-section
-    data-section-eyebrow="News"
-    data-section-title="From the coordinator"
-    data-section-action="Open the log"
-    aria-labelledby="h-news"
-  >
-    <div class="wrap">
-      <header>
-        <div class="lead byline">
-          <img class="mascot" src="${ART.coordinator}" alt="" loading="lazy" decoding="async" />
-          <span class="eyebrow">News</span>
-          <h2 id="h-news">From the coordinator</h2>
+  ${when(
+    (x) => x.shows('roster'),
+    html<Page>`
+      <section
+        class="sec"
+        id="roster"
+        data-section
+        data-section-eyebrow="Roster"
+        data-section-title="On the rolls"
+        data-section-action="Find me"
+        aria-labelledby="h-roster"
+      >
+        <div class="wrap">
+          <header>
+            <div class="lead"><span class="eyebrow">Roster</span><h2 id="h-roster">On the rolls</h2></div>
+            <span class="mono">${(x) => x.rosterNote}</span>
+          </header>
+          ${when(
+            (x) => !x.membersFailed,
+            html<Page>`<vintage-roster-wall :members="${(x) => x.members}" me="${(x) => x.meId}"></vintage-roster-wall>`,
+          )}
+          ${when((x) => x.membersFailed, html<Page>`<p class="muted">${(x) => x.rosterRefused}</p>`)}
         </div>
-        <span class="mono">the bot's log · newest first</span>
-      </header>
-      <div class="two">
-        <div class="card">
-          <span class="eyebrow">What the bot did</span>
-          <div class="feed">
-            ${repeat(
-              (x) => x.feed,
-              html<FeedItem>`
-                <div class="item">
-                  <time datetime="${(f) => new Date(f.at).toISOString()}">${(f) => monthDay(f.at)}</time>
-                  <p><b>${(f) => f.title}</b><small>${(f) => f.detail}</small></p>
+      </section>
+    `,
+  )}
+
+  ${when(
+    (x) => x.shows('news'),
+    html<Page>`
+      <section
+        class="sec"
+        id="news"
+        data-section
+        data-section-eyebrow="News"
+        data-section-title="From the coordinator"
+        data-section-action="Open the log"
+        aria-labelledby="h-news"
+      >
+        <div class="wrap">
+          <header>
+            <div class="lead byline">
+              <img class="mascot" src="${ART.coordinator}" alt="" loading="lazy" decoding="async" />
+              <span class="eyebrow">News</span>
+              <h2 id="h-news">From the coordinator</h2>
+            </div>
+            <span class="mono">the bot's log · newest first</span>
+          </header>
+          <div class="two">
+            <div class="card">
+              <span class="eyebrow">What the bot did</span>
+              <div class="feed">
+                ${repeat(
+                  (x) => x.feed,
+                  html<FeedItem>`
+                    <div class="item">
+                      <time datetime="${(f) => new Date(f.at).toISOString()}">${(f) => monthDay(f.at)}</time>
+                      <p><b>${(f) => f.title}</b><small>${(f) => f.detail}</small></p>
+                    </div>
+                  `,
+                )}
+                ${when(
+                  (x) => x.feed.length === 0,
+                  html<Page>`<p class="muted">${(x) => (!x.feedLoaded ? 'Loading the coordinator’s log…' : x.raidsFailed ? 'The coordinator’s log is for members. Sign in with Discord to see what it posted and why.' : 'Nothing yet. The coordinator posts signups a week ahead and logs every reminder here.')}</p>`,
+                )}
+              </div>
+              ${when(
+                (x) => x.feed.length > 0 && x.feed.length < 4,
+                html`<p class="muted small">Early days: the log fills in as the coordinator posts, reminds, locks, and promotes. Every entry answers “why did the bot ping me?”.</p>`,
+              )}
+            </div>
+            ${when(
+              (x) => x.poll,
+              html<Page>`
+                <div class="poll">
+                  <vintage-poll-card
+                    poll-id="${(x) => x.poll?.id}"
+                    question="${(x) => x.poll?.question}"
+                    description="${(x) => x.poll?.description}"
+                    note="${(x) => x.poll?.note}"
+                    method="${(x) => x.poll?.method}"
+                    :maxChoices="${(x) => x.poll?.maxChoices ?? null}"
+                    ?readonly="${(x) => x.poll?.readonly}"
+                    ?results-hidden="${(x) => x.poll?.resultsHidden}"
+                    ballots="${(x) => x.poll?.ballots}"
+                    :options="${(x) => x.poll?.options ?? []}"
+                    :myChoices="${(x) => x.poll?.myChoices ?? []}"
+                    :winners="${(x) => x.poll?.winners ?? []}"
+                    @vote-cast="${(x) => x.loadPoll()}"
+                    @vote-retract="${(x) => x.loadPoll()}"
+                  ></vintage-poll-card>
+                  <p class="muted small poll-links">
+                    <a href="/polls">All polls</a>${when(
+                      (x) => x.view === 'officer',
+                      html` · <a href="/officers?tab=polls">Results and closing in the quarters</a>`,
+                    )}
+                  </p>
                 </div>
               `,
             )}
             ${when(
-              (x) => x.feed.length === 0,
-              html<Page>`<p class="muted">${(x) => (x.raidsFailed ? 'The coordinator’s log is for members. Sign in with Discord to see what it posted and why.' : 'Nothing yet. The coordinator posts signups a week ahead and logs every reminder here.')}</p>`,
+              (x) => !x.poll,
+              html<Page>`<div class="card"><span class="eyebrow">The question</span><p class="muted">${(x) => (x.pollFailed ? 'Polls are for members. Sign in with Discord to see the open question and vote.' : 'No open poll. Raid leaders open one with /vintage poll create in Discord.')}</p>${when((x) => !x.pollFailed, html`<p class="muted small"><a href="/polls">Closed polls and results</a></p>`)}</div>`,
             )}
           </div>
-          ${when(
-            (x) => x.feed.length > 0 && x.feed.length < 4,
-            html`<p class="muted small">Early days: the log fills in as the coordinator posts, reminds, locks, and promotes. Every entry answers “why did the bot ping me?”.</p>`,
-          )}
         </div>
-        ${when(
-          (x) => x.poll,
-          html<Page>`
-            <div class="poll">
-              <vintage-poll-card
-                poll-id="${(x) => x.poll?.id}"
-                question="${(x) => x.poll?.question}"
-                description="${(x) => x.poll?.description}"
-                note="${(x) => x.poll?.note}"
-                method="${(x) => x.poll?.method}"
-                :maxChoices="${(x) => x.poll?.maxChoices ?? null}"
-                ?readonly="${(x) => x.poll?.readonly}"
-                ?results-hidden="${(x) => x.poll?.resultsHidden}"
-                ballots="${(x) => x.poll?.ballots}"
-                :options="${(x) => x.poll?.options ?? []}"
-                :myChoices="${(x) => x.poll?.myChoices ?? []}"
-                :winners="${(x) => x.poll?.winners ?? []}"
-                @vote-cast="${(x) => x.loadPoll()}"
-                @vote-retract="${(x) => x.loadPoll()}"
-              ></vintage-poll-card>
-              <p class="muted small poll-links">
-                <a href="/polls">All polls</a>${when(
-                  (x) => x.view === 'officer',
-                  html` · <a href="/officers?tab=polls">Results and closing in the quarters</a>`,
-                )}
-              </p>
-            </div>
-          `,
-        )}
-        ${when(
-          (x) => !x.poll,
-          html<Page>`<div class="card"><span class="eyebrow">The question</span><p class="muted">${(x) => (x.pollFailed ? 'Polls are for members. Sign in with Discord to see the open question and vote.' : 'No open poll. Raid leaders open one with /vintage poll create in Discord.')}</p>${when((x) => !x.pollFailed, html`<p class="muted small"><a href="/polls">Closed polls and results</a></p>`)}</div>`,
-        )}
-      </div>
-    </div>
-  </section>
+      </section>
+    `,
+  )}
   ${when(
     (x) => x.view !== 'visitor',
     html<Page>`
@@ -1081,6 +1102,13 @@ export class Page extends FASTElement {
   @observable membersFailed = false;
   /** `poll-list` was refused (visitors): the poll card says polls are for members. */
   @observable pollFailed = false;
+  /**
+   * Whether each read has settled. Until then the sections say they are loading, so a slow
+   * connection never reads as "nothing here" (empty) or "members only" (refused).
+   */
+  @observable raidsLoaded = false;
+  @observable feedLoaded = false;
+  @observable officerLoaded = false;
   /** For the officer strip: expected members with no answer for the next raid. */
   @observable officerWaiting: string[] = [];
   /** For the officer strip: the next raid's comp gaps, as reasons. */
@@ -1094,6 +1122,12 @@ export class Page extends FASTElement {
   readonly view: View = currentView();
   /** Whether this member may answer signups (`signup-set` is recruit tier). */
   readonly signUpAllowed = canSignUp(currentSession());
+  /** The sections this session sees; the rest aren't rendered (src/view.ts HOME_SECTIONS). */
+  readonly sections = sectionsFor(currentSession());
+
+  shows(section: HomeSection): boolean {
+    return this.sections.has(section);
+  }
   private stopWatching: (() => void) | null = null;
 
   get daysToLaunch(): string {
@@ -1183,7 +1217,16 @@ export class Page extends FASTElement {
   }
 
   @volatile
+  @volatile
+  get nextEmptyText(): string {
+    if (!this.raidsLoaded) return 'Loading the calendar…';
+    return this.raidsFailed
+      ? 'Raid nights are Wednesday and Thursday at 8 pm Eastern. Sign in with Discord to see the calendar and answer signups.'
+      : 'Nothing on the calendar yet. Raid nights are posted a week ahead.';
+  }
+
   get raidsNote(): string {
+    if (!this.raidsLoaded) return 'loading';
     if (this.raidsFailed) return 'members only';
     const n = this.raids.length;
     return n === 0 ? 'nothing posted yet' : `${n} raid${n === 1 ? '' : 's'} in the next two months`;
@@ -1301,6 +1344,7 @@ export class Page extends FASTElement {
     this.officerGaps = comp?.success ? (comp.data?.gaps ?? []).map((g) => g.reason) : [];
     if (!status.success || !status.data) {
       this.coordinator = { state: 'unknown', detail: '' };
+      this.officerLoaded = true;
       return;
     }
     const { config } = status.data;
@@ -1317,6 +1361,7 @@ export class Page extends FASTElement {
         ? `last: ${ruleWords(last.rule).toLowerCase()}`
         : '';
     this.coordinator = { state, detail };
+    this.officerLoaded = true;
   }
 
   async loadMembers(): Promise<void> {
@@ -1342,6 +1387,7 @@ export class Page extends FASTElement {
       .flat()
       .sort((a, b) => b.at - a.at)
       .slice(0, 6);
+    this.feedLoaded = true;
   }
 
   /**
@@ -1388,6 +1434,7 @@ export class Page extends FASTElement {
     });
     this.raids = list.success ? (list.data ?? []) : [];
     this.raidsFailed = !list.success;
+    this.raidsLoaded = true;
     const next = this.next;
     if (!next) {
       this.nextCounts = EMPTY_COUNTS;

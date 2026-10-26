@@ -1,4 +1,4 @@
-import { attr, css, FASTElement, html, observable, when } from '@lushly-dev/fast-element';
+import { attr, css, FASTElement, html, observable, volatile, when } from '@lushly-dev/fast-element';
 
 /** The coordinator's state as the strip shows it. */
 export const COORDINATOR_STATES = ['running', 'paused', 'unconfigured', 'unknown'] as const;
@@ -189,23 +189,30 @@ export class VintageOfficerStrip extends FASTElement {
   @attr({ attribute: 'state-detail' }) stateDetail = '';
   /** Where "Officers' quarters" goes. Empty hides the link. */
   @attr href = '';
+  /** Still reading: every cell says so, rather than "0" or "no status". */
+  @attr({ mode: 'boolean' }) loading = false;
   /** Display names of the expected members who haven't answered, sorted. */
   @observable waiting: string[] = [];
   /** Comp gaps as reasons: "need 1 more healer", "no Mark of the Wild". */
   @observable gaps: string[] = [];
 
+  @volatile
   get waitingCount(): string {
-    return String(this.waiting.length);
+    return this.loading ? '…' : String(this.waiting.length);
   }
 
+  @volatile
   get waitingNames(): string {
+    if (this.loading) return 'checking';
     if (!this.waiting.length) return 'everyone expected has answered';
     const shown = this.waiting.slice(0, NAMES_SHOWN).join(', ');
     const more = this.waiting.length - NAMES_SHOWN;
     return more > 0 ? `${shown} +${more} more` : shown;
   }
 
+  @volatile
   get compHeadline(): string {
+    if (this.loading) return '…';
     const n = this.gaps.length;
     return n === 0 ? 'no gaps' : `${n} gap${n === 1 ? '' : 's'}`;
   }
@@ -214,7 +221,9 @@ export class VintageOfficerStrip extends FASTElement {
     return this.gaps.join(' · ');
   }
 
+  @volatile
   get stateLabel(): string {
+    if (this.loading) return '…';
     return STATE_LABELS[this.state] ?? STATE_LABELS.unknown;
   }
 }

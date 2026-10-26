@@ -42,12 +42,23 @@ interface SlotView {
   date: string;
 }
 
+/** Scene art for a raid row: the image and, optionally, where its subject is (`object-position`). */
+export interface LedgerArt {
+  src: string;
+  /** CSS `object-position`, so the crop keeps the subject (the dragon, the tree) in the strip. */
+  position?: string;
+}
+
 interface RaidView {
   raid: LedgerRaid;
+  art: LedgerArt | null;
   killed: number;
   tally: string;
   slots: SlotView[];
 }
+
+const sceneArt = (a: string | LedgerArt | undefined): LedgerArt | null =>
+  a === undefined ? null : typeof a === 'string' ? { src: a } : a;
 
 const monthDay = (ms: number) =>
   new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
@@ -123,7 +134,18 @@ const template = html<VintageBossLedger>`
       ${repeat(
         (x) => x.rows,
         html<RaidView>`
-          <li class="raid">
+          <li class="${(r) => (r.art ? 'raid scene' : 'raid')}">
+            ${when(
+              (r) => r.art,
+              html<RaidView>`<img
+                class="art"
+                src="${(r) => r.art?.src}"
+                alt=""
+                loading="lazy"
+                decoding="async"
+                style="${(r) => (r.art?.position ? `object-position: ${r.art.position}` : null)}"
+              />`,
+            )}
             <div class="head">
               <h3 class="name">${(r) => r.raid.name}</h3>
               <span class="size">${(r) => r.raid.size} players · ${(r) => plural(r.raid.bosses.length, 'boss')}</span>
@@ -296,6 +318,59 @@ const styles = css`
     padding-block-start: 0;
   }
 
+  /* A raid with scene art: the scene fills the row under a fade that keeps the name and the
+     slots legible. Rounded corners come from the row, so the art inherits them. */
+  .raid.scene {
+    position: relative;
+    isolation: isolate;
+    min-block-size: 11rem;
+    margin-block-start: var(--space-sm);
+    padding: var(--space-md);
+    border: var(--border-width-thin) solid var(--color-border-default);
+    border-radius: 0.6rem;
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 4%),
+      0 10px 30px rgb(0 0 0 / 25%);
+  }
+
+  .raid.scene:first-child {
+    margin-block-start: 0;
+  }
+
+  .raid.scene > .art {
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    inline-size: 100%;
+    block-size: 100%;
+    border-radius: inherit;
+    object-fit: cover;
+    object-position: 72% 50%;
+    opacity: 0.85;
+  }
+
+  .raid.scene::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--color-surface-canvas) 94%, transparent) 0%,
+      color-mix(in srgb, var(--color-surface-canvas) 88%, transparent) 24%,
+      color-mix(in srgb, var(--color-surface-canvas) 62%, transparent) 46%,
+      color-mix(in srgb, var(--color-surface-canvas) 28%, transparent) 68%,
+      color-mix(in srgb, var(--color-surface-canvas) 8%, transparent) 100%
+    );
+  }
+
+  /* Before the raids unlock the scenes sit back; they light up when the doors open. */
+  :host(:not([open])) .raid.scene > .art {
+    opacity: 0.6;
+    filter: saturate(0.7);
+  }
+
   .head {
     display: grid;
     gap: 0.15rem;
@@ -450,6 +525,11 @@ const styles = css`
       gap: var(--space-xs);
     }
 
+    .raid.scene {
+      min-block-size: 9rem;
+      padding: var(--space-sm);
+    }
+
     .head {
       grid-template-columns: 1fr auto;
       align-items: baseline;
@@ -485,7 +565,7 @@ const styles = css`
  * @csspart ledger - The whole block.
  * @csspart callout - The first-kill card.
  * @csspart loot - One item in the loot line.
- * @csspart raids - The rows.
+ * @csspart raids - The rows. A row with scene art (`art`) draws it behind the name and slots.
  * @csspart tally - A row's "k / n" or "unlocks" label.
  * @csspart note - The datamined note.
  */
@@ -494,6 +574,8 @@ export class VintageBossLedger extends FASTElement {
   @observable raids: LedgerRaid[] = [];
   /** The latest first kill, or null for no callout. */
   @observable latest: LedgerKill | null = null;
+  /** Scene art by raid id (a URL, or `{ src, position }`), behind that row; others stay plain. */
+  @observable art: Record<string, string | LedgerArt> = {};
   /** Whether the raids have unlocked. Closed rows show `unlocks <date>` and no next target. */
   @attr({ mode: 'boolean' }) open = false;
   /** The unlock day as a calendar date (`2026-12-09`), so the label reads the same in every zone. */
@@ -511,11 +593,13 @@ export class VintageBossLedger extends FASTElement {
   get rows(): RaidView[] {
     const open = this.open;
     const opensLabel = this.opensLabel;
+    const art = this.art;
     return this.raids.map((raid) => {
       const killed = raid.bosses.filter((b) => b.firstKillAt !== null).length;
       const nextId = open ? (raid.bosses.find((b) => b.firstKillAt === null)?.id ?? null) : null;
       return {
         raid,
+        art: sceneArt(art[raid.id]),
         killed,
         tally: tallyOf(killed, raid.bosses.length),
         slots: raid.bosses.map((boss) => slotView(boss, open, nextId, opensLabel)),

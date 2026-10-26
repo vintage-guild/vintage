@@ -31,8 +31,12 @@ pnpm --filter @vintage/web build   # dist/
   (#7) supplies it; the dev fixtures use a generated initial.
 - **Fonts** are self-hosted from Fontsource (Bitter variable for display, IBM Plex Sans and
   Mono), imported in `src/main.ts`; the families are design tokens.
-- **Art:** `public/art/forever-dragon.webp` is the home hero (Bloodfen's generated art, used
-  with permission; not covered by the code license).
+- **Art** (`public/art/`, Bloodfen's generated pieces, used with permission; not covered by the
+  code license) is listed in `src/content/art.ts`: the hero and its portrait for phones
+  (`art-phone-src`), one scene per launch raid behind its ledger row (dimmed until the raids
+  unlock), the shield and staff on the recruiting band, the coordinator's raven beside the news
+  heading, and the dusk sky under the footer. The tab and home-screen icons (`public/icon-*.png`,
+  `apple-touch-icon.png`) are sized from the square emblem in `assets/brand`.
 - Theme: `data-theme` on `<html>` (`vintage-dark` default, `vintage-parchment`), saved in
   `localStorage` and applied before first paint. The switch lives on `/ui` for now.
 - **Development fixtures** (`src/fixtures/`): in dev, `main.ts` installs an in-memory guild

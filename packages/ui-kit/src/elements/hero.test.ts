@@ -26,6 +26,22 @@ describe('vintage-hero', () => {
     const el = await mount<VintageHero>('<vintage-hero><h1>Plain</h1></vintage-hero>');
     expect(el.shadowRoot!.querySelector('img')).toBeNull();
   });
+
+  it('offers the phone art as a source for narrow screens only when given', async () => {
+    const plain = await mount<VintageHero>('<vintage-hero art-src="/art/x.webp"></vintage-hero>');
+    expect(plain.shadowRoot!.querySelector('source')).toBeNull();
+    // The phone fade keys off a class, since the reflected attribute is present even when empty.
+    expect(plain.shadowRoot!.querySelector('.art.phone')).toBeNull();
+
+    const el = await mount<VintageHero>(
+      '<vintage-hero art-src="/art/x.webp" art-phone-src="/art/x-phone.webp"><h1>Forming</h1></vintage-hero>',
+    );
+    const source = el.shadowRoot!.querySelector('picture > source')!;
+    expect(source.getAttribute('srcset')).toBe('/art/x-phone.webp');
+    expect(source.getAttribute('media')).toBe('(max-width: 40rem)');
+    expect(el.shadowRoot!.querySelector('.art.phone')).not.toBeNull();
+    expect(el.shadowRoot!.querySelector('picture > img')?.getAttribute('src')).toBe('/art/x.webp');
+  });
 });
 
 describe('vintage-figure', () => {

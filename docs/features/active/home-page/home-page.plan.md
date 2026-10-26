@@ -399,6 +399,31 @@ upstream (`upstream:fast-af`) and gets a local stub with the issue link.
   GM sets one (open question 3), so it points at the recruiting band, which says invites come
   from an officer; once set, both the hero and the band link straight to it.
 
+**Art (2026-10-26), the first five pieces from the image guidance, all Bloodfen's:**
+
+- **Progress:** one scene per launch raid behind its ledger row (`vintage-boss-ledger`'s `art`
+  map, keyed by the progress raid id), under a left-to-right fade so the name and slots stay
+  legible, rounded as a strip, each with a point of interest (`position`) so the crop keeps
+  the subject. Before Dec 9 the scenes sit back (opacity 0.6 against 0.85, desaturated); the
+  `open` attribute lights them.
+- **Hero on phones:** `art-phone-src` on `vintage-hero` adds a `<source>` for 40rem and under,
+  a portrait of the orc and the dragon with the dark at the top, and a vertical fade that
+  clears the middle where the subject is.
+- **Recruiting:** the shield and staff, ink and wash with real transparency, stand at the
+  band's right edge with multiply blending so the ink sits in the cream: behind the right end
+  of the needs table at low opacity on most screens (fully in the margin only above 98rem),
+  and smaller and fainter behind the table once the band stacks below 62rem.
+- **News:** the messenger raven is the feed's byline, beside the "From the coordinator"
+  heading; later it is the bot's face on Discord too.
+- **Footer:** the dusk ridge under a fade from the canvas, so the page ends in the same dark;
+  dark theme only, since parchment's leather text would vanish on the sky.
+- **Tab icon:** the square emblem (the V on its chain tag, `assets/brand/vintage-emblem.png`)
+  at 32 to 512 px with a transparent background, and a 180 px home-screen icon on the canvas
+  color. Its white double outline is what makes one icon work on light and dark tab bars.
+- Files are listed in `apps/web/src/content/art.ts` (webp, under 250 kB each; the scenes at
+  2000 px wide, the phone hero at 1000, the raven at 640). Still to make, as the guild earns them: boss cutouts for
+  the first-kill callout, a banner for About, a campfire for the empty calendar.
+
 ## Tasks
 
 - [x] Research pass folded into this doc; direction chosen (concept E, 2026-10-25)
@@ -415,6 +440,7 @@ upstream (`upstream:fast-af`) and gets a local stub with the issue link.
 - [x] Footer; `/ui` gallery entries for every new element; CEM check
 - [x] Docs: `apps/web/README.md`, `packages/ui-kit/README.md`, architecture status line
 - [x] Section nav, member menu with avatar, vector logo, theme switch out of the header
+- [x] Art: raid scenes, phone hero, recruiting cutout, coordinator raven, footer dusk (2026-10-26)
 - [ ] Preload the display face; shadow and highlight tokens; a JTBD job for voting from the website
 - [ ] Once sign-in (#7) lands: Discord avatar into `Session.avatarUrl`, Sign out in the member menu
 

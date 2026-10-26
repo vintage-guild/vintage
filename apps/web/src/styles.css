@@ -42,14 +42,31 @@ vintage-logo-header [slot="logo"]:hover {
   font-size: var(--font-size-sm);
 }
 
+/* In the dark theme the footer sits on a dusk sky over black ridges (public/art/dusk-ridge.webp),
+   fading in from the canvas so the last section ends in the same dark. Parchment keeps the plain
+   sunken band: its leather text would vanish on the sky. */
+html[data-theme="vintage-dark"] .site-footer {
+  background:
+    linear-gradient(
+      180deg,
+      var(--color-surface-canvas) 0%,
+      color-mix(in srgb, var(--color-surface-canvas) 40%, transparent) 45%,
+      color-mix(in srgb, var(--color-surface-canvas) 15%, transparent) 100%
+    ),
+    url("/art/dusk-ridge.webp") 50% 74% / cover no-repeat,
+    var(--color-surface-sunken);
+}
+
 .site-footer .wrap {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
+  align-items: flex-end;
   gap: var(--space-sm) var(--space-lg);
+  min-block-size: 12rem;
   max-inline-size: 80rem;
   margin-inline: auto;
-  padding: var(--space-md) var(--space-inset) var(--space-xl);
+  padding: var(--space-2xl) var(--space-inset) var(--space-lg);
 }
 
 .site-footer nav {

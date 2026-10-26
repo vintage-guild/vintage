@@ -34,12 +34,22 @@ module under `.vercel/output`, routing `/discord/interactions` to it. `vercel.js
 build command; the Vercel project's root directory is `apps/gateway`.
 
 Deployed as Vercel project `vintage-gateway` (team "Jason Falk's projects"):
-`https://vintage-gateway.vercel.app/discord/interactions`. Deploy from the repo root (linked with
+`https://vintage-gateway.vercel.app/discord/interactions`. Production deploys on every push to
+`main`. To deploy by hand, run this from the repo root (linked with
 `vercel link --project vintage-gateway`):
 
 ```bash
-npx vercel deploy --prod
+npx --yes vercel deploy --prod --archive=tgz
 ```
+
+`--archive=tgz` uploads the source as one archive. Without it the CLI sends every file in the repo
+root separately, and Vercel refuses more than 15,000: on 2026-10-26 the upload was 15,799 files.
+`--yes` lets npx install the CLI without asking. Its "failed to fetch dist-tags from npm" warning is
+the CLI's own update check hitting a blocked registry; it doesn't affect the deploy.
+
+Deployment Protection (Vercel Authentication) covers preview deploys only. To check that the
+production URL reaches our endpoint and not Vercel's login, send an unsigned request: the answer
+should be `401` with `{"error":"invalid request signature"}`.
 
 ## Register slash commands
 

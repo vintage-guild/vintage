@@ -189,7 +189,7 @@ async function whoIsClicking(
   ports: SignupPorts,
 ): Promise<{ member: Member } | { refusal: InteractionResponse }> {
   if (!ports.discordGuildId || interaction.guild_id !== ports.discordGuildId) {
-    return { refusal: ephemeral('Vintage only takes signups in the Vintage guild server.') };
+    return { refusal: ephemeral('Random only takes signups in the Vintage guild server.') };
   }
   const user = interactionUser(interaction);
   const member = user ? await ports.memberByDiscordId(user.id) : null;

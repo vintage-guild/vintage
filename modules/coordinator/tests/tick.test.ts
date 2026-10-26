@@ -315,14 +315,18 @@ describe('runTick', () => {
     const message = discord.sent[0]!.message;
     const text = messageText(message);
     // Who's in per role against the 10-person targets; Pip is queued, so not counted.
-    expect(text).toMatch(/Tanks 1\/2\n<:square_warrior:\d+> \*\*1\*\* Aeryn \*prot\*/);
+    // Each column header carries its role's outline icon.
+    expect(text).toMatch(/<:head_tank:\d+> Tanks 1\/2\n<:square_warrior:\d+> 1 Aeryn \*prot\*/);
     expect(text).toMatch(
-      /Healers 1\/3\n<:square_priest:\d+> \*\*2\*\* Bram \*holy\* <:status_late:\d+>/,
+      /<:head_healer:\d+> Healers 1\/3\n<:square_priest:\d+> 2 Bram \*holy\* <:status_late:\d+>/,
     );
-    expect(text).toMatch(/DPS 0\/5\n—/);
-    expect(text).toMatch(
-      /<:status_going:\d+> \*\*1\*\* going {2}<:status_late:\d+> \*\*1\*\* late {2}<:status_tentative:\d+> \*\*1\*\* tentative/,
-    );
+    expect(text).toMatch(/<:head_dps:\d+> DPS 0\/5\n—/);
+    // Counts are spaced with em spaces, since Discord collapses repeated spaces.
+    const em = String.fromCharCode(0x2003);
+    expect(text).toContain(`**1** going${em}<:status_late:`);
+    expect(text).toContain(`**1** late${em}<:status_tentative:`);
+    // The lock and size sit on their own line, as subtext.
+    expect(text).toMatch(/\n-# <:info_open:\d+> Signups open · lock \d+h before · 10-person\n/);
     expect(text).toMatch(/<:status_queued:\d+> \*\*1\*\* queued/);
     expect(text).toMatch(/Queue 1\n1\. <:square_mage:\d+> Pip \*frost\*/);
     expect(text).toMatch(/\*\*Tentative\*\* <:square_warrior:\d+> Cade \*prot\*/);

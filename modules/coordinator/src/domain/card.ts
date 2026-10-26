@@ -26,6 +26,11 @@ const ROLES: [CompRoleName, string][] = [
   ['dps', 'DPS'],
 ];
 
+/** Discord collapses repeated spaces, so the status counts are spaced with em spaces. */
+const GAP = String.fromCharCode(0x2003);
+/** An empty line: spacing at the end of a description, or an empty field name. */
+const BLANK = String.fromCharCode(0x200b);
+
 /** Names shown per column before "+N more"; the Roster button shows everyone. */
 export const COLUMN_CAP = 8;
 const FIELD_MAX = 1024;
@@ -38,6 +43,10 @@ export function emoji(name: string): string {
   const id = EMOJI_IDS[name];
   return id ? `<:${name}:${id}>` : '';
 }
+
+/** A column header: the role's outline icon, its name, and a count. */
+const header = (role: CompRoleName, label: string, count: string) =>
+  `${emoji(`head_${role}`)} ${label} ${count}`.trim();
 
 const SHORT_SPEC: Record<string, string> = {
   protection: 'prot',
@@ -64,10 +73,10 @@ function places(signups: Signup[]): Map<string, number> {
   return new Map(going.map((s, i) => [s.id, i + 1]));
 }
 
-/** "<square> **3** Frostwyn *frost*" plus a clock when late. */
+/** "<square> 3 Frostwyn *frost*" plus a clock when late. */
 function line(s: Signup, place?: number): string {
   const late = s.status === 'late' ? ` ${emoji('status_late')}` : '';
-  const n = place ? `**${place}** ` : '';
+  const n = place ? `${place} ` : '';
   return `${emoji(`square_${s.class}`)} ${n}${s.characterName} *${shortSpec(s.spec)}*${late}`.trim();
 }
 
@@ -108,7 +117,7 @@ function statusLine(signups: Signup[]): string {
   ] as const;
   const queued = n((s) => s.queued);
   const all = queued ? [...parts, [emoji('status_queued'), queued, 'queued'] as const] : parts;
-  return all.map(([icon, count, label]) => `${icon} **${count}** ${label}`.trim()).join('  ');
+  return all.map(([icon, count, label]) => `${icon} **${count}** ${label}`.trim()).join(GAP);
 }
 
 /** "Late: Bramble (after work) · Tentative: Pip (maybe)" for the footer, or undefined. */
@@ -152,12 +161,12 @@ export function renderSignupPost(tick: TickEvent, members: TickMember[]): Messag
   const comp = compFor(tick, members);
 
   const lock = locked
-    ? `${emoji('info_locked')} signups locked`
-    : `${emoji('info_open')} signups open · lock ${timings.lockHours}h before`;
+    ? `${emoji('info_locked')} Signups locked`
+    : `${emoji('info_open')} Signups open · lock ${timings.lockHours}h before`;
   const fields: EmbedField[] = ROLES.map(([role, label]) => {
     const inRole = going.filter((s) => compRoleOf(s.role) === role);
     return {
-      name: `${label} ${inRole.length}/${targets[role]}`,
+      name: header(role, label, `${inRole.length}/${targets[role]}`),
       value: value(capped(inRole.map((s) => line(s, place.get(s.id))))),
       inline: true,
     };
@@ -187,9 +196,9 @@ export function renderSignupPost(tick: TickEvent, members: TickMember[]): Messag
         ).join(' · ')}`
       : null,
   ].filter((l): l is string => l !== null);
-  if (sitting.length) fields.push({ name: '​', value: value(sitting) });
+  if (sitting.length) fields.push({ name: BLANK, value: value(sitting) });
   fields.push({
-    name: '​',
+    name: BLANK,
     value: comp.gaps.length
       ? `${emoji('info_missing')} **Missing** ${missing(comp.gaps)}`
       : '**Comp** no gaps',
@@ -200,9 +209,14 @@ export function renderSignupPost(tick: TickEvent, members: TickMember[]): Messag
     embeds: [
       embed({
         title: `${event.name} · ${event.instance}`,
-        description:
-          `${emoji('info_calendar')} ${when(event.startsAt)}  ${lock} · ${event.size}-person\n` +
+        // When; the lock and size as quieter subtext; then the counts with room around them.
+        description: [
+          `${emoji('info_calendar')} ${when(event.startsAt)}`,
+          `-# ${lock} · ${event.size}-person`,
+          '',
           statusLine(signups),
+          BLANK,
+        ].join('\n'),
         color: locked
           ? discordColor('color.border.strong')
           : discordColor('color.accent.secondary'),
@@ -228,12 +242,12 @@ function chunkFields(title: string, lines: string[], inline: boolean): EmbedFiel
   let current: string[] = [];
   for (const l of lines.length ? lines : ['—']) {
     if ([...current, l].join('\n').length > FIELD_MAX) {
-      fields.push({ name: fields.length ? '​' : title, value: current.join('\n'), inline });
+      fields.push({ name: fields.length ? BLANK : title, value: current.join('\n'), inline });
       current = [];
     }
     current.push(l);
   }
-  fields.push({ name: fields.length ? '​' : title, value: current.join('\n'), inline });
+  fields.push({ name: fields.length ? BLANK : title, value: current.join('\n'), inline });
   return fields;
 }
 
@@ -247,7 +261,7 @@ export function renderRosterReply(event: RaidEvent, signups: Signup[]): MessageD
   const fields = ROLES.flatMap(([role, label]) => {
     const inRole = going.filter((s) => compRoleOf(s.role) === role);
     return chunkFields(
-      `${label} (${inRole.length})`,
+      header(role, label, `(${inRole.length})`),
       inRole.map((s) => line(s, place.get(s.id))),
       true,
     );
@@ -283,7 +297,7 @@ export function renderRosterReply(event: RaidEvent, signups: Signup[]): MessageD
     embeds: [
       embed({
         title: `Roster · ${event.name}`,
-        description: `${emoji('info_calendar')} ${when(event.startsAt)}\n${statusLine(signups)}`,
+        description: `${emoji('info_calendar')} ${when(event.startsAt)}\n\n${statusLine(signups)}\n${BLANK}`,
         fields: fields.slice(0, 25),
         ...(footer ? { footer: { text: footer } } : {}),
       }),
@@ -298,7 +312,7 @@ export function renderFinalRoster(tick: TickEvent, members: TickMember[]): Messa
   const fields: EmbedField[] = ROLES.map(([role, label]) => {
     const inRole = going.filter((s) => compRoleOf(s.role) === role);
     return {
-      name: `${label} ${inRole.length}`,
+      name: header(role, label, String(inRole.length)),
       value: value(
         capped(
           inRole.map((s) => line(s)),
@@ -313,7 +327,7 @@ export function renderFinalRoster(tick: TickEvent, members: TickMember[]): Messa
     embeds: [
       embed({
         title: `Final roster · ${tick.event.name}`,
-        description: `${emoji('info_calendar')} ${when(tick.event.startsAt)}  ${emoji('info_locked')} signups locked · ${going.length}/${tick.event.size}`,
+        description: `${emoji('info_calendar')} ${when(tick.event.startsAt)}  ${emoji('info_locked')} Signups locked · ${going.length}/${tick.event.size}`,
         color: discordColor('color.border.strong'),
         fields,
       }),

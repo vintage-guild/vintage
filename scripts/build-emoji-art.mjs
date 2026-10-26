@@ -35,6 +35,9 @@ const ICONS = {
   info_open: ['lock-open', COLOR.neutral],
   info_locked: ['lock', COLOR.neutral],
   info_missing: ['alert-triangle', COLOR.late],
+  head_tank: ['shield', COLOR.neutral],
+  head_healer: ['heart', COLOR.neutral],
+  head_dps: ['sword', COLOR.neutral],
 };
 
 // WoW's class colors.

@@ -110,7 +110,7 @@ describe('JTBD: raid night', () => {
     const edit = g.host.editsTo(SIGNUP_CHANNEL).at(-1)!;
     const text = messageText(edit.message);
     expect(text).toMatch(/\*\*1\*\* going/);
-    expect(text).toMatch(/Tanks 1\/4\n<:square_warrior:\d+> \*\*1\*\* Aeryn \*prot\*/);
+    expect(text).toMatch(/Tanks 1\/4\n<:square_warrior:\d+> 1 Aeryn \*prot\*/);
     expect(text).toMatch(/Healers 0\/10\n—/);
   });
 
@@ -311,7 +311,7 @@ describe('JTBD: raid night', () => {
     const text = messageText(g.host.editsTo(SIGNUP_CHANNEL).at(-1)!.message);
     // Late still takes a spot: listed with the healers, marked late, reason underneath.
     expect(text).toMatch(
-      /Healers 1\/10\n<:square_priest:\d+> \*\*1\*\* Bramble \*holy\* <:status_late:\d+>/,
+      /Healers 1\/10\n<:square_priest:\d+> 1 Bramble \*holy\* <:status_late:\d+>/,
     );
     expect(text).toMatch(/Late: Bramble \(after work, ~20 min\)/);
     g.host.clock.advance(WED - 24 * HOUR - g.host.clock.now());

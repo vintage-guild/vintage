@@ -259,7 +259,7 @@ them; only #2 is costly to change once votes exist.
 - [x] `vintagebot module-new polls`; contract, store port, memory store (#59)
 - [x] `domain/tally.ts` with tests for single, multi, ranked (including ties and quorum) (#59)
 - [x] Commands with the destructive confirm flow for `poll-close` / `poll-cancel` (#60)
-- [ ] Convex component (`polls`, `votes`, `pollPosts`), adapters in `apps/api`, register the commands and write the manifest, `poll-sweep` cron (#61)
+- [x] Convex component (`polls`, `votes`, `pollPosts`), adapters in `apps/api`, register the commands and write the manifest, `poll-sweep` cron (#61)
 - [ ] `render/discord.ts` with snapshot tests; gateway routes for `/vintage poll …`, buttons, select, modal
 - [ ] Poster action in `apps/api`: post, debounced refresh, final render
 - [ ] `ui-kit` poll card + `apps/web` `/polls` routes (after sign-in #7)

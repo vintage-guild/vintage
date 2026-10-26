@@ -5,6 +5,7 @@ import type { CoordinatorDeps, CoordinatorStore, TickSource } from '@vintage/coo
 import { type CoordinatorConfig, defaultConfig } from '@vintage/coordinator/contract';
 import type { IdentityDeps, IdentityStore } from '@vintage/identity/commands';
 import type { Character, GuildRank, Member, RoleRankMap } from '@vintage/identity/contract';
+import type { PollsDeps, PollsEventSink, PollsStore } from '@vintage/polls/commands';
 import type { RaidsDeps, RaidsEventSink, RaidsStore } from '@vintage/raids/commands';
 import type { Signup } from '@vintage/raids/contract';
 import type { WowClass } from '@vintage/wow-data';
@@ -143,10 +144,13 @@ export function raidsStore(ctx: Ctx): RaidsStore {
   };
 }
 
-/** Raids events go on the app's event bus table (PLAN §4.3); subscribers come later. */
-function eventSink(ctx: Ctx): RaidsEventSink {
+/**
+ * Module events go on the app's event bus table (PLAN §4.3); subscribers come later. One
+ * writer serves every module's sink type, since each only narrows `type` and `payload`.
+ */
+function eventSink(ctx: Ctx): RaidsEventSink & PollsEventSink {
   return {
-    emit: async (guildId, type, payload) => {
+    emit: async (guildId: string, type: string, payload: unknown) => {
       await writable(ctx).db.insert('events', { guildId, type, payload, emittedAt: Date.now() });
     },
   };
@@ -161,6 +165,46 @@ export function raidsDeps(ctx: Ctx): RaidsDeps {
       getMember: (guildId, memberId) => people.getMember(guildId, memberId),
     },
     events: eventSink(ctx),
+  };
+}
+
+const polls = components.polls;
+
+export function pollsStore(ctx: Ctx): PollsStore {
+  return {
+    listPolls: (guildId, filter = {}) => ctx.runQuery(polls.polls.list, { guildId, ...filter }),
+    getPoll: (guildId, pollId) => ctx.runQuery(polls.polls.get, { guildId, pollId }),
+    insertPoll: (poll) => writable(ctx).runMutation(polls.polls.insert, poll),
+    updatePoll: (guildId, pollId, patch) =>
+      writable(ctx).runMutation(polls.polls.update, { guildId, pollId, patch }),
+
+    listVotes: (guildId, pollId) => ctx.runQuery(polls.votes.list, { guildId, pollId }),
+    countVotes: (guildId, pollId) => ctx.runQuery(polls.votes.count, { guildId, pollId }),
+    getVoteByMember: (guildId, pollId, memberId) =>
+      ctx.runQuery(polls.votes.byMember, { guildId, pollId, memberId }),
+    insertVote: (vote) => writable(ctx).runMutation(polls.votes.insert, vote),
+    updateVote: (guildId, voteId, patch) =>
+      writable(ctx).runMutation(polls.votes.update, { guildId, voteId, patch }),
+    deleteVote: async (guildId, voteId) => {
+      await writable(ctx).runMutation(polls.votes.remove, { guildId, voteId });
+    },
+
+    listPosts: (guildId, pollId) => ctx.runQuery(polls.posts.list, { guildId, pollId }),
+    insertPost: (post) => writable(ctx).runMutation(polls.posts.insert, post),
+    updatePost: (guildId, postId, patch) =>
+      writable(ctx).runMutation(polls.posts.update, { guildId, postId, patch }),
+  };
+}
+
+export function pollsDeps(ctx: Ctx): PollsDeps {
+  const people = identityStore(ctx);
+  return {
+    polls: pollsStore(ctx),
+    pollMembers: {
+      getMember: (guildId, memberId) => people.getMember(guildId, memberId),
+      listMembers: (guildId) => people.listMembers(guildId),
+    },
+    pollEvents: eventSink(ctx),
   };
 }
 

@@ -11,7 +11,7 @@ vote from the website are the same `vote-cast` command on the same poll. Design:
 | `src/contract.ts` | Public types (`Poll`, `Vote`, `PollResults`, `PollPost`), command names, events. The only import other modules may use |
 | `src/domain/tally.ts` | Pure: poll + votes → `PollResults` for `single`, `multi`, and `ranked` (instant-runoff) |
 | `src/store.ts` | `PollsStore` port, `PollsMembers` (what polls reads from identity), `PollsEventSink`, `PollsDeps`, `command` |
-| `src/commands/` | `poll-*` and `vote-*` (#60); empty until then |
+| `src/commands/` | `poll-*` (lifecycle in `poll.ts`, reads in `read.ts`) and `vote-*` (`vote.ts`); shared guards in `shared.ts`. Not registered in apps/api until #61 |
 | `src/testing.ts` | Memory store, members, and a recording event sink, same behavior as the component |
 | `convex/` | The `polls` Convex component (#61) |
 
@@ -35,3 +35,16 @@ vote from the website are the same `vote-cast` command on the same poll. Design:
   frozen snapshot taken at close.
 - **Times are UTC epoch ms.** Discord and the website render them per viewer.
 - Nullable fields use `null`, not `undefined`, so Convex patches can clear them.
+
+## Command behavior
+
+- **Hidden, not forbidden.** A poll above the caller's tier answers `POLL_NOT_FOUND` from every
+  command, like the registry's `COMMAND_NOT_FOUND`, so members can't probe officer polls.
+- **Closing is final.** `poll-close` (creator or leader) and `poll-cancel` (leader) are
+  destructive: the preview shows the result that would be frozen. The sweep closes due polls
+  with `closedBy: null`.
+- **The close time is enforced at vote time**, so a late vote fails even if the sweep hasn't
+  run yet.
+- Error codes: `POLL_NOT_FOUND`, `POLL_STATUS`, `POLL_CLOSED`, `INVALID_CHOICES`,
+  `INVALID_TIME`, `OPTIONS_LOCKED`, `RESULTS_HIDDEN`, `TIER_TOO_HIGH`, `FORBIDDEN`,
+  `NOT_SIGNED_IN`.

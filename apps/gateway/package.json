@@ -6,7 +6,8 @@
   "description": "Vercel functions: the public HTTP surfaces (/discord/interactions now, /mcp later) in front of Convex.",
   "scripts": {
     "type-check": "tsc6 -p tsconfig.json --noEmit",
-    "register-commands": "tsx scripts/register-commands.ts"
+    "register-commands": "tsx scripts/register-commands.ts",
+    "build:vercel": "node scripts/build-vercel.mjs"
   },
   "dependencies": {
     "@vintage/discord-kit": "workspace:*"
@@ -14,6 +15,7 @@
   "devDependencies": {
     "@types/node": "^24.10.0",
     "@vintage/config": "workspace:*",
+    "esbuild": "^0.28.2",
     "tsx": "^4.23.15",
     "typescript": "catalog:"
   }

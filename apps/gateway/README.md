@@ -25,6 +25,22 @@ the reason form (`signup-note:…`) are verified here, then forwarded to Convex 
 flow (`apps/api/src/discord-signups.ts`) and returns the response this endpoint sends back to
 Discord. Without the two variables, members get a private "not set up yet" reply.
 
+## Build and deploy
+
+Vercel builds each TypeScript function file on its own, which can't resolve our workspace packages
+at runtime. So the project builds itself with the [Build Output API](https://vercel.com/docs/build-output-api):
+`pnpm run build:vercel` (`scripts/build-vercel.mjs`) bundles `src/vercel.ts` with esbuild into one
+module under `.vercel/output`, routing `/discord/interactions` to it. `vercel.json` sets that as the
+build command; the Vercel project's root directory is `apps/gateway`.
+
+Deployed as Vercel project `vintage-gateway` (team "Jason Falk's projects"):
+`https://vintage-gateway.vercel.app/discord/interactions`. Deploy from the repo root (linked with
+`vercel link --project vintage-gateway`):
+
+```bash
+npx vercel deploy --prod
+```
+
 ## Register slash commands
 
 ```bash

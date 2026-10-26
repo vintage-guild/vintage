@@ -148,7 +148,7 @@ Current packages:
 | `modules/raids` | module | Schedules (DST-safe recurrence), raid events, signups, roster groups, `comp-suggest`; emits `signup-changed` and `raid-completed` | ✅ built and tested; not yet driven by the coordinator |
 | `modules/polls` | module | Polls and ballots shared by Discord, the website, and MCP: contract, store port, memory store, pure tally (single, multi, instant-runoff ranked) | 🚧 contract, tally, and commands built and tested; not registered in apps/api until the component (#61); surfaces wait |
 | `apps/api` | app | Convex: composes components, command surface, crons | ✅ |
-| `apps/gateway` | app | Vercel functions: `/discord/interactions` (signature check, PING, `/vintage ping`; signup buttons and modals forwarded to Convex), later `/mcp` | 🚧 built and tested locally end to end; not deployed |
+| `apps/gateway` | app | Vercel functions: `/discord/interactions` (signature check, PING, `/vintage ping`; signup buttons and modals forwarded to Convex), later `/mcp` | ✅ deployed to Vercel (`vintage-gateway`); Discord portal URL pending |
 | `apps/web` | app | The website: Vite SPA on the FAST-AF router; home (hero, with the rest of the page in progress), about/recruitment, profile, and characters pages; `data-theme` switching; self-hosted fonts. In dev, an in-memory guild behind the real registry seeds the pages through commands. Member pages are signed out until sign-in (#7); not deployed yet | 🚧 |
 | `vendor/*` | vendored | Built FAST-AF: `@lushly-dev/fast-element`, `@microsoft/fast-router`, `@lushly-dev/violet-elements`. Never edited; re-synced by script | ✅ used by `ui-kit` and `web` |
 

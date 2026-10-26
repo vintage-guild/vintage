@@ -87,6 +87,18 @@ The role-sync cron does nothing until `DISCORD_BOT_TOKEN` and `DISCORD_GUILD_ID`
 Convex environment (`npx convex env set …` in `apps/api`). See the `vintage-discord` skill for
 how the pieces fit.
 
+### Deployments
+
+| What | Where | Deploy |
+|---|---|---|
+| Convex production | project `jason-falk/vintage`, deployment `dusty-sardine-902` (`https://dusty-sardine-902.convex.cloud`, HTTP routes on `.convex.site`) | `npx convex deploy` in `apps/api` |
+| Convex dev | `cautious-ant-152` (what `npx convex dev` in `apps/api` pushes to) | `npx convex dev` |
+| Gateway | Vercel project `vintage-gateway`, `https://vintage-gateway.vercel.app` | `npx vercel deploy --prod` from the repo root |
+
+Production runs the role-sync and coordinator crons; dev has no Discord env, so its crons do
+nothing. Run `npx convex env list --prod` (in `apps/api`) to see which variables production has.
+The local anonymous backend (`dev:local`) is still there for offline work.
+
 ### Signup buttons (gateway → Convex)
 
 The buttons on signup posts need the gateway deployed (Vercel) and pointed at Convex:

@@ -40,7 +40,7 @@ hashes=node_modules/.vintage-install.sha256
 inputs=(scripts/cloud/session-start.sh .nvmrc package.json pnpm-lock.yaml pnpm-workspace.yaml)
 if ! sha256sum --check --status "$hashes" 2>/dev/null; then
   rm -f "$hashes"
-  pnpm install --frozen-lockfile >>"$log" 2>&1 || fail "pnpm install failed"
+  CI=true pnpm install --frozen-lockfile >>"$log" 2>&1 || fail "pnpm install failed"
   sha256sum "${inputs[@]}" >"$hashes"
 fi
 

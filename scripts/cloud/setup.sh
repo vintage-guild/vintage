@@ -29,7 +29,7 @@ corepack prepare "pnpm@${PNPM_VERSION}" --activate >/dev/null
 
 # Warm the install when the repo is already cloned here, so the cached snapshot has node_modules.
 if [ -f pnpm-lock.yaml ] && [ -f .nvmrc ]; then
-  pnpm install --frozen-lockfile --silent || true
+  CI=true pnpm install --frozen-lockfile --silent || true
 fi
 
 echo "node $(node --version), pnpm $(pnpm --version) in ${NODE_DIR}"

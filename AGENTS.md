@@ -13,6 +13,7 @@ lives in skills and module `AGENTS.md` files.
 - **Model and effort routing:** [docs/operations/model-routing.md](docs/operations/model-routing.md)
 - **The plan (architecture, phases, open questions):** [PLAN.md](PLAN.md)
 - **Local validation:** [docs/operations/local-validation.md](docs/operations/local-validation.md)
+- **Cloud sessions (claude.ai/code):** [docs/operations/cloud-sessions.md](docs/operations/cloud-sessions.md)
 - **Feature docs:** [docs/features/README.md](docs/features/README.md)
 - **End-to-end jobs (JTBD):** [docs/jtbd/README.md](docs/jtbd/README.md)
 

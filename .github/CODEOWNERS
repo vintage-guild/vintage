@@ -1,5 +1,7 @@
 # Generated from .github/area-ownership.json. Notification-only: required reviews are not
 # enforced; the `ci-ok` check is the merge gate (PLAN §7.3).
+# Default owner first: later lines override it for their paths.
+* @Falkicon
 packages/guild-kit/ @Falkicon
 packages/ui-kit/ @Falkicon
 modules/identity/ @Falkicon

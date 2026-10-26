@@ -94,7 +94,7 @@ how the pieces fit.
 | Convex production | project `jason-falk/vintage`, deployment `dusty-sardine-902` (`https://dusty-sardine-902.convex.cloud`, HTTP routes on `.convex.site`) | `npx convex deploy` in `apps/api` |
 | Convex dev | `cautious-ant-152` (what `npx convex dev` in `apps/api` pushes to) | `npx convex dev` |
 | Gateway | Vercel project `vintage-gateway` (root directory `apps/gateway`), `https://vintage-gateway.vercel.app` | Automatic: production on every push to `main`, a preview per PR. By hand: `npx vercel deploy --prod` from the repo root |
-| Website | Vercel project `vintage-web` (root directory `apps/web`, Node 24, `apps/web/vercel.json`), `https://vintage-web-pi.vercel.app` | Automatic: production on every push to `main`, a preview per PR. By hand, from the repo root: `VERCEL_ORG_ID=team_XXxAohn4xk9zQOEGH6WsJUSs VERCEL_PROJECT_ID=prj_OTILApEA5n4u7RnslTNgppvt26Zp npx vercel deploy --prod` (the ids pick the website project; without them the root's link deploys the gateway) |
+| Website | Vercel project `vintage-web` (root directory `apps/web`, Node 24, `apps/web/vercel.json`), `https://vintageguild.gg` (also `https://vintage-web-pi.vercel.app`) | Automatic: production on every push to `main`, a preview per PR. By hand, from the repo root: `VERCEL_ORG_ID=team_XXxAohn4xk9zQOEGH6WsJUSs VERCEL_PROJECT_ID=prj_OTILApEA5n4u7RnslTNgppvt26Zp npx vercel deploy --prod` (the ids pick the website project; without them the root's link deploys the gateway) |
 
 Both Vercel projects are connected to `vintage-guild/vintage` through Vercel's GitHub app
 (installed on the org, `vintage` only). Each builds only when a push changes its root directory
@@ -103,6 +103,12 @@ redeploy the gateway. The website talks to Convex production and signs in throug
 origin must be in production's `VINTAGE_TRUSTED_ORIGINS` (alongside `SITE_URL`). PR previews
 get their own `*.vercel.app` addresses, which aren't trusted, so sign-in works only on
 production and http://localhost:5173.
+
+The domain `vintageguild.gg` is registered at Porkbun (Bloodfen's account). Its DNS is two A records on the
+bare domain (`216.150.1.1`, `216.150.16.1`) and a `www` CNAME to
+`384cab4ceb2a9d79.vercel-dns-016.com`, the values Vercel gave for the `vintage-web` project; `www`
+redirects to the bare domain (308) in Vercel. Both https://vintageguild.gg and the `vercel.app` address
+must be in production's `VINTAGE_TRUSTED_ORIGINS` for sign-in.
 
 Production runs the role-sync and coordinator crons; dev has no Discord env, so its crons do
 nothing. Run `npx convex env list --prod` (in `apps/api`) to see which variables production has.

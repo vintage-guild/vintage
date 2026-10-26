@@ -84,6 +84,6 @@ pnpm --filter @vintage/web build   # dist/
   the guild's stated time; the cards show the viewer's.
 - **Discord invite:** `DISCORD_INVITE_URL` in `src/content/recruiting.ts`, null until the GM
   sets it; the calls to action then point at the recruiting band.
-- **Deployed** on Vercel as `vintage-web`: https://vintage-web-pi.vercel.app. `vercel.json`
+- **Deployed** on Vercel as `vintage-web`: https://vintageguild.gg (www redirects to it; https://vintage-web-pi.vercel.app also serves it). `vercel.json`
   here sets the build and an SPA fallback, so deep links like `/officers` load the app. Every push
   to `main` deploys it, and each PR gets a preview (SETUP.md → Deployments).

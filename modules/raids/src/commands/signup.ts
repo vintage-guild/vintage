@@ -1,0 +1,149 @@
+import { SIGNUP_STATUSES, type SignupStatus, signupStatusSchema } from '@vintage/comp-solver';
+import { error, success } from '@vintage/guild-kit';
+import type { Character } from '@vintage/identity/contract';
+import { z } from 'zod';
+import type { Signup } from '../contract';
+import { command, type RaidsDeps } from '../store';
+import { eventNotFound, isLeader, notSignedIn, raidClosed } from './shared';
+
+const characterNotFound = () =>
+  error('CHARACTER_NOT_FOUND', 'No such character, or it is not yours', {
+    suggestion: 'Use character-list to see your characters, or character-add to register one',
+    retryable: false,
+  });
+
+const statusRank = (s: Signup) => SIGNUP_STATUSES.indexOf(s.status);
+
+interface SignupWrite {
+  guildId: string;
+  eventId: string;
+  character: Character;
+  status: SignupStatus;
+  note: string | null | undefined;
+  existing: Signup | null;
+}
+
+/** Insert the member's signup, or update it in place so they keep their place in line. */
+function writeSignup(deps: RaidsDeps, w: SignupWrite, at: number): Promise<Signup> {
+  const snapshot = {
+    characterId: w.character.id,
+    characterName: w.character.name,
+    class: w.character.class,
+    spec: w.character.spec,
+    role: w.character.role,
+  };
+  if (w.existing) {
+    // Swapping characters or declining drops any roster spot; the leader re-places them.
+    const keepRoster = w.existing.characterId === w.character.id && w.status !== 'declined';
+    return deps.raids.updateSignup(w.guildId, w.existing.id, {
+      ...snapshot,
+      status: w.status,
+      ...(w.note === undefined ? {} : { note: w.note }),
+      updatedAt: at,
+      ...(keepRoster ? {} : { roster: 'pending' as const, group: null }),
+    });
+  }
+  return deps.raids.insertSignup({
+    guildId: w.guildId,
+    eventId: w.eventId,
+    memberId: w.character.memberId,
+    ...snapshot,
+    status: w.status,
+    note: w.note ?? null,
+    signedUpAt: at,
+    updatedAt: at,
+    roster: 'pending',
+    group: null,
+  });
+}
+
+export const signupSet = command({
+  name: 'signup-set',
+  description:
+    'Sign up for a raid with one of your characters, or change your answer (accepted, late, ' +
+    'tentative, bench, declined). One signup per member per raid. Raid leaders may sign up ' +
+    "anyone's character and may change locked raids.",
+  tier: 'recruit',
+  mutation: true,
+  input: z.object({
+    eventId: z.string().min(1),
+    characterId: z.string().min(1),
+    status: signupStatusSchema,
+    note: z.string().trim().max(200).nullable().optional(),
+  }),
+  handler: async ({ eventId, characterId, status, note }, { caller, guildId, deps, now }) => {
+    if (!caller.memberId && !isLeader(caller)) return notSignedIn();
+    const event = await deps.raids.getEvent(guildId, eventId);
+    if (!event) return eventNotFound();
+    const leader = isLeader(caller);
+    if (event.status !== 'open' && !(leader && event.status === 'locked')) {
+      return raidClosed(event);
+    }
+    if (event.startsAt <= now() && !leader) {
+      return error('RAID_STARTED', `${event.name} has already started`, {
+        suggestion: 'Ask a raid leader to update your signup',
+        retryable: false,
+      });
+    }
+
+    const character = await deps.members.getCharacter(guildId, characterId);
+    if (!character || (character.memberId !== caller.memberId && !leader)) {
+      return characterNotFound();
+    }
+
+    const existing = await deps.raids.getSignupByMember(guildId, eventId, character.memberId);
+    const signup = await writeSignup(
+      deps,
+      { guildId, eventId, character, status, note, existing },
+      now(),
+    );
+    if (!existing || existing.status !== status || existing.characterId !== character.id) {
+      await deps.events.emit(guildId, 'signup-changed', {
+        eventId,
+        memberId: character.memberId,
+        characterId: character.id,
+        from: existing?.status ?? null,
+        to: status,
+      });
+    }
+    return success(signup, { reasoning: `${character.name}: ${status} for ${event.name}` });
+  },
+});
+
+export const signupGet = command({
+  name: 'signup-get',
+  description: "Your signup for a raid. Raid leaders may look up anyone's with memberId.",
+  tier: 'recruit',
+  input: z.object({ eventId: z.string().min(1), memberId: z.string().min(1).optional() }),
+  handler: async ({ eventId, memberId }, { caller, guildId, deps }) => {
+    const who = memberId ?? caller.memberId;
+    if (!who) return notSignedIn();
+    if (who !== caller.memberId && !isLeader(caller)) {
+      return error('FORBIDDEN', "Only raid leaders can see someone else's signup detail", {
+        suggestion: 'Use signup-list to see who signed up',
+        retryable: false,
+      });
+    }
+    const event = await deps.raids.getEvent(guildId, eventId);
+    if (!event) return eventNotFound();
+    return success(await deps.raids.getSignupByMember(guildId, eventId, who));
+  },
+});
+
+export const signupList = command({
+  name: 'signup-list',
+  description: 'Everyone signed up for a raid, best answer first (accepted before tentative).',
+  tier: 'recruit',
+  input: z.object({
+    eventId: z.string().min(1),
+    statuses: z.array(signupStatusSchema).min(1).optional(),
+  }),
+  handler: async ({ eventId, statuses }, { guildId, deps }) => {
+    const event = await deps.raids.getEvent(guildId, eventId);
+    if (!event) return eventNotFound();
+    const signups = (await deps.raids.listSignups(guildId, eventId))
+      .filter((s) => !statuses || statuses.includes(s.status))
+      .sort((a, b) => statusRank(a) - statusRank(b) || a.signedUpAt - b.signedUpAt);
+    return success(signups);
+  },
+});

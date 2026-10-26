@@ -42,7 +42,7 @@ flowchart TB
         REG["guild-kit registry ✅<br/>caller · tier · validation · confirm"]
         subgraph Modules
             ID["identity ✅"]
-            RAIDS["raids 📋"]
+            RAIDS["raids ✅"]
             COORD["coordinator 📋"]
             LOOT["loot 📋"]
         end
@@ -135,13 +135,14 @@ Current packages:
 | Package | Layer | What it is | Status |
 |---|---|---|---|
 | `libs/wow-data` | lib | Classes, specs, raid roles | ✅ |
-| `libs/comp-solver` | lib | Raid-comp scoring: selected roster, bench, and gaps with reasons, from signups, raid size, and a role/buff template (`solveComp`) | ✅ built and tested; `comp-suggest` waits on the raids module (#15) |
+| `libs/comp-solver` | lib | Raid-comp scoring: selected roster, bench, and gaps with reasons, from signups, raid size, and a role/buff template (`solveComp`) | ✅ built and tested; used by `comp-suggest` in raids |
 | `libs/discord-kit` | lib | Interaction signature verification, response/embed/component builders, timestamps, rate-limit-aware REST client | ✅ |
 | `libs/design-tokens` | lib | DTCG token nodes and exporters: CSS themes, TS map (`discordColor`), FenUI Lua theme | ✅ |
 | `libs/bridge-format` | lib | Game ↔ web paste strings: import/export Zod schemas, LibSerialize + LibDeflate compatible codec, golden fixtures | 🚧 TS side built and tested; Lua side (addon) not built |
 | `packages/guild-kit` | package | Commands, tiers, registry, confirm tokens, manifest | ✅ |
 | `packages/testing` | package | Test callers, clock, registry helpers | ✅ |
 | `modules/identity` | module | Members, characters, guild ranks, role → rank map, role sync planner | ✅ |
+| `modules/raids` | module | Schedules (DST-safe recurrence), raid events, signups, roster groups, `comp-suggest`; emits `signup-changed` and `raid-completed` | ✅ built and tested; not yet driven by the coordinator |
 | `apps/api` | app | Convex: composes components, command surface, crons | ✅ |
 | `apps/gateway` | app | Vercel functions: `/discord/interactions` (later `/mcp`) | 🚧 |
 | `vendor/*` | vendored | Built FAST-AF: `@lushly-dev/fast-element`, `@microsoft/fast-router`, `@lushly-dev/violet-elements`. Never edited; re-synced by script | ✅ vendored, not used yet |

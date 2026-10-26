@@ -2,6 +2,8 @@
 // Commands never see Convex; they get these through `deps` (PLAN §3.3).
 import type { IdentityDeps, IdentityStore } from '@vintage/identity/commands';
 import type { Character, GuildRank, Member, RoleRankMap } from '@vintage/identity/contract';
+import type { RaidsDeps, RaidsEventSink, RaidsStore } from '@vintage/raids/commands';
+import type { Signup } from '@vintage/raids/contract';
 import type { WowClass } from '@vintage/wow-data';
 import type { GenericMutationCtx, GenericQueryCtx } from 'convex/server';
 import { components } from './_generated/api';
@@ -86,4 +88,70 @@ const asRoleRankMap = (entries: { discordRoleId: string; rank: GuildRank }[]): R
 
 export function identityDeps(ctx: Ctx): IdentityDeps {
   return { identity: identityStore(ctx) };
+}
+
+const raids = components.raids;
+
+// Like characters, signup rows store class as a plain string.
+const asSignup = (row: Omit<Signup, 'class'> & { class: string }): Signup => ({
+  ...row,
+  class: row.class as WowClass,
+});
+
+export function raidsStore(ctx: Ctx): RaidsStore {
+  return {
+    listSchedules: (guildId, filter = {}) =>
+      ctx.runQuery(raids.schedules.list, { guildId, ...filter }),
+    getSchedule: (guildId, scheduleId) =>
+      ctx.runQuery(raids.schedules.get, { guildId, scheduleId }),
+    insertSchedule: (schedule) => writable(ctx).runMutation(raids.schedules.insert, schedule),
+    updateSchedule: (guildId, scheduleId, patch) =>
+      writable(ctx).runMutation(raids.schedules.update, { guildId, scheduleId, patch }),
+
+    listEvents: (guildId, filter = {}) =>
+      ctx.runQuery(raids.raidEvents.list, { guildId, ...filter }),
+    getEvent: (guildId, eventId) => ctx.runQuery(raids.raidEvents.get, { guildId, eventId }),
+    insertEvent: (event) => writable(ctx).runMutation(raids.raidEvents.insert, event),
+    updateEvent: (guildId, eventId, patch) =>
+      writable(ctx).runMutation(raids.raidEvents.update, { guildId, eventId, patch }),
+
+    listSignups: async (guildId, eventId) =>
+      (await ctx.runQuery(raids.signups.list, { guildId, eventId })).map(asSignup),
+    getSignup: async (guildId, signupId) => {
+      const row = await ctx.runQuery(raids.signups.get, { guildId, signupId });
+      return row && asSignup(row);
+    },
+    getSignupByMember: async (guildId, eventId, memberId) => {
+      const row = await ctx.runQuery(raids.signups.byMember, { guildId, eventId, memberId });
+      return row && asSignup(row);
+    },
+    insertSignup: async (signup) =>
+      asSignup(await writable(ctx).runMutation(raids.signups.insert, signup)),
+    updateSignup: async (guildId, signupId, patch) =>
+      asSignup(await writable(ctx).runMutation(raids.signups.update, { guildId, signupId, patch })),
+    deleteSignup: async (guildId, signupId) => {
+      await writable(ctx).runMutation(raids.signups.remove, { guildId, signupId });
+    },
+  };
+}
+
+/** Raids events go on the app's event bus table (PLAN §4.3); subscribers come later. */
+function eventSink(ctx: Ctx): RaidsEventSink {
+  return {
+    emit: async (guildId, type, payload) => {
+      await writable(ctx).db.insert('events', { guildId, type, payload, emittedAt: Date.now() });
+    },
+  };
+}
+
+export function raidsDeps(ctx: Ctx): RaidsDeps {
+  const people = identityStore(ctx);
+  return {
+    raids: raidsStore(ctx),
+    members: {
+      getCharacter: (guildId, characterId) => people.getCharacter(guildId, characterId),
+      getMember: (guildId, memberId) => people.getMember(guildId, memberId),
+    },
+    events: eventSink(ctx),
+  };
 }

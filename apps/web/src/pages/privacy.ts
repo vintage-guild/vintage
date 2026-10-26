@@ -31,10 +31,10 @@ const template = html<Page>`
         <li><b>Raid signups:</b> your answer for each raid, any note you add, and the roster
           decisions officers make (group, bench, queue).</li>
         <li><b>Poll votes:</b> your ballot in guild polls.</li>
-        <li><b>Preferences:</b> your time zone and whether the bot may send you reminder DMs.</li>
+        <li><b>Preferences:</b> your time zone and whether our Discord bot, Random, may send you reminder DMs.</li>
         <li><b>Sign-in sessions:</b> a session record for each sign-in, which can include the IP
           address and browser it came from, kept so we can sign you out and spot misuse.</li>
-        <li><b>The bot's log:</b> which reminders and posts it sent and to whom.</li>
+        <li><b>Random's log:</b> which reminders and posts the bot sent and to whom.</li>
       </ul>
       <p>Sign-in asks Discord only for your basic identity (the <code>identify</code> scope). We
         never see your Discord password or email address.</p>

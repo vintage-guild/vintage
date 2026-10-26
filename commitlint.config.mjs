@@ -14,6 +14,7 @@ export default {
         'identity',
         'raids',
         'coordinator',
+        'polls',
         'loot',
         'wishlist',
         'site',

@@ -1,0 +1,29 @@
+{
+  "name": "@vintage/polls",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Guild polls and votes, on Discord and the website.",
+  "exports": {
+    "./contract": "./src/contract.ts",
+    "./commands": "./src/commands/index.ts",
+    "./testing": "./src/testing.ts",
+    "./convex.config": "./convex/convex.config.ts",
+    "./_generated/component.js": "./convex/_generated/component.ts",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "type-check": "tsc6 -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@vintage/guild-kit": "workspace:*",
+    "@vintage/identity": "workspace:*",
+    "convex": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@vintage/config": "workspace:*",
+    "@vintage/testing": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

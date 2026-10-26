@@ -2,8 +2,8 @@
 // code runs on Vercel functions and in tests. Verify first, over the raw body: Discord probes the
 // URL with bad signatures and drops it unless those get a 401 (PLAN §6.2).
 //
-// TODO(#10): route commands through the guild-kit registry in apps/api (Convex) once the gateway
-// can call it; `/vintage ping` answers locally for now.
+// Button clicks and modal submits (raid signups) are forwarded to Convex, which runs them through
+// the command registry (apps/api convex/http.ts → discord.ts). `/vintage ping` answers locally.
 import {
   discordTimestamp,
   type Interaction,
@@ -19,10 +19,44 @@ import {
 } from '@vintage/discord-kit';
 import { VINTAGE_COMMAND } from './commands';
 
+/** Where verified component and modal interactions go: the Convex HTTP route and its secret. */
+export interface ConvexForward {
+  /** The deployment's HTTP actions URL, e.g. https://<name>.convex.site. */
+  siteUrl: string;
+  secret: string;
+  fetch?: typeof fetch;
+}
+
 export interface InteractionHandlerOptions {
   /** The application's public key (hex), from the Discord Developer Portal. */
   publicKey: string;
+  /** Forward signup buttons and modals here. Without it they get a "not set up yet" reply. */
+  convex?: ConvexForward;
   now?: () => Date;
+}
+
+const TROUBLE = reply('Vintage could not reach its backend. Please try again in a minute.', {
+  ephemeral: true,
+});
+
+/** Send a verified component or modal interaction to Convex and return its response. */
+async function forward(convex: ConvexForward | undefined, interaction: Interaction) {
+  if (!convex) {
+    return reply('Signups from Discord are not set up yet.', { ephemeral: true });
+  }
+  try {
+    const url = `${convex.siteUrl.replace(/\/$/, '')}/gateway/interaction`;
+    const res = await (convex.fetch ?? fetch)(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${convex.secret}` },
+      body: JSON.stringify(interaction),
+    });
+    if (res.status === 404) return undefined;
+    if (!res.ok) return TROUBLE;
+    return (await res.json()) as InteractionResponse;
+  } catch {
+    return TROUBLE;
+  }
 }
 
 const json = (body: unknown, status = 200) =>
@@ -44,8 +78,18 @@ function parse(body: string): Interaction | undefined {
   }
 }
 
-function route(interaction: Interaction, now: Date): InteractionResponse | undefined {
+async function route(
+  interaction: Interaction,
+  now: Date,
+  convex: ConvexForward | undefined,
+): Promise<InteractionResponse | undefined> {
   if (interaction.type === InteractionType.PING) return pong();
+  if (
+    interaction.type === InteractionType.MESSAGE_COMPONENT ||
+    interaction.type === InteractionType.MODAL_SUBMIT
+  ) {
+    return forward(convex, interaction);
+  }
   if (
     interaction.type === InteractionType.APPLICATION_COMMAND &&
     interaction.data?.name === VINTAGE_COMMAND.name
@@ -58,6 +102,7 @@ function route(interaction: Interaction, now: Date): InteractionResponse | undef
 
 export function createInteractionHandler({
   publicKey,
+  convex,
   now = () => new Date(),
 }: InteractionHandlerOptions) {
   // Import once per instance. A malformed key is a deployment error: answer 500, don't crash.
@@ -76,7 +121,7 @@ export function createInteractionHandler({
     if (!valid) return problem(401, 'invalid request signature');
 
     const interaction = parse(body);
-    const response = interaction && route(interaction, now());
+    const response = interaction && (await route(interaction, now(), convex));
     return response ? json(response) : problem(400, 'unknown interaction');
   };
 }

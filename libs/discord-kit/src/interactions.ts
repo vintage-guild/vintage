@@ -1,6 +1,6 @@
 // Interaction payloads and the responses Discord accepts for them.
 // Only the fields Vintage reads are typed; everything else passes through untouched.
-import type { ActionRow } from './components';
+import { type ActionRow, actionRow, type TextInput } from './components';
 import type { Embed } from './embeds';
 
 export const InteractionType = {
@@ -18,6 +18,7 @@ export const InteractionResponseType = {
   DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE: 5,
   DEFERRED_UPDATE_MESSAGE: 6,
   UPDATE_MESSAGE: 7,
+  MODAL: 9,
 } as const;
 export type InteractionResponseType =
   (typeof InteractionResponseType)[keyof typeof InteractionResponseType];
@@ -73,6 +74,11 @@ export interface Interaction {
     custom_id?: string;
     component_type?: number;
     values?: string[];
+    /** Modal submits: one row per text input, each carrying its value. */
+    components?: {
+      type: number;
+      components: { type: number; custom_id: string; value?: string }[];
+    }[];
   };
   message?: { id: string };
 }
@@ -124,7 +130,11 @@ export type InteractionResponse =
       type: typeof InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE;
       data?: { flags?: number };
     }
-  | { type: typeof InteractionResponseType.DEFERRED_UPDATE_MESSAGE };
+  | { type: typeof InteractionResponseType.DEFERRED_UPDATE_MESSAGE }
+  | {
+      type: typeof InteractionResponseType.MODAL;
+      data: { custom_id: string; title: string; components: ActionRow[] };
+    };
 
 export interface ReplyOptions {
   /** Only the invoking user sees the message. */
@@ -164,4 +174,29 @@ export const deferUpdate = (): InteractionResponse => ({
 /** Edit the message a component is attached to, immediately (type 7). */
 export function updateMessage(data: MessageData): InteractionResponse {
   return { type: InteractionResponseType.UPDATE_MESSAGE, data };
+}
+
+/** Open a modal (type 9): the answer to a component or slash command, never to a modal submit. */
+export function modal(
+  customId: string,
+  title: string,
+  ...inputs: TextInput[]
+): InteractionResponse {
+  if (customId.length === 0 || customId.length > 100)
+    throw new Error('custom_id must be 1-100 characters');
+  if (title.length === 0 || title.length > 45) throw new Error('a modal title is 1-45 characters');
+  if (inputs.length === 0 || inputs.length > 5) throw new Error('a modal holds 1-5 text inputs');
+  return {
+    type: InteractionResponseType.MODAL,
+    data: { custom_id: customId, title, components: inputs.map((input) => actionRow(input)) },
+  };
+}
+
+/** The values a modal submit carried, by text input custom_id. */
+export function modalValues(interaction: Interaction): Record<string, string> {
+  const values: Record<string, string> = {};
+  for (const row of interaction.data?.components ?? []) {
+    for (const field of row.components) values[field.custom_id] = field.value ?? '';
+  }
+  return values;
 }

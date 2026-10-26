@@ -87,6 +87,19 @@ The role-sync cron does nothing until `DISCORD_BOT_TOKEN` and `DISCORD_GUILD_ID`
 Convex environment (`npx convex env set …` in `apps/api`). See the `vintage-discord` skill for
 how the pieces fit.
 
+### Signup buttons (gateway → Convex)
+
+The buttons on signup posts need the gateway deployed (Vercel) and pointed at Convex:
+
+1. Pick a long random secret. Set `VINTAGE_GATEWAY_SECRET` to it in the Convex env
+   (`npx convex env set …` in `apps/api`) and in Vercel.
+2. In Vercel also set `VINTAGE_CONVEX_SITE_URL` (the deployment's `https://<name>.convex.site`)
+   and `DISCORD_PUBLIC_KEY`.
+3. In the Developer Portal → General Information, set **Interactions Endpoint URL** to
+   `https://<gateway>/discord/interactions` and save. Discord checks it with a signed PING.
+
+Clicks from any server other than `DISCORD_GUILD_ID` get a private refusal.
+
 ### Coordinator (raid posts and reminders)
 
 The coordinator cron (every 5 minutes) does nothing until it knows where to post. Point it at

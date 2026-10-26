@@ -15,3 +15,4 @@ when they affect every contributor, in the Decisions table in [AGENTS.md](../../
 | Polls, votes, and surveys | active | [polls](active/polls/polls.plan.md) |
 | PR self-review (review lanes) | active | [pr-self-review](active/pr-self-review/pr-self-review.plan.md) |
 | Home page | active | [home-page](active/home-page/home-page.plan.md) |
+| Role-aware views and the officers' quarters | proposed | [role-aware-views](proposed/role-aware-views/role-aware-views.plan.md) |

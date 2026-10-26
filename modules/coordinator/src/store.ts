@@ -1,8 +1,15 @@
 import type { MessageData } from '@vintage/discord-kit';
-import { commandsFor } from '@vintage/guild-kit';
+import { type Caller, type CommandResult, commandsFor } from '@vintage/guild-kit';
 import type { GuildRank } from '@vintage/identity/contract';
-import type { RaidEvent, ScheduleTimings, Signup } from '@vintage/raids/contract';
-import type { ActionStatus, CoordinatorAction, CoordinatorConfig } from './contract';
+import type { Poll } from '@vintage/polls/contract';
+import type { RaidEvent, RaidSize, ScheduleTimings, Signup } from '@vintage/raids/contract';
+import type {
+  ActionStatus,
+  CoordinatorAction,
+  CoordinatorConfig,
+  RaidNight,
+  RaidNightOutcome,
+} from './contract';
 
 export interface ActionKey {
   guildId: string;
@@ -47,6 +54,15 @@ export interface CoordinatorStore {
     now: number,
   ): Promise<CoordinatorAction>;
   setRenderHash(guildId: string, actionId: string, renderHash: string): Promise<void>;
+
+  /** Oldest first. */
+  listRaidNights(guildId: string, filter?: { outcome?: RaidNightOutcome }): Promise<RaidNight[]>;
+  insertRaidNight(raidNight: Omit<RaidNight, 'id'>): Promise<RaidNight>;
+  updateRaidNight(
+    guildId: string,
+    raidNightId: string,
+    patch: Partial<Pick<RaidNight, 'outcome' | 'raidEventId' | 'detail'>>,
+  ): Promise<RaidNight>;
 }
 
 /** A guild member as the coordinator sees them. */
@@ -86,10 +102,25 @@ export interface TickScheduler {
   runTickNow(guildId: string): Promise<void>;
 }
 
+/**
+ * What the coordinator asks of polls. apps/api runs these as polls commands through the registry:
+ * `create` as the leader who asked (poll-create, then the post in Discord), `get` as the system.
+ * The coordinator never touches polls tables (PLAN §4.3).
+ */
+export interface CoordinatorPolls {
+  create(
+    caller: Caller,
+    input: Record<string, unknown>,
+    channelId: string | null,
+  ): Promise<CommandResult<Poll>>;
+  get(guildId: string, pollId: string): Promise<Poll | null>;
+}
+
 export interface CoordinatorDeps {
   coordinator: CoordinatorStore;
   tickSource: TickSource;
   scheduler: TickScheduler;
+  coordinatorPolls: CoordinatorPolls;
 }
 
 /** What a tick does to Discord. */
@@ -104,6 +135,22 @@ export interface CoordinatorDiscord {
 export interface CoordinatorRaids {
   materialize(guildId: string): Promise<void>;
   lock(guildId: string, eventId: string): Promise<void>;
+  /**
+   * raid-create as the system caller, and mark the raid night `created` with the new raid, in one
+   * transaction: a retry after a failure can never create the raid twice.
+   */
+  createForRaidNight(
+    guildId: string,
+    raidNightId: string,
+    raid: {
+      name: string;
+      instance: string;
+      size: RaidSize;
+      startsAt: number;
+      durationMinutes: number;
+    },
+    detail: string,
+  ): Promise<{ id: string }>;
 }
 
 /** Everything the tick executor needs (PLAN §6.1). */
@@ -112,6 +159,7 @@ export interface TickPorts {
   source: TickSource;
   raids: CoordinatorRaids;
   discord: CoordinatorDiscord;
+  polls: Pick<CoordinatorPolls, 'get'>;
 }
 
 export const command = commandsFor<CoordinatorDeps>();

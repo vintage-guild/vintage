@@ -14,6 +14,7 @@ import type { Caller, CommandResult } from '@vintage/guild-kit';
 import { systemCaller } from '@vintage/guild-kit';
 import { createMemoryIdentityDeps } from '@vintage/identity/testing';
 import { buildPollCard, renderPollPost } from '@vintage/polls/commands';
+import type { Poll } from '@vintage/polls/contract';
 import {
   createMemoryPollsStore,
   createRecordingEventSink as createPollEventSink,
@@ -87,6 +88,18 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
       listMembers: (g) => identity.listMembers(g),
     },
     pollEvents,
+    coordinatorPolls: {
+      // Like apps/api coordinatorPolls: poll-create as the leader, then the post goes up.
+      create: async (caller, input, channelId) => {
+        const result = (await registry.execute(
+          { name: 'poll-create', input, caller },
+          deps,
+        )) as CommandResult<Poll>;
+        if (result.success && channelId) await postPoll(result.data!.id, channelId);
+        return result;
+      },
+      get: (g, id) => polls.getPoll(g, id),
+    },
     progress: createMemoryProgressStore(),
   };
   const registry = testRegistry<VintageDeps>(commands, clock);
@@ -136,8 +149,18 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
           lock: async (_g, eventId) => {
             await ok(system, 'roster-lock', { eventId });
           },
+          createForRaidNight: async (g, raidNightId, raid, detail) => {
+            const created = await ok<{ id: string }>(system, 'raid-create', raid);
+            await coordinator.updateRaidNight(g, raidNightId, {
+              outcome: 'created',
+              raidEventId: created.id,
+              detail,
+            });
+            return { id: created.id };
+          },
         },
         discord,
+        polls: { get: (g, id) => polls.getPoll(g, id) },
       },
       GUILD,
       clock.now(),
@@ -233,6 +256,11 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     return renderPollPost(card);
   }
 
+  async function postPoll(pollId: string, channelId: string) {
+    const message = await renderPost(pollId);
+    if (message) pollPosts.set(pollId, { channelId, message });
+  }
+
   function pollInteract(discordId: string, interaction: Partial<Interaction>) {
     return handlePollInteraction(
       {
@@ -254,10 +282,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
             { name, input, caller, ...(confirmToken ? { confirmToken } : {}) },
             deps,
           ),
-        post: async (pollId, channelId) => {
-          const message = await renderPost(pollId);
-          if (message) pollPosts.set(pollId, { channelId, message });
-        },
+        post: postPoll,
         refresh: async (pollId) => {
           const posted = pollPosts.get(pollId);
           const message = await renderPost(pollId);

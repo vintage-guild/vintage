@@ -2,8 +2,15 @@
 // action. Every action is claimed in the store before it is sent, so two overlapping ticks can't
 // both send it, and re-running a tick sends nothing twice.
 import { DiscordRestError, type MessageData } from '@vintage/discord-kit';
+import type { Poll } from '@vintage/polls/contract';
+import type { CoordinatorConfig, RaidNight } from './contract';
 import { renderFinalRoster, renderSignupPost } from './domain/card';
 import { type PlannedAction, planTick } from './domain/plan';
+import {
+  decideRaidNight,
+  type RaidNightDecision,
+  renderRaidNightUnresolved,
+} from './domain/raid-night';
 import {
   hashMessage,
   renderDigest,
@@ -178,15 +185,107 @@ async function execute(
   }
 }
 
+type Settled = { status: 'sent' | 'skipped'; detail: string; messageId?: string | null };
+
+/** Act on one closed raid-night poll: make the raid, or tell officers why there isn't one. */
+async function settleRaidNight(
+  ports: TickPorts,
+  config: CoordinatorConfig,
+  night: RaidNight,
+  poll: Poll | null,
+  decision: Extract<RaidNightDecision, { kind: 'create' | 'unresolved' }>,
+): Promise<Settled> {
+  const { guildId } = config;
+  if (decision.kind === 'create') {
+    const raid = await ports.raids.createForRaidNight(
+      guildId,
+      night.id,
+      {
+        name: night.name,
+        instance: night.instance,
+        size: night.size,
+        startsAt: decision.startsAt,
+        durationMinutes: night.durationMinutes,
+      },
+      `created from the poll for ${decision.label}`,
+    );
+    return { status: 'sent', detail: `created raid ${raid.id} for ${decision.label}` };
+  }
+  const ops = config.opsChannelId;
+  const message = ops
+    ? await ports.discord.post(ops, renderRaidNightUnresolved(night, poll, decision.reason))
+    : null;
+  await ports.store.updateRaidNight(guildId, night.id, {
+    outcome: 'unresolved',
+    detail: decision.reason,
+  });
+  return message
+    ? { status: 'sent', detail: decision.reason, messageId: message.id }
+    : { status: 'skipped', detail: `${decision.reason}; no ops channel to tell` };
+}
+
+/**
+ * Settle raid-night polls that have closed: the winner becomes a raid, anything else is reported
+ * to the ops channel. Claimed per poll like every action, so a raid is never created twice.
+ */
+async function resolveRaidNights(
+  ports: TickPorts,
+  config: CoordinatorConfig,
+  now: number,
+): Promise<TickOutcome[]> {
+  const { guildId } = config;
+  const outcomes: TickOutcome[] = [];
+  for (const night of await ports.store.listRaidNights(guildId, { outcome: 'pending' })) {
+    const poll = await ports.polls.get(guildId, night.pollId);
+    const decision = decideRaidNight(poll, now);
+    if (decision.kind === 'wait') continue;
+    if (decision.kind === 'cancelled') {
+      await ports.store.updateRaidNight(guildId, night.id, {
+        outcome: 'cancelled',
+        detail: 'the poll was cancelled',
+      });
+      continue;
+    }
+    const key = { guildId, eventId: night.pollId, rule: 'raid-night', target: night.pollId };
+    const claimed = await ports.store.claimAction(key, now, CLAIM_STALE_MS);
+    if (!claimed) {
+      outcomes.push({ ...key, status: 'busy' });
+      continue;
+    }
+    try {
+      const done = await settleRaidNight(ports, config, night, poll, decision);
+      await ports.store.completeAction(
+        guildId,
+        claimed.action.id,
+        { status: done.status, discordMessageId: done.messageId ?? null, detail: done.detail },
+        now,
+      );
+      outcomes.push({ ...key, status: done.status, detail: done.detail });
+    } catch (err) {
+      const detail = describe(err);
+      await ports.store.completeAction(
+        guildId,
+        claimed.action.id,
+        { status: 'failed', detail },
+        now,
+      );
+      outcomes.push({ ...key, status: 'failed', detail });
+    }
+  }
+  return outcomes;
+}
+
 export async function runTick(ports: TickPorts, guildId: string, now: number): Promise<TickReport> {
   const config = await ports.store.getConfig(guildId);
   if (config.paused) return { skipped: 'paused', outcomes: [] };
   if (!config.signupChannelId) return { skipped: 'no signup channel configured', outcomes: [] };
 
+  // Raid nights first, so a raid made from a poll gets its signup post in this same tick.
+  const settled = await resolveRaidNights(ports, config, now);
   await ports.raids.materialize(guildId);
   const state = await ports.source.load(guildId, now);
   const plan = planTick(state, now, (tick) => hashMessage(renderSignupPost(tick, state.members)));
-  const outcomes: TickOutcome[] = [];
+  const outcomes: TickOutcome[] = [...settled];
   // In order: a raid's post goes out before its reminders, the lock before the final roster.
   for (const action of plan) {
     outcomes.push(

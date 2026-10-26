@@ -28,7 +28,7 @@ type Ctx = Parameters<typeof identityStore>[0];
 const deps = (ctx: Ctx): VintageDeps => ({
   ...identityDeps(ctx),
   ...raidsDeps(ctx),
-  ...coordinatorDeps(ctx),
+  ...coordinatorDeps(ctx, (caller, name, input) => runAs(ctx, caller, { name, input })),
   ...pollsDeps(ctx),
   ...progressDeps(ctx),
 });

@@ -28,6 +28,27 @@ export const configFields = {
   updatedAt: v.number(),
 };
 
+export const raidNightOutcome = v.union(
+  v.literal('pending'),
+  v.literal('created'),
+  v.literal('unresolved'),
+  v.literal('cancelled'),
+);
+
+export const raidNightFields = {
+  guildId: v.string(),
+  pollId: v.string(),
+  name: v.string(),
+  instance: v.string(),
+  size: v.union(v.literal(10), v.literal(20), v.literal(40)),
+  durationMinutes: v.number(),
+  createdBy: v.string(),
+  createdAt: v.number(),
+  outcome: raidNightOutcome,
+  raidEventId: v.union(v.string(), v.null()),
+  detail: v.union(v.string(), v.null()),
+};
+
 export default defineSchema({
   /** One row per guild; missing means the defaults. */
   config: defineTable(configFields).index('by_guild', ['guildId']),
@@ -47,4 +68,6 @@ export default defineSchema({
     .index('by_guild_event', ['guildId', 'eventId'])
     .index('by_key', ['guildId', 'eventId', 'rule', 'target'])
     .index('by_guild_claimed', ['guildId', 'claimedAt']),
+  /** Raid-night polls (#64): the raid to create when its poll picks a time. */
+  raidNights: defineTable(raidNightFields).index('by_guild_outcome', ['guildId', 'outcome']),
 });

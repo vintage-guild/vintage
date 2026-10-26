@@ -211,11 +211,11 @@ already in the invite). It would need **Send Polls** only for the native mirror 
 about Thursday?` is `poll-list` + `poll-results`. An officer can create a poll from Claude; a
 member's agent can only vote as that member.
 
-## Integrations worth designing for (not building yet)
+## Integrations
 
 | Flow | How it uses polls |
 |---|---|
-| **Pick a raid night** | Coordinator creates a `raid-night` poll with candidate start times as options; on `poll-closed` it calls `raid-create` with the winner. Options carry an `instant` so the coordinator doesn't parse labels |
+| **Pick a raid night** ✅ (#64) | `raid-night-poll` (coordinator) creates a `raid-night` poll of start times; each option's `value` is the instant, so nothing parses labels. The coordinator tick reads closed ones (the event bus has no subscribers yet) and runs `raid-create` with the winner; a tie, a missed quorum, or no votes goes to the ops channel |
 | **Officer votes** | `eligibleTier: 'officer'`, anonymous, `after-close`, quorum; posted to the officer channel. Promotions (recruit → raider) and policy changes |
 | **Loot council** | `loot` asks `polls` (via contract) for a poll over the candidate characters for a drop, tagged `loot-council`; the award command reads the result. Keeps voting logic out of `loot` |
 | **Post-raid feedback** | On `raid-completed`, open a short survey (v2) and summarize it in the officer digest |
@@ -263,4 +263,5 @@ them; only #2 is costly to change once votes exist.
 - [x] `render/discord.ts` with tests; `/vintage poll create` (slash options, no modal), vote buttons, select, close with confirm (#62)
 - [x] Poster in `apps/api/convex/pollPosts.ts`: post, debounced refresh, final render; the sweep also refreshes open posts (#62)
 - [ ] `ui-kit` poll card + `apps/web` `/polls` routes (after sign-in #7)
+- [x] Raid-night picker in the coordinator: `raid-night-poll`, settled by the tick (#64)
 - [x] Docs: module `AGENTS.md`, architecture table row, this plan → `active/` (#59)

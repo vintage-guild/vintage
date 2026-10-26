@@ -6,6 +6,7 @@ import type { TickEvent, TickMember, TickPorts } from '../src/store';
 import {
   buttonLabels,
   createFakeDiscord,
+  createFakePolls,
   createFakeRaids,
   createMemoryCoordinatorStore,
   createStateSource,
@@ -109,6 +110,7 @@ describe('runTick', () => {
       store,
       raids,
       discord,
+      polls: createFakePolls(),
       source: createStateSource(() => ({ guildId: G, events: events(), members: MEMBERS }), store),
     };
     await store.setConfig(G, { signupChannelId: SIGNUPS, opsChannelId: OPS }, 0);

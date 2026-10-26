@@ -1,8 +1,15 @@
 import { type LayoutComponent, layoutText, type MessageData } from '@vintage/discord-kit';
-import { type CoordinatorAction, type CoordinatorConfig, defaultConfig } from './contract';
+import type { Poll } from '@vintage/polls/contract';
+import {
+  type CoordinatorAction,
+  type CoordinatorConfig,
+  defaultConfig,
+  type RaidNight,
+} from './contract';
 import type {
   CoordinatorDeps,
   CoordinatorDiscord,
+  CoordinatorPolls,
   CoordinatorRaids,
   CoordinatorStore,
   TickSource,
@@ -13,14 +20,17 @@ import type {
 export function createMemoryCoordinatorStore(): CoordinatorStore & {
   configs: Map<string, CoordinatorConfig>;
   actions: Map<string, CoordinatorAction>;
+  raidNights: Map<string, RaidNight>;
 } {
   const configs = new Map<string, CoordinatorConfig>();
   const actions = new Map<string, CoordinatorAction>();
+  const raidNights = new Map<string, RaidNight>();
   let seq = 0;
 
   return {
     configs,
     actions,
+    raidNights,
     async getConfig(guildId) {
       return configs.get(guildId) ?? defaultConfig(guildId);
     },
@@ -88,6 +98,23 @@ export function createMemoryCoordinatorStore(): CoordinatorStore & {
       const current = actions.get(actionId);
       if (current && current.guildId === guildId) actions.set(actionId, { ...current, renderHash });
     },
+    async listRaidNights(guildId, filter = {}) {
+      return [...raidNights.values()]
+        .filter((n) => n.guildId === guildId && (!filter.outcome || n.outcome === filter.outcome))
+        .sort((a, b) => a.createdAt - b.createdAt);
+    },
+    async insertRaidNight(input) {
+      const night = { ...input, id: `night_${++seq}` };
+      raidNights.set(night.id, night);
+      return night;
+    },
+    async updateRaidNight(guildId, raidNightId, patch) {
+      const current = raidNights.get(raidNightId);
+      if (!current || current.guildId !== guildId) throw new Error('raid night not found');
+      const next = { ...current, ...patch };
+      raidNights.set(raidNightId, next);
+      return next;
+    },
   };
 }
 
@@ -131,13 +158,33 @@ export function createFakeDiscord(): CoordinatorDiscord & {
   return fake;
 }
 
-/** Records materialize/lock calls; `onLock` lets a test change the state like raids would. */
-export function createFakeRaids(onLock?: (eventId: string) => void): CoordinatorRaids & {
+/**
+ * Records materialize/lock/create calls; `onLock` lets a test change the state like raids would.
+ * `createForRaidNight` marks the night in `store`, like the one Convex mutation does.
+ */
+export function createFakeRaids(
+  onLock?: (eventId: string) => void,
+  store?: CoordinatorStore,
+): CoordinatorRaids & {
   calls: string[];
+  created: { id: string; name: string; startsAt: number }[];
 } {
   const calls: string[] = [];
+  const created: { id: string; name: string; startsAt: number }[] = [];
   return {
     calls,
+    created,
+    async createForRaidNight(guildId, raidNightId, raid, detail) {
+      const id = `raid_${created.length + 1}`;
+      created.push({ id, name: raid.name, startsAt: raid.startsAt });
+      calls.push(`create:${raid.name}`);
+      await store?.updateRaidNight(guildId, raidNightId, {
+        outcome: 'created',
+        raidEventId: id,
+        detail,
+      });
+      return { id };
+    },
     async materialize() {
       calls.push('materialize');
     },
@@ -167,10 +214,64 @@ export function createStateSource(
   };
 }
 
+/**
+ * A polls port over plain Poll objects. `create` makes an open poll (options o1, o2, …) and
+ * remembers the channel; tests close one by editing `polls` the way polls would.
+ */
+export function createFakePolls(): CoordinatorPolls & {
+  polls: Map<string, Poll>;
+  posted: { pollId: string; channelId: string | null }[];
+} {
+  const polls = new Map<string, Poll>();
+  const posted: { pollId: string; channelId: string | null }[] = [];
+  return {
+    polls,
+    posted,
+    async create(caller, input, channelId) {
+      const options = (input.options as { label: string; value: string }[]).map((o, i) => ({
+        id: `o${i + 1}`,
+        label: o.label,
+        emoji: null,
+        value: o.value,
+      }));
+      const poll: Poll = {
+        id: `poll_${polls.size + 1}`,
+        guildId: caller.guildId,
+        question: String(input.question),
+        description: (input.description as string | undefined) ?? null,
+        options,
+        method: 'single',
+        maxChoices: null,
+        eligibleTier: (input.eligibleTier as Poll['eligibleTier']) ?? 'raider',
+        anonymous: false,
+        resultsVisible: 'live',
+        quorum: (input.quorum as number | null) ?? null,
+        status: 'open',
+        opensAt: null,
+        closesAt: (input.closesAt as number) ?? null,
+        createdBy: caller.memberId ?? caller.surface,
+        closedBy: null,
+        createdAt: 0,
+        closedAt: null,
+        tags: (input.tags as string[]) ?? [],
+        configVersion: 1,
+        results: null,
+      };
+      polls.set(poll.id, poll);
+      posted.push({ pollId: poll.id, channelId });
+      return { success: true, data: poll };
+    },
+    async get(_guildId, pollId) {
+      return polls.get(pollId) ?? null;
+    },
+  };
+}
+
 export function createMemoryCoordinatorDeps(
   state: () => Omit<TickState, 'actions' | 'config'>,
 ): CoordinatorDeps & {
   coordinator: ReturnType<typeof createMemoryCoordinatorStore>;
+  coordinatorPolls: ReturnType<typeof createFakePolls>;
   ticks: string[];
 } {
   const coordinator = createMemoryCoordinatorStore();
@@ -179,6 +280,7 @@ export function createMemoryCoordinatorDeps(
     coordinator,
     ticks,
     tickSource: createStateSource(state, coordinator),
+    coordinatorPolls: createFakePolls(),
     scheduler: {
       runTickNow: async (guildId) => {
         ticks.push(guildId);

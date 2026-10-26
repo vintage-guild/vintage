@@ -102,4 +102,50 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         Name
       >;
     };
+    raidNights: {
+      insert: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          createdAt: number;
+          createdBy: string;
+          detail: string | null;
+          durationMinutes: number;
+          guildId: string;
+          instance: string;
+          name: string;
+          outcome: "pending" | "created" | "unresolved" | "cancelled";
+          pollId: string;
+          raidEventId: string | null;
+          size: 10 | 20 | 40;
+        },
+        any,
+        Name
+      >;
+      list: FunctionReference<
+        "query",
+        "internal",
+        {
+          guildId: string;
+          outcome?: "pending" | "created" | "unresolved" | "cancelled";
+        },
+        any,
+        Name
+      >;
+      update: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          guildId: string;
+          patch: {
+            detail?: string | null;
+            outcome?: "pending" | "created" | "unresolved" | "cancelled";
+            raidEventId?: string | null;
+          };
+          raidNightId: string;
+        },
+        any,
+        Name
+      >;
+    };
   };

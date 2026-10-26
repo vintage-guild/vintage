@@ -43,7 +43,9 @@ and posts the final roster and addon import string. Maturity: **core**.
   A member who doesn't accept DMs (Discord 50007) is logged as skipped.
 - Raids work goes through raids **commands** with the system caller (`schedule-materialize`,
   `roster-lock`), never raids tables.
-- **Cards are embeds with three inline role columns** (Components V2 can't do columns). Each
+- **Cards are embeds with three inline role columns** (Components V2 can't do columns), each
+  headed by an outline role icon (`head_tank`, `head_healer`, `head_dps`). The description is
+  the time, the lock and size as `-#` subtext, then the status counts spaced with em spaces. Each
   column shows up to `COLUMN_CAP` names then "+N more", so a 40-person card keeps its height; the
   **Roster** button (`roster:<eventId>`) shows everyone privately. `tests/card.test.ts` checks a
   full raid against Discord's embed limits. Icons are the app's own emoji (`emoji('status_late')`,

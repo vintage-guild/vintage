@@ -59,5 +59,8 @@
   "status_out": "file:assets/emoji/status_out.png",
   "status_queued": "file:assets/emoji/status_queued.png",
   "status_standby": "file:assets/emoji/status_standby.png",
-  "status_tentative": "file:assets/emoji/status_tentative.png"
+  "status_tentative": "file:assets/emoji/status_tentative.png",
+  "head_tank": "file:assets/emoji/head_tank.png",
+  "head_healer": "file:assets/emoji/head_healer.png",
+  "head_dps": "file:assets/emoji/head_dps.png"
 }

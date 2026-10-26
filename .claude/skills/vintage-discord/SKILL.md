@@ -59,6 +59,12 @@ commands). Everything runs serverless: no always-on gateway process.
   regenerates `modules/coordinator/src/domain/emoji-ids.ts`. Blizzard's icons are never committed.
 - **Raid cards are embeds** (three role columns; Components V2 has no columns). V2 builders exist
   in discord-kit (`layout.ts`) for messages that don't need columns.
+- **Embed text quirks:** custom emoji render in field names (the column headers' role icons);
+  `-# ` subtext works in descriptions; repeated spaces collapse, so space inline items with an em
+  space (U+2003); a zero-width space (U+200B) makes an empty line or an empty field name. Biome
+  rewrites `' '` escapes into invisible literals, so build them with `String.fromCharCode`.
+- **Preview a layout before shipping it:** post a throwaway embed to the ops channel with the bot
+  token (`node --env-file=apps/api/.env.local`), screenshot it, then delete it.
 - **Our own emoji art:** `scripts/build-emoji-art.mjs` renders Tabler outline icons (MIT) and class
   squares into `assets/emoji/`; list new ones in `scripts/discord-emojis.json` as `file:` entries.
 - **The app is public** (decided 2026-10-25, so the GM can add it). Anyone can add it to their

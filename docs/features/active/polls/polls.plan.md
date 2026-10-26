@@ -1,6 +1,6 @@
 # Polls — guild polls, votes, and surveys
 
-> Status: proposed · Owner: Bloodfen · Requested by the GM (2026-10-25)
+> Status: active · Owner: Bloodfen · Requested by the GM (2026-10-25) · Epic vintage-guild/vintage#56
 > Related: [PLAN.md §3.3](../../../../PLAN.md) (command surface), §4.2 (module anatomy), §6 (coordinator)
 
 **The ask.** "Will it have different modules per set of functionality? I may add some
@@ -82,6 +82,8 @@ through `PollsMembers` (tier and rank for eligibility, display names for public 
 Discord renderer is pure TypeScript on `libs/discord-kit` so it's snapshot-tested without a bot.
 
 ### Entities
+
+The sketch below is the original design. `modules/polls/src/contract.ts` is the source of truth; it adds `PollOption.value` (opaque data for the feature that made the poll), `createdAt`, `closedAt`, and the frozen `results` on `Poll`, and names the post field `renderedKey`.
 
 ```ts
 interface Poll {
@@ -239,9 +241,12 @@ Trade-offs to state up front: website is read-only for native polls, no tier gat
 anonymity, no edits, counts lag by the sweep interval, and the bot needs **Send Polls**. This is
 a rendering strategy on the same `Poll`, so nothing above changes.
 
-## Decisions to make
+## Decisions
 
-| # | Question | Default if unanswered |
+Adopted 2026-10-25: Bloodfen took the defaults so work can start. The GM can revisit any of
+them; only #2 is costly to change once votes exist.
+
+| # | Question | Decision |
 |---|---|---|
 | 1 | Who may create polls: raiders, or leaders only? | `raider` creates for `raider+` audiences; `leader` to target `member`/`recruit` or officer-only |
 | 2 | Is "anonymous through every surface" enough, or do officer votes need a secret ballot (`voterKey`)? | Surface-level anonymity; `secretBallot` flag held in reserve |
@@ -249,13 +254,13 @@ a rendering strategy on the same `Poll`, so nothing above changes.
 | 4 | Is a plain components poll acceptable, or does the GM want Discord's native look for casual polls? | Components first; native mirror if asked |
 | 5 | Which integration first: raid-night picker, officer votes, or feedback survey? | Raid-night picker (uses the coordinator the GM already asked for) |
 
-## Tasks (when accepted)
+## Tasks
 
-- [ ] `vintagebot module-new polls`; contract, store port, memory store
-- [ ] `domain/tally.ts` with tests for single, multi, ranked (including ties and quorum)
+- [x] `vintagebot module-new polls`; contract, store port, memory store (#59)
+- [x] `domain/tally.ts` with tests for single, multi, ranked (including ties and quorum) (#59)
 - [ ] Commands + manifest; destructive confirm flow for `poll-close` / `poll-cancel`
 - [ ] Convex component (`polls`, `votes`, `pollPosts`), adapters in `apps/api`, `poll-sweep` cron
 - [ ] `render/discord.ts` with snapshot tests; gateway routes for `/vintage poll …`, buttons, select, modal
 - [ ] Poster action in `apps/api`: post, debounced refresh, final render
 - [ ] `ui-kit` poll card + `apps/web` `/polls` routes (after sign-in #7)
-- [ ] Docs: module `AGENTS.md`, architecture table row, this plan → `active/`
+- [x] Docs: module `AGENTS.md`, architecture table row, this plan → `active/` (#59)

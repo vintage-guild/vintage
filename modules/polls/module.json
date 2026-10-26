@@ -1,0 +1,7 @@
+{
+  "name": "polls",
+  "maturity": "official",
+  "owners": ["@Falkicon"],
+  "dependsOn": ["identity"],
+  "description": "Polls, ballots, and tallies shared by Discord, the website, and MCP (docs/features/active/polls)."
+}

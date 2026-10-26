@@ -80,7 +80,7 @@ const template = html<Page>`
           <h2 id="open-title">Open</h2>
           ${when(
             (x) => x.loaded && x.open.length === 0,
-            html`<p class="muted">No open polls. Raid leaders open one with /vintage poll create in Discord.</p>`,
+            html`<p class="muted">No open polls. Raid leaders open one with /random poll create in Discord.</p>`,
           )}
           <div class="cards">${repeat((x) => x.open, card)}</div>
         </section>

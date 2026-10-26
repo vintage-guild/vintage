@@ -22,6 +22,7 @@
     "@vintage/discord-kit": "workspace:*",
     "@vintage/guild-kit": "workspace:*",
     "@vintage/identity": "workspace:*",
+    "@vintage/polls": "workspace:*",
     "@vintage/raids": "workspace:*",
     "@vintage/wow-data": "workspace:*",
     "convex": "catalog:",

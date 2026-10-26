@@ -10,6 +10,7 @@
 
 import type * as actions from "../actions.js";
 import type * as config from "../config.js";
+import type * as raidNights from "../raidNights.js";
 
 import type {
   ApiFromModules,
@@ -21,6 +22,7 @@ import { anyApi, componentsGeneric } from "convex/server";
 const fullApi: ApiFromModules<{
   actions: typeof actions;
   config: typeof config;
+  raidNights: typeof raidNights;
 }> = anyApi as any;
 
 /**

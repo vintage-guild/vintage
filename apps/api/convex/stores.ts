@@ -3,9 +3,11 @@
 
 import type { CoordinatorDeps, CoordinatorStore, TickSource } from '@vintage/coordinator/commands';
 import { type CoordinatorConfig, defaultConfig } from '@vintage/coordinator/contract';
+import type { Caller, CommandResult } from '@vintage/guild-kit';
 import type { IdentityDeps, IdentityStore } from '@vintage/identity/commands';
 import type { Character, GuildRank, Member, RoleRankMap } from '@vintage/identity/contract';
 import type { PollsDeps, PollsEventSink, PollsStore } from '@vintage/polls/commands';
+import type { Poll } from '@vintage/polls/contract';
 import type { ProgressDeps, ProgressStore } from '@vintage/progress/commands';
 import type { RaidsDeps, RaidsEventSink, RaidsStore } from '@vintage/raids/commands';
 import type { Signup } from '@vintage/raids/contract';
@@ -258,6 +260,12 @@ export function coordinatorStore(ctx: Ctx): CoordinatorStore {
         renderHash,
       });
     },
+    listRaidNights: (guildId, filter = {}) =>
+      ctx.runQuery(coordinator.raidNights.list, { guildId, ...filter }),
+    insertRaidNight: (raidNight) =>
+      writable(ctx).runMutation(coordinator.raidNights.insert, raidNight),
+    updateRaidNight: (guildId, raidNightId, patch) =>
+      writable(ctx).runMutation(coordinator.raidNights.update, { guildId, raidNightId, patch }),
   };
 }
 
@@ -272,15 +280,48 @@ export function tickSource(ctx: Ctx): TickSource {
 
 // Referenced by name to avoid a type cycle between this file and the generated api.
 const tickNow = makeFunctionReference<'action', Record<string, never>>('coordinator:tick');
+const postPoll = makeFunctionReference<'action', { pollId: string; channelId: string }>(
+  'pollPosts:post',
+);
 
-export function coordinatorDeps(ctx: Ctx): CoordinatorDeps {
+/** Runs a command through the registry as a caller; commands.ts passes it in (no import cycle). */
+export type RunCommand = (
+  caller: Caller,
+  name: string,
+  input: unknown,
+) => Promise<CommandResult<unknown>>;
+
+/** Starts a coordinator tick outside the current transaction. */
+export function coordinatorScheduler(ctx: Ctx): CoordinatorDeps['scheduler'] {
+  return {
+    runTickNow: async () => {
+      await writable(ctx).scheduler.runAfter(0, tickNow, {});
+    },
+  };
+}
+
+/**
+ * Polls as the coordinator sees them: `create` runs poll-create as the leader through the
+ * registry and puts the post up; `get` reads the poll like tickSource reads raids.
+ */
+export function coordinatorPolls(ctx: Ctx, run: RunCommand): CoordinatorDeps['coordinatorPolls'] {
+  return {
+    create: async (caller, input, channelId) => {
+      const result = (await run(caller, 'poll-create', input)) as CommandResult<Poll>;
+      if (result.success && channelId) {
+        await writable(ctx).scheduler.runAfter(0, postPoll, { pollId: result.data!.id, channelId });
+      }
+      return result;
+    },
+    get: (guildId, pollId) => pollsStore(ctx).getPoll(guildId, pollId),
+  };
+}
+
+export function coordinatorDeps(ctx: Ctx, run: RunCommand): CoordinatorDeps {
   return {
     coordinator: coordinatorStore(ctx),
     tickSource: tickSource(ctx),
-    scheduler: {
-      runTickNow: async () => {
-        await writable(ctx).scheduler.runAfter(0, tickNow, {});
-      },
-    },
+    scheduler: coordinatorScheduler(ctx),
+    coordinatorPolls: coordinatorPolls(ctx, run),
   };
 }

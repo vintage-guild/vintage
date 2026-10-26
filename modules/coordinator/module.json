@@ -2,6 +2,6 @@
   "name": "coordinator",
   "maturity": "core",
   "owners": ["@Falkicon"],
-  "dependsOn": ["raids", "identity"],
+  "dependsOn": ["raids", "identity", "polls"],
   "description": "The autonomous raid coordinator loop: post, remind, digest, lock, announce (PLAN §6)."
 }

@@ -30,3 +30,14 @@ answer with one click, **so I can** see the answer without counting replies.
 - [ ] Close poll shows the creator a private preview of the result and a Close it button; confirming
   marks the winner on the post and removes the buttons. A late click is refused.
 - [ ] Someone who didn't create the poll and doesn't lead raids can't close it.
+
+### J18 · Pick the raid night by vote
+**When** a one-off raid could go on a few nights, **I (raid leader) want** the raid to vote and
+the winner to become the raid, **so I can** skip counting replies and copying dates.
+- [ ] `raid-night-poll` (raid leader) posts a poll of the start times in the signup channel, each
+  labelled in New York time, with every reader's local time in the description. A raider can't
+  start one.
+- [ ] Raiders vote from the post. Once the poll closes, the next tick creates the raid at the
+  winning time and posts its signup message; another tick never makes a second raid.
+- [ ] A tie, a missed quorum, or no votes creates nothing and tells the ops channel why, with
+  what to do next.

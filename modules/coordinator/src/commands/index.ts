@@ -5,11 +5,13 @@ import { renderSignupPost } from '../domain/card';
 import { planTick } from '../domain/plan';
 import { hashMessage } from '../domain/render';
 import { command } from '../store';
+import { raidNightPoll } from './raid-night';
 
 export { renderRosterReply } from '../domain/card';
 export type {
   CoordinatorDeps,
   CoordinatorDiscord,
+  CoordinatorPolls,
   CoordinatorRaids,
   CoordinatorStore,
   TickEvent,
@@ -176,4 +178,5 @@ export const coordinatorCommands = [
   coordinatorConfigSet,
   coordinatorLog,
   coordinatorRepost,
+  raidNightPoll,
 ] as const;

@@ -11,7 +11,7 @@ import { internal } from './_generated/api';
 import { internalMutation } from './_generated/server';
 import { GUILD_ID, runCommandAs } from './commands';
 import { REFRESH_DELAY_MS } from './pollPosts';
-import { coordinatorDeps, identityStore, raidsStore } from './stores';
+import { coordinatorScheduler, identityStore, raidsStore } from './stores';
 
 export const interaction = internalMutation({
   args: { interaction: v.any() },
@@ -34,7 +34,7 @@ export const interaction = internalMutation({
       // The registry's results are untyped at this boundary; signup-set returns a Signup.
       signupSet: (caller: Caller, input) =>
         runCommandAs(ctx, caller, 'signup-set', input) as Promise<CommandResult<Signup>>,
-      afterChange: () => coordinatorDeps(ctx).scheduler.runTickNow(GUILD_ID),
+      afterChange: () => coordinatorScheduler(ctx).runTickNow(GUILD_ID),
     });
     if (signup) return signup;
 

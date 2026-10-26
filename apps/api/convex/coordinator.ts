@@ -8,7 +8,7 @@ import { v } from 'convex/values';
 import { internal } from './_generated/api';
 import { internalAction, internalMutation, internalQuery } from './_generated/server';
 import { GUILD_ID, runSystemCommand } from './commands';
-import { coordinatorStore, tickSource } from './stores';
+import { coordinatorStore, pollsStore, tickSource } from './stores';
 
 export const state = internalQuery({
   args: { guildId: v.string(), now: v.number() },
@@ -27,6 +27,58 @@ export const materialize = internalMutation({
     const result = await runSystemCommand(ctx, 'schedule-materialize', {});
     if (!result.success) throw new Error(`schedule-materialize failed: ${result.error?.message}`);
   },
+});
+
+/**
+ * A raid night's poll picked a time: create the raid as the system caller and mark the night
+ * `created` in the same transaction, so a retried tick can never create it twice.
+ */
+export const createForRaidNight = internalMutation({
+  args: {
+    guildId: v.string(),
+    raidNightId: v.string(),
+    raid: v.object({
+      name: v.string(),
+      instance: v.string(),
+      size: v.union(v.literal(10), v.literal(20), v.literal(40)),
+      startsAt: v.number(),
+      durationMinutes: v.number(),
+    }),
+    detail: v.string(),
+  },
+  handler: async (ctx, { guildId, raidNightId, raid, detail }) => {
+    const result = await runSystemCommand(ctx, 'raid-create', raid);
+    if (!result.success) throw new Error(`raid-create failed: ${result.error?.message}`);
+    const { id } = result.data as { id: string };
+    await coordinatorStore(ctx).updateRaidNight(guildId, raidNightId, {
+      outcome: 'created',
+      raidEventId: id,
+      detail,
+    });
+    return { id };
+  },
+});
+
+export const raidNights = internalQuery({
+  args: { guildId: v.string() },
+  handler: (ctx, { guildId }) =>
+    coordinatorStore(ctx).listRaidNights(guildId, { outcome: 'pending' }),
+});
+
+export const updateRaidNight = internalMutation({
+  args: {
+    guildId: v.string(),
+    raidNightId: v.string(),
+    outcome: v.union(v.literal('cancelled'), v.literal('unresolved')),
+    detail: v.string(),
+  },
+  handler: (ctx, { guildId, raidNightId, outcome, detail }) =>
+    coordinatorStore(ctx).updateRaidNight(guildId, raidNightId, { outcome, detail }),
+});
+
+export const poll = internalQuery({
+  args: { guildId: v.string(), pollId: v.string() },
+  handler: (ctx, { guildId, pollId }) => pollsStore(ctx).getPoll(guildId, pollId),
 });
 
 export const lock = internalMutation({
@@ -123,6 +175,22 @@ export const tick = internalAction({
               renderHash,
             });
           },
+          listRaidNights: (guildId) => ctx.runQuery(internal.coordinator.raidNights, { guildId }),
+          insertRaidNight: () => Promise.reject(new Error('a tick never starts a raid-night poll')),
+          updateRaidNight: (guildId, raidNightId, patch) => {
+            if (patch.outcome !== 'cancelled' && patch.outcome !== 'unresolved') {
+              return Promise.reject(new Error('a tick only cancels or unresolves a raid night'));
+            }
+            return ctx.runMutation(internal.coordinator.updateRaidNight, {
+              guildId,
+              raidNightId,
+              outcome: patch.outcome,
+              detail: patch.detail ?? '',
+            });
+          },
+        },
+        polls: {
+          get: (guildId, pollId) => ctx.runQuery(internal.coordinator.poll, { guildId, pollId }),
         },
         source: {
           load: (guildId, now) => ctx.runQuery(internal.coordinator.state, { guildId, now }),
@@ -134,6 +202,13 @@ export const tick = internalAction({
           lock: async (_guildId, eventId) => {
             await ctx.runMutation(internal.coordinator.lock, { eventId });
           },
+          createForRaidNight: (guildId, raidNightId, raid, detail) =>
+            ctx.runMutation(internal.coordinator.createForRaidNight, {
+              guildId,
+              raidNightId,
+              raid,
+              detail,
+            }),
         },
         discord: discordPorts(token),
       },

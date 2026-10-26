@@ -1,6 +1,7 @@
 // Public surface of the coordinator module. Other modules import only this file.
 
 import type { GuildRank } from '@vintage/identity/contract';
+import type { RaidSize } from '@vintage/raids/contract';
 
 /** Guild-wide coordinator settings. Timings live on each raids schedule (PLAN §6.2). */
 export interface CoordinatorConfig {
@@ -71,8 +72,42 @@ export const COORDINATOR_COMMANDS = [
   'coordinator-run',
   'coordinator-config-set',
   'coordinator-log',
+  'coordinator-repost',
+  'raid-night-poll',
 ] as const;
 export type CoordinatorCommandName = (typeof COORDINATOR_COMMANDS)[number];
+
+/** The polls tag the coordinator owns: polls it opened to pick a raid night. */
+export const RAID_NIGHT_TAG = 'raid-night';
+
+export const RAID_NIGHT_OUTCOMES = ['pending', 'created', 'unresolved', 'cancelled'] as const;
+/**
+ * `pending` until its poll closes; then `created` (the winning time became a raid),
+ * `unresolved` (a tie, no quorum, no votes, or the time had passed; officers are told), or
+ * `cancelled` (the poll was cancelled).
+ */
+export type RaidNightOutcome = (typeof RAID_NIGHT_OUTCOMES)[number];
+
+/**
+ * A raid-night poll: the raid to create once members pick a time. The poll holds the candidate
+ * start times (each option's `value`); this holds everything else about the raid.
+ */
+export interface RaidNight {
+  id: string;
+  guildId: string;
+  pollId: string;
+  name: string;
+  instance: string;
+  size: RaidSize;
+  durationMinutes: number;
+  createdBy: string;
+  createdAt: number;
+  outcome: RaidNightOutcome;
+  /** The raid created from the winner, once `created`. */
+  raidEventId: string | null;
+  /** Why it ended the way it did, in words, once resolved. */
+  detail: string | null;
+}
 
 /** Events the coordinator emits on the core event bus (PLAN §4.3). None yet. */
 export type CoordinatorEvents = Record<never, never>;

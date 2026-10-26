@@ -14,6 +14,7 @@ import { type IdentityDeps, identityCommands } from '@vintage/identity/commands'
 import type { GuildRank, Member, RoleRankMap } from '@vintage/identity/contract';
 import { createMemoryIdentityDeps } from '@vintage/identity/testing';
 import { type PollsDeps, pollsCommands } from '@vintage/polls/commands';
+import type { Poll } from '@vintage/polls/contract';
 import {
   createMemoryPollsStore,
   createRecordingEventSink as createPollsEventSink,
@@ -86,6 +87,7 @@ export function createFixtureHost(guildId = FIXTURE_GUILD_ID): FixtureHost {
     },
   };
 
+  const polls = createMemoryPollsStore();
   const deps: FixtureDeps = {
     identity,
     raids,
@@ -95,12 +97,17 @@ export function createFixtureHost(guildId = FIXTURE_GUILD_ID): FixtureHost {
     },
     events: createRecordingEventSink(),
     progress: createMemoryProgressStore(),
-    polls: createMemoryPollsStore(),
+    polls,
     pollMembers: {
       getMember: (g, id) => identity.getMember(g, id),
       listMembers: (g) => identity.listMembers(g),
     },
     pollEvents: createPollsEventSink(),
+    // Like apps/api: poll-create as the caller; there is no Discord post to put up here.
+    coordinatorPolls: {
+      create: (caller, input) => run(caller, 'poll-create', input) as Promise<CommandResult<Poll>>,
+      get: (g, id) => polls.getPoll(g, id),
+    },
     coordinator,
     tickSource,
     scheduler: {
@@ -118,7 +125,20 @@ export function createFixtureHost(guildId = FIXTURE_GUILD_ID): FixtureHost {
               lock: async (_g, eventId) => {
                 await run(system, 'roster-lock', { eventId });
               },
+              createForRaidNight: async (g, raidNightId, raid, detail) => {
+                const created = await run(system, 'raid-create', raid);
+                if (!created.success)
+                  throw new Error(created.error?.message ?? 'raid-create failed');
+                const { id } = created.data as { id: string };
+                await coordinator.updateRaidNight(g, raidNightId, {
+                  outcome: 'created',
+                  raidEventId: id,
+                  detail,
+                });
+                return { id };
+              },
             },
+            polls: { get: (g, id) => polls.getPoll(g, id) },
           },
           g,
           Date.now(),

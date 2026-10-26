@@ -287,6 +287,9 @@ importers:
       '@vintage/identity':
         specifier: workspace:*
         version: link:../identity
+      '@vintage/polls':
+        specifier: workspace:*
+        version: link:../polls
       '@vintage/raids':
         specifier: workspace:*
         version: link:../raids

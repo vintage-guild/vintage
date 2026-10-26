@@ -68,14 +68,30 @@ export const read = query({
   },
 });
 
+type RunArgs = Infer<typeof requestArgsValidator>;
+const requestArgsValidator = v.object(requestArgs);
+
+async function runAs(ctx: Ctx, caller: Caller, { name, input, confirmToken }: RunArgs) {
+  const request = confirmToken ? { name, input, caller, confirmToken } : { name, input, caller };
+  return toConvex(await registry().execute(request, deps(ctx)));
+}
+
 /** Any command, including mutations and the dryRun → confirm flow. */
 export const run = mutation({
   args: requestArgs,
-  handler: async (ctx, { name, input, confirmToken }) => {
-    const caller = await resolveCaller(ctx);
-    const request = confirmToken ? { name, input, caller, confirmToken } : { name, input, caller };
-    return toConvex(await registry().execute(request, deps(ctx)));
-  },
+  handler: async (ctx, args) => runAs(ctx, await resolveCaller(ctx), args),
+});
+
+/**
+ * Operator entry point: any command as the system caller (officer tier), with the same
+ * preview → confirm flow for destructive commands. Internal, so only someone with deployment
+ * admin access can call it. Bootstraps the first role map before anyone is an officer:
+ *   npx convex run commands:runAsSystem '{"name":"guild-roles-set","input":{"roles":{…}}}'
+ * then again with the returned confirmToken.
+ */
+export const runAsSystem = internalMutation({
+  args: requestArgs,
+  handler: async (ctx, args) => runAs(ctx, systemCaller(GUILD_ID), args),
 });
 
 const memberSyncInput = v.object({

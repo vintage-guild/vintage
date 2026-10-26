@@ -28,8 +28,13 @@ commands). Everything runs serverless: no always-on gateway process.
 - **Commands, not logic, in the endpoint.** Interactions translate to guild-kit commands through
   the registry; the endpoint never holds business rules. (`/vintage ping` is the one local
   exception until the gateway calls Convex — see `TODO(#10)`.)
-- **Least privilege for the bot.** It was invited with View Channels only. Add a permission only
-  when a feature needs it, and say which in the PR. Never request Administrator.
+- **Least privilege for the bot.** It's invited with View Channels, Send Messages, Embed Links,
+  Read Message History, Add Reactions, and Mention Everyone (permissions integer `216128`). Add a
+  permission only when a feature needs it, and say which in the PR. Never request Administrator
+  or Manage Roles.
+- **Bootstrap the role map as the system caller.** The first `guild-roles-set` runs through
+  `commands:runAsSystem` (internal; needs deployment access), preview then confirm. SETUP.md
+  "First role map" has the steps.
 - **Rate limits.** Use the discord-kit REST client (or the same pattern): honor `retry_after` on
   429, bounded retries, and never log the token.
 - **Guards against self-harm.** Role sync refuses an empty member list when members are known

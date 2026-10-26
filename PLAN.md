@@ -711,7 +711,7 @@ Phase 0 has about ten days and one maintainer, so it is cut to the minimum that 
 ### Phase 1 — Raid coordinator (2026-11-04 → ~11-25)
 
 - [x] `raids`: schedules, events, signups, roster, `comp-suggest` via `libs/comp-solver` (#14)
-- [ ] `coordinator`: materialize events, post signups, button flow, T-72h/T-24h reminders, officer digest, lock + final roster, `CoordinatorAction` log, `#vintage-ops` errors (all but the button flow landed; buttons need the gateway calling Convex, #10)
+- [ ] `coordinator`: materialize events, post signups, button flow, T-72h/T-24h reminders, officer digest, lock + final roster, `CoordinatorAction` log, `#vintage-ops` errors (the button flow is built and tested locally end to end; it goes live when the gateway is deployed, #10/#11)
 - [x] `libs/discord-kit`: signature verification, embeds, components, timestamps Landed early in Phase 0 (#43).
 - [x] `libs/comp-solver`: selected roster, bench, and gaps with reasons (part of #15; `comp-suggest` lands with `raids`)
 - [ ] Member prefs (DM opt-out, default character, timezone); live roster board on the website

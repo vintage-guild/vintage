@@ -381,4 +381,65 @@ describe('JTBD: raid night', () => {
     const list = await g.host.ok<Signup[]>(g.dara, 'signup-list', { eventId: wed.id });
     expect(list.map((x) => x.characterName)).toEqual(['Bramble', 'Aeryn']);
   });
+
+  it('J15 · a member answers straight from the Discord post, privately', async () => {
+    const { wed } = await scheduleRaidNights(g);
+    const ui = g.host.discordUi;
+    const content = (r: unknown) => (r as { data?: { content?: string } }).data?.content ?? '';
+    const flags = (r: unknown) => (r as { data?: { flags?: number } }).data?.flags;
+
+    // One character: Accept answers right away, only Aeryn sees the reply, the post refresh starts.
+    const accepted = await ui.click(g.aeryn.discordId!, `signup:${wed.id}:accepted`);
+    expect(content(accepted)).toMatch(/Aeryn: \*\*accepted\*\*/);
+    expect(flags(accepted)).toBe(64);
+    expect(g.host.ticksRequested.length).toBeGreaterThan(0);
+    expect((await g.host.ok<Signup>(g.aeryn, 'signup-get', { eventId: wed.id })).status).toBe(
+      'accepted',
+    );
+
+    // Late opens a reason form; the reason lands on the signup.
+    const form = await ui.click(g.bram.discordId!, `signup:${wed.id}:late`);
+    expect(form).toMatchObject({
+      type: 9,
+      data: { custom_id: `signup-note:${wed.id}:late:${g.chars.bram}` },
+    });
+    await ui.submit(g.bram.discordId!, `signup-note:${wed.id}:late:${g.chars.bram}`, 'after work');
+    expect(await g.host.ok<Signup>(g.bram, 'signup-get', { eventId: wed.id })).toMatchObject({
+      status: 'late',
+      note: 'after work',
+    });
+
+    // Two characters: pick one first, and the picker turns into the result.
+    await g.host.ok(g.dara, 'character-add', { name: 'Daraheal', class: 'priest', spec: 'holy' });
+    const picker = await ui.click(g.dara.discordId!, `signup:${wed.id}:accepted`);
+    expect(content(picker)).toMatch(/Which character/);
+    const daraChars = await g.host.ok<{ id: string; name: string }[]>(g.dara, 'character-list', {});
+    const alt = daraChars.find((c) => c.name === 'Daraheal')!;
+    const picked = await ui.pick(g.dara.discordId!, `signup-pick:${wed.id}:accepted`, alt.id);
+    expect(picked).toMatchObject({ type: 7, data: { components: [] } });
+    expect(content(picked)).toMatch(/Daraheal: \*\*accepted\*\*/);
+    // Next time, their signed-up character is used without asking.
+    const again = await ui.click(g.dara.discordId!, `signup:${wed.id}:bench`);
+    expect(content(again)).toMatch(/Daraheal: \*\*bench\*\*/);
+
+    // Refusals stay private and say what to do.
+    expect(content(await ui.click(g.pip.discordId!, `signup:${wed.id}:accepted`))).toMatch(
+      /Recruit rank/,
+    );
+    expect(content(await ui.click('999999999999999999', `signup:${wed.id}:accepted`))).toMatch(
+      /don't know you yet/,
+    );
+    expect(
+      content(
+        await ui.clickFromServer(
+          g.aeryn.discordId!,
+          `signup:${wed.id}:declined`,
+          '700000000000000001',
+        ),
+      ),
+    ).toMatch(/only takes signups in the Vintage guild server/);
+    expect((await g.host.ok<Signup>(g.aeryn, 'signup-get', { eventId: wed.id })).status).toBe(
+      'accepted',
+    );
+  });
 });

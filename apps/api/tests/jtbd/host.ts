@@ -3,11 +3,14 @@
 // resolved from synced members the way commands.ts does it, so tiers come from Discord roles.
 import { runTick } from '@vintage/coordinator/commands';
 import { createFakeDiscord, createMemoryCoordinatorStore } from '@vintage/coordinator/testing';
-import type { Caller } from '@vintage/guild-kit';
+import { type Interaction, InteractionType } from '@vintage/discord-kit';
+import type { Caller, CommandResult } from '@vintage/guild-kit';
 import { systemCaller } from '@vintage/guild-kit';
 import { createMemoryIdentityDeps } from '@vintage/identity/testing';
+import type { Signup } from '@vintage/raids/contract';
 import { createMemoryRaidsStore, createRecordingEventSink } from '@vintage/raids/testing';
 import { fixedClock, testRegistry } from '@vintage/testing';
+import { handleSignupInteraction } from '../../src/discord-signups';
 import { commands, type VintageDeps } from '../../src/registry';
 import { createTickSource } from '../../src/tick-source';
 
@@ -24,6 +27,8 @@ export const ROLES = {
   friend: '300000000000000007',
 } as const;
 
+/** The guild's Discord server id; interactions from elsewhere are refused. */
+export const DISCORD_GUILD = '600000000000000001';
 export const SIGNUP_CHANNEL = '400000000000000001';
 export const OPS_CHANNEL = '400000000000000002';
 
@@ -129,7 +134,66 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
   const sentTo = (to: string) => discord.sent.filter((m) => m.to === to && m.kind !== 'edit');
   const editsTo = (to: string) => discord.sent.filter((m) => m.to === to && m.kind === 'edit');
 
+  /**
+   * A Discord interaction from a member, run through the same signup flow Convex runs
+   * (src/discord-signups.ts) over these stores and the registry.
+   */
+  function interact(
+    discordId: string,
+    data: Interaction['data'],
+    type: Interaction['type'] = InteractionType.MESSAGE_COMPONENT,
+    guildId: string = DISCORD_GUILD,
+  ) {
+    const interaction: Interaction = {
+      id: 'i',
+      application_id: 'app',
+      token: 'token',
+      type,
+      guild_id: guildId,
+      member: { user: { id: discordId, username: discordId }, roles: [] },
+      data,
+    };
+    return handleSignupInteraction(interaction, {
+      discordGuildId: DISCORD_GUILD,
+      guildId: GUILD,
+      memberByDiscordId: (id) => identity.getMemberByDiscordId(GUILD, id),
+      characters: (memberId) => identity.listCharacters(GUILD, { memberId }),
+      event: (eventId) => raids.getEvent(GUILD, eventId),
+      signup: (eventId, memberId) => raids.getSignupByMember(GUILD, eventId, memberId),
+      signupSet: (caller, input) =>
+        registry.execute({ name: 'signup-set', input, caller }, deps) as Promise<
+          CommandResult<Signup>
+        >,
+      afterChange: () => deps.scheduler.runTickNow(GUILD),
+    });
+  }
+
+  /** Clicking a signup button, picking from the character menu, or submitting the reason form. */
+  const discordUi = {
+    click: (discordId: string, customId: string) =>
+      interact(discordId, { custom_id: customId, component_type: 2 }),
+    pick: (discordId: string, customId: string, value: string) =>
+      interact(discordId, { custom_id: customId, component_type: 3, values: [value] }),
+    submit: (discordId: string, customId: string, note: string) =>
+      interact(
+        discordId,
+        {
+          custom_id: customId,
+          components: [{ type: 1, components: [{ type: 4, custom_id: 'note', value: note }] }],
+        },
+        InteractionType.MODAL_SUBMIT,
+      ),
+    clickFromServer: (discordId: string, customId: string, guildId: string) =>
+      interact(
+        discordId,
+        { custom_id: customId, component_type: 2 },
+        InteractionType.MESSAGE_COMPONENT,
+        guildId,
+      ),
+  };
+
   return {
+    discordUi,
     clock,
     deps,
     discord,

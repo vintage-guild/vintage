@@ -1,9 +1,11 @@
-// Message components: buttons and string select menus inside action rows.
+// Message components: buttons and string select menus inside action rows, and text inputs
+// inside modals.
 
 export const ComponentType = {
   ACTION_ROW: 1,
   BUTTON: 2,
   STRING_SELECT: 3,
+  TEXT_INPUT: 4,
 } as const;
 
 export const ButtonStyle = {
@@ -49,7 +51,26 @@ export interface StringSelect {
   disabled?: boolean;
 }
 
-export type Component = Button | StringSelect;
+export const TextInputStyle = {
+  SHORT: 1,
+  PARAGRAPH: 2,
+} as const;
+export type TextInputStyle = (typeof TextInputStyle)[keyof typeof TextInputStyle];
+
+/** A text field in a modal. */
+export interface TextInput {
+  type: typeof ComponentType.TEXT_INPUT;
+  custom_id: string;
+  style: TextInputStyle;
+  label: string;
+  placeholder?: string;
+  required?: boolean;
+  min_length?: number;
+  max_length?: number;
+  value?: string;
+}
+
+export type Component = Button | StringSelect | TextInput;
 
 export interface ActionRow {
   type: typeof ComponentType.ACTION_ROW;
@@ -103,12 +124,29 @@ export function stringSelect(
 
 /** An action row: up to five buttons, or exactly one select menu. */
 export function actionRow(...components: Component[]): ActionRow {
-  const selects = components.filter((c) => c.type === ComponentType.STRING_SELECT).length;
-  if (selects > 0 && components.length !== 1) {
-    throw new Error('a select menu must be alone in its action row');
+  const alone = components.filter(
+    (c) => c.type === ComponentType.STRING_SELECT || c.type === ComponentType.TEXT_INPUT,
+  ).length;
+  if (alone > 0 && components.length !== 1) {
+    throw new Error('a select menu or text input must be alone in its action row');
   }
   if (components.length === 0 || components.length > COMPONENT_LIMITS.buttonsPerRow) {
     throw new Error(`an action row holds 1-${COMPONENT_LIMITS.buttonsPerRow} components`);
   }
   return { type: ComponentType.ACTION_ROW, components };
+}
+
+/** A text field for a modal. Labels are capped at 45 characters by Discord. */
+export function textInput(
+  customId: string,
+  label: string,
+  extra: Omit<TextInput, 'type' | 'custom_id' | 'label' | 'style'> & {
+    style?: TextInputStyle;
+  } = {},
+): TextInput {
+  assertCustomId(customId);
+  if (label.length === 0 || label.length > 45)
+    throw new Error('a text input label is 1-45 characters');
+  const { style = TextInputStyle.SHORT, ...rest } = extra;
+  return { type: ComponentType.TEXT_INPUT, custom_id: customId, label, style, ...rest };
 }

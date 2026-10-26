@@ -14,6 +14,16 @@ the Discord Developer Portal → your application.
 | `DISCORD_APP_ID` | General Information → Application ID | `scripts/register-commands.ts` |
 | `DISCORD_BOT_TOKEN` | Bot → Token | `scripts/register-commands.ts` only |
 | `DISCORD_GUILD_ID` | Optional: a guild id | Register commands to one guild (instant) instead of globally |
+| `VINTAGE_CONVEX_SITE_URL` | The Convex deployment's HTTP actions URL (`https://<name>.convex.site`) | Forwarding signup buttons and modals |
+| `VINTAGE_GATEWAY_SECRET` | Any long random string; the same value in the Convex env | Authenticates the forward to Convex |
+
+## Signup buttons
+
+Clicks on the coordinator's signup posts (`signup:…`), the character picker (`signup-pick:…`) and
+the reason form (`signup-note:…`) are verified here, then forwarded to Convex at
+`POST /gateway/interaction` with `Authorization: Bearer $VINTAGE_GATEWAY_SECRET`. Convex runs the
+flow (`apps/api/src/discord-signups.ts`) and returns the response this endpoint sends back to
+Discord. Without the two variables, members get a private "not set up yet" reply.
 
 ## Register slash commands
 

@@ -618,16 +618,15 @@ const styles = css`
     box-shadow: inset 0 1px 0 rgb(255 244 228 / 6%);
   }
 
-  /* A defined edge (a darker rim and a light top bevel) so the glow reads as a lit button,
-     not a wash of color. */
+  /* Crisp, not glowing: a solid darker rim, a one-pixel highlight inside the top, and a
+     one-pixel drop. No blur anywhere, so the edge stays sharp. */
   .btn.primary {
     border-color: color-mix(in srgb, var(--button-primary-bg) 55%, black);
     background: var(--button-primary-bg);
     color: var(--button-primary-text);
     box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 32%),
-      inset 0 -2px 0 rgb(0 0 0 / 18%),
-      0 4px 14px color-mix(in srgb, var(--button-primary-bg) 28%, transparent);
+      inset 0 1px 0 rgb(255 255 255 / 30%),
+      0 1px 0 rgb(0 0 0 / 45%);
   }
 
   .btn:hover {
@@ -928,9 +927,8 @@ const styles = css`
     border-color: color-mix(in srgb, var(--color-verdigris-700) 60%, black);
     color: var(--color-parchment-50);
     box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 20%),
-      inset 0 -2px 0 rgb(0 0 0 / 18%),
-      0 4px 12px rgb(43 112 120 / 24%);
+      inset 0 1px 0 rgb(255 255 255 / 22%),
+      0 1px 0 rgb(0 0 0 / 25%);
   }
 
   .needs {

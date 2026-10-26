@@ -65,7 +65,8 @@ npx convex run commands:read '{"name":"member-list","input":{}}'
 
 ## Discord (only if you work on the bot)
 
-The bot's settings live in the Discord Developer Portal under the **Vintage** application. To run
+The bot's settings live in the Discord Developer Portal under the **Random** application (renamed
+from Vintage on 2026-10-26; the bot is Random the raven, and commands stay `/vintage`). To run
 Discord code locally, put these in `apps/api/.env.local` (gitignored; never commit them):
 
 ```

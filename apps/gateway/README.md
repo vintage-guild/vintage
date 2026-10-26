@@ -49,15 +49,17 @@ pnpm --filter @vintage/gateway register-commands
 
 ## Bot name and avatar
 
-The bot shows as **Random**, with the raven from the site's News section
-(`apps/web/public/art/coordinator-raven.webp`). The name is display only: commands stay
-`/vintage`, and the application in the Developer Portal is still named Vintage. To change either:
+The bot is **Random**, the raven the site calls Random Raven in its News section. Its avatar is the
+animated head crop in `assets/brand/random-avatar.gif`. The application in the Developer Portal is
+named Random too, with the raven as its icon (set by hand in General Information). The names are
+display only: commands stay `/vintage`, and the app id, token, and OAuth client are unchanged. To
+change the bot's name or avatar:
 
 ```bash
-node --env-file=../api/.env.local --import tsx scripts/set-bot-profile.ts --username Random --avatar raven.png
+node --env-file=../api/.env.local --import tsx scripts/set-bot-profile.ts --username Random --avatar ../../assets/brand/random-avatar.gif
 ```
 
-Run it from `apps/gateway`. Discord takes PNG, JPEG, or GIF, not WebP, so export a PNG first from
-an image editor, a browser canvas, or Windows' imaging codecs. Discord allows about two username
+Run it from `apps/gateway`. Discord takes PNG, JPEG, or GIF, not WebP, so export other art to one
+of those first (an image editor, a browser canvas, or Windows' imaging codecs). Discord allows about two username
 changes an hour, and `--username ""` leaves the name alone. With `DISCORD_GUILD_ID` set, the script
 also reports the bot's nickname in that server, because a nickname overrides the username there.

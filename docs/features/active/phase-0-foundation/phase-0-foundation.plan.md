@@ -29,7 +29,7 @@ adds characters, and an officer's agent lists members over MCP from Claude or th
 - [x] Role sync: role → rank map in identity, `guild-roles-get`/`-set`, 15-minute cron (#44). Live Discord path waits on the bot invite
 - [ ] `/mcp` on AFD 2.2 with meta-tools; `apps/cli` = `afd-cli`
 - [x] `libs/design-tokens` (plain DTCG; Q14): CSS per theme, TS map, interim FenUI Lua table
-- [ ] `packages/ui-kit` on FAST-AF; `apps/web` shell
+- [ ] `packages/ui-kit` on FAST-AF; `apps/web` shell. Components, shell, and routes built (#13); sign-in (#7), a live Convex connection, and the Vercel deploy remain
 - [ ] Discord: app and bot created ✅, `libs/discord-kit` + `/discord/interactions` built and tested (#43) ✅; bot invite (Stridulent), Server Members intent, deploy + endpoint verification still to do
 
 ## Decisions

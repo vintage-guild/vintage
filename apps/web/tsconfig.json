@@ -1,0 +1,11 @@
+{
+  "extends": "@vintage/config/tsconfig.library.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["vite/client", "node"],
+    // FAST's decorators are legacy decorators that install prototype accessors.
+    "experimentalDecorators": true,
+    "useDefineForClassFields": false
+  },
+  "include": ["src", "vite.config.ts", "vitest.config.ts"]
+}

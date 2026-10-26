@@ -1,0 +1,47 @@
+/* Document-level styles. Tokens only (libs/design-tokens); components style themselves. */
+html {
+  background: var(--color-surface-canvas);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-sans);
+  font-size: 100%;
+}
+
+body {
+  margin: 0;
+  min-block-size: 100vh;
+  background: var(--color-surface-canvas);
+}
+
+/* The inline two-tone logo; vintage-logo-header sizes the slotted link around it. */
+vintage-logo-header [slot="logo"] svg {
+  display: block;
+  inline-size: 100%;
+  block-size: auto;
+}
+
+.visually-hidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+main:focus {
+  outline: none;
+}
+
+.skip-link {
+  position: absolute;
+  inset-inline-start: var(--space-sm);
+  inset-block-start: calc(-1 * var(--space-3xl));
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
+  font-weight: var(--font-weight-bold);
+}
+
+.skip-link:focus {
+  inset-block-start: var(--space-sm);
+}

@@ -30,9 +30,9 @@ Start from the command, not the UI. Business logic belongs in module commands an
 | Folder | Holds |
 |---|---|
 | `libs/` | Pure TS, platform-free (`wow-data`, `comp-solver`, `discord-kit`, `design-tokens`, `bridge-format`) |
-| `packages/` | Platform glue (`guild-kit`, `testing`, `config`) |
+| `packages/` | Platform glue (`guild-kit`, `testing`, `config`, `ui-kit` web components) |
 | `modules/` | Features with their own data (`identity`, `raids`) |
-| `apps/` | Composition and transport (`api` on Convex, `gateway` on Vercel) |
+| `apps/` | Composition and transport (`api` on Convex, `gateway` on Vercel, `web` the website) |
 | `vendor/` | Built FAST-AF packages, pinned; never edit ([VENDORED.md](vendor/VENDORED.md)) |
 | `tooling/botcore/` | Repo commands for humans, CI, and agents |
 | `scripts/` | Gate scripts CI and `validate:*` run |
@@ -42,6 +42,7 @@ Start from the command, not the UI. Business logic belongs in module commands an
 ```bash
 pnpm install
 pnpm validate:final
+pnpm --filter @vintage/web dev        # website on http://localhost:5173 (/ui: component gallery)
 pnpm --filter @vintage/api dev:local
 cd apps/api
 npx convex env set VINTAGE_CONFIRM_SECRET local-dev-secret

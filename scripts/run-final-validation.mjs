@@ -15,6 +15,8 @@ const steps = [
   ['vendor', 'pnpm check:vendor'],
   ['command manifest', 'pnpm check:manifest'],
   ['type-check', 'pnpm type-check'],
+  // Vite build of apps/web, plus ui-kit's Custom Elements Manifest and its check.
+  ['build', 'pnpm build'],
   ['tests', 'pnpm test:run'],
 ];
 if (full) {

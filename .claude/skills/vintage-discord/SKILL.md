@@ -15,6 +15,7 @@ commands). Everything runs serverless: no always-on gateway process.
 | Toolkit | `libs/discord-kit` | Pure lib: no `node:` imports, Web APIs only. Read its `src/index.ts` exports |
 | Interactions endpoint | `apps/gateway/src/interactions.ts`, `api/discord/interactions.ts` | Web-standard `Request → Response`, deployed as a Vercel function |
 | Slash commands | `apps/gateway/src/commands.ts`, `scripts/register-commands.ts` | `pnpm --filter @vintage/gateway register-commands` |
+| Bot name and avatar | `apps/gateway/scripts/set-bot-profile.ts` | The bot is **Random** (raven avatar); commands stay `/vintage`. PNG/JPEG/GIF only, about 2 renames an hour. See the gateway README |
 | Role sync | `modules/identity/src/domain/role-sync.ts` (planner), `apps/api/src/discord-directory.ts`, `apps/api/convex/roleSync.ts`, `crons.ts` | Every 15 minutes; no-op until the bot is configured |
 | Role → rank map | identity `roleRanks` table; commands `guild-roles-get` (leader) / `guild-roles-set` (officer, destructive) | Keyed by Discord role **id**, never name |
 

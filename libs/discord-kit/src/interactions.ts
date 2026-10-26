@@ -2,6 +2,7 @@
 // Only the fields Vintage reads are typed; everything else passes through untouched.
 import { type ActionRow, actionRow, type TextInput } from './components';
 import type { Embed } from './embeds';
+import type { LayoutComponent } from './layout';
 
 export const InteractionType = {
   PING: 1,
@@ -25,6 +26,8 @@ export type InteractionResponseType =
 
 export const MessageFlags = {
   EPHEMERAL: 64,
+  /** The message is made only of Components V2 layout (no content or embeds). */
+  IS_COMPONENTS_V2: 1 << 15,
 } as const;
 
 export const ApplicationCommandOptionType = {
@@ -113,7 +116,8 @@ export interface AllowedMentions {
 export interface MessageData {
   content?: string;
   embeds?: Embed[];
-  components?: ActionRow[];
+  /** Action rows, or with IS_COMPONENTS_V2 any layout components (containers, text, …). */
+  components?: (ActionRow | LayoutComponent)[];
   flags?: number;
   allowed_mentions?: AllowedMentions;
 }

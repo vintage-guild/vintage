@@ -79,6 +79,9 @@ function discordPorts(token: string): CoordinatorDiscord {
         body: message,
       });
     },
+    remove: async (channelId, messageId) => {
+      await rest.request('DELETE', `/channels/${channelId}/messages/${messageId}`);
+    },
     dm: async (discordUserId, message) => {
       const channel = created(
         await rest.request('POST', '/users/@me/channels', {

@@ -2,17 +2,16 @@
 // action. Every action is claimed in the store before it is sent, so two overlapping ticks can't
 // both send it, and re-running a tick sends nothing twice.
 import { DiscordRestError, type MessageData } from '@vintage/discord-kit';
+import { renderFinalRoster, renderSignupPost } from './domain/card';
 import { type PlannedAction, planTick } from './domain/plan';
 import {
   hashMessage,
   renderDigest,
   renderDm,
   renderFailure,
-  renderFinalRoster,
   renderImportString,
   renderPromotion,
   renderReminder,
-  renderSignupPost,
 } from './domain/render';
 import type { TickPorts, TickState } from './store';
 
@@ -44,6 +43,8 @@ async function perform(
   state: TickState,
   ports: TickPorts,
   now: number,
+  /** The message an earlier attempt of this action sent (a post being reposted). */
+  previousMessageId: string | null,
 ): Promise<Performed> {
   const { tick } = action;
   const send = async (message: MessageData) =>
@@ -51,7 +52,12 @@ async function perform(
   switch (action.kind) {
     case 'post': {
       const message = renderSignupPost(tick, state.members);
-      return { ...(await send(message)), renderHash: hashMessage(message) };
+      const sent = await send(message);
+      if (previousMessageId) {
+        // A repost: clear the old card so the channel has one live post per raid.
+        await ports.discord.remove(action.target, previousMessageId).catch(() => undefined);
+      }
+      return { ...sent, renderHash: hashMessage(message) };
     }
     case 'promote':
       return send(
@@ -107,6 +113,16 @@ async function refresh(
     await ports.store.setRenderHash(state.guildId, post.id, hashMessage(message));
     return { ...base, status: 'edited' };
   } catch (err) {
+    // 10008: someone deleted the post in Discord. Mark it so the next tick posts a fresh one.
+    if (err instanceof DiscordRestError && err.code === 10008) {
+      await ports.store.completeAction(
+        state.guildId,
+        post.id,
+        { status: 'failed', detail: 'the post was deleted in Discord; reposting' },
+        Date.now(),
+      );
+      return { ...base, status: 'failed', detail: 'post deleted; it will be reposted' };
+    }
     return { ...base, status: 'failed', detail: describe(err) };
   }
 }
@@ -140,7 +156,7 @@ async function execute(
   const claimed = await ports.store.claimAction(key, now, CLAIM_STALE_MS);
   if (!claimed) return { ...key, status: 'busy' };
   try {
-    const done = await perform(action, state, ports, now);
+    const done = await perform(action, state, ports, now, claimed.action.discordMessageId);
     await ports.store.completeAction(
       guildId,
       claimed.action.id,

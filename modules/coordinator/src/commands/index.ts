@@ -1,8 +1,9 @@
 import { error, success } from '@vintage/guild-kit';
 import { GUILD_RANKS } from '@vintage/identity/contract';
 import { z } from 'zod';
+import { renderSignupPost } from '../domain/card';
 import { planTick } from '../domain/plan';
-import { hashMessage, renderSignupPost } from '../domain/render';
+import { hashMessage } from '../domain/render';
 import { command } from '../store';
 
 export type {
@@ -136,6 +137,35 @@ export const coordinatorLog = command({
     success(await deps.coordinator.listActions(guildId, { eventIds: [eventId], limit })),
 });
 
+export const coordinatorRepost = command({
+  name: 'coordinator-repost',
+  description:
+    "Replace a raid's signup post with a fresh one (the old message is deleted). Use it after the " +
+    'post was deleted or its layout changed.',
+  tier: 'leader',
+  mutation: true,
+  input: z.object({ eventId: z.string().min(1) }),
+  handler: async ({ eventId }, { guildId, deps, now }) => {
+    const [post] = (await deps.coordinator.listActions(guildId, { eventIds: [eventId] })).filter(
+      (a) => a.rule === 'post' && a.status === 'sent',
+    );
+    if (!post) {
+      return error('NO_POST', 'That raid has no signup post yet', {
+        suggestion: 'The next coordinator tick posts it; run coordinator-run to post it now',
+        retryable: false,
+      });
+    }
+    await deps.coordinator.completeAction(
+      guildId,
+      post.id,
+      { status: 'failed', detail: 'repost requested' },
+      now(),
+    );
+    await deps.scheduler.runTickNow(guildId);
+    return success({ eventId }, { reasoning: 'A fresh post goes out on the next tick' });
+  },
+});
+
 /** Every coordinator command, registered by apps/api through guild-kit. */
 export const coordinatorCommands = [
   coordinatorStatus,
@@ -144,4 +174,5 @@ export const coordinatorCommands = [
   coordinatorRun,
   coordinatorConfigSet,
   coordinatorLog,
+  coordinatorRepost,
 ] as const;

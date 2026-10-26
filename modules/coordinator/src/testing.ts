@@ -1,4 +1,4 @@
-import type { MessageData } from '@vintage/discord-kit';
+import { type LayoutComponent, layoutText, type MessageData } from '@vintage/discord-kit';
 import { type CoordinatorAction, type CoordinatorConfig, defaultConfig } from './contract';
 import type {
   CoordinatorDeps,
@@ -92,7 +92,7 @@ export function createMemoryCoordinatorStore(): CoordinatorStore & {
 }
 
 export interface SentMessage {
-  kind: 'post' | 'edit' | 'dm';
+  kind: 'post' | 'edit' | 'dm' | 'remove';
   to: string;
   messageId: string;
   message: MessageData;
@@ -116,6 +116,10 @@ export function createFakeDiscord(): CoordinatorDiscord & {
     async edit(channelId: string, messageId: string, message: MessageData) {
       if (fake.failWith) throw fake.failWith;
       fake.sent.push({ kind: 'edit', to: channelId, messageId, message });
+    },
+    async remove(channelId: string, messageId: string) {
+      if (fake.failWith) throw fake.failWith;
+      fake.sent.push({ kind: 'remove', to: channelId, messageId, message: {} });
     },
     async dm(discordUserId: string, message: MessageData) {
       if (fake.failWith) throw fake.failWith;
@@ -181,4 +185,28 @@ export function createMemoryCoordinatorDeps(
       },
     },
   };
+}
+
+/** Everything a member would read in a message: content, embeds, and V2 text displays. */
+export function messageText(message: MessageData): string {
+  const embeds = (message.embeds ?? []).flatMap((e) => [
+    e.title ?? '',
+    e.description ?? '',
+    ...(e.fields ?? []).map((f) => `${f.name}\n${f.value}`),
+  ]);
+  const layout = layoutText((message.components ?? []) as LayoutComponent[]);
+  return [message.content ?? '', ...embeds, layout].filter(Boolean).join('\n');
+}
+
+/** Button labels anywhere in a message (action rows at the top level or inside containers). */
+export function buttonLabels(message: MessageData): string[] {
+  const labels: string[] = [];
+  const walk = (components: unknown[]) => {
+    for (const c of components as { type: number; label?: string; components?: unknown[] }[]) {
+      if (c.type === 2 && c.label) labels.push(c.label);
+      if (c.components) walk(c.components);
+    }
+  };
+  walk(message.components ?? []);
+  return labels;
 }

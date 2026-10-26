@@ -6,6 +6,7 @@ import { planTick } from '../domain/plan';
 import { hashMessage } from '../domain/render';
 import { command } from '../store';
 
+export { renderRosterReply } from '../domain/card';
 export type {
   CoordinatorDeps,
   CoordinatorDiscord,

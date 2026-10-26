@@ -193,6 +193,7 @@ export function messageText(message: MessageData): string {
     e.title ?? '',
     e.description ?? '',
     ...(e.fields ?? []).map((f) => `${f.name}\n${f.value}`),
+    e.footer?.text ?? '',
   ]);
   const layout = layoutText((message.components ?? []) as LayoutComponent[]);
   return [message.content ?? '', ...embeds, layout].filter(Boolean).join('\n');

@@ -1,5 +1,5 @@
 import { decodeRaidImport } from '@vintage/bridge-format';
-import { DiscordRestError, type MessageData, MessageFlags } from '@vintage/discord-kit';
+import { DiscordRestError, type MessageData } from '@vintage/discord-kit';
 import { DEFAULT_TIMINGS, type RaidEvent, type Signup } from '@vintage/raids/contract';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { TickEvent, TickMember, TickPorts } from '../src/store';
@@ -128,14 +128,15 @@ describe('runTick', () => {
     expect(raids.calls).toEqual(['materialize', 'materialize']);
     expect(sentKinds()).toEqual([`post:${SIGNUPS}`]);
     const [post] = discord.sent;
-    expect(post!.message.flags).toBe(MessageFlags.IS_COMPONENTS_V2);
-    expect(messageText(post!.message)).toMatch(/## MC nights — Molten Core/);
+    expect(post!.message.flags).toBeUndefined();
+    expect(post!.message.embeds?.[0]?.title).toBe('MC nights · Molten Core');
     expect(customIds(post!.message)).toEqual([
       'signup:raid-1:accepted',
       'signup:raid-1:late',
       'signup:raid-1:tentative',
       'signup:raid-1:bench',
       'signup:raid-1:declined',
+      'roster:raid-1',
     ]);
   });
 
@@ -226,7 +227,7 @@ describe('runTick', () => {
     const final = discord.sent.find(
       (s) => s.to === SIGNUPS && messageText(s.message).includes('Final roster'),
     );
-    expect(messageText(final!.message)).toMatch(/## Final roster — MC nights[\s\S]*2\/10/);
+    expect(messageText(final!.message)).toMatch(/Final roster · MC nights[\s\S]*2\/10/);
 
     const imported = discord.sent.find(
       (s) => s.to === OPS && s.message.content?.includes('Addon import'),
@@ -314,16 +315,26 @@ describe('runTick', () => {
     const message = discord.sent[0]!.message;
     const text = messageText(message);
     // Who's in per role against the 10-person targets; Pip is queued, so not counted.
-    expect(text).toMatch(/\*\*Tanks 1\/2\*\*/);
-    expect(text).toMatch(/\*\*Healers 1\/3\*\*/);
-    expect(text).toMatch(/\*\*DPS 0\/5\*\*/);
-    expect(text).toMatch(/\*\*1\*\* going · \*\*1\*\* late · \*\*1\*\* tentative/);
-    expect(text).toMatch(/\*\*1\*\* queued/);
-    expect(text).toMatch(/<:spec_priest_holy:\d+> Bram \*\(late\)\*/);
-    expect(text).toMatch(/\*\*Queue\*\*\n1\. <:spec_mage_frost:\d+> Pip/);
-    expect(text).toMatch(/\*\*Tentative\*\* <:spec_warrior_protection:\d+> Cade/);
-    expect(text).toMatch(/-# Late: Bram \(after work\) · Tentative: Cade \(maybe\)/);
-    expect(buttonLabels(message)).toEqual(['Accept', 'Late', 'Tentative', 'Standby', 'Decline']);
+    expect(text).toMatch(/Tanks 1\/2\n<:square_warrior:\d+> \*\*1\*\* Aeryn \*prot\*/);
+    expect(text).toMatch(
+      /Healers 1\/3\n<:square_priest:\d+> \*\*2\*\* Bram \*holy\* <:status_late:\d+>/,
+    );
+    expect(text).toMatch(/DPS 0\/5\n—/);
+    expect(text).toMatch(
+      /<:status_going:\d+> \*\*1\*\* going {2}<:status_late:\d+> \*\*1\*\* late {2}<:status_tentative:\d+> \*\*1\*\* tentative/,
+    );
+    expect(text).toMatch(/<:status_queued:\d+> \*\*1\*\* queued/);
+    expect(text).toMatch(/Queue 1\n1\. <:square_mage:\d+> Pip \*frost\*/);
+    expect(text).toMatch(/\*\*Tentative\*\* <:square_warrior:\d+> Cade \*prot\*/);
+    expect(text).toMatch(/Late: Bram \(after work\) · Tentative: Cade \(maybe\)/);
+    expect(buttonLabels(message)).toEqual([
+      'Accept',
+      'Late',
+      'Tentative',
+      'Standby',
+      'Decline',
+      'Roster',
+    ]);
   });
 
   it('reposts a card deleted in Discord and removes the old message on repost', async () => {

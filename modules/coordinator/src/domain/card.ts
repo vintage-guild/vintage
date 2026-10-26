@@ -1,20 +1,18 @@
-// The coordinator's raid cards as Discord Components V2 messages: one container with an accent
-// stripe, text sections with class and spec icons (the app's own emoji), and the answer buttons.
-// Pure: data in, MessageData out. Layout ideas from Raid-Helper (docs/research/raid-helper.md).
-import { compRoleOf, defaultTemplate } from '@vintage/comp-solver';
+// The coordinator's raid cards: Discord embeds with three role columns (Components V2 can't do
+// columns), our own outline status icons, and class-colored squares, all as the app's own emoji.
+// Columns cap at a few names so a 40-person card keeps its height; the Roster button shows the full
+// list privately. Pure: data in, MessageData out. Ideas from docs/research/raid-helper.md.
+import { type CompGap, compRoleOf, defaultTemplate } from '@vintage/comp-solver';
 import { discordColor } from '@vintage/design-tokens';
 import {
   actionRow,
   ButtonStyle,
   button,
-  type ContainerChild,
-  container,
   discordTimestamp,
+  type EmbedField,
+  embed,
   type MessageData,
-  MessageFlags,
-  separator,
   TimestampStyle,
-  textDisplay,
 } from '@vintage/discord-kit';
 import type { RaidEvent, Signup } from '@vintage/raids/contract';
 import type { TickEvent, TickMember } from '../store';
@@ -22,6 +20,15 @@ import { EMOJI_IDS } from './emoji-ids';
 import { compFor, finalRoster } from './render';
 
 type CompRoleName = 'tank' | 'healer' | 'dps';
+const ROLES: [CompRoleName, string][] = [
+  ['tank', 'Tanks'],
+  ['healer', 'Healers'],
+  ['dps', 'DPS'],
+];
+
+/** Names shown per column before "+N more"; the Roster button shows everyone. */
+export const COLUMN_CAP = 8;
+const FIELD_MAX = 1024;
 
 const GOING = new Set(['accepted', 'late']);
 const inRaid = (s: Signup) => GOING.has(s.status) && !s.queued;
@@ -32,65 +39,92 @@ export function emoji(name: string): string {
   return id ? `<:${name}:${id}>` : '';
 }
 
-/** The spec icon, falling back to the class icon. */
-const specIcon = (s: Signup) =>
-  emoji(`spec_${s.class}_${s.spec.replaceAll('-', '_')}`) || emoji(`class_${s.class}`);
-
-/** "<icon> Name", marked late, e.g. "<:spec_priest_holy:…> Bramble (late)". */
-const person = (s: Signup) =>
-  `${specIcon(s)} ${s.characterName}${s.status === 'late' ? ' *(late)*' : ''}`.trim();
-
-const people = (signups: Signup[]) => (signups.length ? signups.map(person).join(' · ') : '—');
-
-const ROLE_HEADER: Record<CompRoleName, { icon: string; label: string }> = {
-  tank: { icon: 'role_tank', label: 'Tanks' },
-  healer: { icon: 'role_healer', label: 'Healers' },
-  dps: { icon: 'role_melee', label: 'DPS' },
+const SHORT_SPEC: Record<string, string> = {
+  protection: 'prot',
+  restoration: 'resto',
+  'feral-tank': 'bear',
+  'beast-mastery': 'bm',
+  marksmanship: 'mm',
+  assassination: 'assa',
+  discipline: 'disc',
+  enhancement: 'enh',
+  elemental: 'ele',
+  affliction: 'affli',
+  demonology: 'demo',
+  destruction: 'destro',
+  retribution: 'ret',
 };
+const shortSpec = (spec: string) => SHORT_SPEC[spec] ?? spec;
+
+/** Place in line among everyone going, 1-based, by first answer. */
+function places(signups: Signup[]): Map<string, number> {
+  const going = signups
+    .filter((s) => GOING.has(s.status))
+    .sort((a, b) => a.signedUpAt - b.signedUpAt || a.id.localeCompare(b.id));
+  return new Map(going.map((s, i) => [s.id, i + 1]));
+}
+
+/** "<square> **3** Frostwyn *frost*" plus a clock when late. */
+function line(s: Signup, place?: number): string {
+  const late = s.status === 'late' ? ` ${emoji('status_late')}` : '';
+  const n = place ? `**${place}** ` : '';
+  return `${emoji(`square_${s.class}`)} ${n}${s.characterName} *${shortSpec(s.spec)}*${late}`.trim();
+}
+
+const capped = (lines: string[], cap = COLUMN_CAP) =>
+  lines.length <= cap ? lines : [...lines.slice(0, cap), `+${lines.length - cap} more…`];
+
+const value = (lines: string[]) => (lines.length ? lines.join('\n') : '—').slice(0, FIELD_MAX);
 
 const when = (ms: number) =>
-  `${discordTimestamp(ms, TimestampStyle.LONG_DATE_TIME)} (${discordTimestamp(ms, TimestampStyle.RELATIVE)})`;
-
-/** Gold while open, grey once locked or done. */
-function accent(event: RaidEvent): number {
-  return event.status === 'open'
-    ? discordColor('color.accent.secondary')
-    : discordColor('color.border.strong');
-}
+  `${discordTimestamp(ms, TimestampStyle.LONG_DATE_TIME)} · ${discordTimestamp(ms, TimestampStyle.RELATIVE)}`;
 
 const targetsFor = (event: RaidEvent) => event.roleTargets ?? defaultTemplate(event.size).targets;
 
-/** "**12** going · **2** late · …" — counts only, no icons (WoW has none that fit). */
-function statusLine(signups: Signup[]): string {
-  const count = (pred: (s: Signup) => boolean) => signups.filter(pred).length;
-  const parts = [
-    `**${count((s) => s.status === 'accepted' && !s.queued)}** going`,
-    `**${count((s) => s.status === 'late' && !s.queued)}** late`,
-    `**${count((s) => s.status === 'tentative')}** tentative`,
-    `**${count((s) => s.status === 'bench')}** standby`,
-    `**${count((s) => s.status === 'declined')}** out`,
-  ];
-  const queued = count((s) => s.queued);
-  if (queued) parts.push(`**${queued}** queued`);
-  return parts.join(' · ');
+const BUFF_SHORT: Record<string, string> = {
+  'Mark of the Wild': 'MotW',
+  'Power Word: Fortitude': 'Fort',
+  'Arcane Intellect': 'Int',
+};
+
+/** "2 tanks · 7 healers · MotW · Fort". */
+function missing(gaps: CompGap[]): string {
+  return gaps
+    .map((g) =>
+      g.kind === 'requirement' ? (BUFF_SHORT[g.label] ?? g.label) : g.reason.replace(/^need /, ''),
+    )
+    .join(' · ');
 }
 
-/** Reasons people gave, as one small line: "Late: Bramble (after work) · Tentative: Pip (maybe)". */
-function reasonLine(signups: Signup[]): string | null {
+/** "<icon> **12** going  <icon> **2** late …", queued only when someone is waiting. */
+function statusLine(signups: Signup[]): string {
+  const n = (pred: (s: Signup) => boolean) => signups.filter(pred).length;
+  const parts = [
+    [emoji('status_going'), n((s) => s.status === 'accepted' && !s.queued), 'going'],
+    [emoji('status_late'), n((s) => s.status === 'late' && !s.queued), 'late'],
+    [emoji('status_tentative'), n((s) => s.status === 'tentative'), 'tentative'],
+    [emoji('status_standby'), n((s) => s.status === 'bench'), 'standby'],
+    [emoji('status_out'), n((s) => s.status === 'declined'), 'out'],
+  ] as const;
+  const queued = n((s) => s.queued);
+  const all = queued ? [...parts, [emoji('status_queued'), queued, 'queued'] as const] : parts;
+  return all.map(([icon, count, label]) => `${icon} **${count}** ${label}`.trim()).join('  ');
+}
+
+/** "Late: Bramble (after work) · Tentative: Pip (maybe)" for the footer, or undefined. */
+function reasons(signups: Signup[]): string | undefined {
   const groups: [Signup['status'], string][] = [
     ['late', 'Late'],
     ['tentative', 'Tentative'],
     ['bench', 'Standby'],
   ];
-  const parts = groups
-    .map(([status, title]) => {
-      const withNote = signups.filter((s) => s.status === status && s.note);
-      return withNote.length
-        ? `${title}: ${withNote.map((s) => `${s.characterName} (${s.note})`).join(', ')}`
-        : null;
-    })
-    .filter((p): p is string => p !== null);
-  return parts.length ? `-# ${parts.join(' · ')}` : null;
+  const parts = groups.flatMap(([status, title]) => {
+    const noted = signups.filter((s) => s.status === status && s.note);
+    return noted.length
+      ? [`${title}: ${noted.map((s) => `${s.characterName} (${s.note})`).join(', ')}`]
+      : [];
+  });
+  return parts.length ? parts.join(' · ') : undefined;
 }
 
 const SIGNUP_BUTTONS = [
@@ -102,101 +136,187 @@ const SIGNUP_BUTTONS = [
 ] as const;
 
 /**
- * The signup post: title and time, status counts, who's in per role against the comp targets
- * (with spec icons), the queue when full, standby and tentative, what the comp is missing, the
- * reasons people gave, and the answer buttons. Edited in place as signups change.
+ * The signup post: when and how it locks, status counts, three role columns against the comp
+ * targets (class square, place in line, name, spec), the queue, standby and tentative, what the comp
+ * is missing, reasons in the footer, the answer buttons, and a Roster button for the full list.
  */
 export function renderSignupPost(tick: TickEvent, members: TickMember[]): MessageData {
-  const { event, signups } = tick;
+  const { event, signups, timings } = tick;
   const locked = event.status === 'locked';
   const targets = targetsFor(event);
+  const place = places(signups);
   const going = signups.filter(inRaid);
   const queue = signups.filter((s) => s.queued).sort((a, b) => a.signedUpAt - b.signedUpAt);
   const standby = signups.filter((s) => s.status === 'bench');
   const maybe = signups.filter((s) => s.status === 'tentative');
   const comp = compFor(tick, members);
 
-  const roleBlock = (role: CompRoleName) => {
+  const lock = locked
+    ? `${emoji('info_locked')} signups locked`
+    : `${emoji('info_open')} signups open · lock ${timings.lockHours}h before`;
+  const fields: EmbedField[] = ROLES.map(([role, label]) => {
     const inRole = going.filter((s) => compRoleOf(s.role) === role);
-    const { icon, label } = ROLE_HEADER[role];
-    return textDisplay(
-      `${emoji(icon)} **${label} ${inRole.length}/${targets[role]}**\n${people(inRole)}`,
-    );
-  };
-
-  const children: ContainerChild[] = [
-    textDisplay(
-      `## ${event.name} — ${event.instance}\n${when(event.startsAt)} · ${event.size}-person · ` +
-        `signups ${locked ? '**locked**' : 'open'}`,
-    ),
-    textDisplay(statusLine(signups)),
-    separator(),
-    roleBlock('tank'),
-    roleBlock('healer'),
-    roleBlock('dps'),
-  ];
+    return {
+      name: `${label} ${inRole.length}/${targets[role]}`,
+      value: value(capped(inRole.map((s) => line(s, place.get(s.id))))),
+      inline: true,
+    };
+  });
   if (queue.length) {
-    children.push(
-      textDisplay(`**Queue**\n${queue.map((s, i) => `${i + 1}. ${person(s)}`).join(' · ')}`),
-    );
+    fields.push({
+      name: `Queue ${queue.length}`,
+      value: value([
+        capped(
+          queue.map((s, i) => `${i + 1}. ${line(s)}`),
+          10,
+        ).join(' · '),
+      ]),
+    });
   }
-  if (standby.length || maybe.length) {
-    const lines = [
-      standby.length ? `**Standby** ${people(standby)}` : null,
-      maybe.length ? `**Tentative** ${people(maybe)}` : null,
-    ].filter(Boolean);
-    children.push(textDisplay(lines.join('\n')));
-  }
-  children.push(separator());
-  children.push(
-    textDisplay(
-      comp.gaps.length
-        ? `**Missing** ${comp.gaps.map((g) => g.reason.replace(/^need /, '')).join(' · ')}`
-        : '**Comp** no gaps',
-    ),
-  );
-  const reasons = reasonLine(signups);
-  if (reasons) children.push(textDisplay(reasons));
-  children.push(
-    actionRow(
-      ...SIGNUP_BUTTONS.map(([status, text, style]) =>
-        button(`signup:${event.id}:${status}`, text, style, { disabled: locked }),
-      ),
-    ),
-  );
+  const sitting = [
+    standby.length
+      ? `${emoji('status_standby')} **Standby** ${capped(
+          standby.map((s) => line(s)),
+          10,
+        ).join(' · ')}`
+      : null,
+    maybe.length
+      ? `${emoji('status_tentative')} **Tentative** ${capped(
+          maybe.map((s) => line(s)),
+          10,
+        ).join(' · ')}`
+      : null,
+  ].filter((l): l is string => l !== null);
+  if (sitting.length) fields.push({ name: '​', value: value(sitting) });
+  fields.push({
+    name: '​',
+    value: comp.gaps.length
+      ? `${emoji('info_missing')} **Missing** ${missing(comp.gaps)}`
+      : '**Comp** no gaps',
+  });
 
+  const footer = reasons(signups);
   return {
-    flags: MessageFlags.IS_COMPONENTS_V2,
-    components: [container({ accentColor: accent(event) }, ...children)],
+    embeds: [
+      embed({
+        title: `${event.name} · ${event.instance}`,
+        description:
+          `${emoji('info_calendar')} ${when(event.startsAt)}  ${lock} · ${event.size}-person\n` +
+          statusLine(signups),
+        color: locked
+          ? discordColor('color.border.strong')
+          : discordColor('color.accent.secondary'),
+        fields,
+        ...(footer ? { footer: { text: footer } } : {}),
+      }),
+    ],
+    components: [
+      actionRow(
+        ...SIGNUP_BUTTONS.map(([status, text, style]) =>
+          button(`signup:${event.id}:${status}`, text, style, { disabled: locked }),
+        ),
+      ),
+      actionRow(button(`roster:${event.id}`, 'Roster', ButtonStyle.SECONDARY)),
+    ],
     allowed_mentions: { parse: [] },
   };
 }
 
-/** The final roster at lock: who's in per role with spec icons, then who sits. */
+/** Lines split into embed fields of at most 1024 characters, the first one titled. */
+function chunkFields(title: string, lines: string[], inline: boolean): EmbedField[] {
+  const fields: EmbedField[] = [];
+  let current: string[] = [];
+  for (const l of lines.length ? lines : ['—']) {
+    if ([...current, l].join('\n').length > FIELD_MAX) {
+      fields.push({ name: fields.length ? '​' : title, value: current.join('\n'), inline });
+      current = [];
+    }
+    current.push(l);
+  }
+  fields.push({ name: fields.length ? '​' : title, value: current.join('\n'), inline });
+  return fields;
+}
+
+/**
+ * Everyone signed up, privately (the Roster button): each role in full with places in line, then
+ * the queue, standby, tentative, and declined, and the reasons.
+ */
+export function renderRosterReply(event: RaidEvent, signups: Signup[]): MessageData {
+  const place = places(signups);
+  const going = signups.filter(inRaid);
+  const fields = ROLES.flatMap(([role, label]) => {
+    const inRole = going.filter((s) => compRoleOf(s.role) === role);
+    return chunkFields(
+      `${label} (${inRole.length})`,
+      inRole.map((s) => line(s, place.get(s.id))),
+      true,
+    );
+  });
+  const group = (title: string, list: Signup[]) =>
+    list.length
+      ? chunkFields(
+          `${title} (${list.length})`,
+          list.map((s) => line(s)),
+          false,
+        )
+      : [];
+  fields.push(
+    ...group(
+      'Queue',
+      signups.filter((s) => s.queued),
+    ),
+    ...group(
+      'Standby',
+      signups.filter((s) => s.status === 'bench'),
+    ),
+    ...group(
+      'Tentative',
+      signups.filter((s) => s.status === 'tentative'),
+    ),
+    ...group(
+      'Declined',
+      signups.filter((s) => s.status === 'declined'),
+    ),
+  );
+  const footer = reasons(signups);
+  return {
+    embeds: [
+      embed({
+        title: `Roster · ${event.name}`,
+        description: `${emoji('info_calendar')} ${when(event.startsAt)}\n${statusLine(signups)}`,
+        fields: fields.slice(0, 25),
+        ...(footer ? { footer: { text: footer } } : {}),
+      }),
+    ],
+    allowed_mentions: { parse: [] },
+  };
+}
+
+/** The final roster at lock: who's in per role (in columns), then who the leader benched. */
 export function renderFinalRoster(tick: TickEvent, members: TickMember[]): MessageData {
   const { going, bench } = finalRoster(tick, members);
-  const byRole = (role: CompRoleName) => going.filter((s) => compRoleOf(s.role) === role);
-  const block = (role: CompRoleName) => {
-    const { icon, label } = ROLE_HEADER[role];
-    const inRole = byRole(role);
-    return textDisplay(`${emoji(icon)} **${label} (${inRole.length})**\n${people(inRole)}`);
-  };
-  return {
-    flags: MessageFlags.IS_COMPONENTS_V2,
-    components: [
-      container(
-        { accentColor: discordColor('color.border.strong') },
-        textDisplay(
-          `## Final roster — ${tick.event.name}\n${when(tick.event.startsAt)} · signups locked · ` +
-            `${going.length}/${tick.event.size}`,
+  const fields: EmbedField[] = ROLES.map(([role, label]) => {
+    const inRole = going.filter((s) => compRoleOf(s.role) === role);
+    return {
+      name: `${label} ${inRole.length}`,
+      value: value(
+        capped(
+          inRole.map((s) => line(s)),
+          15,
         ),
-        separator(),
-        block('tank'),
-        block('healer'),
-        block('dps'),
-        separator(),
-        textDisplay(`**Benched** ${people(bench)}`),
       ),
+      inline: true,
+    };
+  });
+  fields.push({ name: 'Benched', value: value([bench.map((s) => line(s)).join(' · ')]) });
+  return {
+    embeds: [
+      embed({
+        title: `Final roster · ${tick.event.name}`,
+        description: `${emoji('info_calendar')} ${when(tick.event.startsAt)}  ${emoji('info_locked')} signups locked · ${going.length}/${tick.event.size}`,
+        color: discordColor('color.border.strong'),
+        fields,
+      }),
     ],
     allowed_mentions: { parse: [] },
   };

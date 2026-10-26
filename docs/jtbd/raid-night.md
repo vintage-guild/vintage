@@ -110,5 +110,6 @@ without leaving Discord.
 - [ ] Late or Tentative opens a short reason form; the reason shows on the post.
 - [ ] With several characters: a private picker asks which one; next time my signed-up character
   is used without asking.
+- [ ] **Roster** shows the full list privately (everyone, by role, with places in line).
 - [ ] A Member (below Recruit), someone the bot doesn't know, or a click from another server gets
   a private refusal that says what to do.

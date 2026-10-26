@@ -1,6 +1,6 @@
 # PR self-review — review lanes before every PR
 
-> Status: proposed · Owner: Bloodfen · Planning round 2026-10-25
+> Status: active (Phase A built) · Owner: Bloodfen · Planned 2026-10-25
 > Related: [PLAN.md §7.4](../../../../PLAN.md) (agent-native setup, workflow loops),
 > [AGENTS.md](../../../../AGENTS.md) invariants, the `vintage-pr-workflow` and
 > `vintage-maintain-docs` skills, `.claude/agents/`
@@ -190,17 +190,23 @@ someone other than the maintainer arrives, or when botcore seeds the generic `do
 
 **Phase A — the procedure (one PR, `chore(repo)`)**
 
-- [ ] Write `.claude/skills/vintage-review/SKILL.md` (procedure, lane map, output shape, prompt
+The lane map and prompt template live in `.claude/skills/vintage-review/references/lanes.md` so
+the skill itself stays short. Building it also corrected `vintage-pr-workflow`, which pointed at a
+`contract.diff` that does not exist yet; the contract gate is `scripts/check-contract-break.mjs`.
+It also fixed the review scope: self-review runs before the commit, so it diffs the working tree
+(`git diff origin/main`), not `origin/main...HEAD`, which is empty until something is committed.
+
+- [x] Write `.claude/skills/vintage-review/SKILL.md` (procedure, lane map, output shape, prompt
       template); add its row to the AGENTS.md Skills table
-- [ ] Rewrite the three agents to the shared contract; keep their Vintage checklists
-- [ ] Add "Self-review" to `vintage-pr-workflow`; add the review row to the
+- [x] Rewrite the three agents to the shared contract; keep their Vintage checklists
+- [x] Add "Self-review" to `vintage-pr-workflow`; add the review row to the
       `vintage-maintain-docs` table ("You changed a reviewer agent or the lane map → update
       `vintage-review`")
-- [ ] Add the Review section and checklist line to `.github/PULL_REQUEST_TEMPLATE.md`
-- [ ] Add review rows to `docs/operations/model-routing.md` (D3) and set agent `model:`
+- [x] Add the Review section and checklist line to `.github/PULL_REQUEST_TEMPLATE.md`
+- [x] Add review rows to `docs/operations/model-routing.md` (D3) and set agent `model:`
       frontmatter accordingly
-- [ ] Replace `pnpm review:lanes` in PLAN §7.4's loop table with `vintage-review` / `do-review`
-- [ ] Dogfood: run the procedure on that PR itself and fill in its Review section
+- [x] Replace `pnpm review:lanes` in PLAN §7.4's loop table with `vintage-review` (`do-review` joins it in Phase B)
+- [x] Dogfood: run the procedure on that PR itself and fill in its Review section
 
 **Phase B — enforcement and incoming review (one PR each, when wanted)**
 
@@ -219,7 +225,7 @@ someone other than the maintainer arrives, or when botcore seeds the generic `do
 |---|---|---|---|
 | D1 | Skill naming | Knowledge skill `vintage-review`; action skill `do-review` later | `check:agent-docs` enforces routing for `vintage-*`; PLAN §7.4 reserves `do-*` for user-invoked actions |
 | D2 | Where the self-review step lives | In `vintage-pr-workflow`, before the commit | One place agents already load before committing; no new orchestrator skill |
-| D3 | Models for lanes | Reviewer lanes: mid model, high effort (`model: inherit`). Security lane: strong model (`model: opus` in frontmatter) | Matches model-routing's "security review: strong model" row; inheriting elsewhere avoids silently escalating cost |
+| D3 | Models for lanes | Reviewer lanes: the authoring session's model (`model: inherit`). Security lane: strong model (`model: opus` in frontmatter) | Matches model-routing's "security review: strong model" row; inheriting elsewhere avoids silently escalating cost |
 | D4 | CI presence gate for the Review section | Yes, in Phase B, after Phase A has been dogfooded on a few PRs | It is a presence check, not a quality check; adding it first would make the section a rubber stamp before the procedure has proven useful |
 | D5 | CI-side independent reviewer (`anthropics/claude-code-action` posting one review comment) | Defer; revisit when PRs come from more than one author | Fresh context is already what sub-agents give the self-review. A CI reviewer needs an API key secret, must not run with secrets on fork PRs on a public repo, costs per PR, and third-party reports put AI review comments that lead to a change at under one in five. Anthropic's hosted Code Review product is Team/Enterprise only and priced per review, so it is out for a guild project |
 | D6 | Who fixes findings | The authoring session, never the reviewer agent | Keeps one writer per set of files; a reviewer that edits can overwrite the coordinator |

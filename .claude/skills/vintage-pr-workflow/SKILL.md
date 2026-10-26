@@ -1,6 +1,6 @@
 ---
 name: vintage-pr-workflow
-description: Take a Vintage change from branch to merged PR — branch naming, sign-off and AI attribution, commit and PR title rules, labels (breaking-contract, area), what each CI lane checks, CodeQL findings, auto-merge, and keeping docs in the same PR. Load before committing, pushing, or opening a PR.
+description: Take a Vintage change from branch to merged PR — branch naming, the self-review step, sign-off and AI attribution, commit and PR title rules, labels (breaking-contract, area), what each CI lane checks, CodeQL findings, auto-merge, and keeping docs in the same PR. Load before committing, pushing, or opening a PR.
 ---
 
 # From branch to merged PR
@@ -15,16 +15,35 @@ description: Take a Vintage change from branch to merged PR — branch naming, s
   commits (Dependabot) are exempt.
 - Conventional Commits with a scope from `commitlint.config.mjs`. Add a scope there when you add a
   module or app.
-- Run `pnpm validate:final` (the pre-push hook does too). Lockfile changed? Commit `pnpm-lock.yaml`.
+- Self-review the diff first (next section), then run `pnpm validate:final` once on the final tree
+  (the pre-push hook does too). Lockfile changed? Commit `pnpm-lock.yaml`.
+
+## Self-review
+
+Every PR gets one, before its commit. Load the `vintage-review` skill and follow it:
+
+1. Map the uncommitted diff (`git diff --stat origin/main` and `git status --short`) and pick
+   the lanes its paths activate.
+2. Pass 1: review the claims first, then the mechanism. Dispatch a reviewer agent
+   (`vintage-reviewer`, `vintage-security-auditor`, `vintage-addon-reviewer`) only for a named
+   assurance question; otherwise review the lanes yourself.
+3. Fix every Fix-in-PR finding with targeted checks. File material follow-ups as issues with
+   `area:*` and `type:*` labels. Drop the rest.
+4. Pass 2 on the fixes only, if pass 1 fixed anything. A third pass is for a merge blocker only.
+5. Record lanes, findings, and passes in the PR's **Review** section.
+
+Reviewer agents never edit; you own every fix. A reviewer's `EXECUTION: unavailable` findings
+are hypotheses: reproduce each before acting on it.
 
 ## The PR
 
 - **Title** = the squash commit on `main`, so it follows the same Conventional Commits rules (CI
   checks it, lowercase subject, no trailing period).
-- **Body:** What / Why / How / Testing, `Part of #N` or `Closes #N`, and say what you could not
-  verify. Agent-written PRs end with the Claude Code line.
-- **Labels:** `area:<module>`; `breaking-contract` when `contract.diff` reports a removed command,
-  raised tier, newly required input, or new confirmation.
+- **Body:** What / Why / How / Testing / Review, `Part of #N` or `Closes #N`, and say what you
+  could not verify. Agent-written PRs end with the Claude Code line.
+- **Labels:** `area:<module>`; `breaking-contract` when `scripts/check-contract-break.mjs` reports
+  a removed command, a raised tier, a newly required input, or a command that now requires
+  confirmation (the `contract` lane fails without it).
 - **Docs in the same PR:** see the `vintage-maintain-docs` skill.
 
 ## CI

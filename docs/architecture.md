@@ -208,7 +208,10 @@ to area-ownership, CODEOWNERS, commitlint scopes, and the issue-form Area dropdo
 - **AGENTS.md** routes agents to commands, invariants, and skills; it stays short on purpose.
 - **Skills** in `.claude/skills/` (shared with Codex): botcore-seeded generic skills plus
   `vintage-*` project skills, loaded on demand.
-- **Reviewer agents** in `.claude/agents/`: read-only general, security, and addon reviewers.
+- **Self-review:** every PR is reviewed before its commit with the `vintage-review` skill: claims
+  first, lanes by changed path, fixes in the PR, two passes (a third only for a merge blocker),
+  recorded in the PR's Review section. Read-only reviewer agents in `.claude/agents/` (general,
+  security, addon) take lanes that need a fresh context; all share one report contract.
 - **Issues** follow the `agent-task` form (context, goal, non-goals, acceptance criteria);
   `fleet:candidate` marks work bounded enough for an agent.
 - **Attribution:** the human driving a change authors and signs off its commits; AI help is

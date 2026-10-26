@@ -13,7 +13,8 @@ when it turns several judgment-heavy tasks into well-specified ones a cheaper mo
 | Difficult but contained engineering (tricky Convex/Discord edge cases) | Mid model at high effort (GPT Sol High) | |
 | UX, visual, interaction, or product judgment (website, addon UI) | Strong model at low effort (Claude Opus, GPT Astra Low) | Taste matters more than depth |
 | Consequential design: auth, permissions, the confirm-token flow, loot method contracts | Strong model at medium/high effort | Name the invariant being checked; keep the expensive phase short |
-| Security review of auth/MCP/Discord changes | Strong model, plus the `vintage-security-auditor` agent | Model effort never replaces the gates |
+| Self-review lanes (correctness, contract, data, tests, surfaces, addon) | The authoring session's model; `vintage-reviewer` and `vintage-addon-reviewer` inherit it (`model: inherit`) | A fresh context, not a stronger model, is what makes a self-review independent |
+| Security review of auth/MCP/Discord changes | Strong model: `vintage-security-auditor` is pinned to Opus (`model: opus`) | Model effort never replaces the gates |
 
 Rules of thumb:
 

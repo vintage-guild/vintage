@@ -52,6 +52,9 @@ const template = html<Page>`
         <a href="https://vercel.com" rel="noopener">Vercel</a>, and sign-in, posts, and DMs go
         through <a href="https://discord.com" rel="noopener">Discord</a>. Each handles it under
         its own privacy policy; these services may store it outside your country.</p>
+      <p>Class icons load from <a href="https://www.wowhead.com" rel="noopener">Wowhead</a>'s image
+        server, so your browser fetches them from Wowhead like any image: it sees your IP address,
+        nothing about your account.</p>
     </section>
 
     <section aria-labelledby="use">

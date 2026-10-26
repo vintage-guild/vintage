@@ -1,4 +1,4 @@
-Required Notice: Copyright (c) 2026 Vintage Guild contributors (https://github.com/vintage-guild/vintage)
+Required Notice: Copyright (c) 2026 Jason Falk and Vintage Guild contributors (https://github.com/vintage-guild/vintage)
 
 # PolyForm Noncommercial License 1.0.0
 

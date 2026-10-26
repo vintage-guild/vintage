@@ -16,14 +16,17 @@ By signing off a contribution, you:
 
 1. License it to everyone under the project's license, currently the
    [PolyForm Noncommercial License 1.0.0](LICENSE.md).
-2. Also grant the Vintage Guild project maintainers (currently the owners of the
-   [vintage-guild](https://github.com/vintage-guild) GitHub organization) a perpetual,
-   worldwide, non-exclusive, royalty-free, irrevocable license to use, modify, distribute, and
-   **relicense** your contribution, including under a different license in the future.
+2. Also grant the project's owner, **Jason Falk** ([@Falkicon](https://github.com/Falkicon)),
+   and Jason Falk's successors and assigns, a perpetual, worldwide, non-exclusive,
+   royalty-free, irrevocable, **transferable, and sublicensable** license to use, copy,
+   modify, distribute, and **relicense** your contribution, for any purpose, **including
+   commercial use**. The license covers this project and works derived from it, such as a
+   separate product built from this code, under any license.
 3. Keep the copyright in your contribution. You can still use your own work however you like.
 
-The maintainers will only relicense the project as a whole, and will announce it in the
-repository first.
+The owner may extend the grant in item 2 to other named maintainers later. If that happens, they
+will be listed here, and the change applies to contributions made after it. A change to this
+repository's own license ([LICENSE.md](LICENSE.md)) will be announced in the repository first.
 
 ## 2. Developer Certificate of Origin
 

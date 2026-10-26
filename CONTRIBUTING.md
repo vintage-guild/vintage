@@ -24,8 +24,9 @@ Ownership is listed in `.github/area-ownership.json`; CODEOWNERS is notification
 reviews don't block on one person. The `ci-ok` check is what must pass.
 
 By signing off, you license your contribution under the project license
-([PolyForm Noncommercial 1.0.0](LICENSE.md)) and let the guild maintainers relicense it later;
-see [CONTRIBUTOR_AGREEMENT.md](CONTRIBUTOR_AGREEMENT.md).
+([PolyForm Noncommercial 1.0.0](LICENSE.md)), and give the project's owner, Jason Falk, a
+transferable license to use it in any way, including commercially and in products derived from
+this code; see [CONTRIBUTOR_AGREEMENT.md](CONTRIBUTOR_AGREEMENT.md).
 
 Found a bug in AFD, botcore, Mechanic, FenUI/FenCore, Violet, or FAST-AF? File it upstream
 with the `upstream` issue form and link it (PLAN §7.5).

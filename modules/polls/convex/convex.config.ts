@@ -1,4 +1,4 @@
 import { defineComponent } from 'convex/server';
 
-/** The polls module's Convex component: owns this module's tables (PLAN §4.3). */
+/** The polls module's Convex component: owns polls, votes, and pollPosts (PLAN §4.3). */
 export default defineComponent('polls');

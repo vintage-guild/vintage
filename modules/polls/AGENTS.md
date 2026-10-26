@@ -11,9 +11,9 @@ vote from the website are the same `vote-cast` command on the same poll. Design:
 | `src/contract.ts` | Public types (`Poll`, `Vote`, `PollResults`, `PollPost`), command names, events. The only import other modules may use |
 | `src/domain/tally.ts` | Pure: poll + votes → `PollResults` for `single`, `multi`, and `ranked` (instant-runoff) |
 | `src/store.ts` | `PollsStore` port, `PollsMembers` (what polls reads from identity), `PollsEventSink`, `PollsDeps`, `command` |
-| `src/commands/` | `poll-*` (lifecycle in `poll.ts`, reads in `read.ts`) and `vote-*` (`vote.ts`); shared guards in `shared.ts`. Not registered in apps/api until #61 |
+| `src/commands/` | `poll-*` (lifecycle in `poll.ts`, reads in `read.ts`) and `vote-*` (`vote.ts`); shared guards in `shared.ts`. Registered in `apps/api/src/registry.ts` |
 | `src/testing.ts` | Memory store, members, and a recording event sink, same behavior as the component |
-| `convex/` | The `polls` Convex component (#61) |
+| `convex/` | The `polls` Convex component: `polls`, `votes`, `pollPosts` tables and their functions. `apps/api/convex/stores.ts` adapts the port to it; `apps/api/convex/polls.ts` runs `poll-sweep` on a 5-minute cron |
 
 ## Rules
 

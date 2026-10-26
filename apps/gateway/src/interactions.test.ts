@@ -150,4 +150,66 @@ describe('interactions endpoint', () => {
       expect((await handle(await signedRequest(click))).status).toBe(400);
     });
   });
+
+  describe('/vintage poll', () => {
+    const pollCreate = {
+      ...base,
+      type: InteractionType.APPLICATION_COMMAND,
+      guild_id: 'g1',
+      data: {
+        name: 'vintage',
+        options: [
+          {
+            name: 'poll',
+            type: 2,
+            options: [
+              {
+                name: 'create',
+                type: 1,
+                options: [
+                  { name: 'question', type: 3, value: 'Which night?' },
+                  { name: 'options', type: 3, value: 'Tue; Thu' },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    };
+
+    it('forwards the poll group to Convex and returns its reply', async () => {
+      const bodies: unknown[] = [];
+      const fakeFetch = (async (_url: string, init: RequestInit) => {
+        bodies.push(JSON.parse(init.body as string));
+        return new Response(JSON.stringify({ type: 4, data: { content: 'posted', flags: 64 } }));
+      }) as typeof fetch;
+      const handle = createInteractionHandler({
+        publicKey,
+        convex: { siteUrl: 'https://x.convex.site', secret: 's', fetch: fakeFetch },
+      });
+      const res = await handle(await signedRequest(pollCreate));
+      expect(await res.json()).toMatchObject({ data: { content: 'posted' } });
+      expect(bodies).toEqual([pollCreate]);
+    });
+
+    it('keeps /vintage ping local', async () => {
+      const calls: unknown[] = [];
+      const fakeFetch = (async () => {
+        calls.push(1);
+        return new Response('{}');
+      }) as typeof fetch;
+      const ping = {
+        ...base,
+        type: InteractionType.APPLICATION_COMMAND,
+        data: { name: 'vintage', options: [{ name: 'ping', type: 1 }] },
+      };
+      const handle = createInteractionHandler({
+        publicKey,
+        now: () => NOW,
+        convex: { siteUrl: 'https://x.convex.site', secret: 's', fetch: fakeFetch },
+      });
+      await handle(await signedRequest(ping));
+      expect(calls).toEqual([]);
+    });
+  });
 });

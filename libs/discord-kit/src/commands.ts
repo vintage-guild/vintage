@@ -7,6 +7,12 @@ export interface ApplicationCommandOption {
   description: string;
   required?: boolean;
   choices?: Array<{ name: string; value: string | number }>;
+  /** INTEGER and NUMBER options: the allowed range, checked by Discord. */
+  min_value?: number;
+  max_value?: number;
+  /** STRING options: the allowed length, checked by Discord. */
+  min_length?: number;
+  max_length?: number;
   options?: ApplicationCommandOption[];
 }
 

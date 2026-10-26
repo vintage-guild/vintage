@@ -1,24 +1,32 @@
-// Discord signup buttons, run inside Convex (#10). The gateway verifies Discord's signature and
-// forwards component and modal interactions to the HTTP route in http.ts, which calls `interaction`
-// here. The flow itself lives in src/discord-signups.ts.
+// Discord interactions, run inside Convex (#10). The gateway verifies Discord's signature and
+// forwards component and modal interactions, and `/vintage poll`, to the HTTP route in http.ts,
+// which calls `interaction` here. The flows live in src/discord-signups.ts and src/discord-polls.ts.
 import type { Interaction } from '@vintage/discord-kit';
 import type { Caller, CommandResult } from '@vintage/guild-kit';
 import type { Signup } from '@vintage/raids/contract';
 import { v } from 'convex/values';
+import { handlePollInteraction } from '../src/discord-polls';
 import { handleSignupInteraction } from '../src/discord-signups';
+import { internal } from './_generated/api';
 import { internalMutation } from './_generated/server';
 import { GUILD_ID, runCommandAs } from './commands';
+import { REFRESH_DELAY_MS } from './pollPosts';
 import { coordinatorDeps, identityStore, raidsStore } from './stores';
 
 export const interaction = internalMutation({
   args: { interaction: v.any() },
   handler: async (ctx, args) => {
+    const incoming = args.interaction as Interaction;
+    const discordGuildId = process.env.DISCORD_GUILD_ID;
     const people = identityStore(ctx);
+    const memberByDiscordId = (discordId: string) =>
+      people.getMemberByDiscordId(GUILD_ID, discordId);
+
     const raids = raidsStore(ctx);
-    const response = await handleSignupInteraction(args.interaction as Interaction, {
-      discordGuildId: process.env.DISCORD_GUILD_ID,
+    const signup = await handleSignupInteraction(incoming, {
+      discordGuildId,
       guildId: GUILD_ID,
-      memberByDiscordId: (discordId) => people.getMemberByDiscordId(GUILD_ID, discordId),
+      memberByDiscordId,
       characters: (memberId) => people.listCharacters(GUILD_ID, { memberId }),
       event: (eventId) => raids.getEvent(GUILD_ID, eventId),
       signup: (eventId, memberId) => raids.getSignupByMember(GUILD_ID, eventId, memberId),
@@ -28,6 +36,22 @@ export const interaction = internalMutation({
         runCommandAs(ctx, caller, 'signup-set', input) as Promise<CommandResult<Signup>>,
       afterChange: () => coordinatorDeps(ctx).scheduler.runTickNow(GUILD_ID),
     });
-    return response ?? null;
+    if (signup) return signup;
+
+    const poll = await handlePollInteraction(incoming, {
+      discordGuildId,
+      guildId: GUILD_ID,
+      memberByDiscordId,
+      run: (caller, name, input, confirmToken) =>
+        runCommandAs(ctx, caller, name, input, confirmToken),
+      post: async (pollId, channelId) => {
+        await ctx.scheduler.runAfter(0, internal.pollPosts.post, { pollId, channelId });
+      },
+      refresh: async (pollId) => {
+        await ctx.scheduler.runAfter(REFRESH_DELAY_MS, internal.pollPosts.refresh, { pollId });
+      },
+      now: () => Date.now(),
+    });
+    return poll ?? null;
   },
 });

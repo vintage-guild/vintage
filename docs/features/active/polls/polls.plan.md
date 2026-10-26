@@ -260,7 +260,7 @@ them; only #2 is costly to change once votes exist.
 - [x] `domain/tally.ts` with tests for single, multi, ranked (including ties and quorum) (#59)
 - [x] Commands with the destructive confirm flow for `poll-close` / `poll-cancel` (#60)
 - [x] Convex component (`polls`, `votes`, `pollPosts`), adapters in `apps/api`, register the commands and write the manifest, `poll-sweep` cron (#61)
-- [ ] `render/discord.ts` with snapshot tests; gateway routes for `/vintage poll …`, buttons, select, modal
-- [ ] Poster action in `apps/api`: post, debounced refresh, final render
+- [x] `render/discord.ts` with tests; `/vintage poll create` (slash options, no modal), vote buttons, select, close with confirm (#62)
+- [x] Poster in `apps/api/convex/pollPosts.ts`: post, debounced refresh, final render; the sweep also refreshes open posts (#62)
 - [ ] `ui-kit` poll card + `apps/web` `/polls` routes (after sign-in #7)
 - [x] Docs: module `AGENTS.md`, architecture table row, this plan → `active/` (#59)

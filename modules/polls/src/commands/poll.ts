@@ -12,6 +12,7 @@ import { command } from '../store';
 import {
   actorOf,
   canManage,
+  canSeeTally,
   closePoll,
   eligibleTierSchema,
   findPoll,
@@ -23,6 +24,7 @@ import {
   optionsSchema,
   pollNotFound,
   tagsSchema,
+  viewOf,
   wrongStatus,
 } from './shared';
 
@@ -239,14 +241,22 @@ export const pollClose = command({
     if (!poll) return pollNotFound();
     if (!canManage(caller, poll)) return notYours();
     if (poll.status !== 'open') return wrongStatus(poll, ['open']);
+    // Closing doesn't entitle you to a tally the poll hides from you: the preview shows it only
+    // when you could already see it live, the result after closing only per resultsVisible.
     if (dryRun) {
       const results = tally(poll, await deps.polls.listVotes(guildId, pollId));
       return success(
-        { willClose: poll.question, results },
+        {
+          willClose: poll.question,
+          ballots: results.ballots,
+          results: canSeeTally(caller, poll) ? results : null,
+        },
         { reasoning: `Closes "${poll.question}" with ${results.ballots} ballots` },
       );
     }
-    return success(await closePoll(deps, poll, now(), actorOf(caller)));
+    const closed = await closePoll(deps, poll, now(), actorOf(caller));
+    const visible = canSeeTally(caller, closed.poll);
+    return success({ poll: viewOf(caller, closed.poll), results: visible ? closed.results : null });
   },
 });
 

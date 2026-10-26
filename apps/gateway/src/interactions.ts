@@ -2,7 +2,7 @@
 // code runs on Vercel functions and in tests. Verify first, over the raw body: Discord probes the
 // URL with bad signatures and drops it unless those get a 401 (PLAN §6.2).
 //
-// Button clicks and modal submits (raid signups) are forwarded to Convex, which runs them through
+// Button clicks, modal submits, and `/vintage poll` are forwarded to Convex, which runs them through
 // the command registry (apps/api convex/http.ts → discord.ts). `/vintage ping` answers locally.
 import {
   discordTimestamp,
@@ -17,7 +17,7 @@ import {
   TIMESTAMP_HEADER,
   verifyInteraction,
 } from '@vintage/discord-kit';
-import { VINTAGE_COMMAND } from './commands';
+import { FORWARDED_GROUPS, VINTAGE_COMMAND } from './commands';
 
 /** Where verified component and modal interactions go: the Convex HTTP route and its secret. */
 export interface ConvexForward {
@@ -30,7 +30,7 @@ export interface ConvexForward {
 export interface InteractionHandlerOptions {
   /** The application's public key (hex), from the Discord Developer Portal. */
   publicKey: string;
-  /** Forward signup buttons and modals here. Without it they get a "not set up yet" reply. */
+  /** Forward buttons, modals, and `/vintage poll` here. Without it they get a "not set up yet" reply. */
   convex?: ConvexForward;
   now?: () => Date;
 }
@@ -42,7 +42,7 @@ const TROUBLE = reply('Vintage could not reach its backend. Please try again in 
 /** Send a verified component or modal interaction to Convex and return its response. */
 async function forward(convex: ConvexForward | undefined, interaction: Interaction) {
   if (!convex) {
-    return reply('Signups from Discord are not set up yet.', { ephemeral: true });
+    return reply('This part of Vintage is not set up in Discord yet.', { ephemeral: true });
   }
   try {
     const url = `${convex.siteUrl.replace(/\/$/, '')}/gateway/interaction`;
@@ -96,6 +96,7 @@ async function route(
   ) {
     const [sub] = subcommandPath(interaction);
     if (sub === 'ping') return reply(`pong · ${discordTimestamp(now)}`, { ephemeral: true });
+    if (sub && FORWARDED_GROUPS.has(sub)) return forward(convex, interaction);
   }
   return undefined;
 }

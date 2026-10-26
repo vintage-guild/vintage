@@ -112,6 +112,13 @@ The buttons on signup posts need the gateway deployed (Vercel) and pointed at Co
 
 Clicks from any server other than `DISCORD_GUILD_ID` get a private refusal.
 
+### Polls in Discord
+
+`/vintage poll create` uses the same gateway → Convex path, and the bot posts and edits poll
+messages with `DISCORD_BOT_TOKEN` (no new permissions). After changing `apps/gateway/src/commands.ts`,
+register the commands again (`pnpm --filter @vintage/gateway register-commands`). Optional:
+set `VINTAGE_SITE_URL` in the Convex env so ranked polls link to the website (once #63 adds the page).
+
 ### Coordinator (raid posts and reminders)
 
 The coordinator cron (every 5 minutes) does nothing until it knows where to post. Point it at

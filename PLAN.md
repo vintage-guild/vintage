@@ -713,6 +713,7 @@ Phase 0 has about ten days and one maintainer, so it is cut to the minimum that 
 - [ ] `raids`: schedules, events, signups, roster, `comp.suggest` via `libs/comp-solver`
 - [ ] `coordinator`: materialize events, post signups, button flow, T-72h/T-24h reminders, officer digest, lock + final roster, `CoordinatorAction` log, `#vintage-ops` errors
 - [x] `libs/discord-kit`: signature verification, embeds, components, timestamps Landed early in Phase 0 (#43).
+- [x] `libs/comp-solver`: selected roster, bench, and gaps with reasons (part of #15; `comp-suggest` lands with `raids`)
 - [ ] Member prefs (DM opt-out, default character, timezone); live roster board on the website
 - [ ] Hosted agent v0 (§3.10): `/ask` in Discord + site chat, read commands + own signups, spend caps, `agent.pause`
 - [ ] First reskin pass once the GM answers Q12: guild colors, class/quality/role/status tokens, display font

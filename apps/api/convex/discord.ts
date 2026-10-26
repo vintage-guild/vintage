@@ -22,6 +22,7 @@ export const interaction = internalMutation({
       characters: (memberId) => people.listCharacters(GUILD_ID, { memberId }),
       event: (eventId) => raids.getEvent(GUILD_ID, eventId),
       signup: (eventId, memberId) => raids.getSignupByMember(GUILD_ID, eventId, memberId),
+      signups: (eventId) => raids.listSignups(GUILD_ID, eventId),
       // The registry's results are untyped at this boundary; signup-set returns a Signup.
       signupSet: (caller: Caller, input) =>
         runCommandAs(ctx, caller, 'signup-set', input) as Promise<CommandResult<Signup>>,

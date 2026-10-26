@@ -6,6 +6,8 @@
 //   modal   signup-note:<eventId>:<status>:<ch> → answer with the typed reason as the note
 // Every reply is ephemeral: only the person who clicked sees it. The post itself is refreshed by
 // the coordinator tick that `afterChange` starts.
+
+import { renderRosterReply } from '@vintage/coordinator/commands';
 import {
   actionRow,
   type Interaction,
@@ -37,6 +39,8 @@ export interface SignupPorts {
   characters(memberId: string): Promise<Character[]>;
   event(eventId: string): Promise<RaidEvent | null>;
   signup(eventId: string, memberId: string): Promise<Signup | null>;
+  /** Everyone signed up for the raid (the Roster button). */
+  signups(eventId: string): Promise<Signup[]>;
   /** Runs `signup-set` through the registry as this caller. */
   signupSet(
     caller: Caller,
@@ -59,6 +63,14 @@ type Parsed =
 
 const isStatus = (s: string | undefined): s is SignupStatus =>
   !!s && (STATUSES as readonly string[]).includes(s);
+
+/** The raid id when this is a Roster button click (`roster:<eventId>`). */
+export function parseRosterInteraction(interaction: Interaction): string | null {
+  const [prefix, eventId] = (interaction.data?.custom_id ?? '').split(':');
+  return prefix === 'roster' && eventId && interaction.type === InteractionType.MESSAGE_COMPONENT
+    ? eventId
+    : null;
+}
 
 /** The signup interaction this is, or null when it isn't one of ours. */
 export function parseSignupInteraction(interaction: Interaction): Parsed | null {
@@ -171,25 +183,34 @@ async function defaultCharacter(ports: SignupPorts, member: Member, eventId: str
   return { chosen, characters };
 }
 
-export async function handleSignupInteraction(
+/** The clicking member, or the refusal to send when they can't use signups here. */
+async function whoIsClicking(
   interaction: Interaction,
   ports: SignupPorts,
-): Promise<InteractionResponse | null> {
-  const parsed = parseSignupInteraction(interaction);
-  if (!parsed) return null;
+): Promise<{ member: Member } | { refusal: InteractionResponse }> {
   if (!ports.discordGuildId || interaction.guild_id !== ports.discordGuildId) {
-    return ephemeral('Vintage only takes signups in the Vintage guild server.');
+    return { refusal: ephemeral('Vintage only takes signups in the Vintage guild server.') };
   }
   const user = interactionUser(interaction);
   const member = user ? await ports.memberByDiscordId(user.id) : null;
   if (!member) {
-    return ephemeral(
-      "I don't know you yet. Discord roles sync every 15 minutes; if you just joined, try again shortly.",
-    );
+    return {
+      refusal: ephemeral(
+        "I don't know you yet. Discord roles sync every 15 minutes; if you just joined, try again shortly.",
+      ),
+    };
   }
-  if (!tierAllows(member.tier, 'recruit')) return ephemeral(NEEDS_RECRUIT);
-  const event = await ports.event(parsed.eventId);
-  if (!event) return ephemeral('That raid no longer exists.');
+  if (!tierAllows(member.tier, 'recruit')) return { refusal: ephemeral(NEEDS_RECRUIT) };
+  return { member };
+}
+
+/** A signup button, picker, or reason form, once the member and raid are known. */
+async function handleSignup(
+  parsed: Parsed,
+  member: Member,
+  event: RaidEvent,
+  ports: SignupPorts,
+): Promise<InteractionResponse> {
   const caller: Caller = {
     surface: 'discord',
     guildId: ports.guildId,
@@ -197,10 +218,7 @@ export async function handleSignupInteraction(
     memberId: member.id,
     discordId: member.discordId,
   };
-
-  if (parsed.kind === 'note') {
-    return answer(ports, caller, event, parsed, ephemeral);
-  }
+  if (parsed.kind === 'note') return answer(ports, caller, event, parsed, ephemeral);
   if (parsed.kind === 'pick') {
     if (ASKS_REASON.has(parsed.status)) {
       return reasonForm(event.id, parsed.status, parsed.characterId, event.name);
@@ -210,7 +228,6 @@ export async function handleSignupInteraction(
       updateMessage({ content, components: [] }),
     );
   }
-
   const { chosen, characters } = await defaultCharacter(ports, member, event.id);
   if (!chosen && characters.length === 0) {
     return ephemeral('Register a character first (character-add), then answer again.');
@@ -219,4 +236,22 @@ export async function handleSignupInteraction(
   if (ASKS_REASON.has(parsed.status))
     return reasonForm(event.id, parsed.status, chosen, event.name);
   return answer(ports, caller, event, { status: parsed.status, characterId: chosen }, ephemeral);
+}
+
+export async function handleSignupInteraction(
+  interaction: Interaction,
+  ports: SignupPorts,
+): Promise<InteractionResponse | null> {
+  const roster = parseRosterInteraction(interaction);
+  const parsed = roster ? null : parseSignupInteraction(interaction);
+  const eventId = roster ?? parsed?.eventId;
+  if (!eventId) return null;
+  const who = await whoIsClicking(interaction, ports);
+  if ('refusal' in who) return who.refusal;
+  const event = await ports.event(eventId);
+  if (!event) return ephemeral('That raid no longer exists.');
+  if (roster) {
+    return reply(renderRosterReply(event, await ports.signups(event.id)), { ephemeral: true });
+  }
+  return handleSignup(parsed!, who.member, event, ports);
 }

@@ -57,7 +57,10 @@ commands). Everything runs serverless: no always-on gateway process.
   no slots). `scripts/discord-emojis.json` lists them (WoW icon names, or `file:` for our own art);
   `node --env-file=apps/api/.env.local scripts/discord-emojis.mjs` uploads missing ones and
   regenerates `modules/coordinator/src/domain/emoji-ids.ts`. Blizzard's icons are never committed.
-- **Cards are Components V2**: one container, text displays, buttons; no embeds.
+- **Raid cards are embeds** (three role columns; Components V2 has no columns). V2 builders exist
+  in discord-kit (`layout.ts`) for messages that don't need columns.
+- **Our own emoji art:** `scripts/build-emoji-art.mjs` renders Tabler outline icons (MIT) and class
+  squares into `assets/emoji/`; list new ones in `scripts/discord-emojis.json` as `file:` entries.
 - **The app is public** (decided 2026-10-25, so the GM can add it). Anyone can add it to their
   own server, so the bot must only act for the configured guild: role sync reads
   `DISCORD_GUILD_ID`, the coordinator posts only to configured channels, and the gateway must

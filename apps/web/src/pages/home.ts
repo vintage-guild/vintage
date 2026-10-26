@@ -16,6 +16,7 @@ import {
   type SignupStatus,
 } from '@vintage/raids/contract';
 import {
+  type CoordinatorState,
   EMPTY_COUNTS,
   getCommandClient,
   type LedgerKill,
@@ -89,6 +90,18 @@ const ANSWER_CAPTIONS: Record<SignupStatus, string> = {
 };
 
 const template = html<Page>`
+  ${when(
+    (x) => x.view === 'officer',
+    html<Page>`
+      <vintage-officer-strip
+        event-title="${(x) => x.next?.event.name ?? ''}"
+        state="${(x) => x.coordinator.state}"
+        state-detail="${(x) => x.coordinator.detail}"
+        :waiting="${(x) => x.officerWaiting}"
+        :gaps="${(x) => x.officerGaps}"
+      ></vintage-officer-strip>
+    `,
+  )}
   <vintage-hero
     id="top"
     art-src="${ART.hero}"
@@ -192,7 +205,7 @@ const template = html<Page>`
               character-label="${(x) => x.mainLabel}"
               time-zone="${() => preferredTimeZone() ?? ''}"
               :counts="${(x) => x.nextCounts}"
-              @signup-changed="${(x) => x.loadRaids()}"
+              @signup-changed="${(x) => x.loadRaids().then(() => (x.view === 'officer' ? x.loadOfficer() : undefined))}"
             >
               <p class="note">${(x) => x.next?.event.instance} · ${(x) => x.next?.event.size} players</p>
               ${when(
@@ -466,6 +479,27 @@ const RULE_LABELS: [prefix: string, label: string][] = [
   ['final', 'Posted the final roster'],
   ['promote', 'Told the next in line a spot opened'],
 ];
+
+/** "Reminded the people who haven’t answered", or the rule's own name for one we don't know. */
+function ruleWords(rule: string): string {
+  return RULE_LABELS.find(([prefix]) => rule.startsWith(prefix))?.[1] ?? titleCase(rule);
+}
+
+/** The slice of `coordinator-status` the officer strip reads. */
+interface CoordinatorStatusData {
+  config: { paused: boolean; signupChannelId: string | null };
+  upcoming: {
+    eventId: string;
+    done: { rule: string; status: string; at: number | null }[];
+    dueNow: string[];
+    waiting: { memberId: string; displayName: string }[];
+  }[];
+}
+
+/** The slice of `comp-suggest` the officer strip reads. */
+interface CompSuggestData {
+  gaps: { reason: string }[];
+}
 
 function describeAction(action: CoordinatorAction, row: RaidRow): FeedItem {
   const match = RULE_LABELS.find(([prefix]) => action.rule.startsWith(prefix));
@@ -1032,6 +1066,15 @@ export class Page extends FASTElement {
   @observable membersFailed = false;
   /** `poll-list` was refused (visitors): the poll card says polls are for members. */
   @observable pollFailed = false;
+  /** For the officer strip: expected members with no answer for the next raid. */
+  @observable officerWaiting: string[] = [];
+  /** For the officer strip: the next raid's comp gaps, as reasons. */
+  @observable officerGaps: string[] = [];
+  /** For the officer strip: the coordinator's state and a short note. */
+  @observable coordinator: { state: CoordinatorState; detail: string } = {
+    state: 'unknown',
+    detail: '',
+  };
   /** Who the page is composed for, from the session (src/view.ts). Fixed for the page's life. */
   readonly view: View = currentView();
   /** Whether this member may answer signups (`signup-set` is recruit tier). */
@@ -1203,7 +1246,9 @@ export class Page extends FASTElement {
   connectedCallback(): void {
     super.connectedCallback();
     void this.loadMembers();
-    void this.loadRaids().then(() => this.loadFeed());
+    void this.loadRaids().then(() =>
+      Promise.all([this.loadFeed(), this.view === 'officer' ? this.loadOfficer() : null]),
+    );
     void this.loadMain();
     void this.loadProgress();
     void this.loadPoll();
@@ -1225,6 +1270,45 @@ export class Page extends FASTElement {
     this.stopWatching?.();
     this.stopWatching = null;
     super.disconnectedCallback();
+  }
+
+  /**
+   * The officer strip for the next raid: who hasn't answered and the coordinator's state from
+   * `coordinator-status` (the same non-responder rule as the reminders and the digest), and the
+   * comp gaps from `comp-suggest`. Refreshed after the member answers too.
+   */
+  async loadOfficer(): Promise<void> {
+    const client = getCommandClient();
+    const next = this.next;
+    const [status, comp] = await Promise.all([
+      client.read<CoordinatorStatusData>('coordinator-status', {}),
+      next
+        ? client.read<CompSuggestData>('comp-suggest', { eventId: next.event.id })
+        : Promise.resolve(null),
+    ]);
+    const mine = status.success
+      ? status.data?.upcoming.find((u) => u.eventId === next?.event.id)
+      : undefined;
+    this.officerWaiting = (mine?.waiting ?? []).map((w) => w.displayName);
+    this.officerGaps = comp?.success ? (comp.data?.gaps ?? []).map((g) => g.reason) : [];
+    if (!status.success || !status.data) {
+      this.coordinator = { state: 'unknown', detail: '' };
+      return;
+    }
+    const { config } = status.data;
+    const state: CoordinatorState = config.paused
+      ? 'paused'
+      : config.signupChannelId
+        ? 'running'
+        : 'unconfigured';
+    const due = mine?.dueNow[0];
+    const last = mine?.done.filter((d) => d.status === 'sent').at(-1);
+    const detail = due
+      ? `due now: ${ruleWords(due).toLowerCase()}`
+      : last
+        ? `last: ${ruleWords(last.rule).toLowerCase()}`
+        : '';
+    this.coordinator = { state, detail };
   }
 
   async loadMembers(): Promise<void> {

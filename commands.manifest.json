@@ -271,7 +271,7 @@
     },
     {
       "name": "coordinator-status",
-      "description": "Whether the coordinator is running, its settings, and for each upcoming raid what it has done and what it will do next.",
+      "description": "Whether the coordinator is running, its settings, and for each upcoming raid what it has done, what it will do next, and who among the expected ranks has not answered.",
       "tier": "leader",
       "mutation": false,
       "destructive": false,

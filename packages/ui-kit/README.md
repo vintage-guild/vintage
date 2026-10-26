@@ -7,6 +7,7 @@ holds the guild-specific pieces (PLAN §3.9).
 | Element | What it is |
 |---|---|
 | `vintage-logo-header` | Sticky site header: the logo (slot), nav, a section context block with its action, the signed-in member (slot), actions, and a scroll-progress line |
+| `vintage-officer-strip` | Leaders' and officers' glance at the next raid: who hasn't answered (`coordinator-status` → `waiting`), comp gaps (`comp-suggest`), the coordinator's state, and a link to the quarters once it exists |
 | `vintage-member-menu` | The signed-in member: round avatar (Discord's once sign-in supplies it, the initial until then), name, rank, and a menu with Profile and Characters |
 | `vintage-roster-wall` | Every member grouped by rank, each as their main's name in its class color with spec and role; the signed-in member's row marked. Fed from `member-list` |
 | `vintage-poll-card` | A single-choice poll with live shares; choosing an option runs the `vintage.vote-cast` command → server `vote-cast` |

@@ -66,7 +66,7 @@ npx convex run commands:read '{"name":"member-list","input":{}}'
 ## Discord (only if you work on the bot)
 
 The bot's settings live in the Discord Developer Portal under the **Random** application (renamed
-from Vintage on 2026-10-26; the bot is Random the raven, and commands stay `/vintage`). To run
+from Vintage on 2026-10-26; the bot is Random the raven, and the slash command is `/random`, which was `/vintage` until then). To run
 Discord code locally, put these in `apps/api/.env.local` (gitignored; never commit them):
 
 ```
@@ -131,7 +131,7 @@ Clicks from any server other than `DISCORD_GUILD_ID` get a private refusal.
 
 ### Polls in Discord
 
-`/vintage poll create` uses the same gateway → Convex path, and the bot posts and edits poll
+`/random poll create` uses the same gateway → Convex path, and the bot posts and edits poll
 messages with `DISCORD_BOT_TOKEN` (no new permissions). After changing `apps/gateway/src/commands.ts`,
 register the commands again (`pnpm --filter @vintage/gateway register-commands`). Optional:
 set `VINTAGE_SITE_URL` in the Convex env so ranked polls link to the website (once #63 adds the page).

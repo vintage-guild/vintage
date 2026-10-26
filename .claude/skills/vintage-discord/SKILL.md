@@ -5,7 +5,7 @@ description: Work on anything Discord in Vintage — libs/discord-kit (signature
 
 # Discord in Vintage
 
-Discord is identity (ranks come from roles) and a surface (signups, reminders, `/vintage`
+Discord is identity (ranks come from roles) and a surface (signups, reminders, `/random`
 commands). Everything runs serverless: no always-on gateway process.
 
 ## Where things are
@@ -15,7 +15,7 @@ commands). Everything runs serverless: no always-on gateway process.
 | Toolkit | `libs/discord-kit` | Pure lib: no `node:` imports, Web APIs only. Read its `src/index.ts` exports |
 | Interactions endpoint | `apps/gateway/src/interactions.ts`, `api/discord/interactions.ts` | Web-standard `Request → Response`, deployed as a Vercel function |
 | Slash commands | `apps/gateway/src/commands.ts`, `scripts/register-commands.ts` | `pnpm --filter @vintage/gateway register-commands` |
-| Bot name and avatar | `apps/gateway/scripts/set-bot-profile.ts`, `assets/brand/random-avatar.gif` | The app and bot are **Random** (animated raven avatar; app icon set in the Portal); commands stay `/vintage`. PNG/JPEG/GIF only, about 2 renames an hour. See the gateway README |
+| Bot name and avatar | `apps/gateway/scripts/set-bot-profile.ts`, `assets/brand/random-avatar.gif` | The app and bot are **Random** (animated raven avatar; app icon set in the Portal); the slash command is `/random` (it was `/vintage` until 2026-10-26). PNG/JPEG/GIF only, about 2 renames an hour. See the gateway README |
 | Role sync | `modules/identity/src/domain/role-sync.ts` (planner), `apps/api/src/discord-directory.ts`, `apps/api/convex/roleSync.ts`, `crons.ts` | Every 15 minutes; no-op until the bot is configured |
 | Role → rank map | identity `roleRanks` table; commands `guild-roles-get` (leader) / `guild-roles-set` (officer, destructive) | Keyed by Discord role **id**, never name |
 
@@ -27,8 +27,8 @@ commands). Everything runs serverless: no always-on gateway process.
 - **Answer within 3 seconds.** Anything slower returns a deferred response (type 5, or 6 for
   component updates) and finishes through the interaction token (valid 15 minutes).
 - **Commands, not logic, in the endpoint.** Interactions translate to guild-kit commands through
-  the registry; the endpoint never holds business rules. `/vintage ping` answers locally; buttons,
-  modals, and the subcommand groups in `FORWARDED_GROUPS` (`/vintage poll`) go to Convex, where
+  the registry; the endpoint never holds business rules. `/random ping` answers locally; buttons,
+  modals, and the subcommand groups in `FORWARDED_GROUPS` (`/random poll`) go to Convex, where
   `src/discord-signups.ts` and `src/discord-polls.ts` run them. Re-register after changing commands.
 - **Least privilege for the bot.** It's invited with View Channels, Send Messages, Embed Links,
   Read Message History, Add Reactions, and Mention Everyone (permissions integer `216128`). Add a

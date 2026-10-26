@@ -79,7 +79,7 @@ const slash = (who: string, options: Record<string, string | number | boolean>) 
   base(who, {
     type: InteractionType.APPLICATION_COMMAND,
     data: {
-      name: 'vintage',
+      name: 'random',
       options: [
         {
           name: 'poll',
@@ -146,7 +146,7 @@ describe('parsing the slash command', () => {
   });
 });
 
-describe('/vintage poll create', () => {
+describe('/random poll create', () => {
   it('creates the poll as the member and posts it in this channel', async () => {
     const response = await handle(
       slash('aeryn', {

@@ -170,7 +170,7 @@ rank stays out of permission, as in raids (gate on tier; rank may later weight o
 Posting and refreshing follow the coordinator's rules (PLAN §6.2): deterministic, serverless,
 idempotent, logged.
 
-1. **Create.** `/vintage poll create` opens a modal (question, options one per line, close time,
+1. **Create.** `/random poll create` opens a modal (question, options one per line, close time,
    method). The gateway turns the submit into `poll-create` + `poll-open`. Officers can also create
    from the website or from Claude over MCP.
 2. **Post.** `poll-opened` → a Convex action renders the embed and posts it to the channel the
@@ -189,7 +189,7 @@ idempotent, logged.
    visibility hide the bars until close.
 5. **Close.** `poll-sweep` on a cron (every 5 minutes, same pattern as materialize) closes due
    polls; `poll-closed` does the final render, disables the components, and marks the winner.
-   Officers can `/vintage poll close` early.
+   Officers can `/random poll close` early.
 
 The bot needs no new permissions for this (Send Messages, Embed Links, Read Message History are
 already in the invite). It would need **Send Polls** only for the native mirror below.
@@ -260,7 +260,7 @@ them; only #2 is costly to change once votes exist.
 - [x] `domain/tally.ts` with tests for single, multi, ranked (including ties and quorum) (#59)
 - [x] Commands with the destructive confirm flow for `poll-close` / `poll-cancel` (#60)
 - [x] Convex component (`polls`, `votes`, `pollPosts`), adapters in `apps/api`, register the commands and write the manifest, `poll-sweep` cron (#61)
-- [x] `render/discord.ts` with tests; `/vintage poll create` (slash options, no modal), vote buttons, select, close with confirm (#62)
+- [x] `render/discord.ts` with tests; `/random poll create` (slash options, no modal), vote buttons, select, close with confirm (#62)
 - [x] Poster in `apps/api/convex/pollPosts.ts`: post, debounced refresh, final render; the sweep also refreshes open posts (#62)
 - [x] `ui-kit` poll card (pick one, pick any, ranked, hidden results) + `/polls` and `/polls/<id>`, home card by role view, officers' Polls tab (#63)
 - [x] Raid-night picker in the coordinator: `raid-night-poll`, settled by the tick (#64)

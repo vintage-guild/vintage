@@ -11,7 +11,7 @@ Asking the guild a question in Discord and getting an answer everyone can see
 1. The local backend is running (`pnpm --filter @vintage/api dev:local:watch`) with
    `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID`, and `VINTAGE_GATEWAY_SECRET` set, and the gateway points
    at it (`VINTAGE_CONVEX_SITE_URL`).
-2. `/vintage poll` is registered in the test server
+2. `/random poll` is registered in the test server
    (`pnpm --filter @vintage/gateway register-commands` with `DISCORD_DEV_GUILD_ID`).
 3. Use the test server's channels; never the Vintage server.
 
@@ -20,7 +20,7 @@ Asking the guild a question in Discord and getting an answer everyone can see
 ### J17 · Ask the raid a question and see the answer on the post
 **When** the raid has to decide something, **I (raider) want** to post a poll and have people
 answer with one click, **so I can** see the answer without counting replies.
-- [ ] `/vintage poll create` as a raider answers privately, and the poll goes up in the same
+- [ ] `/random poll create` as a raider answers privately, and the poll goes up in the same
   channel with one button per option (a menu past five, or for pick-any).
 - [ ] A raider's click answers privately ("You voted for …") and the post's counts move within
   seconds. Clicking another option changes the vote; nobody has two.

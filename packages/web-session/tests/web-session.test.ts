@@ -3,7 +3,7 @@ import { getFunctionName } from 'convex/server';
 import { describe, expect, it } from 'vitest';
 import { type ConvexCalls, convexCommandClient } from '../src/commands';
 import { siteUrlOf } from '../src/connect';
-import { type MemberMe, toWebSession } from '../src/session';
+import { type MemberMe, sameSession, toWebSession } from '../src/session';
 
 /** Records which Convex function each call hit and with what. */
 function fakeConvex() {
@@ -90,6 +90,31 @@ describe('toWebSession', () => {
       rank: null,
       avatarUrl: user.image,
     });
+  });
+});
+
+describe('sameSession', () => {
+  const base = {
+    memberId: 'm1',
+    displayName: 'Aeryn',
+    tier: 'raider' as const,
+    rank: 'raider',
+    timezone: 'America/Chicago',
+  };
+
+  it('ignores a re-read that changed nothing, so refresh() stays quiet', () => {
+    expect(sameSession(base, { ...base })).toBe(true);
+    expect(sameSession(null, null)).toBe(true);
+  });
+
+  it('notices what moves a member: a new timezone, a rank or tier change, signing in or out', () => {
+    expect(sameSession(base, { ...base, timezone: 'Europe/London' })).toBe(false);
+    expect(sameSession(base, { ...base, rank: 'officer', tier: 'officer' })).toBe(false);
+    expect(sameSession(base, { ...base, avatarUrl: 'https://cdn.discordapp.com/x.png' })).toBe(
+      false,
+    );
+    expect(sameSession(null, base)).toBe(false);
+    expect(sameSession(base, null)).toBe(false);
   });
 });
 

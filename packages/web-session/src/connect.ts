@@ -6,7 +6,13 @@ import { convexClient, crossDomainClient } from '@convex-dev/better-auth/client/
 import { createAuthClient } from 'better-auth/client';
 import { ConvexClient } from 'convex/browser';
 import { type CommandClient, convexCommandClient } from './commands';
-import { type MemberMe, toWebSession, type WebSession } from './session';
+import {
+  type AuthUser,
+  type MemberMe,
+  sameSession,
+  toWebSession,
+  type WebSession,
+} from './session';
 
 export interface ConnectOptions {
   /** The Convex deployment, e.g. https://dusty-sardine-902.convex.cloud. */
@@ -29,6 +35,11 @@ export interface VintageConnection {
   onSession(listener: (session: WebSession | null) => void): () => void;
   /** Settles with the first session once sign-in state is known (including a returning redirect). */
   ready: Promise<WebSession | null>;
+  /**
+   * Re-read the member (after `member-prefs-set`, or to pick up a rank change from role sync).
+   * Listeners hear about it only if something changed. Resolves with the session.
+   */
+  refresh(): Promise<WebSession | null>;
   /** Start Discord sign-in; the page navigates to Discord and comes back to `returnTo`. */
   signIn(options?: SignInOptions): Promise<void>;
   signOut(): Promise<void>;
@@ -52,6 +63,7 @@ export function connectVintage(options: ConnectOptions): VintageConnection {
 
   let current: WebSession | null = null;
   let userId: string | null | undefined;
+  let user: AuthUser | null = null;
   const listeners = new Set<(session: WebSession | null) => void>();
   const emit = (next: WebSession | null) => {
     current = next;
@@ -63,21 +75,36 @@ export function connectVintage(options: ConnectOptions): VintageConnection {
     resolveReady = resolve;
   });
 
-  /** The signed-in user changed: re-authenticate Convex and read who they are in the guild. */
-  async function refresh(user: { id: string; name: string; image?: string | null } | null) {
+  /** Read who the signed-in user is in the guild, and emit only when something changed. */
+  async function readMember(): Promise<WebSession | null> {
+    if (!user) return current;
+    const next = toWebSession(user, await commands.read<MemberMe>('member-me'));
+    if (!sameSession(current, next)) emit(next);
+    return current;
+  }
+
+  /** The signed-in user changed: re-authenticate Convex, then read them. */
+  async function load(next: AuthUser & { id: string }) {
+    user = next;
     convex.setAuth(fetchToken);
-    if (!user) return emit(null);
-    emit(toWebSession(user, await commands.read<MemberMe>('member-me')));
+    return readMember();
   }
 
   async function start() {
     await finishRedirect();
     auth.useSession.subscribe(({ data, isPending }) => {
       if (isPending) return;
-      const user = data?.user ?? null;
-      if ((user?.id ?? null) === userId) return;
-      userId = user?.id ?? null;
-      void refresh(user).then(() => resolveReady(current));
+      const next = data?.user ?? null;
+      if ((next?.id ?? null) === userId) return;
+      userId = next?.id ?? null;
+      if (next) {
+        void load(next).then(() => resolveReady(current));
+      } else {
+        user = null;
+        convex.setAuth(fetchToken);
+        emit(null);
+        resolveReady(null);
+      }
     });
   }
 
@@ -104,6 +131,7 @@ export function connectVintage(options: ConnectOptions): VintageConnection {
       return () => listeners.delete(listener);
     },
     ready,
+    refresh: readMember,
     async signIn({ returnTo } = {}) {
       await auth.signIn.social({
         provider: 'discord',

@@ -6,4 +6,10 @@ export {
   siteUrlOf,
   type VintageConnection,
 } from './connect';
-export { type AuthUser, type MemberMe, toWebSession, type WebSession } from './session';
+export {
+  type AuthUser,
+  type MemberMe,
+  sameSession,
+  toWebSession,
+  type WebSession,
+} from './session';

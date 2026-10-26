@@ -153,6 +153,7 @@ New jobs for [docs/jtbd](../../../jtbd/README.md), each as a scenario test and a
 | 2026-10-26 | The quarters lives in `apps/web` under `/officers`, not a separate app. Shared shell, tokens, and command client; the tier check is the only wall. |
 | 2026-10-26 | Three compositions of one home page, not three pages or a separate member portal. |
 | 2026-10-26 | No site-side permission model. The session's tier chooses the composition; each command's own tier remains the gate. |
+| 2026-10-26 | Leaders and officers get "Preview as" on the live site (`src/preview.ts`): the page composes for a lower tier, reads above it answer `COMMAND_NOT_FOUND` from the manifest's tiers, and every action answers `PREVIEW_ONLY`. Reads within the tier still return the officer's own data (their characters and answers). The dev-only fixture switch stays for building without sign-in. |
 | 2026-10-26 | The site module's commands are `recruiting-get` / `recruiting-set`, not `site-recruiting-*`: names say the noun, as `progress-get` and `kill-record` do, not the module. Until an officer saves, `recruiting-get` answers the copy the site shipped with. |
 
 ## Open questions

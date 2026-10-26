@@ -1,0 +1,93 @@
+{
+  "description": "Web → game import: roster, groups, loot settings, ranked candidates",
+  "payload": {
+    "v": 1,
+    "kind": "raid-import",
+    "guildId": "g_vintage",
+    "generatedAt": 1793000000,
+    "raid": {
+      "eventId": "evt_mc_0001",
+      "title": "Molten Core — week 1",
+      "startsAt": 1793052000
+    },
+    "roster": [
+      {
+        "characterId": "c_aeryn",
+        "name": "Aeryn",
+        "class": "warrior",
+        "spec": "protection",
+        "role": "tank"
+      },
+      {
+        "characterId": "c_brann",
+        "name": "Brann",
+        "class": "priest",
+        "spec": "holy",
+        "role": "healer"
+      },
+      {
+        "characterId": "c_cyra",
+        "name": "Cyra",
+        "class": "mage",
+        "role": "ranged"
+      },
+      {
+        "characterId": "c_doran",
+        "name": "Doran-Stonemaul",
+        "class": "rogue",
+        "role": "melee"
+      },
+      {
+        "characterId": "c_elowen",
+        "name": "Élowen",
+        "class": "druid",
+        "spec": "restoration",
+        "role": "healer"
+      }
+    ],
+    "groups": [
+      {
+        "group": 1,
+        "characterIds": [
+          "c_aeryn",
+          "c_brann",
+          "c_doran"
+        ]
+      },
+      {
+        "group": 2,
+        "characterIds": [
+          "c_cyra",
+          "c_elowen"
+        ]
+      }
+    ],
+    "loot": {
+      "methodId": "softres",
+      "methodVersion": 1,
+      "configVersion": 3,
+      "mode": "master",
+      "threshold": 4
+    },
+    "candidates": [
+      {
+        "itemId": 16800,
+        "ranked": [
+          {
+            "characterId": "c_doran",
+            "reason": "Soft-reserved (1 of 2)"
+          },
+          {
+            "characterId": "c_aeryn",
+            "reason": "Soft-reserved (2 of 2)"
+          }
+        ]
+      },
+      {
+        "itemId": 17076,
+        "ranked": []
+      }
+    ]
+  },
+  "encoded": "!VIN:1!Lf5VUnrqqCyrCcyq8prrQVcRtglzKDkOGk8gesUGMlsUGMJ92D85fF3oNMDSTChYD0gHOgLhblEcGAKwLxaK4rGNaMlbKqkT78nZ8T)MB95lmAV1z1megKw4yOEQT7KVuqA)sWoiDVzHM0ggOPwYKBrPqbb6a6Bo(mCopKGaqRbBs)Xj48KtEAA8qHud0wF823a6K)bDqx1xJDU3(sWdKSF7eU)7)5bVSOKWvnInF7)wD4fXUYqB1Yhpk7kKoPX7pOWKB2s6DMCOc3a(4dpIkx5QStTNxMV25zDjOw6829K2zh6QBqIvviYZU0G(5UYzafCO)o7QbEbknsbrzX4lV(H)wVJQgTqrToigDoVqawGv27QAN7Zjyn45P29WAoV2KpA0OX7cSM4Wv)RF8Um2XvqZXVbRyWNCksqYV(WNs2aWYKXfe2o33olEySBMPshc0gnroKuEDnKnPnpvewbkwUnQqdyUOHqgmSyxBFpi2ROHCqGJPzIwsu1VybORakoqjYU91c1JI9u1sOetvNkjNGiKLGTT2rXEzewUsk(7x1EQhEgJEOwVQk2pRgQaODrpwWS0kNnMsF)JxN79JployVekS0xRrpzDN)a"
+}

@@ -138,6 +138,7 @@ Current packages:
 | `libs/comp-solver` | lib | Raid-comp scoring: selected roster, bench, and gaps with reasons, from signups, raid size, and a role/buff template (`solveComp`) | ✅ built and tested; `comp-suggest` waits on the raids module (#15) |
 | `libs/discord-kit` | lib | Interaction signature verification, response/embed/component builders, timestamps, rate-limit-aware REST client | ✅ |
 | `libs/design-tokens` | lib | DTCG token nodes and exporters: CSS themes, TS map (`discordColor`), FenUI Lua theme | ✅ |
+| `libs/bridge-format` | lib | Game ↔ web paste strings: import/export Zod schemas, LibSerialize + LibDeflate compatible codec, golden fixtures | 🚧 TS side built and tested; Lua side (addon) not built |
 | `packages/guild-kit` | package | Commands, tiers, registry, confirm tokens, manifest | ✅ |
 | `packages/testing` | package | Test callers, clock, registry helpers | ✅ |
 | `modules/identity` | module | Members, characters, guild ranks, role → rank map, role sync planner | ✅ |
@@ -170,7 +171,7 @@ are enforced by `pnpm check:boundaries`; the full table is in PLAN.md §4.1.
 | MCP | `/mcp` on AFD 2.2's stateless handler (MCP 2026-07-28 spec); AFD meta-tools (`afd-discover`, `afd-detail`, `afd-call`, `afd-batch`, `afd-pipe`); Better Auth OAuth | 📋 |
 | CLI | `afd-cli --transport streamable` pointed at `/mcp` | 📋 |
 | Hosted agent | OpenAI Agents SDK in Convex Node actions, using the same commands as the asking member | 📋 |
-| WoW addon | `Vintage` on CurseForge (Weekly layout: pure `Core/`, WoW-facing `Bridge/`); exchanges versioned strings with the website | 📋 |
+| WoW addon | `Vintage` on CurseForge (Weekly layout: pure `Core/`, WoW-facing `Bridge/`); exchanges versioned strings with the website (`libs/bridge-format`) | 📋 |
 
 ## Repo tooling and gates
 

@@ -1,0 +1,14 @@
+{
+  "description": "An export with nothing recorded; empty lists must round-trip",
+  "payload": {
+    "v": 1,
+    "kind": "raid-export",
+    "exportedAt": 1793066400,
+    "addonVersion": "0.1.0",
+    "exporter": "Aeryn",
+    "attendance": [],
+    "loot": [],
+    "items": []
+  },
+  "encoded": "!VIN:1!JX2ouIPKs(5fwQfvCM5NxqgONH6zWIsSKssnVusmVKtLRfLAffKFrLKAkowIgz9awxqtq5xuqoMArvMxqzwsQ5wmxoLDM5LYMkkXmtrxiY7uo5NFjCjuzmda"
+}

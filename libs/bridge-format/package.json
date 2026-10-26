@@ -1,0 +1,23 @@
+{
+  "name": "@vintage/bridge-format",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Versioned game↔web paste strings: Zod payload schemas, a LibSerialize + LibDeflate compatible codec, and golden fixtures shared with the addon.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./fixtures/*": "./fixtures/*"
+  },
+  "scripts": {
+    "type-check": "tsc6 -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@vintage/wow-data": "workspace:*",
+    "fflate": "^0.8.3",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@vintage/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

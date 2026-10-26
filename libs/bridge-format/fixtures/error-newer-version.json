@@ -1,0 +1,83 @@
+{
+  "description": "A payload from a newer schema version is refused, not misread",
+  "payload": {
+    "v": 2,
+    "kind": "raid-export",
+    "exportedAt": 1793066400,
+    "addonVersion": "0.1.0",
+    "exporter": "Aeryn",
+    "guildId": "g_vintage",
+    "eventId": "evt_mc_0001",
+    "attendance": [
+      {
+        "at": 1793052300,
+        "label": "start",
+        "members": [
+          {
+            "name": "Aeryn",
+            "class": "warrior",
+            "group": 1,
+            "online": true
+          },
+          {
+            "name": "Brann",
+            "class": "priest",
+            "group": 1,
+            "online": true
+          },
+          {
+            "name": "Cyra",
+            "class": "mage",
+            "group": 2,
+            "online": false
+          }
+        ]
+      },
+      {
+        "at": 1793055900,
+        "label": "Lucifron",
+        "members": [
+          {
+            "name": "Aeryn",
+            "class": "warrior",
+            "group": 1,
+            "online": true
+          }
+        ]
+      }
+    ],
+    "loot": [
+      {
+        "itemId": 16800,
+        "looter": "Doran-Stonemaul",
+        "at": 1793056000,
+        "source": "Lucifron"
+      },
+      {
+        "itemId": 17011,
+        "looter": "Brann",
+        "at": 1793056100,
+        "count": 2
+      }
+    ],
+    "items": [
+      {
+        "itemId": 16800,
+        "name": "Arcanist Boots",
+        "quality": 4,
+        "itemLevel": 66,
+        "equipLoc": "INVTYPE_FEET",
+        "classId": 4,
+        "subclassId": 1,
+        "icon": 132539
+      },
+      {
+        "itemId": 17011,
+        "name": "Lava Core",
+        "quality": 3
+      }
+    ]
+  },
+  "error": "UNSUPPORTED_VERSION",
+  "encoded": "!VIN:1!1avZQnvquy141MKwe0vIGqWfIeOLB30fU7o1e4cbrglfCvCUZCmo6CNj9mZC1SnGUYvzTlczHpaDR76dGCEauu8rWNGoPjD358X3pNVZn)(fcLYzpfqV2z55hC4b5ReHayvcRe6F0JfHN(()8ZVYnIkWW9bbgWAOUkP4zd5sJW7Xpkqu7q(e0fN2Izf1aVaWz2kN1OTWBgs7unf1GpqDArD5muyT0ERXz1Ija1jJ6YoEgkO9E32m)13OBpFuuQFl6S0DEyIl1(k50UjPi0a2qP6COjmUwoopp)WvWNM6WaOksg83SLZ3UJ0U4KO2OkvlMmUrBdPm56au77)f8QouQ6mholQNoYjVO8fNEYRF5GXdhm4eMw6Sp4wz)OAn)sv7ILlwpnkLV5Zu3)vGsHv7d9yoxWJNffgDywNv(y1wNBDe9O2mp1DXirJO3XoeOE7W(G2QohfA1(BotMjzq)HBA)VVrstXYQ1ya()N7sFS9FvWzHAr0u5Druc09UMTIlDrBiBtqpHU79BYUea"
+}

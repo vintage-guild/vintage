@@ -1,7 +1,10 @@
 // The role-sync path with a mocked Discord REST API (no network): the fetch-backed directory,
 // then the full run feeding member-sync through the registry and the memory store.
+
+import { createMemoryCoordinatorDeps } from '@vintage/coordinator/testing';
 import type { MemberSyncInput } from '@vintage/identity/commands';
 import { createMemoryIdentityDeps } from '@vintage/identity/testing';
+import { createMemoryRaidsDeps } from '@vintage/raids/testing';
 import { makeCaller, TEST_GUILD_ID, testRegistry } from '@vintage/testing';
 import { describe, expect, it } from 'vitest';
 import { discordGuildDirectory } from '../src/discord-directory';
@@ -157,7 +160,11 @@ describe('runRoleSync', () => {
 
   /** Applies batches through member-sync as the system caller, like commands:syncMembers. */
   function host() {
-    const deps: VintageDeps = createMemoryIdentityDeps({ ...OFFICER_ROLE_MAP });
+    const deps: VintageDeps = {
+      ...createMemoryIdentityDeps({ ...OFFICER_ROLE_MAP }),
+      ...createMemoryRaidsDeps(),
+      ...createMemoryCoordinatorDeps(() => ({ guildId: TEST_GUILD_ID, events: [], members: [] })),
+    };
     const registry = testRegistry<VintageDeps>(commands);
     const system = makeCaller('officer', { surface: 'system', memberId: undefined });
     const batches: MemberSyncInput[][] = [];

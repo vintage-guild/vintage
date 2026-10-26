@@ -1,9 +1,19 @@
 // Adapters from module ports to Convex: each module's store calls its own component.
 // Commands never see Convex; they get these through `deps` (PLAN §3.3).
+
+import type { CoordinatorDeps, CoordinatorStore, TickSource } from '@vintage/coordinator/commands';
+import { type CoordinatorConfig, defaultConfig } from '@vintage/coordinator/contract';
 import type { IdentityDeps, IdentityStore } from '@vintage/identity/commands';
 import type { Character, GuildRank, Member, RoleRankMap } from '@vintage/identity/contract';
+import type { RaidsDeps, RaidsEventSink, RaidsStore } from '@vintage/raids/commands';
+import type { Signup } from '@vintage/raids/contract';
 import type { WowClass } from '@vintage/wow-data';
-import type { GenericMutationCtx, GenericQueryCtx } from 'convex/server';
+import {
+  type GenericMutationCtx,
+  type GenericQueryCtx,
+  makeFunctionReference,
+} from 'convex/server';
+import { createTickSource } from '../src/tick-source';
 import { components } from './_generated/api';
 import type { DataModel } from './_generated/dataModel';
 
@@ -86,4 +96,133 @@ const asRoleRankMap = (entries: { discordRoleId: string; rank: GuildRank }[]): R
 
 export function identityDeps(ctx: Ctx): IdentityDeps {
   return { identity: identityStore(ctx) };
+}
+
+const raids = components.raids;
+
+// Like characters, signup rows store class as a plain string.
+const asSignup = (row: Omit<Signup, 'class'> & { class: string }): Signup => ({
+  ...row,
+  class: row.class as WowClass,
+});
+
+export function raidsStore(ctx: Ctx): RaidsStore {
+  return {
+    listSchedules: (guildId, filter = {}) =>
+      ctx.runQuery(raids.schedules.list, { guildId, ...filter }),
+    getSchedule: (guildId, scheduleId) =>
+      ctx.runQuery(raids.schedules.get, { guildId, scheduleId }),
+    insertSchedule: (schedule) => writable(ctx).runMutation(raids.schedules.insert, schedule),
+    updateSchedule: (guildId, scheduleId, patch) =>
+      writable(ctx).runMutation(raids.schedules.update, { guildId, scheduleId, patch }),
+
+    listEvents: (guildId, filter = {}) =>
+      ctx.runQuery(raids.raidEvents.list, { guildId, ...filter }),
+    getEvent: (guildId, eventId) => ctx.runQuery(raids.raidEvents.get, { guildId, eventId }),
+    insertEvent: (event) => writable(ctx).runMutation(raids.raidEvents.insert, event),
+    updateEvent: (guildId, eventId, patch) =>
+      writable(ctx).runMutation(raids.raidEvents.update, { guildId, eventId, patch }),
+
+    listSignups: async (guildId, eventId) =>
+      (await ctx.runQuery(raids.signups.list, { guildId, eventId })).map(asSignup),
+    getSignup: async (guildId, signupId) => {
+      const row = await ctx.runQuery(raids.signups.get, { guildId, signupId });
+      return row && asSignup(row);
+    },
+    getSignupByMember: async (guildId, eventId, memberId) => {
+      const row = await ctx.runQuery(raids.signups.byMember, { guildId, eventId, memberId });
+      return row && asSignup(row);
+    },
+    insertSignup: async (signup) =>
+      asSignup(await writable(ctx).runMutation(raids.signups.insert, signup)),
+    updateSignup: async (guildId, signupId, patch) =>
+      asSignup(await writable(ctx).runMutation(raids.signups.update, { guildId, signupId, patch })),
+    deleteSignup: async (guildId, signupId) => {
+      await writable(ctx).runMutation(raids.signups.remove, { guildId, signupId });
+    },
+  };
+}
+
+/** Raids events go on the app's event bus table (PLAN §4.3); subscribers come later. */
+function eventSink(ctx: Ctx): RaidsEventSink {
+  return {
+    emit: async (guildId, type, payload) => {
+      await writable(ctx).db.insert('events', { guildId, type, payload, emittedAt: Date.now() });
+    },
+  };
+}
+
+export function raidsDeps(ctx: Ctx): RaidsDeps {
+  const people = identityStore(ctx);
+  return {
+    raids: raidsStore(ctx),
+    members: {
+      getCharacter: (guildId, characterId) => people.getCharacter(guildId, characterId),
+      getMember: (guildId, memberId) => people.getMember(guildId, memberId),
+    },
+    events: eventSink(ctx),
+  };
+}
+
+const coordinator = components.coordinator;
+
+export function coordinatorStore(ctx: Ctx): CoordinatorStore {
+  const getConfig = async (guildId: string): Promise<CoordinatorConfig> =>
+    (await ctx.runQuery(coordinator.config.get, { guildId })) ?? defaultConfig(guildId);
+  return {
+    getConfig,
+    setConfig: async (guildId, patch, now) => {
+      const { guildId: _g, updatedAt: _u, ...current } = await getConfig(guildId);
+      return writable(ctx).runMutation(coordinator.config.put, {
+        guildId,
+        config: { ...current, ...patch },
+        updatedAt: now,
+      });
+    },
+    listActions: (guildId, filter = {}) =>
+      ctx.runQuery(coordinator.actions.list, { guildId, ...filter }),
+    claimAction: (key, now, staleMs) =>
+      writable(ctx).runMutation(coordinator.actions.claim, { ...key, now, staleMs }),
+    completeAction: (guildId, actionId, result, now) =>
+      writable(ctx).runMutation(coordinator.actions.complete, {
+        guildId,
+        actionId,
+        status: result.status,
+        discordMessageId: result.discordMessageId ?? null,
+        detail: result.detail ?? null,
+        renderHash: result.renderHash ?? null,
+        now,
+      }),
+    setRenderHash: async (guildId, actionId, renderHash) => {
+      await writable(ctx).runMutation(coordinator.actions.setRenderHash, {
+        guildId,
+        actionId,
+        renderHash,
+      });
+    },
+  };
+}
+
+/** Reads raids, identity, and the action log for one tick (or coordinator-status). */
+export function tickSource(ctx: Ctx): TickSource {
+  return createTickSource({
+    raids: raidsStore(ctx),
+    identity: identityStore(ctx),
+    coordinator: coordinatorStore(ctx),
+  });
+}
+
+// Referenced by name to avoid a type cycle between this file and the generated api.
+const tickNow = makeFunctionReference<'action', Record<string, never>>('coordinator:tick');
+
+export function coordinatorDeps(ctx: Ctx): CoordinatorDeps {
+  return {
+    coordinator: coordinatorStore(ctx),
+    tickSource: tickSource(ctx),
+    scheduler: {
+      runTickNow: async () => {
+        await writable(ctx).scheduler.runAfter(0, tickNow, {});
+      },
+    },
+  };
 }

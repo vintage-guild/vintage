@@ -26,7 +26,7 @@ translate a request into a registry call and render the result. This is
 ```mermaid
 flowchart TB
     subgraph Surfaces
-        WEB["Website 📋<br/>apps/web · FAST-AF"]
+        WEB["Website 🚧<br/>apps/web · FAST-AF"]
         DISCORD["Discord 🚧<br/>buttons · slash commands"]
         MCP["Agent harnesses 📋<br/>Claude · Codex · afd-cli"]
         AGENT["Hosted guild agent 📋"]
@@ -42,8 +42,8 @@ flowchart TB
         REG["guild-kit registry ✅<br/>caller · tier · validation · confirm"]
         subgraph Modules
             ID["identity ✅"]
-            RAIDS["raids 📋"]
-            COORD["coordinator 📋"]
+            RAIDS["raids ✅"]
+            COORD["coordinator 🚧"]
             LOOT["loot 📋"]
         end
     end
@@ -65,7 +65,7 @@ not copies: when one has a bug or a gap, file it upstream (see [Upstream](#upstr
 |---|---|---|---|
 | [AFD](https://github.com/lushly-dev/afd) | Agent-First Development framework: command definitions, `CommandResult`, MCP server/client/CLI, testing helpers | `guild-kit` builds on `@lushly-dev/afd-core`; `/mcp` and `apps/cli` will use `afd-server` / `afd-cli` 2.2 (stateless Streamable HTTP, in progress upstream, not on npm yet) | ✅ core · 🚧 MCP |
 | [botcore](https://github.com/lushly-dev/botcore) | Shared repo tooling for agents: commands, skills, plugins, one MCP server | `tooling/botcore` plugin + `vintagebot` CLI (`module-new`, `repo-check`); `botcore.toml` gates and skill seeding | ✅ |
-| [FAST-AF](https://github.com/lushly-dev/fast-af) | FAST Element v3 runtime with AFD extensions: Definition Schema, `@command`, router, `violet-elements` primitives | Website components in `packages/ui-kit` and `apps/web`. Not on npm yet, so the built packages are vendored in `vendor/`, pinned to a commit ([VENDORED.md](../vendor/VENDORED.md)) | 🚧 vendored · 📋 used |
+| [FAST-AF](https://github.com/lushly-dev/fast-af) | FAST Element v3 runtime with AFD extensions: Definition Schema, `@command`, router, `violet-elements` primitives | Website components in `packages/ui-kit` (with `@command` actions and a Custom Elements Manifest) and the `apps/web` shell on the router. Not on npm yet, so the built packages are vendored in `vendor/`, pinned to a commit ([VENDORED.md](../vendor/VENDORED.md)) | ✅ vendored · 🚧 used |
 | [Violet](https://github.com/lushly-dev/violet) | Design-token engine: inheritance tree of token nodes, build-time export | Not used yet: its CLI can't export from in-repo files in CI (spike Q14, upstream [lushly-dev/violet#30](https://github.com/lushly-dev/violet/issues/30)). `libs/design-tokens` keeps Violet's node model in plain DTCG so switching later only swaps the build script | 📋 |
 | AFD site design system | Brand language (palette, type roles, motion, voice) for the AFD site | The `afd-site` base node in `libs/design-tokens`, reskinned by the `vintage` node | ✅ |
 | [Mechanic](https://github.com/Falkicon/Mechanic) | WoW addon dev hub: diagnostics, library sync, sandbox tests, release commands | Addon library management (`libs.json`), offline Lua tests, packaging | 📋 |
@@ -135,19 +135,23 @@ Current packages:
 | Package | Layer | What it is | Status |
 |---|---|---|---|
 | `libs/wow-data` | lib | Classes, specs, raid roles | ✅ |
-| `libs/comp-solver` | lib | Raid-comp scoring: selected roster, bench, and gaps with reasons, from signups, raid size, and a role/buff template (`solveComp`) | ✅ built and tested; `comp-suggest` waits on the raids module (#15) |
+| `libs/comp-solver` | lib | Raid-comp scoring: selected roster, bench, and gaps with reasons, from signups, raid size, and a role/buff template (`solveComp`) | ✅ built and tested; used by `comp-suggest` in raids |
 | `libs/discord-kit` | lib | Interaction signature verification, response/embed/component builders, timestamps, rate-limit-aware REST client | ✅ |
 | `libs/design-tokens` | lib | DTCG token nodes and exporters: CSS themes, TS map (`discordColor`), FenUI Lua theme | ✅ |
 | `libs/bridge-format` | lib | Game ↔ web paste strings: import/export Zod schemas, LibSerialize + LibDeflate compatible codec, golden fixtures | 🚧 TS side built and tested; Lua side (addon) not built |
 | `packages/guild-kit` | package | Commands, tiers, registry, confirm tokens, manifest | ✅ |
 | `packages/testing` | package | Test callers, clock, registry helpers | ✅ |
+| `packages/ui-kit` | package | Web composites on FAST-AF + violet-elements: logo header, class/role badges, character form (`@command` → `character-add`), signup and sign-in cards, theme switch; a `CommandClient` port (stubbed until Convex is wired); Violet → Vintage token bridge; Custom Elements Manifest | ✅ |
 | `modules/identity` | module | Members, characters, guild ranks, role → rank map, role sync planner | ✅ |
+| `modules/coordinator` | module | The raid coordinator loop on a 5-minute cron: signup posts, reminders (pings + optional DMs), officer digest, lock, final roster, addon import string; `CoordinatorAction` log | 🚧 built, tested, and run live on the test server; button clicks wait on the gateway (#10) |
+| `modules/raids` | module | Schedules (DST-safe recurrence), raid events, signups, roster groups, `comp-suggest`; emits `signup-changed` and `raid-completed` | ✅ built and tested; not yet driven by the coordinator |
 | `apps/api` | app | Convex: composes components, command surface, crons | ✅ |
 | `apps/gateway` | app | Vercel functions: `/discord/interactions` (later `/mcp`) | 🚧 |
-| `vendor/*` | vendored | Built FAST-AF: `@lushly-dev/fast-element`, `@microsoft/fast-router`, `@lushly-dev/violet-elements`. Never edited; re-synced by script | ✅ vendored, not used yet |
+| `apps/web` | app | The website: Vite SPA on the FAST-AF router; about/recruitment, profile, and characters pages; `data-theme` switching. Member pages are signed out until sign-in (#7); not deployed yet | 🚧 |
+| `vendor/*` | vendored | Built FAST-AF: `@lushly-dev/fast-element`, `@microsoft/fast-router`, `@lushly-dev/violet-elements`. Never edited; re-synced by script | ✅ used by `ui-kit` and `web` |
 
 Dependencies only point down: `apps → modules → packages → libs`. Modules reach each other only
-through `/contract`. Libs never import Convex, Discord, OpenAI, Vercel, or FAST-AF. These rules
+through `/contract`. Libs never import Convex, Discord, OpenAI, Vercel, or FAST-AF (including violet-elements). These rules
 are enforced by `pnpm check:boundaries`; the full table is in PLAN.md §4.1.
 
 ## Data
@@ -166,7 +170,7 @@ are enforced by `pnpm check:boundaries`; the full table is in PLAN.md §4.1.
 
 | Surface | How it works | Status |
 |---|---|---|
-| Website | FAST-AF components calling `commands.read` (live queries) and `commands.run` (mutations); themed by design tokens | 📋 |
+| Website | FAST-AF components calling `commands.read` (live queries) and `commands.run` (mutations) through ui-kit's `CommandClient`; themed by design tokens. Shell, pages, and components built; the client is a stub until sign-in (#7) and a hosted Convex deployment exist | 🚧 |
 | Discord | Serverless: interactions hit `/discord/interactions` in `apps/gateway` (Ed25519-verified, 3s deferred ack); posts, DMs, and member lists are REST calls through `libs/discord-kit`. The Vintage bot app exists; endpoint built and tested, not deployed yet | 🚧 |
 | MCP | `/mcp` on AFD 2.2's stateless handler (MCP 2026-07-28 spec); AFD meta-tools (`afd-discover`, `afd-detail`, `afd-call`, `afd-batch`, `afd-pipe`); Better Auth OAuth | 📋 |
 | CLI | `afd-cli --transport streamable` pointed at `/mcp` | 📋 |
@@ -184,6 +188,7 @@ are enforced by `pnpm check:boundaries`; the full table is in PLAN.md §4.1.
 | Manifest | `pnpm check:manifest` | Stale `commands.manifest.json` |
 | Lockfile | part of `validate:final` | Stale `pnpm-lock.yaml` |
 | Types and tests | `pnpm type-check`, `pnpm test:run` | TypeScript 6 (`tsc6`), Vitest |
+| Build | `pnpm build` | `apps/web` Vite build; ui-kit Custom Elements Manifest missing an element or `@command` |
 | Gate self-tests | `pnpm check:scripts` | The CI selection, contract-break, DCO, and PR-title logic |
 
 CI runs a `select` job that decides which lanes a change needs (TS, contract, addon, botcore,

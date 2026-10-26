@@ -116,6 +116,154 @@
       }
     },
     {
+      "name": "comp-suggest",
+      "description": "Suggest a raid comp from the signups: who plays, who sits, and what the raid is missing (\"need 1 healer\", \"no Mark of the Wild\"), each with a reason.",
+      "tier": "raider",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "eventId"
+        ]
+      }
+    },
+    {
+      "name": "coordinator-config-set",
+      "description": "Set where the coordinator posts (signup and officer channels), whose answers it chases (expectedRanks), and whether it DMs non-responders.",
+      "tier": "officer",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "signupChannelId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{17,20}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "opsChannelId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{17,20}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expectedRanks": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "officer",
+                "raid-leader",
+                "raider",
+                "flex-raider",
+                "recruit",
+                "member",
+                "friend"
+              ]
+            }
+          },
+          "dmReminders": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "name": "coordinator-log",
+      "description": "What the coordinator did for a raid and why: posts, reminders, DMs, locks. Answers 'why did the bot ping me?'.",
+      "tier": "member",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "limit": {
+            "default": 50,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          }
+        },
+        "required": [
+          "eventId"
+        ]
+      }
+    },
+    {
+      "name": "coordinator-pause",
+      "description": "Stop the coordinator: no posts, reminders, or locks until coordinator-resume.",
+      "tier": "leader",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "coordinator-resume",
+      "description": "Restart a paused coordinator. Anything that came due while paused goes out on the next tick.",
+      "tier": "leader",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "coordinator-run",
+      "description": "Run a coordinator tick now instead of waiting for the schedule (it runs every few minutes). Safe to repeat: nothing is sent twice.",
+      "tier": "leader",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "coordinator-status",
+      "description": "Whether the coordinator is running, its settings, and for each upcoming raid what it has done and what it will do next.",
+      "tier": "leader",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
       "name": "guild-roles-get",
       "description": "The Discord role id → guild rank map that member-sync uses to set rank and tier.",
       "tier": "leader",
@@ -253,6 +401,801 @@
           "displayName",
           "inServer",
           "roleIds"
+        ]
+      }
+    },
+    {
+      "name": "raid-cancel",
+      "description": "Cancel a raid. Shows a preview first; confirm to cancel. Signups stay for history.",
+      "tier": "leader",
+      "mutation": true,
+      "destructive": true,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "eventId"
+        ]
+      }
+    },
+    {
+      "name": "raid-complete",
+      "description": "Mark a raid as done after it started. Records attendance (the roster, or accepted signups when no roster was set) and starts post-raid work.",
+      "tier": "leader",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "eventId"
+        ]
+      }
+    },
+    {
+      "name": "raid-create",
+      "description": "Create a one-off raid (not from a schedule), open for signups.",
+      "tier": "leader",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60
+          },
+          "instance": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60
+          },
+          "size": {
+            "anyOf": [
+              {
+                "type": "number",
+                "const": 10
+              },
+              {
+                "type": "number",
+                "const": 20
+              },
+              {
+                "type": "number",
+                "const": 40
+              }
+            ]
+          },
+          "startsAt": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              }
+            ]
+          },
+          "durationMinutes": {
+            "default": 180,
+            "type": "integer",
+            "minimum": 30,
+            "maximum": 480
+          },
+          "roleTargets": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "tank": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "healer": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "dps": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "tank",
+                  "healer",
+                  "dps"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lootMethodId": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "instance",
+          "size",
+          "startsAt"
+        ]
+      }
+    },
+    {
+      "name": "raid-get",
+      "description": "One raid with signup counts and your own signup. Recruits and up see the full signup list.",
+      "tier": "member",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "eventId"
+        ]
+      }
+    },
+    {
+      "name": "raid-list",
+      "description": "Raids in a time window, soonest first. Defaults to open and locked raids in the next 14 days.",
+      "tier": "member",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "from": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              }
+            ]
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              }
+            ]
+          },
+          "statuses": {
+            "default": [
+              "open",
+              "locked"
+            ],
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "open",
+                "locked",
+                "cancelled",
+                "completed"
+              ]
+            }
+          },
+          "scheduleId": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "raid-reschedule",
+      "description": "Move a raid to a new start time. Signups and roster are kept.",
+      "tier": "leader",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "startsAt": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              }
+            ]
+          }
+        },
+        "required": [
+          "eventId",
+          "startsAt"
+        ]
+      }
+    },
+    {
+      "name": "roster-bench",
+      "description": "Bench a signed-up character for this raid (they keep their signup).",
+      "tier": "leader",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "signupId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "signupId"
+        ]
+      }
+    },
+    {
+      "name": "roster-lock",
+      "description": "Lock signups for a raid; after this only raid leaders can change them.",
+      "tier": "leader",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "eventId"
+        ]
+      }
+    },
+    {
+      "name": "roster-move",
+      "description": "Put a signed-up character in a raid group (1–8 for 40s; 5 per group).",
+      "tier": "leader",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "signupId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "group": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 8
+          }
+        },
+        "required": [
+          "signupId",
+          "group"
+        ]
+      }
+    },
+    {
+      "name": "roster-remove",
+      "description": "Remove someone's signup from a raid entirely. Shows a preview first; confirm to remove.",
+      "tier": "leader",
+      "mutation": true,
+      "destructive": true,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "signupId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "signupId"
+        ]
+      }
+    },
+    {
+      "name": "roster-unlock",
+      "description": "Reopen signups for a locked raid.",
+      "tier": "leader",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "eventId"
+        ]
+      }
+    },
+    {
+      "name": "schedule-create",
+      "description": "Create a recurring raid night, e.g. Molten Core every Tuesday and Thursday at 20:00 New York time. Events are created ahead of time by schedule-materialize.",
+      "tier": "leader",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60
+          },
+          "instance": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60
+          },
+          "size": {
+            "anyOf": [
+              {
+                "type": "number",
+                "const": 10
+              },
+              {
+                "type": "number",
+                "const": 20
+              },
+              {
+                "type": "number",
+                "const": 40
+              }
+            ]
+          },
+          "weekdays": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "sun",
+                "mon",
+                "tue",
+                "wed",
+                "thu",
+                "fri",
+                "sat"
+              ]
+            }
+          },
+          "time": {
+            "type": "string"
+          },
+          "timeZone": {
+            "type": "string"
+          },
+          "durationMinutes": {
+            "default": 180,
+            "type": "integer",
+            "minimum": 30,
+            "maximum": 480
+          },
+          "leadDays": {
+            "default": 7,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 28
+          },
+          "reminderHours": {
+            "default": [
+              72,
+              24
+            ],
+            "maxItems": 5,
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 336
+            }
+          },
+          "lockHours": {
+            "default": 2,
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 72
+          },
+          "roleTargets": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "tank": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "healer": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "dps": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "tank",
+                  "healer",
+                  "dps"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lootMethodId": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "instance",
+          "size",
+          "weekdays",
+          "time",
+          "timeZone"
+        ]
+      }
+    },
+    {
+      "name": "schedule-list",
+      "description": "List raid schedules (active ones unless includeInactive).",
+      "tier": "member",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "includeInactive": {
+            "default": false,
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "name": "schedule-materialize",
+      "description": "Create the raid events each active schedule needs over its lead window (default 7 days). Safe to run repeatedly: an occurrence that already has an event, even a cancelled one, is skipped.",
+      "tier": "leader",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "scheduleId": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "schedule-update",
+      "description": "Change a schedule (time, days, size, timings, comp targets) or pause it with active: false. Raids already created keep their time; use raid-reschedule for those.",
+      "tier": "leader",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "scheduleId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60
+          },
+          "instance": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60
+          },
+          "size": {
+            "anyOf": [
+              {
+                "type": "number",
+                "const": 10
+              },
+              {
+                "type": "number",
+                "const": 20
+              },
+              {
+                "type": "number",
+                "const": 40
+              }
+            ]
+          },
+          "weekdays": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "sun",
+                "mon",
+                "tue",
+                "wed",
+                "thu",
+                "fri",
+                "sat"
+              ]
+            }
+          },
+          "time": {
+            "type": "string"
+          },
+          "timeZone": {
+            "type": "string"
+          },
+          "durationMinutes": {
+            "type": "integer",
+            "minimum": 30,
+            "maximum": 480
+          },
+          "leadDays": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 28
+          },
+          "reminderHours": {
+            "maxItems": 5,
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 336
+            }
+          },
+          "lockHours": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 72
+          },
+          "roleTargets": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "tank": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "healer": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "dps": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "tank",
+                  "healer",
+                  "dps"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lootMethodId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "active": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "scheduleId"
+        ]
+      }
+    },
+    {
+      "name": "signup-get",
+      "description": "Your signup for a raid. Raid leaders may look up anyone's with memberId.",
+      "tier": "recruit",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "memberId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "eventId"
+        ]
+      }
+    },
+    {
+      "name": "signup-list",
+      "description": "Everyone signed up for a raid, best answer first (accepted before tentative).",
+      "tier": "recruit",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "statuses": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "accepted",
+                "late",
+                "tentative",
+                "bench",
+                "declined"
+              ]
+            }
+          }
+        },
+        "required": [
+          "eventId"
+        ]
+      }
+    },
+    {
+      "name": "signup-set",
+      "description": "Sign up for a raid with one of your characters, or change your answer (accepted, late, tentative, bench, declined). One signup per member per raid. Raid leaders may sign up anyone's character and may change locked raids.",
+      "tier": "recruit",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "characterId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "late",
+              "tentative",
+              "bench",
+              "declined"
+            ]
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "eventId",
+          "characterId",
+          "status"
         ]
       }
     }

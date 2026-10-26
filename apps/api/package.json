@@ -17,14 +17,18 @@
     "dev:local:watch": "node scripts/dev-local.mjs --watch"
   },
   "dependencies": {
+    "@vintage/coordinator": "workspace:*",
+    "@vintage/discord-kit": "workspace:*",
     "@vintage/guild-kit": "workspace:*",
     "@vintage/identity": "workspace:*",
+    "@vintage/raids": "workspace:*",
     "@vintage/wow-data": "workspace:*",
     "convex": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@types/node": "^24.10.0",
+    "@vintage/bridge-format": "workspace:*",
     "@vintage/config": "workspace:*",
     "@vintage/testing": "workspace:*",
     "tsx": "^4.23.15",

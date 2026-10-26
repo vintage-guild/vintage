@@ -702,16 +702,16 @@ Phase 0 has about ten days and one maintainer, so it is cut to the minimum that 
 - [ ] `/mcp` on `afd-server`'s stateless handler with AFD's meta-tools and the confirm-token flow; `apps/cli` = `afd-cli --transport streamable`; verified from Claude and the CLI
 - [x] `libs/design-tokens`: `afd-site` + `vintage` nodes exporting CSS/TS as-is (no reskin yet); `docs/design/` forked from the AFD site Includes the emblem palette and a FenUI Lua theme (#45); `docs/design/` still to do.
 - [x] FAST-AF vendored in `vendor/` (fast-element, fast-router, violet-elements), pinned to a commit
-- [ ] `packages/ui-kit` on FAST-AF + `violet-elements` (vendored): sign-in, profile, and character components with `@command`; Custom Elements Manifest in CI
-- [ ] `apps/web`: shell on the FAST-AF Router, public about/recruitment page, member profile + characters, deployed to Vercel
+- [ ] `packages/ui-kit` on FAST-AF + `violet-elements` (vendored): sign-in, profile, and character components with `@command`; Custom Elements Manifest in CI Built: logo header, badges, character form (`@command` → `character-add`), signup and sign-in cards, CEM checked in CI; the command client is stubbed until sign-in (#7) and Convex are wired.
+- [ ] `apps/web`: shell on the FAST-AF Router, public about/recruitment page, member profile + characters, deployed to Vercel Shell, routes, and theme switching built; member pages wait on sign-in (#7); Vercel deploy not set up.
 - [ ] Discord application created ✅; `/discord/interactions` built and tested (#43), **not yet deployed or verified by Discord**
 
 **Done when:** a guildie signs in with Discord, sees the tier matching their Discord role, adds characters, and an officer's agent lists members over MCP from Claude or the CLI.
 
 ### Phase 1 — Raid coordinator (2026-11-04 → ~11-25)
 
-- [ ] `raids`: schedules, events, signups, roster, `comp.suggest` via `libs/comp-solver`
-- [ ] `coordinator`: materialize events, post signups, button flow, T-72h/T-24h reminders, officer digest, lock + final roster, `CoordinatorAction` log, `#vintage-ops` errors
+- [x] `raids`: schedules, events, signups, roster, `comp-suggest` via `libs/comp-solver` (#14)
+- [ ] `coordinator`: materialize events, post signups, button flow, T-72h/T-24h reminders, officer digest, lock + final roster, `CoordinatorAction` log, `#vintage-ops` errors (all but the button flow landed; buttons need the gateway calling Convex, #10)
 - [x] `libs/discord-kit`: signature verification, embeds, components, timestamps Landed early in Phase 0 (#43).
 - [x] `libs/comp-solver`: selected roster, bench, and gaps with reasons (part of #15; `comp-suggest` lands with `raids`)
 - [ ] Member prefs (DM opt-out, default character, timezone); live roster board on the website
@@ -764,8 +764,8 @@ Phase 0 has about ten days and one maintainer, so it is cut to the minimum that 
 | # | Question | Owner | Blocks |
 |---|---|---|---|
 | 1 | ~~Discord role names and which tier each maps to~~ **Answered** (§3.4); role ids come from the bot | GM | — |
-| 2 | Raid nights/times and the channels the bot posts in | GM | Phase 1 schedules |
-| 3 | Reminder etiquette: are DMs OK, or channel pings only? | GM | Phase 1 reminders |
+| 2 | Raid nights/times and the channels the bot posts in. **Partly answered** (2026-10-25): Wednesday + Thursday (18 of 29 can make both). Start time, time zone, and channels still open | GM | Phase 1 schedules |
+| 3 | ~~Reminder etiquette: are DMs OK, or channel pings only?~~ **Answered** (2026-10-25): DMs on by default at the last reminder; officers can turn them off (`coordinator-config-set dmReminders`), members can opt out | GM | — |
 | 4 | Who adds the bot (needs Manage Server), and is the Server Members intent OK? | GM | Phase 0 role sync |
 | 5 | Which loot system(s) to start with | GM + officers | Phase 2 first methods |
 | 6 | Confirm the master-loot handout flow on the live client (`GiveMasterLoot` is documented for Forever 1.60.1 and used by three Forever addons, so this is a check, not an unknown) | Bloodfen, Nov 4–6 | Phase 2 award flow |

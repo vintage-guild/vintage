@@ -10,7 +10,7 @@ import {
 import { type Infer, v } from 'convex/values';
 import { commands, type VintageDeps } from '../src/registry';
 import { internalMutation, mutation, query } from './_generated/server';
-import { identityDeps, identityStore } from './stores';
+import { coordinatorDeps, identityDeps, identityStore, raidsDeps } from './stores';
 
 /** Single-guild deployment for now; every record still carries guildId (PLAN §3.11). */
 export const GUILD_ID = process.env.VINTAGE_GUILD_ID ?? 'vintage';
@@ -23,7 +23,11 @@ function registry() {
 
 type Ctx = Parameters<typeof identityStore>[0];
 
-const deps = (ctx: Ctx): VintageDeps => identityDeps(ctx);
+const deps = (ctx: Ctx): VintageDeps => ({
+  ...identityDeps(ctx),
+  ...raidsDeps(ctx),
+  ...coordinatorDeps(ctx),
+});
 
 /**
  * Resolve the caller from the auth identity. Better Auth's Discord provider (Phase 0, next step)
@@ -81,6 +85,10 @@ export const run = mutation({
   args: requestArgs,
   handler: async (ctx, args) => runAs(ctx, await resolveCaller(ctx), args),
 });
+
+/** Run a command as the system caller from server code (the coordinator tick, crons). */
+export const runSystemCommand = (ctx: Ctx, name: string, input: unknown) =>
+  runAs(ctx, systemCaller(GUILD_ID), { name, input });
 
 /**
  * Operator entry point: any command as the system caller (officer tier), with the same

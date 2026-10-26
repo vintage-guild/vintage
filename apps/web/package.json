@@ -1,0 +1,27 @@
+{
+  "name": "@vintage/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The Vintage website: a Vite SPA on FAST-AF's router and @vintage/ui-kit. Public about/recruitment page plus member profile and characters (signed out until Discord sign-in lands).",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "type-check": "tsc6 -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@lushly-dev/fast-element": "workspace:*",
+    "@microsoft/fast-router": "workspace:*",
+    "@vintage/design-tokens": "workspace:*",
+    "@vintage/ui-kit": "workspace:*",
+    "@vintage/wow-data": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "@vintage/config": "workspace:*",
+    "happy-dom": "^21.0.3",
+    "typescript": "catalog:",
+    "vite": "^8.3.4"
+  }
+}

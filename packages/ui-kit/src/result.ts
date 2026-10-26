@@ -24,4 +24,10 @@ export function describeError(result: ElementResult<unknown>): string {
   return [message, suggestion].filter(Boolean).map(sentence).join(' ');
 }
 
-const sentence = (text: string | undefined) => `${text?.trim().replace(/[.!?]+$/, '')}.`;
+/** Ends `text` with exactly one period. A loop, not a regex: server text can be any length. */
+function sentence(text: string | undefined): string {
+  const trimmed = text?.trim() ?? '';
+  let end = trimmed.length;
+  while (end > 0 && '.!?'.includes(trimmed.charAt(end - 1))) end -= 1;
+  return `${trimmed.slice(0, end)}.`;
+}

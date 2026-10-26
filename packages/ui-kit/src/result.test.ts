@@ -24,6 +24,14 @@ describe('toElementResult', () => {
     expect(describeError(result)).toBe('Nope. Try again.');
   });
 
+  it('ends each part with one period, however the server punctuated it', () => {
+    const result = toElementResult({
+      success: false,
+      error: { code: 'X', message: `Stop${'!'.repeat(50_000)}x`, suggestion: ' Wait?!. ' },
+    });
+    expect(describeError(result)).toBe(`Stop${'!'.repeat(50_000)}x. Wait.`);
+  });
+
   it('fills in a failure with no error object', () => {
     const result = toElementResult({ success: false });
     expect(result.success === false && result.error.code).toBe('EXECUTION_FAILED');

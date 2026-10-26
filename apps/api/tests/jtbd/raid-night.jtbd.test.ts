@@ -88,7 +88,7 @@ describe('JTBD: raid night', () => {
     expect(wed.startsAt).toBe(WED);
     expect(thu.startsAt).toBe(WED + DAY);
     const posts = g.host.sentTo(SIGNUP_CHANNEL);
-    for (const p of posts) expect(messageText(p.message)).toMatch(/## Raid night — Molten Core/);
+    for (const p of posts) expect(p.message.embeds?.[0]?.title).toBe('Raid night · Molten Core');
     expect(posts).toHaveLength(2);
     expect(buttonLabels(posts[0]!.message)).toEqual([
       'Accept',
@@ -96,6 +96,7 @@ describe('JTBD: raid night', () => {
       'Tentative',
       'Standby',
       'Decline',
+      'Roster',
     ]);
     // Running again posts nothing new.
     await g.host.tick();
@@ -109,8 +110,8 @@ describe('JTBD: raid night', () => {
     const edit = g.host.editsTo(SIGNUP_CHANNEL).at(-1)!;
     const text = messageText(edit.message);
     expect(text).toMatch(/\*\*1\*\* going/);
-    expect(text).toMatch(/\*\*Tanks 1\/4\*\*\n<:spec_warrior_protection:\d+> Aeryn/);
-    expect(text).toMatch(/\*\*Healers 0\/10\*\*/);
+    expect(text).toMatch(/Tanks 1\/4\n<:square_warrior:\d+> \*\*1\*\* Aeryn \*prot\*/);
+    expect(text).toMatch(/Healers 0\/10\n—/);
   });
 
   it('J03 · only expected raiders who have not answered get pinged, once', async () => {
@@ -185,7 +186,7 @@ describe('JTBD: raid night', () => {
     const final = g.host
       .sentTo(SIGNUP_CHANNEL)
       .find((m) => messageText(m.message).includes('Final roster'));
-    expect(messageText(final!.message)).toMatch(/## Final roster — Raid night[\s\S]*2\/40/);
+    expect(messageText(final!.message)).toMatch(/Final roster · Raid night[\s\S]*2\/40/);
     const addon = g.host
       .sentTo(OPS_CHANNEL)
       .find((m) => m.message.content?.includes('Addon import'));
@@ -309,8 +310,10 @@ describe('JTBD: raid night', () => {
     await g.host.tick();
     const text = messageText(g.host.editsTo(SIGNUP_CHANNEL).at(-1)!.message);
     // Late still takes a spot: listed with the healers, marked late, reason underneath.
-    expect(text).toMatch(/\*\*Healers 1\/10\*\*\n<:spec_priest_holy:\d+> Bramble \*\(late\)\*/);
-    expect(text).toMatch(/-# Late: Bramble \(after work, ~20 min\)/);
+    expect(text).toMatch(
+      /Healers 1\/10\n<:square_priest:\d+> \*\*1\*\* Bramble \*holy\* <:status_late:\d+>/,
+    );
+    expect(text).toMatch(/Late: Bramble \(after work, ~20 min\)/);
     g.host.clock.advance(WED - 24 * HOUR - g.host.clock.now());
     await g.host.tick();
     const digest = g.host.sentTo(OPS_CHANNEL).find((m) => m.message.content?.includes('confirmed'));
@@ -352,7 +355,7 @@ describe('JTBD: raid night', () => {
     const post = messageText(g.host.sentTo(SIGNUP_CHANNEL)[0]!.message);
     expect(post).toMatch(/\*\*10\*\* going/);
     expect(post).toMatch(/\*\*1\*\* queued/);
-    expect(post).toMatch(/\*\*Queue\*\*\n1\. <:spec_warrior_fury:\d+> Raiderchark/);
+    expect(post).toMatch(/Queue 1\n1\. <:square_warrior:\d+> Raiderchark \*fury\*/);
 
     // Someone ahead drops out: the queued raider is in and gets told, once.
     const third = await g.host.ok<Signup>(people[2]!, 'signup-get', { eventId: raid.id });
@@ -397,6 +400,14 @@ describe('JTBD: raid night', () => {
     expect((await g.host.ok<Signup>(g.aeryn, 'signup-get', { eventId: wed.id })).status).toBe(
       'accepted',
     );
+
+    // Roster shows the full list, privately.
+    const roster = (await ui.click(g.aeryn.discordId!, `roster:${wed.id}`)) as {
+      data: { flags?: number; embeds?: { title?: string }[] };
+    };
+    expect(roster.data.flags).toBe(64);
+    expect(roster.data.embeds?.[0]?.title).toBe('Roster · Raid night');
+    expect(JSON.stringify(roster.data)).toContain('Aeryn');
 
     // Late opens a reason form; the reason lands on the signup.
     const form = await ui.click(g.bram.discordId!, `signup:${wed.id}:late`);

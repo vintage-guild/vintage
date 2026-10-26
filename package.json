@@ -36,6 +36,8 @@
     "@biomejs/biome": "2.5.15",
     "@commitlint/cli": "^21.2.4",
     "@commitlint/config-conventional": "^21.2.4",
+    "@resvg/resvg-js": "^2.6.2",
+    "@tabler/icons": "^3.35.0",
     "@types/node": "^24.10.0",
     "@vitest/coverage-v8": "^4.1.12",
     "lefthook": "^2.2.2",

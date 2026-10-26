@@ -174,6 +174,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
       characters: (memberId) => identity.listCharacters(GUILD, { memberId }),
       event: (eventId) => raids.getEvent(GUILD, eventId),
       signup: (eventId, memberId) => raids.getSignupByMember(GUILD, eventId, memberId),
+      signups: (eventId) => raids.listSignups(GUILD, eventId),
       signupSet: (caller, input) =>
         registry.execute({ name: 'signup-set', input, caller }, deps) as Promise<
           CommandResult<Signup>

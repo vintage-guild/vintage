@@ -177,7 +177,7 @@ are enforced by `pnpm check:boundaries`; the full table is in PLAN.md §4.1.
 | Surface | How it works | Status |
 |---|---|---|
 | Website | FAST-AF components calling `commands.read` (live queries) and `commands.run` (mutations) through ui-kit's `CommandClient`; themed by design tokens. Shell, pages, and components built; Discord sign-in and the Convex client are wired; deployed on Vercel as `vintage-web` | 🚧 |
-| Discord | Serverless: interactions hit `/discord/interactions` in `apps/gateway` (Ed25519-verified, 3s deferred ack); posts, DMs, and member lists are REST calls through `libs/discord-kit`. The Vintage bot app exists; endpoint built and tested, not deployed yet | 🚧 |
+| Discord | Serverless: interactions hit `/discord/interactions` in `apps/gateway` (Ed25519-verified, 3s deferred ack); posts, DMs, and member lists are REST calls through `libs/discord-kit`. The Discord app and its bot are named Random (the raven); the endpoint is deployed on Vercel (`vintage-gateway`) and live in the test server | 🚧 |
 | MCP | `/mcp` on AFD 2.2's stateless handler (MCP 2026-07-28 spec); AFD meta-tools (`afd-discover`, `afd-detail`, `afd-call`, `afd-batch`, `afd-pipe`); Better Auth OAuth | 📋 |
 | CLI | `afd-cli --transport streamable` pointed at `/mcp` | 📋 |
 | Hosted agent | OpenAI Agents SDK in Convex Node actions, using the same commands as the asking member | 📋 |

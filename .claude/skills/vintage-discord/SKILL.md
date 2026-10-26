@@ -1,6 +1,6 @@
 ---
 name: vintage-discord
-description: Work on anything Discord in Vintage — libs/discord-kit (signature verification, responses, embeds, components, timestamps, REST client), the apps/gateway interactions endpoint, slash-command registration, the Vintage bot's settings and permissions, and role sync. Load before touching Discord code or the bot.
+description: Work on anything Discord in Vintage — libs/discord-kit (signature verification, responses, embeds, components, timestamps, REST client), the apps/gateway interactions endpoint, slash-command registration, the bot's settings and permissions (the app and bot are named Random), and role sync. Load before touching Discord code or the bot.
 ---
 
 # Discord in Vintage
@@ -15,7 +15,7 @@ commands). Everything runs serverless: no always-on gateway process.
 | Toolkit | `libs/discord-kit` | Pure lib: no `node:` imports, Web APIs only. Read its `src/index.ts` exports |
 | Interactions endpoint | `apps/gateway/src/interactions.ts`, `api/discord/interactions.ts` | Web-standard `Request → Response`, deployed as a Vercel function |
 | Slash commands | `apps/gateway/src/commands.ts`, `scripts/register-commands.ts` | `pnpm --filter @vintage/gateway register-commands` |
-| Bot name and avatar | `apps/gateway/scripts/set-bot-profile.ts` | The bot is **Random** (raven avatar); commands stay `/vintage`. PNG/JPEG/GIF only, about 2 renames an hour. See the gateway README |
+| Bot name and avatar | `apps/gateway/scripts/set-bot-profile.ts`, `assets/brand/random-avatar.gif` | The app and bot are **Random** (animated raven avatar; app icon set in the Portal); commands stay `/vintage`. PNG/JPEG/GIF only, about 2 renames an hour. See the gateway README |
 | Role sync | `modules/identity/src/domain/role-sync.ts` (planner), `apps/api/src/discord-directory.ts`, `apps/api/convex/roleSync.ts`, `crons.ts` | Every 15 minutes; no-op until the bot is configured |
 | Role → rank map | identity `roleRanks` table; commands `guild-roles-get` (leader) / `guild-roles-set` (officer, destructive) | Keyed by Discord role **id**, never name |
 
@@ -55,7 +55,7 @@ commands). Everything runs serverless: no always-on gateway process.
   Custom ids: `signup:<event>:<status>`, `signup-pick:<event>:<status>`,
   `signup-note:<event>:<status>:<character>`. Replies are ephemeral; never edit the public post
   from an interaction (the coordinator tick does that).
-- **App emoji:** class, spec, and role icons are the Vintage app's own emoji (work in any server,
+- **App emoji:** class, spec, and role icons are the app's own emoji (work in any server,
   no slots). `scripts/discord-emojis.json` lists them (WoW icon names, or `file:` for our own art);
   `node --env-file=apps/api/.env.local scripts/discord-emojis.mjs` uploads missing ones and
   regenerates `modules/coordinator/src/domain/emoji-ids.ts`. Blizzard's icons are never committed.

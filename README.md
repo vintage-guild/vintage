@@ -37,7 +37,7 @@
 Working today: the command layer (`guild-kit`); the `identity` module on Convex with guild
 ranks, the role → rank map, and a role-sync cron; the Discord toolkit and interactions endpoint
 (built, not deployed yet); design tokens with dark and parchment themes; the repo gates, CI, and
-agent setup. Next: inviting the Vintage bot, Discord sign-in, a hosted Convex backend, `/mcp`,
+agent setup. Next: inviting the bot (Random) to the Vintage server, Discord sign-in, a hosted Convex backend, `/mcp`,
 and the website shell.
 
 ## Documentation

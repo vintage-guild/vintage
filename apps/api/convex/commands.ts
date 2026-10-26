@@ -1,14 +1,9 @@
 // The Convex surface of the command registry. The website calls `read` (live queries) and
 // `run` (mutations); /mcp, Discord, and the agent go through the same registry (PLAN §3.3).
-import {
-  type Caller,
-  createGuildRegistry,
-  error,
-  publicCaller,
-  systemCaller,
-} from '@vintage/guild-kit';
+import { type Caller, createGuildRegistry, error, systemCaller } from '@vintage/guild-kit';
 import { type Infer, v } from 'convex/values';
 import { commands, type VintageDeps } from '../src/registry';
+import { discordIdOf, webCaller } from '../src/web-caller';
 import { internalMutation, mutation, query } from './_generated/server';
 import {
   coordinatorDeps,
@@ -38,22 +33,12 @@ const deps = (ctx: Ctx): VintageDeps => ({
   ...progressDeps(ctx),
 });
 
-/**
- * Resolve the caller from the auth identity. Better Auth's Discord provider (Phase 0, next step)
- * sets the identity subject to the Discord user id; until then every web caller is public.
- */
+/** The website caller: the signed-in member from the token's Discord id (convex/auth.ts), else public. */
 async function resolveCaller(ctx: Ctx): Promise<Caller> {
   const identity = await ctx.auth.getUserIdentity();
-  if (!identity) return publicCaller(GUILD_ID);
-  const member = await identityStore(ctx).getMemberByDiscordId(GUILD_ID, identity.subject);
-  if (!member) return { ...publicCaller(GUILD_ID), discordId: identity.subject };
-  return {
-    surface: 'web',
-    guildId: GUILD_ID,
-    tier: member.tier,
-    memberId: member.id,
-    discordId: member.discordId,
-  };
+  return webCaller(GUILD_ID, discordIdOf(identity), (discordId) =>
+    identityStore(ctx).getMemberByDiscordId(GUILD_ID, discordId),
+  );
 }
 
 const requestArgs = {

@@ -17,6 +17,7 @@
     "dev:local:watch": "node scripts/dev-local.mjs --watch"
   },
   "dependencies": {
+    "@convex-dev/better-auth": "0.12.5",
     "@vintage/coordinator": "workspace:*",
     "@vintage/discord-kit": "workspace:*",
     "@vintage/guild-kit": "workspace:*",
@@ -25,6 +26,7 @@
     "@vintage/progress": "workspace:*",
     "@vintage/raids": "workspace:*",
     "@vintage/wow-data": "workspace:*",
+    "better-auth": "1.6.33",
     "convex": "catalog:",
     "zod": "catalog:"
   },

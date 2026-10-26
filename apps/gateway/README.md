@@ -12,7 +12,7 @@ the Discord Developer Portal → your application.
 |---|---|---|
 | `DISCORD_PUBLIC_KEY` | General Information → Public Key (hex) | Interactions endpoint (signature check) |
 | `DISCORD_APP_ID` | General Information → Application ID | `scripts/register-commands.ts` |
-| `DISCORD_BOT_TOKEN` | Bot → Token | `scripts/register-commands.ts` only |
+| `DISCORD_BOT_TOKEN` | Bot → Token | `scripts/register-commands.ts`, `scripts/set-bot-profile.ts` |
 | `DISCORD_GUILD_ID` | Optional: a guild id | Register commands to one guild (instant) instead of globally |
 | `VINTAGE_CONVEX_SITE_URL` | The Convex deployment's HTTP actions URL (`https://<name>.convex.site`) | Forwarding signup buttons and modals |
 | `VINTAGE_GATEWAY_SECRET` | Any long random string; the same value in the Convex env | Authenticates the forward to Convex |
@@ -46,3 +46,18 @@ npx vercel deploy --prod
 ```bash
 pnpm --filter @vintage/gateway register-commands
 ```
+
+## Bot name and avatar
+
+The bot shows as **Random**, with the raven from the site's News section
+(`apps/web/public/art/coordinator-raven.webp`). The name is display only: commands stay
+`/vintage`, and the application in the Developer Portal is still named Vintage. To change either:
+
+```bash
+node --env-file=../api/.env.local --import tsx scripts/set-bot-profile.ts --username Random --avatar raven.png
+```
+
+Run it from `apps/gateway`. Discord takes PNG, JPEG, or GIF, not WebP, so export a PNG first from
+an image editor, a browser canvas, or Windows' imaging codecs. Discord allows about two username
+changes an hour, and `--username ""` leaves the name alone. With `DISCORD_GUILD_ID` set, the script
+also reports the bot's nickname in that server, because a nickname overrides the username there.

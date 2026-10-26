@@ -7,7 +7,8 @@
   "scripts": {
     "type-check": "tsc6 -p tsconfig.json --noEmit",
     "register-commands": "tsx scripts/register-commands.ts",
-    "build:vercel": "node scripts/build-vercel.mjs"
+    "build:vercel": "node scripts/build-vercel.mjs",
+    "set-bot-profile": "tsx scripts/set-bot-profile.ts"
   },
   "dependencies": {
     "@vintage/discord-kit": "workspace:*"

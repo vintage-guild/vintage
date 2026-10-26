@@ -2,7 +2,7 @@
 
 Raid progression: the launch raids and their bosses as data, the guild's kills as records, and
 the first-kill ledger the website's home page shows
-([home page plan](../../docs/features/proposed/home-page/home-page.plan.md), section 4).
+([home page plan](../../docs/features/active/home-page/home-page.plan.md), section 4).
 Maturity: **official**.
 
 ## Shape

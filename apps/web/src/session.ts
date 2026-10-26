@@ -6,6 +6,12 @@ export interface Session {
   displayName: string;
   tier: string;
   rank: GuildRank | null;
+  /**
+   * The member's Discord avatar, once sign-in (#7) supplies it: Discord's OAuth profile carries
+   * the avatar hash, and the image is `https://cdn.discordapp.com/avatars/<id>/<hash>.png`
+   * (or `embed/avatars/<n>.png` for the default). Absent shows the member's initial.
+   */
+  avatarUrl?: string;
 }
 
 let session: Session | null = null;

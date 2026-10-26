@@ -3,7 +3,13 @@ import { daysUntil, LAUNCH_AT } from './dates';
 import { markCurrentLink } from './nav';
 import { VintageRoutes } from './routes';
 import { currentSession, setSession } from './session';
-import { sectionContext, setSiteContext, watchSections } from './site-context';
+import {
+  consumePendingSection,
+  installSectionLinks,
+  sectionContext,
+  setSiteContext,
+  watchSections,
+} from './site-context';
 
 describe('VintageRoutes', () => {
   const routes = new VintageRoutes();
@@ -68,7 +74,7 @@ describe('dates', () => {
 describe('site context', () => {
   it('puts a section context on the header and reads it from data attributes', () => {
     document.body.innerHTML = `
-      <vintage-logo-header></vintage-logo-header>
+      <vintage-logo-header><a href="/" data-section-link="top">Home</a><a href="/#raids" data-section-link="raids">Raids</a></vintage-logo-header>
       <section id="raids" data-section data-section-eyebrow="Raids" data-section-title="Next on the calendar" data-section-action="Sign up"></section>`;
     const section = document.querySelector('section')!;
     expect(sectionContext(section)).toEqual({
@@ -76,6 +82,7 @@ describe('site context', () => {
       title: 'Next on the calendar',
       actionLabel: 'Sign up',
       actionHref: '#raids',
+      sectionId: 'raids',
     });
     const seen: Element[] = [];
     watchSections([section], (s) => seen.push(s));
@@ -85,5 +92,22 @@ describe('site context', () => {
       contextTitle: string;
     };
     expect(header.contextTitle).toBe('Next on the calendar');
+    const current = [...document.querySelectorAll('[data-section-link][aria-current]')].map(
+      (a) => a.textContent,
+    );
+    expect(current).toEqual(['Raids']);
+  });
+
+  it('takes section-link clicks before the router and remembers the target', () => {
+    document.body.innerHTML = `<a href="/#roster" data-section-link="roster">Roster</a>`;
+    const stop = installSectionLinks();
+    const link = document.querySelector('a')!;
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 });
+    link.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    // No home page is mounted, so the target waits for it.
+    expect(consumePendingSection()).toBe('roster');
+    expect(consumePendingSection()).toBeNull();
+    stop();
   });
 });

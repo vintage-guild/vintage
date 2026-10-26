@@ -1,7 +1,9 @@
 // Seed the fixture host through commands only: members arrive by `member-sync` (as Discord
-// would), add their characters themselves, a leader creates the raids, and people answer.
+// would), add their characters themselves, a leader creates the raids, people answer, an
+// officer points the coordinator at a channel and runs a tick, and a raid leader opens a poll.
 import type { Member } from '@vintage/identity/contract';
-import { type FixtureMember, MEMBERS, RAIDS, ROLE_IDS } from './data';
+import type { Poll } from '@vintage/polls/contract';
+import { CHANNELS, type FixtureMember, MEMBERS, POLL, RAIDS, ROLE_IDS } from './data';
 import type { FixtureHost } from './host';
 
 const discordIdOf = (m: FixtureMember) =>
@@ -16,6 +18,11 @@ async function must<T>(promise: Promise<{ success: boolean; data?: T; error?: un
 export async function seedFixtures(host: FixtureHost): Promise<void> {
   const members = new Map<string, Member>();
   const characters = new Map<string, string>();
+  const memberNamed = (name: string) => {
+    const member = members.get(name);
+    if (!member) throw new Error(`fixture seed: no member ${name}`);
+    return member;
+  };
 
   for (const m of MEMBERS) {
     await must(
@@ -40,8 +47,7 @@ export async function seedFixtures(host: FixtureHost): Promise<void> {
     characters.set(m.name, character.id);
   }
 
-  const leader = members.get('Stridulent');
-  if (!leader) throw new Error('fixture seed: no leader');
+  const leader = memberNamed('Stridulent');
   for (const raid of RAIDS) {
     const event = await must<{ id: string }>(
       host.run(host.callerFor(leader), 'raid-create', {
@@ -67,5 +73,37 @@ export async function seedFixtures(host: FixtureHost): Promise<void> {
         }),
       );
     }
+  }
+
+  // The coordinator: an officer sets the channels, a leader runs a tick. The posts land in
+  // the host's fake Discord; the actions it logs are what the home page's feed shows.
+  await must(
+    host.run(host.system, 'coordinator-config-set', {
+      signupChannelId: CHANNELS.signups,
+      opsChannelId: CHANNELS.ops,
+    }),
+  );
+  await must(host.run(host.callerFor(leader), 'coordinator-run'));
+
+  // A poll for raiders and up, with most of them already voting.
+  const poll = await must<Poll>(
+    host.run(host.callerFor(memberNamed(POLL.createdBy)), 'poll-create', {
+      question: POLL.question,
+      description: POLL.description,
+      options: [...POLL.options],
+      eligibleTier: 'raider',
+      closesAt: POLL.closesAt,
+      tags: ['off-night'],
+    }),
+  );
+  for (const [name, choice] of POLL.votes) {
+    const option = poll.options[choice];
+    if (!option) continue;
+    await must(
+      host.run(host.callerFor(memberNamed(name)), 'vote-cast', {
+        pollId: poll.id,
+        choices: [option.id],
+      }),
+    );
   }
 }

@@ -148,6 +148,9 @@ importers:
       '@microsoft/fast-router':
         specifier: workspace:*
         version: link:../../vendor/fast-router
+      '@vintage/coordinator':
+        specifier: workspace:*
+        version: link:../../modules/coordinator
       '@vintage/design-tokens':
         specifier: workspace:*
         version: link:../../libs/design-tokens
@@ -157,6 +160,9 @@ importers:
       '@vintage/identity':
         specifier: workspace:*
         version: link:../../modules/identity
+      '@vintage/polls':
+        specifier: workspace:*
+        version: link:../../modules/polls
       '@vintage/progress':
         specifier: workspace:*
         version: link:../../modules/progress

@@ -21,15 +21,26 @@
     <a class="skip-link" href="#content">Skip to content</a>
     <vintage-logo-header heading="">
       <a slot="logo" href="/"><span class="visually-hidden">Vintage home</span><!-- brand:logo --></a>
-      <a href="/">Home</a>
-      <a href="/about">About</a>
-      <a href="/profile">Profile</a>
-      <a href="/characters">Characters</a>
-      <span slot="member" id="member-chip" hidden></span>
-      <vintage-theme-switch slot="actions"></vintage-theme-switch>
+      <a href="/" data-section-link="top">Home</a>
+      <a href="/#raids" data-section-link="raids">Raids</a>
+      <a href="/#progress" data-section-link="progress">Progress</a>
+      <a href="/#recruiting" data-section-link="recruiting">Recruiting</a>
+      <a href="/#roster" data-section-link="roster">Roster</a>
+      <a href="/#news" data-section-link="news">News</a>
+      <vintage-member-menu slot="member" id="member-menu" hidden></vintage-member-menu>
     </vintage-logo-header>
     <main id="content" tabindex="-1">
       <fast-router></fast-router>
     </main>
+    <footer class="site-footer">
+      <div class="wrap">
+        <span>Vintage · a guild on WoW: Forever · updated <time id="updated"></time></span>
+        <nav aria-label="Footer">
+          <a href="/about">About</a>
+          <a href="https://github.com/vintage-guild/vintage" rel="noopener">GitHub</a>
+          <a href="https://github.com/lushly-dev/afd" rel="noopener">Built on AFD</a>
+        </nav>
+      </div>
+    </footer>
   </body>
 </html>

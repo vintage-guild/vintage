@@ -7,6 +7,8 @@ export interface SectionContext {
   title: string;
   actionLabel: string;
   actionHref: string;
+  /** The section's element id, for the nav link that points at it. */
+  sectionId?: string;
 }
 
 type HeaderElement = HTMLElement & {
@@ -20,7 +22,10 @@ type HeaderElement = HTMLElement & {
 const header = (root: ParentNode = document) =>
   root.querySelector<HeaderElement>('vintage-logo-header');
 
-/** Put a section's context on the header. */
+/**
+ * Put a section's context on the header, and mark the nav link for it (`data-section-link`
+ * names the section id; the hero is `top`, which the Home link carries).
+ */
 export function setSiteContext(context: SectionContext, root: ParentNode = document): void {
   const el = header(root);
   if (!el) return;
@@ -28,6 +33,11 @@ export function setSiteContext(context: SectionContext, root: ParentNode = docum
   el.contextTitle = context.title;
   el.actionLabel = context.actionLabel;
   el.actionHref = context.actionHref;
+  if (!context.sectionId) return;
+  for (const link of el.querySelectorAll<HTMLAnchorElement>('a[data-section-link]')) {
+    if (link.dataset.sectionLink === context.sectionId) link.setAttribute('aria-current', 'page');
+    else link.removeAttribute('aria-current');
+  }
 }
 
 /** Read a section's context from its `data-section-*` attributes. */
@@ -38,6 +48,7 @@ export function sectionContext(section: Element): SectionContext {
     title: d.sectionTitle ?? '',
     actionLabel: d.sectionAction ?? '',
     actionHref: d.sectionHref ?? (section.id ? `#${section.id}` : ''),
+    sectionId: section.id || undefined,
   };
 }
 
@@ -60,6 +71,73 @@ export function watchSections(
   );
   for (const section of list) observer.observe(section);
   return () => observer.disconnect();
+}
+
+/* ---- section links -----------------------------------------------------------------------
+ * The home page's sections live inside its shadow root, so a plain `#raids` fragment finds
+ * nothing, and the router would read `/#raids` as a route. Links carry `data-section-link`
+ * with the section id (`top` for the hero); clicks are taken before the router and scrolled
+ * here. Off the home page, the link navigates home first and scrolls once the page mounts.
+ */
+
+const HOME_TAG = 'vintage-home-page';
+let pendingSection: string | null = null;
+
+const homePage = () => document.querySelector(HOME_TAG);
+
+/** Scroll the home page to a section. False when the home page is not mounted. */
+export function scrollToSection(id: string, behavior: ScrollBehavior = 'smooth'): boolean {
+  const page = homePage();
+  if (!page) return false;
+  if (id === 'top') {
+    window.scrollTo({ top: 0, behavior });
+    return true;
+  }
+  const section = page.shadowRoot?.getElementById(id);
+  if (!section) return false;
+  section.scrollIntoView({ behavior, block: 'start' });
+  return true;
+}
+
+/** Go to a section: scroll now, or navigate home and scroll when it mounts. */
+export function goToSection(id: string): void {
+  if (scrollToSection(id)) return;
+  pendingSection = id;
+  history.pushState({}, '', '/');
+  window.dispatchEvent(new PopStateEvent('popstate'));
+}
+
+/** The section a navigation asked for, once; the home page calls this when it mounts. */
+export function consumePendingSection(): string | null {
+  const id = pendingSection;
+  pendingSection = null;
+  return id;
+}
+
+/** The section link in an event's path, if any (works across shadow roots). */
+export function sectionLinkIn(event: Event): string | null {
+  for (const node of event.composedPath()) {
+    if (node instanceof HTMLAnchorElement && node.dataset.sectionLink) {
+      return node.dataset.sectionLink;
+    }
+  }
+  return null;
+}
+
+/** Take section-link clicks before the router. Returns a stop function. */
+export function installSectionLinks(root: EventTarget = window): () => void {
+  const onClick = (event: Event) => {
+    const mouse = event as MouseEvent;
+    if (mouse.button !== 0 || mouse.metaKey || mouse.ctrlKey || mouse.shiftKey || mouse.altKey)
+      return;
+    const id = sectionLinkIn(event);
+    if (!id) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    goToSection(id);
+  };
+  root.addEventListener('click', onClick, true);
+  return () => root.removeEventListener('click', onClick, true);
 }
 
 /** Keep the header's progress line in step with the page scroll. Returns a stop function. */

@@ -111,3 +111,37 @@ describe('vintage-recruiting-desk', () => {
     expect(result.success).toBe(false);
   });
 });
+
+describe('vintage-recruiting-desk after a save re-sorts the band', () => {
+  it('shows each class with its own need, not the one typed into the row it replaced', async () => {
+    useClient(() => ({ success: true, data: BAND }));
+    const el = await desk();
+    const first = rows(el)[0]!;
+    const need = first.querySelector('select')!;
+    need.value = 'closed';
+    need.dispatchEvent(new Event('change'));
+    const specs = first.querySelector('input')!;
+    specs.value = 'arcane';
+    specs.dispatchEvent(new Event('input'));
+    await settle();
+
+    // The page re-reads: warrior now leads, mage moved down.
+    el.recruiting = {
+      ...BAND,
+      needs: [
+        { wowClass: 'warrior', specs: 'protection', need: 'high' },
+        { wowClass: 'mage', specs: 'arcane', need: 'closed' },
+      ],
+    };
+    await settle();
+    const shown = rows(el).map(
+      (r) =>
+        `${r.querySelector('.cls')?.textContent}:${r.querySelector('select')?.value}:${r.querySelector('input')?.value}`,
+    );
+    expect(shown.slice(0, 3)).toEqual([
+      'Warrior:high:protection',
+      'Mage:closed:arcane',
+      'Paladin:none:any',
+    ]);
+  });
+});

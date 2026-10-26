@@ -27,6 +27,9 @@ public recruiting band and the hero's figures change without a deploy.
 - [ ] The home page shows the new headline and "Recruiting · updated" with today's date. For a
   visitor, the class table has the new rows with their icons and the hero's "roles we need most"
   figure counts the high rows. For members, the one-line ask names the high classes.
+- [ ] Ana sets Warrior to Closed and saves. The tab and the home band list Warrior with the
+  closed classes at the bottom: whatever order the needs are saved in, `recruiting-get` answers
+  high, medium, closed.
 - [ ] Rook sees the tab read-only ("Officers edit the recruiting band"); `recruiting-set` as Rook
   answers `COMMAND_NOT_FOUND`.
 - [ ] `recruiting-set` with a class listed twice answers `DUPLICATE_CLASS` and changes nothing.

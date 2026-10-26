@@ -1,4 +1,13 @@
-import { attr, css, FASTElement, html, observable, repeat, when } from '@lushly-dev/fast-element';
+import {
+  attr,
+  css,
+  FASTElement,
+  html,
+  observable,
+  repeat,
+  Updates,
+  when,
+} from '@lushly-dev/fast-element';
 import { command, failure } from '@lushly-dev/fast-element/command.js';
 import { CLASS_NAMES, type WowClass } from '@vintage/wow-data';
 import { getCommandClient } from '../client';
@@ -100,7 +109,7 @@ const template = html<VintageRecruitingDesk>`
                   html<
                     (typeof NEED_CHOICES)[number],
                     Row
-                  >`<option value="${(o) => o.value}" :selected="${(o, c) => c.parent.need === o.value}">${(o) => o.label}</option>`,
+                  >`<option value="${(o) => o.value}" ?selected="${(o, c) => c.parent.need === o.value}">${(o) => o.label}</option>`,
                 )}
               </select>
               <input
@@ -112,6 +121,9 @@ const template = html<VintageRecruitingDesk>`
               />
             </div>
           `,
+          // Fresh rows on every reset: a reused row would keep the need or specs typed into the
+          // class that sat there before the save re-sorted the list.
+          { recycle: false },
         )}
       </div>
     </fieldset>
@@ -321,6 +333,22 @@ export class VintageRecruitingDesk extends FASTElement {
     this.pitch = this.recruiting?.pitch ?? '';
     this.rows = rowsFor(this.recruiting);
     this.dirty = false;
+    // A select ignores its options' selected state once it is in the page; set each one's value
+    // after the rows render, so every class shows its own need.
+    Updates.enqueue(() => this.syncNeeds());
+  }
+
+  private syncNeeds(): void {
+    const selects = this.shadowRoot?.querySelectorAll<HTMLSelectElement>('.row select') ?? [];
+    selects.forEach((select, i) => {
+      const row = this.rows[i];
+      if (row) select.value = row.need;
+    });
+  }
+
+  connectedCallback(): void {
+    super.connectedCallback();
+    Updates.enqueue(() => this.syncNeeds());
   }
 
   metaLine(): string {

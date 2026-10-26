@@ -69,6 +69,29 @@ describe('recruiting-set', () => {
     ]);
   });
 
+  it('answers needs high, medium, closed whatever order they were saved in', async () => {
+    await run(
+      'recruiting-set',
+      {
+        needs: [
+          { wowClass: 'warrior', specs: 'protection', need: 'closed' },
+          { wowClass: 'mage', need: 'medium' },
+          { wowClass: 'priest', need: 'high' },
+          { wowClass: 'rogue', need: 'closed' },
+          { wowClass: 'shaman', need: 'high' },
+        ],
+      },
+      officer,
+    );
+    expect((await read()).needs.map((n) => `${n.wowClass}:${n.need}`)).toEqual([
+      'priest:high',
+      'shaman:high',
+      'mage:medium',
+      'warrior:closed',
+      'rogue:closed',
+    ]);
+  });
+
   it('keeps each guild to its own band', async () => {
     const other = { ...officer, guildId: 'guild_other' };
     await run('recruiting-set', { headline: 'Theirs' }, other);

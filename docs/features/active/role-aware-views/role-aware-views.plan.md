@@ -111,7 +111,8 @@ confirm button, never a one-click delete.
   notes. The first two come from `signup-list` and `raid-get` as they are; the notes need the
   new field on `RaidEvent`.
 - **An officer strip** element, `vintage-officer-strip`: non-responders, comp gaps, coordinator
-  status, a link. Reads `signup-list`, `comp-suggest`, `coordinator-status`.
+  status, a link. Reads `coordinator-status` (which reports each raid's non-responders, by the
+  coordinator's own rule) and `comp-suggest`.
 - **The `/officers` route** with the tier guard in `apps/web`, and officer composites in ui-kit:
   a digest table, a non-responder list, a roster-control card, a coordinator-status card, a
   calendar list with its actions, a kill form. Every action a `@command` with `canExecute`
@@ -194,12 +195,25 @@ New jobs for [docs/jtbd](../../../jtbd/README.md), each as a scenario test and a
   430 px, inside the first screen. Changing the answer still needs a scroll to the card; the
   queued count, lock time, and raid notes are the next card task.
 
+**Pass 2 (2026-10-26): the officer strip.**
+
+- `coordinator-status` now reports `waiting` per upcoming raid: the expected ranks with no
+  signup, from the coordinator's `nonResponders`, the same rule its reminders and officer digest
+  use. Additive output only; inputs and tier are unchanged, so the manifest changed only its
+  description.
+- `vintage-officer-strip` (ui-kit): "Waiting on n" with the first four names, "Comp: n gaps"
+  with `comp-suggest`'s reasons, and the coordinator's state (running, paused, not set up) with
+  what is due now or what it did last. It sits above the hero for leaders and officers and
+  refreshes after they answer. The quarters link is hidden until `/officers` exists.
+- The page doesn't decide who is a non-responder or what a gap is; both come from commands, so
+  Discord, the site, and an agent agree.
+
 ## Tasks
 
 - [x] `view` from the session; home page composes by view; dev fixture switch
 - [x] `vintage-hero` compact mode and member-bound figures
 - [ ] Signup card: queued and how many ahead, lock time; `notes` on `RaidEvent` (raids contract, manifest)
-- [ ] `vintage-officer-strip`
+- [x] `vintage-officer-strip`
 - [ ] `/officers` route, tier guard, Tonight tab (digest, non-responders, roster controls, import string)
 - [ ] Calendar, Coordinator, Polls, Progress tabs
 - [ ] `site` module: `site-recruiting-get` / `site-recruiting-set`, Recruiting tab, band reads it

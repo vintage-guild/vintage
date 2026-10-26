@@ -102,6 +102,18 @@ const template = html<Page>`
     <h1>Components</h1>
     <p class="lead">Every @vintage/ui-kit element. Switch the theme to check both: <vintage-theme-switch></vintage-theme-switch></p>
     <section>
+      <h2>Officer strip</h2>
+      <p>Leaders and officers see it above the hero: who hasn't answered, comp gaps, the coordinator.</p>
+      <vintage-officer-strip
+        event-title="Launch night"
+        state="running"
+        state-detail="last: reminded the people who haven’t answered"
+        :waiting="${() => ['Brannoch', 'Cadric', 'Elowen', 'Fenwick', 'Garrick', 'Isolde']}"
+        :gaps="${() => ['need 1 more healer', 'no Mark of the Wild']}"
+      ></vintage-officer-strip>
+      <vintage-officer-strip state="paused" href="/officers"></vintage-officer-strip>
+    </section>
+    <section>
       <h2>Member menu</h2>
       <p>The signed-in member in the header: avatar (or initial), name, rank, and a menu.</p>
       <div class="row">

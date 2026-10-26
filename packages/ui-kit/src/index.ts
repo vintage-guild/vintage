@@ -20,6 +20,11 @@ export { VintageFigure } from './elements/figure';
 export { VintageHero } from './elements/hero';
 export { VintageLogoHeader } from './elements/logo-header';
 export { VintageMemberMenu } from './elements/member-menu';
+export {
+  COORDINATOR_STATES,
+  type CoordinatorState,
+  VintageOfficerStrip,
+} from './elements/officer-strip';
 export { type PollCardOption, VintagePollCard } from './elements/poll-card';
 export { VintageRoleBadge } from './elements/role-badge';
 export { RANK_GROUPS, type RosterMember, VintageRosterWall } from './elements/roster-wall';

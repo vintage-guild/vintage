@@ -1,4 +1,4 @@
-import { DEFAULT_TIMINGS, type RaidEvent } from '@vintage/raids/contract';
+import { DEFAULT_TIMINGS, type RaidEvent, type Signup } from '@vintage/raids/contract';
 import { fixedClock, makeCaller, testRegistry } from '@vintage/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { coordinatorCommands } from '../src/commands';
@@ -59,6 +59,46 @@ describe('coordinator commands', () => {
       data: {
         config: { signupChannelId: CHANNEL, dmReminders: false },
         upcoming: [{ dueNow: ['post'] }],
+      },
+    });
+  });
+
+  it('names the expected ranks who have not answered each raid, as the digest does', async () => {
+    const member = (memberId: string, rank: 'raider' | 'flex-raider' | 'member') => ({
+      memberId,
+      discordId: `2000000000000000${memberId.length}`,
+      displayName: memberId,
+      rank,
+      dmOptOut: false,
+    });
+    deps = createMemoryCoordinatorDeps(() => ({
+      guildId: 'guild-test',
+      events: [
+        {
+          event,
+          timings: DEFAULT_TIMINGS,
+          signups: [{ memberId: 'Aeryn' } as Signup],
+        },
+      ],
+      members: [
+        member('Aeryn', 'raider'),
+        member('Garrick', 'flex-raider'),
+        member('Brannoch', 'raider'),
+        member('Hadrian', 'member'),
+      ],
+    }));
+    expect(await run('coordinator-status', {})).toMatchObject({
+      data: {
+        upcoming: [
+          {
+            eventId: 'raid-1',
+            // Sorted by name; Aeryn answered and Hadrian's rank isn't expected.
+            waiting: [
+              { memberId: 'Brannoch', displayName: 'Brannoch' },
+              { memberId: 'Garrick', displayName: 'Garrick' },
+            ],
+          },
+        ],
       },
     });
   });

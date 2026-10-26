@@ -56,7 +56,7 @@ pnpm --filter @vintage/web build   # dist/
 - **Views** (`src/view.ts`, [feature plan](../../docs/features/active/role-aware-views/role-aware-views.plan.md)):
   the home page composes by the session's tier. Visitors get the storefront; members, recruits,
   and raiders get a compact hero with their own figures, "Your next raid" on top, and
-  recruiting as one line at the foot; leaders and officers get the same for now. The view only
+  recruiting as one line at the foot; leaders and officers get the same plus the officer strip above the hero. The view only
   orders sections; each command's tier is still the gate, and refused reads say who they are for.
 - **Times** (`src/dates.ts`) always show their zone, in the member's profile zone when they
   have set one (`member-prefs-set timezone`), else the browser's. The hero's "8 pm ET" pill is

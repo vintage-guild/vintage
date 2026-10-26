@@ -2,7 +2,7 @@ import { error, success } from '@vintage/guild-kit';
 import { GUILD_RANKS } from '@vintage/identity/contract';
 import { z } from 'zod';
 import { renderSignupPost } from '../domain/card';
-import { planTick } from '../domain/plan';
+import { nonResponders, planTick } from '../domain/plan';
 import { hashMessage } from '../domain/render';
 import { command } from '../store';
 import { raidNightPoll } from './raid-night';
@@ -29,24 +29,29 @@ export const coordinatorStatus = command({
   name: 'coordinator-status',
   description:
     'Whether the coordinator is running, its settings, and for each upcoming raid what it has ' +
-    'done and what it will do next.',
+    'done, what it will do next, and who among the expected ranks has not answered.',
   tier: 'leader',
   input: z.object({}),
   handler: async (_input, { guildId, deps, now }) => {
     const at = now();
     const state = await deps.tickSource.load(guildId, at);
     const due = planTick(state, at, (tick) => hashMessage(renderSignupPost(tick, state.members)));
-    const upcoming = state.events.map(({ event }) => ({
-      eventId: event.id,
-      name: event.name,
-      startsAt: event.startsAt,
-      status: event.status,
+    const upcoming = state.events.map((tick) => ({
+      eventId: tick.event.id,
+      name: tick.event.name,
+      startsAt: tick.event.startsAt,
+      status: tick.event.status,
       done: state.actions
-        .filter((a) => a.eventId === event.id && a.status !== 'pending')
+        .filter((a) => a.eventId === tick.event.id && a.status !== 'pending')
         .map((a) => ({ rule: a.rule, status: a.status, at: a.finishedAt })),
       dueNow: due
-        .filter((a) => a.tick.event.id === event.id)
+        .filter((a) => a.tick.event.id === tick.event.id)
         .map((a) => (a.kind === 'refresh' ? 'refresh' : a.rule)),
+      // The same rule the reminders and the officer digest use, so the site and Discord agree.
+      waiting: nonResponders(state, tick).map((m) => ({
+        memberId: m.memberId,
+        displayName: m.displayName,
+      })),
     }));
     const { config } = state;
     const reasoning = config.paused

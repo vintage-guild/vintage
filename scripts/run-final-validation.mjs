@@ -13,6 +13,7 @@ const steps = [
   ['boundaries', 'pnpm check:boundaries'],
   ['agent docs', 'pnpm check:agent-docs'],
   ['vendor', 'pnpm check:vendor'],
+  ['lockfile registry', 'pnpm check:lockfile'],
   ['command manifest', 'pnpm check:manifest'],
   ['type-check', 'pnpm type-check'],
   // Vite build of apps/web, plus ui-kit's Custom Elements Manifest and its check.

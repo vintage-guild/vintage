@@ -44,6 +44,7 @@ flowchart TB
             ID["identity ✅"]
             RAIDS["raids ✅"]
             COORD["coordinator 🚧"]
+            POLLS["polls 🚧"]
             LOOT["loot 📋"]
         end
     end
@@ -125,7 +126,7 @@ answer, so surfaces never reveal what a caller can't run.
 
 ```
 apps/      composition and transport (Convex app, Vercel gateway, website, CLI)
-modules/   features with their own data (identity, raids, coordinator, loot, …)
+modules/   features with their own data (identity, raids, coordinator, polls, loot, …)
 packages/  platform glue (guild-kit, agent, ui-kit, testing, config)
 libs/      pure, platform-free logic (wow-data, comp-solver, bridge-format, …)
 ```
@@ -145,6 +146,7 @@ Current packages:
 | `modules/identity` | module | Members, characters, guild ranks, role → rank map, role sync planner | ✅ |
 | `modules/coordinator` | module | The raid coordinator loop on a 5-minute cron: signup posts, reminders (pings + optional DMs), officer digest, lock, final roster, addon import string; `CoordinatorAction` log | 🚧 built, tested, and run live on the test server; button clicks wait on the gateway (#10) |
 | `modules/raids` | module | Schedules (DST-safe recurrence), raid events, signups, roster groups, `comp-suggest`; emits `signup-changed` and `raid-completed` | ✅ built and tested; not yet driven by the coordinator |
+| `modules/polls` | module | Polls and ballots shared by Discord, the website, and MCP: contract, store port, memory store, pure tally (single, multi, instant-runoff ranked) | 🚧 contract and tally built and tested; commands (#60), component (#61), and surfaces wait |
 | `apps/api` | app | Convex: composes components, command surface, crons | ✅ |
 | `apps/gateway` | app | Vercel functions: `/discord/interactions` (later `/mcp`) | 🚧 |
 | `apps/web` | app | The website: Vite SPA on the FAST-AF router; about/recruitment, profile, and characters pages; `data-theme` switching. Member pages are signed out until sign-in (#7); not deployed yet | 🚧 |

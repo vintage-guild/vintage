@@ -45,6 +45,12 @@ lefthook runs automatically:
 - **commit-msg:** commitlint (Conventional Commits, allowed scopes, sign-off)
 - **pre-push:** `pnpm validate:final`
 
+## Claude Code cloud sessions
+
+To run agents on claude.ai/code instead of your machine, set up a cloud environment once with
+[docs/operations/cloud-sessions.md](docs/operations/cloud-sessions.md). The repo's SessionStart
+hook does the rest in each session.
+
 ## Convex locally (no account needed)
 
 ```bash

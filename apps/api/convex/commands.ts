@@ -86,6 +86,10 @@ export const run = mutation({
   handler: async (ctx, args) => runAs(ctx, await resolveCaller(ctx), args),
 });
 
+/** Run a command as a resolved caller from server code (Discord interactions). */
+export const runCommandAs = (ctx: Ctx, caller: Caller, name: string, input: unknown) =>
+  runAs(ctx, caller, { name, input });
+
 /** Run a command as the system caller from server code (the coordinator tick, crons). */
 export const runSystemCommand = (ctx: Ctx, name: string, input: unknown) =>
   runAs(ctx, systemCaller(GUILD_ID), { name, input });

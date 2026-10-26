@@ -45,5 +45,7 @@ and posts the final roster and addon import string. Maturity: **core**.
   role with late people marked and everyone's reason (the signup `note`), the queue when the raid
   is full, tentative and bench with reasons, and comp gaps. The digest lists late, tentative, and
   bench reasons too. (Ideas from Raid-Helper: docs/research/raid-helper.md.)
-- Button clicks (`signup:<eventId>:<status>` for accepted, late, tentative, bench, declined) are
-  handled by the gateway once it calls Convex (#10); Late and Tentative will ask for a reason.
+- Button clicks (`signup:<eventId>:<status>` for accepted, late, tentative, bench, declined) go
+  gateway → Convex `POST /gateway/interaction` → `apps/api/src/discord-signups.ts`: a character
+  picker when needed, a reason form for Late and Tentative, private replies, and an immediate tick
+  so the post refreshes in seconds.

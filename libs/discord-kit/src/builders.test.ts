@@ -6,6 +6,7 @@ import {
   ComponentType,
   linkButton,
   stringSelect,
+  textInput,
 } from './components';
 import { EMBED_LIMITS, embed } from './embeds';
 import {
@@ -16,6 +17,8 @@ import {
   InteractionResponseType,
   InteractionType,
   MessageFlags,
+  modal,
+  modalValues,
   pong,
   reply,
   subcommandPath,
@@ -39,8 +42,53 @@ describe('interaction responses', () => {
   it('sets the ephemeral flag', () => {
     const res = reply({ content: 'secret' }, { ephemeral: true });
     expect(res.type).toBe(InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE);
-    expect('data' in res && res.data?.flags).toBe(MessageFlags.EPHEMERAL);
+    expect(res).toMatchObject({ data: { flags: MessageFlags.EPHEMERAL } });
     expect(deferReply({ ephemeral: true })).toEqual({ type: 5, data: { flags: 64 } });
+  });
+
+  it('builds a modal with one text input per row, and reads submitted values', () => {
+    const res = modal(
+      'signup-note:raid:late:char',
+      'Running late?',
+      textInput('note', 'Why, and how late?', { required: false, max_length: 200 }),
+    );
+    expect(res).toEqual({
+      type: 9,
+      data: {
+        custom_id: 'signup-note:raid:late:char',
+        title: 'Running late?',
+        components: [
+          {
+            type: 1,
+            components: [
+              {
+                type: 4,
+                custom_id: 'note',
+                label: 'Why, and how late?',
+                style: 1,
+                required: false,
+                max_length: 200,
+              },
+            ],
+          },
+        ],
+      },
+    });
+    const submitted = {
+      id: '1',
+      application_id: '2',
+      token: 't',
+      type: InteractionType.MODAL_SUBMIT,
+      data: {
+        custom_id: 'x',
+        components: [
+          { type: 1, components: [{ type: 4, custom_id: 'note', value: 'after work' }] },
+        ],
+      },
+    };
+    expect(modalValues(submitted)).toEqual({ note: 'after work' });
+    expect(() => modal('x', 'a'.repeat(46), textInput('n', 'Note'))).toThrow();
+    expect(() => actionRow(textInput('a', 'A'), textInput('b', 'B'))).toThrow();
   });
 
   it('builds deferred and update responses', () => {

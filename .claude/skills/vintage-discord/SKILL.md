@@ -48,6 +48,11 @@ commands). Everything runs serverless: no always-on gateway process.
   environment variables. Never commit values or echo the token in output.
 - Portal settings (Public Bot, intents, install link) change who can install the bot: a human
   officer changes them, not an agent. The bot needs the **Server Members** intent for role sync.
+- **Signup buttons:** the gateway verifies, then forwards components and modals to Convex
+  (`convex/http.ts` → `convex/discord.ts` → `src/discord-signups.ts`) with `VINTAGE_GATEWAY_SECRET`.
+  Custom ids: `signup:<event>:<status>`, `signup-pick:<event>:<status>`,
+  `signup-note:<event>:<status>:<character>`. Replies are ephemeral; never edit the public post
+  from an interaction (the coordinator tick does that).
 - **The app is public** (decided 2026-10-25, so the GM can add it). Anyone can add it to their
   own server, so the bot must only act for the configured guild: role sync reads
   `DISCORD_GUILD_ID`, the coordinator posts only to configured channels, and the gateway must

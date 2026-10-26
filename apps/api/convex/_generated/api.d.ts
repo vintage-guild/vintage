@@ -11,6 +11,8 @@
 import type * as commands from "../commands.js";
 import type * as coordinator from "../coordinator.js";
 import type * as crons from "../crons.js";
+import type * as discord from "../discord.js";
+import type * as http from "../http.js";
 import type * as roleSync from "../roleSync.js";
 import type * as stores from "../stores.js";
 
@@ -24,6 +26,8 @@ declare const fullApi: ApiFromModules<{
   commands: typeof commands;
   coordinator: typeof coordinator;
   crons: typeof crons;
+  discord: typeof discord;
+  http: typeof http;
   roleSync: typeof roleSync;
   stores: typeof stores;
 }>;

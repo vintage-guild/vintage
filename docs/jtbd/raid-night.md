@@ -101,3 +101,14 @@ drops out without watching the channel.
 that** people who committed first stay ahead of me.
 - [ ] Accepted → tentative → accepted puts me behind people who accepted after my first answer.
   Changing character, or switching between accepted and late, keeps my place.
+
+### J15 · Answer straight from the Discord post, privately
+**When** I see a raid post, **I (raider) want** to answer with one click, **so I can** sign up
+without leaving Discord.
+- [ ] With one character: Accept answers right away with a private reply, and the post shows me
+  within seconds.
+- [ ] Late or Tentative opens a short reason form; the reason shows on the post.
+- [ ] With several characters: a private picker asks which one; next time my signed-up character
+  is used without asking.
+- [ ] A Member (below Recruit), someone the bot doesn't know, or a click from another server gets
+  a private refusal that says what to do.

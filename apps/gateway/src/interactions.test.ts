@@ -83,7 +83,10 @@ describe('interactions endpoint', () => {
       data: { name: 'vintage', options: [{ name: 'nope', type: 1 }] },
     });
     expect((await handler()(unknownCommand)).status).toBe(400);
-    const unknownType = await signedRequest({ ...base, type: InteractionType.MODAL_SUBMIT });
+    const unknownType = await signedRequest({
+      ...base,
+      type: InteractionType.APPLICATION_COMMAND_AUTOCOMPLETE,
+    });
     expect((await handler()(unknownType)).status).toBe(400);
   });
 
@@ -91,5 +94,60 @@ describe('interactions endpoint', () => {
     expect((await handler()(new Request(ENDPOINT))).status).toBe(405);
     const broken = createInteractionHandler({ publicKey: 'not-a-key' });
     expect((await broken(await signedRequest({ ...base, type: 1 }))).status).toBe(500);
+  });
+
+  describe('signup buttons and modals', () => {
+    const click = {
+      ...base,
+      type: InteractionType.MESSAGE_COMPONENT,
+      guild_id: 'g1',
+      data: { custom_id: 'signup:raid1:accepted', component_type: 2 },
+    };
+    const convexReply = { type: 4, data: { content: 'Aeryn: accepted', flags: 64 } };
+
+    it('forwards to the Convex route with the shared secret and returns its response', async () => {
+      const calls: { url: string; init: RequestInit }[] = [];
+      const fakeFetch = (async (url: string, init: RequestInit) => {
+        calls.push({ url, init });
+        return new Response(JSON.stringify(convexReply), { status: 200 });
+      }) as typeof fetch;
+      const handle = createInteractionHandler({
+        publicKey,
+        now: () => NOW,
+        convex: { siteUrl: 'https://vintage.convex.site/', secret: 's3cret', fetch: fakeFetch },
+      });
+      const res = await handle(await signedRequest(click));
+      expect(await res.json()).toEqual(convexReply);
+      expect(calls[0]!.url).toBe('https://vintage.convex.site/gateway/interaction');
+      expect((calls[0]!.init.headers as Record<string, string>).authorization).toBe(
+        'Bearer s3cret',
+      );
+      expect(JSON.parse(calls[0]!.init.body as string)).toEqual(click);
+    });
+
+    it('answers privately when Convex is down or not configured', async () => {
+      const down = (async () => new Response('boom', { status: 500 })) as typeof fetch;
+      const handle = createInteractionHandler({
+        publicKey,
+        now: () => NOW,
+        convex: { siteUrl: 'https://x.convex.site', secret: 's', fetch: down },
+      });
+      expect(await (await handle(await signedRequest(click))).json()).toMatchObject({
+        type: 4,
+        data: { flags: 64, content: expect.stringMatching(/could not reach/) },
+      });
+      expect(await (await handler()(await signedRequest(click))).json()).toMatchObject({
+        data: { content: expect.stringMatching(/not set up/) },
+      });
+    });
+
+    it('returns 400 when Convex says the interaction is not one of ours', async () => {
+      const notOurs = (async () => new Response('{}', { status: 404 })) as typeof fetch;
+      const handle = createInteractionHandler({
+        publicKey,
+        convex: { siteUrl: 'https://x.convex.site', secret: 's', fetch: notOurs },
+      });
+      expect((await handle(await signedRequest(click))).status).toBe(400);
+    });
   });
 });

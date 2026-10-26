@@ -16,7 +16,14 @@ await vintage.ready; // first known state, including the return from Discord
 
 signInButton.onclick = () => vintage.signIn(); // navigates to Discord, comes back to this page
 signOutButton.onclick = () => vintage.signOut();
+
+await vintage.commands.run('member-prefs-set', { timezone: 'Europe/London' });
+await vintage.refresh(); // re-reads member-me; listeners hear only if something changed
 ```
+
+Before `ready`, the session is null even for a signed-in member, so mount after `ready`. After
+that, `onSession` fires when the signed-in user changes, or when `refresh()` finds the member
+changed (a new timezone, or a rank from role sync).
 
 `WebSession` is `{ memberId, displayName, tier, rank, avatarUrl?, timezone? }`:
 

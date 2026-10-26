@@ -24,6 +24,7 @@ export default {
         'guild-kit',
         'agent',
         'ui-kit',
+        'web-session',
         'testing',
         'config',
         'libs',

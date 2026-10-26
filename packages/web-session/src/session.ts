@@ -33,6 +33,14 @@ export interface MemberMe {
   };
 }
 
+const FIELDS = ['memberId', 'displayName', 'tier', 'rank', 'avatarUrl', 'timezone'] as const;
+
+/** Whether two sessions show the same thing, so listeners aren't told about non-changes. */
+export function sameSession(a: WebSession | null, b: WebSession | null): boolean {
+  if (!a || !b) return a === b;
+  return FIELDS.every((field) => a[field] === b[field]);
+}
+
 /**
  * Combine the two. When `member-me` fails (they're signed in but not a guild member, or below its
  * tier), the session is still theirs: public, named from Discord.

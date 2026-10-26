@@ -240,7 +240,7 @@ Top to bottom. "Source" is the command the section reads; "now" says what ships 
 | 4 | Progression ledger | Per raid (Barrow Deeps 8 bosses, Hyjal Summit 13, Onyxia's Lair 1): bosses with first-kill dates; pre-launch shows "unlocks Dec 9" | `progress-get` (`progress` module; leaders record with `kill-record`) | real |
 | 5 | Recruiting (parchment band) | Per class and spec: High / Medium / Closed, with a short pitch, the loot system in one line, and the Apply CTA again | `recruiting-get` (`site` module; officers edit with `recruiting-set`) | real |
 | 6 | Roster wall | Officers quick-look, then every member as a class-colored name grouped by rank; hover shows spec and role; pre-launch, a level progress column | `member-list`, `character-list` | fixture client |
-| 7 | From the coordinator | The last few bot posts rendered as dated cards, newest first (signup post, lock notice, kill) | `coordinator-log` (`CoordinatorAction` rows) | fixture client |
+| 7 | From Random Raven | The last few posts from Random, the coordinator bot, rendered as dated cards, newest first (signup post, lock notice, kill) | `coordinator-log` (`CoordinatorAction` rows) | fixture client |
 | 8 | Polls (concept) | "Off-night on Sunday or Monday?" with live-looking bars; a preview of a future `polls` module. (Ruleset and loot are officer decisions, so the sample poll isn't one of those) | none | page fixture, marked |
 | 9 | Footer | Discord, GitHub, addon (CurseForge, later), "built on AFD", theme switch, and a **last updated** date | static + build time | real |
 
@@ -413,8 +413,12 @@ upstream (`upstream:fast-af`) and gets a local stub with the issue link.
   band's right edge with multiply blending so the ink sits in the cream: behind the right end
   of the needs table at low opacity on most screens (fully in the margin only above 98rem),
   and smaller and fainter behind the table once the band stacks below 62rem.
-- **News:** the messenger raven is the feed's byline, beside the "From the coordinator"
-  heading; later it is the bot's face on Discord too.
+- **News:** the messenger raven is Random Raven, the coordinator: the feed's byline beside the
+  "From Random Raven" heading, "random by name, not by nature" beside it (a nod to agents being
+  non-deterministic and the coordinator being anything but). A raven also fits Vintage: ravens
+  collect things, and a vintage shop is a collection. Everywhere else, the officer strip,
+  reminder settings, and the Discord bot, he is just Random. Keep his name off anything truly
+  random, like loot rolls.
 - **Footer:** the dusk ridge under a fade from the canvas, so the page ends in the same dark;
   dark theme only, since parchment's leather text would vanish on the sky.
 - **Tab icon:** the square emblem (the V on its chain tag, `assets/brand/vintage-emblem.png`)

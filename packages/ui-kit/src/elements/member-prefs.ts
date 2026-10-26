@@ -86,7 +86,7 @@ const template = html<VintageMemberPrefs>`
         />
         Send me reminder DMs before raids
       </label>
-      <small>The bot DMs you if you haven't answered a raid's signup. Channel reminders still
+      <small>Random, the guild's raven, DMs you if you haven't answered a raid's signup. Channel reminders still
         happen either way.</small>
     </div>
 
@@ -275,7 +275,7 @@ export class VintageMemberPrefs extends FASTElement {
 
   @command('vintage.member-reminders-set', {
     label: 'Reminder DMs',
-    description: 'Turn reminder DMs from the bot on or off.',
+    description: 'Turn reminder DMs from Random, the guild bot, on or off.',
     category: 'Profile',
     parameters: {
       type: 'object',

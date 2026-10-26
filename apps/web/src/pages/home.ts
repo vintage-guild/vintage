@@ -405,7 +405,7 @@ const template = html<Page>`
         id="news"
         data-section
         data-section-eyebrow="News"
-        data-section-title="From the coordinator"
+        data-section-title="From Random Raven"
         data-section-action="Open the log"
         aria-labelledby="h-news"
       >
@@ -414,13 +414,13 @@ const template = html<Page>`
             <div class="lead byline">
               <img class="mascot" src="${ART.coordinator}" alt="" loading="lazy" decoding="async" />
               <span class="eyebrow">News</span>
-              <h2 id="h-news">From the coordinator</h2>
+              <h2 id="h-news">From Random Raven</h2>
             </div>
-            <span class="mono">the bot's log · newest first</span>
+            <span class="mono">random by name, not by nature</span>
           </header>
           <div class="two">
             <div class="card">
-              <span class="eyebrow">What the bot did</span>
+              <span class="eyebrow">What Random did · newest first</span>
               <div class="feed">
                 ${repeat(
                   (x) => x.feed,
@@ -433,12 +433,12 @@ const template = html<Page>`
                 )}
                 ${when(
                   (x) => x.feed.length === 0,
-                  html<Page>`<p class="muted">${(x) => (!x.feedLoaded ? 'Loading the coordinator’s log…' : x.raidsFailed ? 'The coordinator’s log is for members. Sign in with Discord to see what it posted and why.' : 'Nothing yet. The coordinator posts signups a week ahead and logs every reminder here.')}</p>`,
+                  html<Page>`<p class="muted">${(x) => (!x.feedLoaded ? 'Loading Random’s log…' : x.raidsFailed ? 'Random’s log is for members. Sign in with Discord to see what he posted and why.' : 'Nothing yet. Random posts signups a week ahead and logs every reminder here.')}</p>`,
                 )}
               </div>
               ${when(
                 (x) => x.feed.length > 0 && x.feed.length < 4,
-                html`<p class="muted small">Early days: the log fills in as the coordinator posts, reminds, locks, and promotes. Every entry answers “why did the bot ping me?”.</p>`,
+                html`<p class="muted small">Early days: the log fills in as Random posts, reminds, locks, and promotes. Every entry answers “why did Random ping me?”.</p>`,
               )}
             </div>
             ${when(

@@ -5,12 +5,22 @@ const template = html<VintageHero>`
     ${when(
       (x) => Boolean(x.artSrc),
       html<VintageHero>`
-        <div class="art" part="art" aria-hidden="${(x) => (x.artAlt ? 'false' : 'true')}">
-          <img
-            src="${(x) => x.artSrc}"
-            alt="${(x) => x.artAlt}"
-            style="${(x) => `object-position: ${x.artPosition}`}"
-          />
+        <div
+          class="${(x) => (x.artPhoneSrc ? 'art phone' : 'art')}"
+          part="art"
+          aria-hidden="${(x) => (x.artAlt ? 'false' : 'true')}"
+        >
+          <picture>
+            ${when(
+              (x) => Boolean(x.artPhoneSrc),
+              html<VintageHero>`<source media="(max-width: 40rem)" srcset="${(x) => x.artPhoneSrc}" />`,
+            )}
+            <img
+              src="${(x) => x.artSrc}"
+              alt="${(x) => x.artAlt}"
+              style="${(x) => `--art-position: ${x.artPosition}; --art-phone-position: ${x.artPhonePosition}`}"
+            />
+          </picture>
         </div>
       `,
     )}
@@ -46,11 +56,16 @@ const styles = css`
     background: var(--color-surface-canvas);
   }
 
+  .art picture,
   .art img {
     display: block;
     inline-size: 100%;
     block-size: 100%;
+  }
+
+  .art img {
     object-fit: cover;
+    object-position: var(--art-position, 78% 42%);
   }
 
   .art::after {
@@ -161,6 +176,24 @@ const styles = css`
     .content {
       padding-block: var(--space-xl) var(--space-md);
     }
+
+    /* With phone art (the .phone class; an empty reflected attribute would still match
+       [art-phone-src]) the subject sits in the lower two thirds, so the fade is heaviest at
+       the top under the headline and at the foot under the figures, and lets the middle through. */
+    .art.phone img {
+      object-position: var(--art-phone-position, var(--art-position));
+    }
+
+    .art.phone::after {
+      background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--color-surface-canvas) 90%, transparent) 0%,
+        color-mix(in srgb, var(--color-surface-canvas) 74%, transparent) 34%,
+        color-mix(in srgb, var(--color-surface-canvas) 36%, transparent) 60%,
+        color-mix(in srgb, var(--color-surface-canvas) 28%, transparent) 80%,
+        color-mix(in srgb, var(--color-surface-canvas) 94%, transparent) 100%
+      );
+    }
   }
 `;
 
@@ -176,7 +209,7 @@ const styles = css`
  * @slot actions - Links or buttons.
  * @slot figures - A row of `vintage-figure` elements.
  * @csspart hero - The band.
- * @csspart art - The art and its fade.
+ * @csspart art - The art and its fade. `art-phone-src` swaps in a portrait on phones.
  * @csspart content - The text column.
  * @csspart figures - The figures panel.
  */
@@ -187,6 +220,10 @@ export class VintageHero extends FASTElement {
   @attr({ attribute: 'art-alt' }) artAlt = '';
   /** CSS `object-position` for the art, so the subject stays in the clear right side. */
   @attr({ attribute: 'art-position' }) artPosition = '78% 42%';
+  /** Art for phones (40rem and under): a portrait composition. Empty keeps the main art. */
+  @attr({ attribute: 'art-phone-src' }) artPhoneSrc = '';
+  /** `object-position` for the phone art. */
+  @attr({ attribute: 'art-phone-position' }) artPhonePosition = '50% 62%';
 }
 
 if (!customElements.get('vintage-hero')) {

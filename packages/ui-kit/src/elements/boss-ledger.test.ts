@@ -111,4 +111,33 @@ describe('vintage-boss-ledger', () => {
     expect(shadowText(el)).toContain('1 / 1 · cleared');
     expect(el.shadowRoot!.querySelector('.note')).toBeNull();
   });
+
+  it('draws scene art behind the rows that have it, decorative, and leaves the rest plain', async () => {
+    const el = await mount<VintageBossLedger>(
+      `<vintage-boss-ledger opens-on="${OPENS_ON}"></vintage-boss-ledger>`,
+    );
+    el.raids = raids();
+    el.art = { 'barrow-deeps': '/art/barrow-deeps.webp', 'hyjal-summit': '/art/hyjal-summit.webp' };
+    await settle();
+    const rows = [...el.shadowRoot!.querySelectorAll<HTMLElement>('.raid')];
+    expect(rows.map((r) => r.classList.contains('scene'))).toEqual([true, false]);
+    const art = rows[0]?.querySelector('img.art');
+    expect(art?.getAttribute('src')).toBe('/art/barrow-deeps.webp');
+    expect(art?.getAttribute('alt')).toBe('');
+    expect(art?.getAttribute('style')).toBeNull();
+    expect(rows[1]?.querySelector('img.art')).toBeNull();
+
+    // A point of interest keeps the subject in the strip.
+    el.art = { 'onyxias-lair': { src: '/art/onyxias-lair.webp', position: '84% 16%' } };
+    await settle();
+    const after = [...el.shadowRoot!.querySelectorAll<HTMLElement>('.raid')];
+    expect(after[0]?.querySelector('img.art')).toBeNull();
+    const ony = after[1]?.querySelector('img.art');
+    expect(ony?.getAttribute('src')).toBe('/art/onyxias-lair.webp');
+    expect(ony?.getAttribute('style')).toBe('object-position: 84% 16%');
+    // The scene never changes what the row says.
+    expect(rows[0]?.textContent?.replace(/\s+/g, ' ').trim()).toContain(
+      'Barrow Deeps 10 players · 3 bosses',
+    );
+  });
 });

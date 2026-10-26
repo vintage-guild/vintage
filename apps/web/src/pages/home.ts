@@ -25,6 +25,7 @@ import {
   type SignupCounts,
   titleCase,
 } from '@vintage/ui-kit';
+import { ART } from '../content/art';
 import { type ClassNeed, DISCORD_INVITE_URL, RECRUITING } from '../content/recruiting';
 import {
   daysUntil,
@@ -69,7 +70,8 @@ const DISCORD_SECTION_LINK = DISCORD_INVITE_URL ? '' : 'recruiting';
 const template = html<Page>`
   <vintage-hero
     id="top"
-    art-src="/art/forever-dragon.webp"
+    art-src="${ART.hero}"
+    art-phone-src="${ART.heroPhone}"
     data-section
     data-section-eyebrow="Vintage"
     data-section-title="A guild on WoW: Forever"
@@ -203,6 +205,7 @@ const template = html<Page>`
       <vintage-boss-ledger
         :raids="${(x) => x.ledgerRaids}"
         :latest="${(x) => x.latestKill}"
+        :art="${() => ART.raids}"
         ?open="${(x) => x.ledgerOpen}"
         opens-on="${RAIDS_OPEN_ON}"
       ></vintage-boss-ledger>
@@ -218,6 +221,7 @@ const template = html<Page>`
     data-section-action="Apply to raid"
     aria-labelledby="h-recruiting"
   >
+    <img class="arms" src="${ART.recruiting}" alt="" loading="lazy" decoding="async" />
     <div class="wrap">
       <div class="two recruit">
         <div class="lead">
@@ -285,7 +289,11 @@ const template = html<Page>`
   >
     <div class="wrap">
       <header>
-        <div class="lead"><span class="eyebrow">News</span><h2 id="h-news">From the coordinator</h2></div>
+        <div class="lead byline">
+          <img class="mascot" src="${ART.coordinator}" alt="" loading="lazy" decoding="async" />
+          <span class="eyebrow">News</span>
+          <h2 id="h-news">From the coordinator</h2>
+        </div>
         <span class="mono">the bot's log · newest first</span>
       </header>
       <div class="two">
@@ -648,6 +656,8 @@ const styles = css`
 
   /* the cream band: recruiting, on the inverse surface tokens */
   .sec.cream {
+    position: relative;
+    overflow: hidden;
     background: var(--color-surface-inverse);
     color: var(--color-text-inverse);
     border-block-start: 0;
@@ -675,6 +685,25 @@ const styles = css`
   .two.recruit {
     grid-template-columns: 1fr 1.1fr;
     align-items: start;
+  }
+
+  /* The shield and staff stand at the band's right edge: in the margin on wide screens, behind
+     the needs table on narrower ones. Multiply keeps the ink in the paper. */
+  .sec.cream .wrap {
+    position: relative;
+    z-index: 1;
+  }
+
+  .arms {
+    position: absolute;
+    inset-block-end: 0;
+    inset-inline-end: max(0px, calc((100% - 80rem) / 2 - 9rem));
+    block-size: 94%;
+    inline-size: auto;
+    opacity: 0.26;
+    mix-blend-mode: multiply;
+    pointer-events: none;
+    user-select: none;
   }
 
   .two.recruit .lead {
@@ -752,7 +781,25 @@ const styles = css`
     color: var(--color-leather-700);
   }
 
-  /* the coordinator feed */
+  /* the coordinator feed, with the raven as its byline */
+  .lead.byline {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: var(--space-sm);
+    align-items: center;
+  }
+
+  .lead.byline > :not(.mascot) {
+    grid-column: 2;
+  }
+
+  .mascot {
+    grid-row: 1 / span 2;
+    inline-size: 5rem;
+    block-size: auto;
+    filter: drop-shadow(0 6px 10px rgb(0 0 0 / 45%));
+  }
+
   .feed {
     display: grid;
   }
@@ -800,6 +847,18 @@ const styles = css`
     .two.recruit,
     .callout {
       grid-template-columns: 1fr;
+    }
+
+    /* Stacked, the lead comes first; the arms drop behind the table, fainter. */
+    .arms {
+      inset-block: auto 0;
+      inset-inline-end: -2rem;
+      block-size: 48%;
+      opacity: 0.16;
+    }
+
+    .mascot {
+      inline-size: 3.75rem;
     }
   }
 

@@ -9,6 +9,7 @@
 | `vintage-logo-two-tone.svg` | Ink plus a "paper" fill behind the letters, so it keeps the original look (light letters on a dark tag) on any background |
 | `vintage-logo-color-800.png` | Web copy of the color emblem (800×520, trimmed, ~430 KB): README header and anywhere bandwidth matters |
 | `vintage-logo-color.png` | Full-color painted emblem (gold letters, crimson tag, iron chain), 1536×1024 with a transparent background. Use for the website hero, Discord server icon/banner, and CurseForge. Not traced: painted shading doesn't vectorize cleanly |
+| `vintage-emblem.png` | Square mark: the V on the chain tag, black with a white double outline, 1033×1086 trimmed, transparent. The outline makes it read on light and dark alike, so it is the website's tab icon (`apps/web/public/icon-*.png`, and `apple-touch-icon.png` on the canvas color) and the pick wherever a square logo is needed |
 
 The color emblem is the source of the `vintage` token node's palette (PLAN §3.8, Q12): gold
 letterforms (`--color-gold-*`), the crimson tag (`--color-crimson-*`), and the iron frame

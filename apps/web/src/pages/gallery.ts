@@ -9,6 +9,7 @@ import {
   type SignupStatus,
 } from '@vintage/ui-kit';
 import { CLASS_NAMES, CLASSES, ROLES, type Role, type WowClass } from '@vintage/wow-data';
+import { ART } from '../content/art';
 import { pageStyles } from './page-styles';
 
 const firstSpec = (c: WowClass) => Object.keys(CLASSES[c])[0] ?? '';
@@ -155,12 +156,12 @@ const template = html<Page>`
     <section>
       <h2>Boss ledger · before Dec 9</h2>
       <p>Every slot empty and each row says when it unlocks. Hover or focus a slot for the boss name.</p>
-      <vintage-boss-ledger :raids="${() => LEDGER_LOCKED}" opens-on="${RAIDS_OPEN_ON}"></vintage-boss-ledger>
+      <vintage-boss-ledger :raids="${() => LEDGER_LOCKED}" :art="${() => ART.raids}" opens-on="${RAIDS_OPEN_ON}"></vintage-boss-ledger>
     </section>
     <section>
       <h2>Boss ledger · raiding</h2>
       <p>What <code>progress-get</code> answers once kills exist: gold slots with the first-kill date, the next target dashed, and the latest kill's loot in quality colors.</p>
-      <vintage-boss-ledger open :raids="${() => LEDGER_RAIDING.raids}" :latest="${() => LEDGER_RAIDING.latest}" opens-on="${RAIDS_OPEN_ON}"></vintage-boss-ledger>
+      <vintage-boss-ledger open :raids="${() => LEDGER_RAIDING.raids}" :latest="${() => LEDGER_RAIDING.latest}" :art="${() => ART.raids}" opens-on="${RAIDS_OPEN_ON}"></vintage-boss-ledger>
     </section>
     <section><h2>Sign-in card</h2><vintage-sign-in-card></vintage-sign-in-card></section>
     <section>

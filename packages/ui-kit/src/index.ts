@@ -7,6 +7,7 @@ export {
   setCommandClient,
 } from './client';
 export {
+  type LedgerArt,
   type LedgerBoss,
   type LedgerKill,
   type LedgerLoot,

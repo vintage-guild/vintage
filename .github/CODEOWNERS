@@ -4,6 +4,7 @@ packages/guild-kit/ @Falkicon
 packages/ui-kit/ @Falkicon
 modules/identity/ @Falkicon
 modules/raids/ @Falkicon
+modules/coordinator/ @Falkicon
 apps/api/ @Falkicon
 apps/gateway/ @Falkicon
 apps/web/ @Falkicon

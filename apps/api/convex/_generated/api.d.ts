@@ -9,6 +9,7 @@
  */
 
 import type * as commands from "../commands.js";
+import type * as coordinator from "../coordinator.js";
 import type * as crons from "../crons.js";
 import type * as roleSync from "../roleSync.js";
 import type * as stores from "../stores.js";
@@ -21,6 +22,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   commands: typeof commands;
+  coordinator: typeof coordinator;
   crons: typeof crons;
   roleSync: typeof roleSync;
   stores: typeof stores;
@@ -55,4 +57,5 @@ export declare const internal: FilterApi<
 export declare const components: {
   identity: import("@vintage/identity/_generated/component.js").ComponentApi<"identity">;
   raids: import("@vintage/raids/_generated/component.js").ComponentApi<"raids">;
+  coordinator: import("@vintage/coordinator/_generated/component.js").ComponentApi<"coordinator">;
 };

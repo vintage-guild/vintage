@@ -16,6 +16,8 @@
     "type-check": "tsc6 -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@vintage/design-tokens": "workspace:*",
+    "@vintage/discord-kit": "workspace:*",
     "@vintage/guild-kit": "workspace:*",
     "@vintage/identity": "workspace:*",
     "convex": "catalog:",

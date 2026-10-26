@@ -21,7 +21,7 @@ const http = httpRouter();
 /**
  * POST /gateway/interaction: a verified Discord component or modal interaction from the gateway.
  * Answers with the interaction response for the gateway to return to Discord, or 404 when it
- * isn't a signup interaction.
+ * isn't one Vintage handles (signups, polls).
  */
 http.route({
   path: '/gateway/interaction',
@@ -39,7 +39,7 @@ http.route({
       return json({ error: 'invalid JSON' }, 400);
     }
     const response = await ctx.runMutation(internal.discord.interaction, { interaction });
-    return response ? json(response) : json({ error: 'not a signup interaction' }, 404);
+    return response ? json(response) : json({ error: 'not a Vintage interaction' }, 404);
   }),
 });
 

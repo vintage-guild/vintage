@@ -331,6 +331,12 @@ importers:
 
   modules/polls:
     dependencies:
+      '@vintage/design-tokens':
+        specifier: workspace:*
+        version: link:../../libs/design-tokens
+      '@vintage/discord-kit':
+        specifier: workspace:*
+        version: link:../../libs/discord-kit
       '@vintage/guild-kit':
         specifier: workspace:*
         version: link:../../packages/guild-kit

@@ -9,6 +9,7 @@ vote from the website are the same `vote-cast` command on the same poll. Design:
 | Path | Holds |
 |---|---|
 | `src/contract.ts` | Public types (`Poll`, `Vote`, `PollResults`, `PollPost`), command names, events. The only import other modules may use |
+| `src/render/discord.ts` | Pure: the Discord post (Components V2), `renderKey` so posts are edited only on change, `buildPollCard`, and the `poll:*` custom ids, built and parsed in one place |
 | `src/domain/tally.ts` | Pure: poll + votes → `PollResults` for `single`, `multi`, and `ranked` (instant-runoff) |
 | `src/store.ts` | `PollsStore` port, `PollsMembers` (what polls reads from identity), `PollsEventSink`, `PollsDeps`, `command` |
 | `src/commands/` | `poll-*` (lifecycle in `poll.ts`, reads in `read.ts`) and `vote-*` (`vote.ts`); shared guards in `shared.ts`. Registered in `apps/api/src/registry.ts` |
@@ -43,8 +44,24 @@ vote from the website are the same `vote-cast` command on the same poll. Design:
 - **Closing is final.** `poll-close` (creator or leader) and `poll-cancel` (leader) are
   destructive: the preview shows the result that would be frozen. The sweep closes due polls
   with `closedBy: null`.
+- **Closing doesn't reveal a hidden tally.** The `poll-close` preview and its result carry
+  `results: null` when `canSeeTally` says the caller couldn't already see it.
 - **The close time is enforced at vote time**, so a late vote fails even if the sweep hasn't
   run yet.
 - Error codes: `POLL_NOT_FOUND`, `POLL_STATUS`, `POLL_CLOSED`, `INVALID_CHOICES`,
   `INVALID_TIME`, `OPTIONS_LOCKED`, `RESULTS_HIDDEN`, `TIER_TOO_HIGH`, `FORBIDDEN`,
   `NOT_SIGNED_IN`.
+
+## Discord
+
+- **The post is public, so it follows the non-officer rule** (`publicTally`): live tallies only
+  for `live` polls, closed tallies unless `officers`. It shows counts, never names.
+- **Custom ids are `poll:<code>:<pollId>[:<optionId>]`**, built and parsed only in
+  `render/discord.ts`, and stay under 100 characters with a 32-character Convex id.
+- **Closing from Discord is two clicks.** "Close poll" shows the registry's preview privately.
+  "Close it" is the confirmation, so the server takes a fresh preview and confirms it in the
+  same request. The token never reaches Discord, because it doesn't fit in a custom id. Use this
+  pattern only where a member's own click is the confirm step.
+- **Long descriptions are cut** to `POST_DESCRIPTION`, so the biggest possible poll stays under
+  Discord's 4000-character text limit. A test builds that worst case.
+- The flow is `apps/api/src/discord-polls.ts`; posting and edits are `apps/api/convex/pollPosts.ts`.

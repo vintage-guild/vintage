@@ -26,8 +26,9 @@ commands). Everything runs serverless: no always-on gateway process.
 - **Answer within 3 seconds.** Anything slower returns a deferred response (type 5, or 6 for
   component updates) and finishes through the interaction token (valid 15 minutes).
 - **Commands, not logic, in the endpoint.** Interactions translate to guild-kit commands through
-  the registry; the endpoint never holds business rules. (`/vintage ping` is the one local
-  exception until the gateway calls Convex — see `TODO(#10)`.)
+  the registry; the endpoint never holds business rules. `/vintage ping` answers locally; buttons,
+  modals, and the subcommand groups in `FORWARDED_GROUPS` (`/vintage poll`) go to Convex, where
+  `src/discord-signups.ts` and `src/discord-polls.ts` run them. Re-register after changing commands.
 - **Least privilege for the bot.** It's invited with View Channels, Send Messages, Embed Links,
   Read Message History, Add Reactions, and Mention Everyone (permissions integer `216128`). Add a
   permission only when a feature needs it, and say which in the PR. Never request Administrator

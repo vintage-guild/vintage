@@ -3,10 +3,17 @@
 // resolved from synced members the way commands.ts does it, so tiers come from Discord roles.
 import { runTick } from '@vintage/coordinator/commands';
 import { createFakeDiscord, createMemoryCoordinatorStore } from '@vintage/coordinator/testing';
-import { type Interaction, InteractionType } from '@vintage/discord-kit';
+import {
+  type Interaction,
+  InteractionType,
+  type LayoutComponent,
+  layoutText,
+  type MessageData,
+} from '@vintage/discord-kit';
 import type { Caller, CommandResult } from '@vintage/guild-kit';
 import { systemCaller } from '@vintage/guild-kit';
 import { createMemoryIdentityDeps } from '@vintage/identity/testing';
+import { buildPollCard, renderPollPost } from '@vintage/polls/commands';
 import {
   createMemoryPollsStore,
   createRecordingEventSink as createPollEventSink,
@@ -15,6 +22,7 @@ import { createMemoryProgressStore } from '@vintage/progress/testing';
 import type { Signup } from '@vintage/raids/contract';
 import { createMemoryRaidsStore, createRecordingEventSink } from '@vintage/raids/testing';
 import { fixedClock, testRegistry } from '@vintage/testing';
+import { handlePollInteraction } from '../../src/discord-polls';
 import { handleSignupInteraction } from '../../src/discord-signups';
 import { commands, type VintageDeps } from '../../src/registry';
 import { createTickSource } from '../../src/tick-source';
@@ -36,6 +44,7 @@ export const ROLES = {
 export const DISCORD_GUILD = '600000000000000001';
 export const SIGNUP_CHANNEL = '400000000000000001';
 export const OPS_CHANNEL = '400000000000000002';
+export const POLL_CHANNEL = '400000000000000003';
 
 export const HOUR = 60 * 60 * 1000;
 export const DAY = 24 * HOUR;
@@ -207,8 +216,99 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
       ),
   };
 
+  /**
+   * Poll posts as members see them, by poll id: rendered the way Convex's pollPosts does when
+   * the poll flow asks to post or refresh (src/discord-polls.ts).
+   */
+  const pollPosts = new Map<string, { channelId: string; message: MessageData }>();
+  async function renderPost(pollId: string) {
+    const poll = await polls.getPoll(GUILD, pollId);
+    if (!poll) return null;
+    const card = buildPollCard(
+      poll,
+      await polls.listVotes(GUILD, pollId),
+      await identity.listMembers(GUILD),
+      null,
+    );
+    return renderPollPost(card);
+  }
+
+  function pollInteract(discordId: string, interaction: Partial<Interaction>) {
+    return handlePollInteraction(
+      {
+        id: 'i',
+        application_id: 'app',
+        token: 'token',
+        type: InteractionType.MESSAGE_COMPONENT,
+        guild_id: DISCORD_GUILD,
+        channel_id: POLL_CHANNEL,
+        member: { user: { id: discordId, username: discordId }, roles: [] },
+        ...interaction,
+      },
+      {
+        discordGuildId: DISCORD_GUILD,
+        guildId: GUILD,
+        memberByDiscordId: (id) => identity.getMemberByDiscordId(GUILD, id),
+        run: (caller, name, input, confirmToken) =>
+          registry.execute(
+            { name, input, caller, ...(confirmToken ? { confirmToken } : {}) },
+            deps,
+          ),
+        post: async (pollId, channelId) => {
+          const message = await renderPost(pollId);
+          if (message) pollPosts.set(pollId, { channelId, message });
+        },
+        refresh: async (pollId) => {
+          const posted = pollPosts.get(pollId);
+          const message = await renderPost(pollId);
+          if (posted && message) pollPosts.set(pollId, { ...posted, message });
+        },
+        now: clock.now,
+      },
+    );
+  }
+
+  /** `/vintage poll create`, and clicks or picks on a poll post or its private replies. */
+  const pollUi = {
+    create: (discordId: string, options: Record<string, string | number | boolean>) =>
+      pollInteract(discordId, {
+        type: InteractionType.APPLICATION_COMMAND,
+        data: {
+          name: 'vintage',
+          options: [
+            {
+              name: 'poll',
+              type: 2,
+              options: [
+                {
+                  name: 'create',
+                  type: 1,
+                  options: Object.entries(options).map(([name, value]) => ({
+                    name,
+                    value,
+                    type: typeof value === 'number' ? 4 : typeof value === 'boolean' ? 5 : 3,
+                  })),
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    click: (discordId: string, customId: string) =>
+      pollInteract(discordId, { data: { custom_id: customId, component_type: 2 } }),
+    pick: (discordId: string, customId: string, values: string[]) =>
+      pollInteract(discordId, { data: { custom_id: customId, component_type: 3, values } }),
+    /** The post's text, as layoutText reads it. */
+    postText: (pollId: string) => {
+      const posted = pollPosts.get(pollId);
+      return posted ? layoutText((posted.message.components ?? []) as LayoutComponent[]) : null;
+    },
+    pollPosts,
+  };
+
   return {
     discordUi,
+    pollUi,
     clock,
     deps,
     discord,

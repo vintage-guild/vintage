@@ -267,6 +267,29 @@ describe('poll-close and poll-cancel', () => {
     });
   });
 
+  it('does not show a hidden tally in the close preview or after closing', async () => {
+    const hidden = await create({ resultsVisible: 'after-close' });
+    await run('vote-cast', { pollId: hidden.id, choices: ['o1'] }, raider2);
+    const peek = await run('poll-close', { pollId: hidden.id }, raider);
+    expect(peek).toMatchObject({ success: true, data: { preview: { ballots: 1, results: null } } });
+    expect(await run('poll-close', { pollId: hidden.id }, officer)).toMatchObject({
+      data: { preview: { results: { winners: ['o1'] } } },
+    });
+
+    const secret = await create({ resultsVisible: 'officers' });
+    await run('vote-cast', { pollId: secret.id, choices: ['o2'] }, raider2);
+    const { result } = await previewAndConfirm(
+      registry,
+      { name: 'poll-close', input: { pollId: secret.id }, caller: raider },
+      deps,
+    );
+    expect(result).toMatchObject({
+      success: true,
+      data: { results: null, poll: { status: 'closed', results: null } },
+    });
+    expect(deps.polls.polls.get(secret.id)?.results?.winners).toEqual(['o2']);
+  });
+
   it('changes nothing on the preview alone', async () => {
     const poll = await create();
     await run('poll-close', { pollId: poll.id }, raider);

@@ -70,12 +70,31 @@ DISCORD_GUILD_ID=      # the Vintage server id (real roles and members; role syn
 DISCORD_DEV_GUILD_ID=  # the bot test server (register commands instantly, experiment safely)
 ```
 
-The bot is in two servers: the **Vintage** server with minimal permissions (View Channels) for
-role sync, and a **test server** for trying commands, buttons, and embeds without the guild seeing
-half-built messages.
+The bot is invited with `bot` + `applications.commands` and only these permissions: View Channels,
+Send Messages, Embed Links, Read Message History, Add Reactions, and Mention Everyone (so the
+coordinator can ping a rank role that isn't mentionable). It needs the **Server Members** intent
+(Bot page in the portal) to list members for role sync. It belongs in two servers: the **Vintage**
+server, and a **test server** for trying commands, buttons, and embeds without the guild seeing
+half-built messages. Until the Vintage server is ready, the test server stands in for both.
 
 The role-sync cron does nothing until `DISCORD_BOT_TOKEN` and `DISCORD_GUILD_ID` are set in the
-Convex environment. See the `vintage-discord` skill for how the pieces fit.
+Convex environment (`npx convex env set …` in `apps/api`). See the `vintage-discord` skill for
+how the pieces fit.
+
+### First role map (bootstrap)
+
+`guild-roles-set` needs an officer, and nobody is an officer until the map exists. Someone with
+deployment access runs it once as the system caller, preview first, then with the returned token:
+
+```bash
+cd apps/api
+npx convex run commands:runAsSystem '{"name":"guild-roles-set","input":{"roles":{"<officer role id>":"officer","<raider role id>":"raider"}}}'
+npx convex run commands:runAsSystem '{"name":"guild-roles-set","input":{"roles":{…same…}},"confirmToken":"<token>"}'
+npx convex run roleSync:syncAllMembers
+```
+
+Role ids come from `GET /guilds/{id}/roles` with the bot token. After this, officers manage the
+map with `guild-roles-set` like any other command.
 
 ## Design tokens
 

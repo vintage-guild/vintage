@@ -21,7 +21,9 @@ Members, characters, and Discord roles → guild rank → permission tier (PLAN 
   cron through `commands:syncMember(s)` (system caller). Never set them anywhere else.
 - The Discord role id → rank map lives in `roleRanks`, read with `guild-roles-get` (leader) and
   replaced with `guild-roles-set` (officer, destructive). The map must keep an officer role, so
-  officers can't lock themselves out. Tiers follow at the next sync, not at save time.
+  officers can't lock themselves out. Tiers follow at the next sync, not at save time. The first
+  map is saved through `commands:runAsSystem` (system caller, deployment access only), since no
+  one is an officer yet.
 - Role sync (`apps/api/convex/roleSync.ts`, every 15 min) reads the whole `GuildDirectory` before
   planning. Never plan from a partial or empty directory: missing members are synced as gone.
 - Rank decides tier (`RANK_TIER` in the contract). Discord-only Friends and anyone without a

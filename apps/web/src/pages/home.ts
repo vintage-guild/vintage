@@ -32,6 +32,7 @@ import {
   type SignupCounts,
   titleCase,
 } from '@vintage/ui-kit';
+import { characterLabel } from '../characters';
 import { ART } from '../content/art';
 import { type ClassNeed, DISCORD_INVITE_URL, RECRUITING } from '../content/recruiting';
 import {
@@ -1239,7 +1240,7 @@ export class Page extends FASTElement {
   }
 
   get mainLabel(): string {
-    return this.main ? `${this.main.name} · ${titleCase(this.main.spec)}` : '';
+    return this.main ? characterLabel(this.main) : '';
   }
 
   /** The ledger rows: `progress-get`, or the launch raids with every slot empty. */

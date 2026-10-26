@@ -11,30 +11,69 @@ import './styles.css';
 import '@vintage/ui-kit';
 import { fastRouterRegistration } from '@microsoft/fast-router';
 import { VintageRoutes } from './routes';
-import { currentSession } from './session';
+import { canSignIn, currentSession, signIn, signOut } from './session';
 import { installSectionLinks, trackScrollProgress } from './site-context';
 import { currentView } from './view';
 
-if (import.meta.env.DEV) {
-  // An in-memory guild behind the real commands, signed in as the persona the dev switch picks
-  // (`?as=visitor|member|recruit|raider|leader|officer`, remembered for the tab).
-  const { installFixtures } = await import('./fixtures');
-  const { choosePersona, installPersonaSwitch } = await import('./fixtures/persona');
-  const persona = choosePersona();
-  await installFixtures(persona);
-  installPersonaSwitch(persona);
+/** The guild server: VITE_CONVEX_URL, else production. */
+const convexUrl = (): Promise<string> =>
+  import('./connect').then((m) => import.meta.env.VITE_CONVEX_URL || m.PROD_CONVEX_URL);
+
+/** Connect for real. If the server can't be reached the site stays up, signed out. */
+async function connectLive(): Promise<void> {
+  try {
+    const { connectSite } = await import('./connect');
+    await connectSite(await convexUrl());
+  } catch (cause) {
+    console.error('Could not reach the guild server; staying signed out.', cause);
+  }
 }
+
+if (import.meta.env.DEV) {
+  // In dev the switch picks an in-memory guild persona
+  // (`?as=visitor|member|recruit|raider|leader|officer`, remembered for the tab), or `?as=live`
+  // for the real server and Discord sign-in.
+  const { choosePersona, installPersonaSwitch, LIVE } = await import('./fixtures/persona');
+  const choice = choosePersona();
+  if (choice === LIVE) {
+    await connectLive();
+  } else {
+    const { installFixtures } = await import('./fixtures');
+    await installFixtures(choice);
+  }
+  installPersonaSwitch(choice);
+} else {
+  await connectLive();
+}
+
+// The sign-in card and the header button ask; the shell starts Discord sign-in.
+document.addEventListener('sign-in-requested', () => signIn());
 
 const session = currentSession();
 const menu = document.getElementById('member-menu') as
   | (HTMLElement & { name: string; detail: string; avatarSrc: string })
   | null;
 if (menu && session) {
-  const rank = session.rank ? session.rank.replace('-', ' ') : 'member';
+  // Signed in with Discord but not in the guild's server: no rank, `public` tier.
+  const rank = session.rank ? session.rank.replace('-', ' ') : 'not in the guild';
   menu.name = session.displayName;
   menu.detail = rank.charAt(0).toUpperCase() + rank.slice(1);
   menu.avatarSrc = session.avatarUrl ?? '';
   menu.hidden = false;
+  if (canSignIn()) {
+    const out = document.createElement('button');
+    out.type = 'button';
+    out.className = 'sign-out';
+    out.textContent = 'Sign out';
+    out.addEventListener('click', () => signOut());
+    menu.append(out);
+  }
+}
+
+const signInButton = document.getElementById('sign-in') as HTMLButtonElement | null;
+if (signInButton && !session && canSignIn()) {
+  signInButton.hidden = false;
+  signInButton.addEventListener('click', () => signIn());
 }
 
 // Leaders and officers get the quarters in the header; the page itself also checks the view.

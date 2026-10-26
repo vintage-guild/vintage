@@ -50,6 +50,10 @@ describe('the dev "view as" persona', () => {
     expect(personaFrom('?as=nobody', 'visitor')).toBe('visitor');
     expect(personaFrom('?as=nobody', 'nobody')).toBe(DEFAULT_PERSONA);
     expect(personaFrom('', null)).toBe('raider');
+    // The live server is a choice too, not a persona.
+    expect(personaFrom('?as=live', 'officer')).toBe('live');
+    expect(personaFrom('', 'live')).toBe('live');
+    expect(isPersona('live')).toBe(false);
   });
 
   it('has one persona per tier view, and the visitor signs in nobody', () => {

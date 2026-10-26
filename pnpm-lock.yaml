@@ -184,6 +184,9 @@ importers:
       '@vintage/ui-kit':
         specifier: workspace:*
         version: link:../../packages/ui-kit
+      '@vintage/web-session':
+        specifier: workspace:*
+        version: link:../../packages/web-session
       '@vintage/wow-data':
         specifier: workspace:*
         version: link:../../libs/wow-data

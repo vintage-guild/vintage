@@ -2,7 +2,7 @@ import { css, FASTElement, html, observable, repeat, when } from '@lushly-dev/fa
 import type { RaidEvent, Signup } from '@vintage/raids/contract';
 import { getCommandClient, type TonightRaid, type TonightSignup } from '@vintage/ui-kit';
 import { formatMonthDay, formatWeekday, preferredTimeZone } from '../dates';
-import { currentSession, SIGN_IN_HREF } from '../session';
+import { canSignIn, currentSession } from '../session';
 import { currentView } from '../view';
 import { pageStyles } from './page-styles';
 
@@ -51,7 +51,7 @@ const template = html<Page>`
         ${when(
           () => !currentSession(),
           html`
-            <vintage-sign-in-card heading="Officers only" href="${() => SIGN_IN_HREF}">
+            <vintage-sign-in-card heading="Officers only" ?available="${() => canSignIn()}">
               Sign in with Discord. The quarters open to raid leaders and officers.
             </vintage-sign-in-card>
           `,

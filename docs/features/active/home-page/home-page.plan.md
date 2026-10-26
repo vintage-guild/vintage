@@ -442,7 +442,7 @@ upstream (`upstream:fast-af`) and gets a local stub with the issue link.
 - [x] Section nav, member menu with avatar, vector logo, theme switch out of the header
 - [x] Art: raid scenes, phone hero, recruiting cutout, coordinator raven, footer dusk (2026-10-26)
 - [ ] Preload the display face; shadow and highlight tokens; a JTBD job for voting from the website
-- [ ] Once sign-in (#7) lands: Discord avatar into `Session.avatarUrl`, Sign out in the member menu
+- [x] Once sign-in (#7) lands: Discord avatar into `Session.avatarUrl`, Sign out in the member menu (2026-10-26)
 
 ## Decisions
 

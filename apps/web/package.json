@@ -24,6 +24,7 @@
     "@vintage/progress": "workspace:*",
     "@vintage/raids": "workspace:*",
     "@vintage/ui-kit": "workspace:*",
+    "@vintage/web-session": "workspace:*",
     "@vintage/wow-data": "workspace:*"
   },
   "devDependencies": {

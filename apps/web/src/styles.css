@@ -148,3 +148,33 @@ main:focus {
 .skip-link:focus {
   inset-block-start: var(--space-sm);
 }
+
+/* Signed out: the header's sign-in button, beside where the member menu goes. */
+.sign-in {
+  font: var(--font-weight-medium) var(--font-size-sm) var(--font-family-sans);
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  border: var(--border-width-thin) solid var(--color-border-strong);
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.sign-in:hover {
+  border-color: var(--color-accent-secondary);
+}
+
+.sign-in:focus-visible,
+vintage-member-menu .sign-out:focus-visible {
+  outline: var(--border-width-thin) solid var(--color-focus-ring);
+  outline-offset: var(--border-width-thin);
+}
+
+/* Signed in: "Sign out" at the foot of the member menu, styled like its links. */
+vintage-member-menu .sign-out {
+  border: 0;
+  background: transparent;
+  text-align: start;
+  font-family: var(--font-family-sans);
+  cursor: pointer;
+}

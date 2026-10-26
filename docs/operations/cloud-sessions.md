@@ -20,7 +20,7 @@ At [claude.ai/code](https://claude.ai/code), add or edit an environment:
 |---|---|
 | Name | `Vintage` |
 | Network access | **Limited**, **Allow package managers** on, allowed domain `nodejs.org` (npm, PyPI, and GitHub releases for the Convex local backend come with the package managers list) |
-| Environment variables | none needed |
+| Environment variables | your git identity (below) |
 | Setup script | the contents of `scripts/cloud/setup.sh` |
 
 Never put Discord tokens or Convex deploy keys in the environment: anyone using it can read them.
@@ -45,8 +45,25 @@ log is at `/tmp/vintage-session-start.log`.
 
 ## Commits from cloud sessions
 
-The sign-off and attribution rules in [AGENTS.md](../../AGENTS.md#commits-and-attribution) apply
-as they do locally: commit with `-s`, disclose AI help with `Assisted-by:`, and check that
-`git config user.email` is a verified email on the GitHub account driving the session before
-committing. The lefthook hooks are installed by `pnpm install`, so `pre-push` still runs
-`pnpm validate:final`.
+Cloud VMs set git's identity to `Claude <noreply@anthropic.com>`, but a session you drive is a
+human-driven commit: you're the author and you sign off ([AGENTS.md](../../AGENTS.md#commits-and-attribution)).
+Set your identity as the environment's variables (use a verified email on your GitHub account):
+
+```
+GIT_AUTHOR_NAME=Your Name
+GIT_AUTHOR_EMAIL=you@example.com
+GIT_COMMITTER_NAME=Your Name
+GIT_COMMITTER_EMAIL=you@example.com
+```
+
+Git prefers these over `git config`, and `git commit -s` signs off as the committer, so the
+sign-off matches the author. Disclose AI help with `Assisted-by:`, never `Co-authored-by`. The
+lefthook hooks are installed by `pnpm install`, so `pre-push` still runs `pnpm validate:final`.
+
+## Lockfile registry
+
+`pnpm-lock.yaml` must not pin tarball URLs to a private feed: cloud sessions (and anyone without
+access) can't download them. If `pnpm install` on a machine with a corporate npm mirror adds
+`tarball:` fields, strip them before committing; pnpm then builds URLs from whatever registry
+each machine is configured with. A session that hits this reports
+`pnpm install failed` from the SessionStart hook.

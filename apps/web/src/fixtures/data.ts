@@ -16,7 +16,10 @@ export const ROLE_IDS: Record<Exclude<GuildRank, 'friend'>, string> = {
 };
 
 export interface FixtureMember {
+  /** Discord display name. */
   name: string;
+  /** The character's in-game name when it differs (Forever names have a last name). */
+  character?: string;
   class: WowClass;
   spec: string;
   role: Role;
@@ -44,7 +47,14 @@ export const MEMBERS: readonly FixtureMember[] = [
   { name: 'Elowen', class: 'hunter', spec: 'survival', role: 'ranged', rank: 'raider' },
   { name: 'Jorund', class: 'paladin', spec: 'protection', role: 'tank', rank: 'raider' },
   { name: 'Thessaly', class: 'shaman', spec: 'restoration', role: 'healer', rank: 'raider' },
-  { name: 'Bloodfen', class: 'warrior', spec: 'protection', role: 'tank', rank: 'flex-raider' },
+  {
+    name: 'Bloodfen',
+    character: 'Bloodfen Il',
+    class: 'warrior',
+    spec: 'protection',
+    role: 'tank',
+    rank: 'flex-raider',
+  },
   { name: 'Maelis', class: 'warlock', spec: 'destruction', role: 'ranged', rank: 'flex-raider' },
   { name: 'Peregrin', class: 'rogue', spec: 'subtlety', role: 'melee', rank: 'flex-raider' },
   { name: 'Sable', class: 'druid', spec: 'balance', role: 'ranged', rank: 'flex-raider' },

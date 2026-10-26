@@ -35,7 +35,7 @@ const template = html<VintageCharacterForm>`
       required
       :value="${(x) => x.name}"
       ?invalid="${(x) => Boolean(x.nameError)}"
-      supporting-text="${(x) => x.nameError || 'As it appears in game'}"
+      supporting-text="${(x) => x.nameError || 'As it appears in game, last name included'}"
       @input="${(x, c) => x.setName(fieldValue(c.event))}"
     ></violet-text-field>
 
@@ -178,7 +178,9 @@ export class VintageCharacterForm extends FASTElement {
   get nameError(): string {
     if (!this.nameTouched) return '';
     const parsed = characterNameSchema.safeParse(this.name);
-    return parsed.success ? '' : 'Use 2–12 letters, no spaces or numbers';
+    return parsed.success
+      ? ''
+      : 'A first name of 2–12 letters, then an optional last name (letters only)';
   }
 
   /** The command input, or null while the form is incomplete. */

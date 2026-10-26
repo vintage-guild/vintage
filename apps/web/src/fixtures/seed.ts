@@ -31,7 +31,7 @@ export async function seedFixtures(host: FixtureHost): Promise<void> {
     members.set(m.name, member);
     const character = await must<{ id: string }>(
       host.run(host.callerFor(member), 'character-add', {
-        name: m.name,
+        name: m.character ?? m.name,
         class: m.class,
         spec: m.spec,
         isMain: true,

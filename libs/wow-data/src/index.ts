@@ -33,10 +33,24 @@ export function roleFor(wowClass: WowClass, spec: string): Role | undefined {
   return Object.hasOwn(specs, spec) ? specs[spec] : undefined;
 }
 
-/** Character names: 2–12 letters, WoW-style capitalization is normalized by the caller. */
+/**
+ * Character names on WoW: Forever: a first name of 2–12 letters and, since Forever gives
+ * characters first and last names, an optional last name of 1–12 letters after one space
+ * ("Bloodfen Il"). Capitalization is normalized by `normalizeCharacterName`.
+ */
 export const characterNameSchema = z
   .string()
   .trim()
-  .min(2)
-  .max(12)
-  .regex(/^\p{L}+$/u, 'letters only');
+  .regex(
+    /^\p{L}{2,12}( \p{L}{1,12})?$/u,
+    'a first name of 2–12 letters, then an optional last name',
+  );
+
+/** "bloodfen IL" → "Bloodfen Il": each part capitalized, the rest lowercase, one space. */
+export function normalizeCharacterName(name: string): string {
+  return name
+    .trim()
+    .split(/\s+/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ');
+}

@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as profile from "../profile.js";
 import type * as recruiting from "../recruiting.js";
 
 import type {
@@ -18,6 +19,7 @@ import type {
 import { anyApi, componentsGeneric } from "convex/server";
 
 const fullApi: ApiFromModules<{
+  profile: typeof profile;
   recruiting: typeof recruiting;
 }> = anyApi as any;
 

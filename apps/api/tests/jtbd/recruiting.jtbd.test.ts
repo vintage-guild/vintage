@@ -1,7 +1,12 @@
 // JTBD: recruiting (docs/jtbd/recruiting.md). An officer edits the open roles; the public band
 // and every surface read the change at once. Driven only through commands.
 import type { Caller } from '@vintage/guild-kit';
-import { type Recruiting, STARTER_RECRUITING } from '@vintage/site/contract';
+import {
+  type GuildProfile,
+  type Recruiting,
+  STARTER_PROFILE,
+  STARTER_RECRUITING,
+} from '@vintage/site/contract';
 import { describe, expect, it } from 'vitest';
 import { createHost, ROLES } from './host';
 
@@ -51,5 +56,44 @@ describe('JTBD: recruiting', () => {
     const refused = await host.run(rook, 'recruiting-set', { headline: 'Rogues!' });
     expect(refused.success ? 'OK' : refused.error?.code).toBe('COMMAND_NOT_FOUND');
     expect((await band(rook)).headline).toBe(now.headline);
+  });
+
+  it('J23 · an officer sets the guild’s public words and the invite, and visitors see them', async () => {
+    const host = createHost(NOW);
+    const ana = await host.discordMember('500000000000000001', 'Ana', [ROLES.officer]);
+    const rook = await host.discordMember('500000000000000002', 'Rook', [ROLES.raidLeader]);
+    const visitor = await host.as('500000000000000099');
+    const profile = (who: Caller) => host.ok<GuildProfile>(who, 'guild-profile-get');
+
+    // Before anyone saves, the site shows the starter words and has no invite or contact.
+    expect(await profile(visitor)).toEqual(STARTER_PROFILE);
+
+    await host.ok(ana, 'guild-profile-set', {
+      pills: ['Normal ruleset', 'Wed + Thu · 8 pm ET', 'Semi-hardcore'],
+      intro: 'Old raiders, new realm.',
+      discordInvite: 'https://discord.gg/vintage',
+      contactEmail: 'officers@example.com',
+    });
+
+    const now = await profile(visitor);
+    expect(now).toMatchObject({
+      pills: ['Normal ruleset', 'Wed + Thu · 8 pm ET', 'Semi-hardcore'],
+      intro: 'Old raiders, new realm.',
+      discordInvite: 'https://discord.gg/vintage',
+      contactEmail: 'officers@example.com',
+      updatedAt: NOW,
+    });
+    expect(now.aboutSections).toEqual(STARTER_PROFILE.aboutSections);
+
+    // Not any link: the invite must be Discord's.
+    const phishing = await host.run(ana, 'guild-profile-set', {
+      discordInvite: 'https://discord.gg.example.com/x',
+    });
+    expect(phishing.success ? 'OK' : phishing.error?.code).toBe('VALIDATION_ERROR');
+
+    // A raid leader reads the profile in the quarters but can't change it.
+    const refused = await host.run(rook, 'guild-profile-set', { intro: 'Rogues!' });
+    expect(refused.success ? 'OK' : refused.error?.code).toBe('COMMAND_NOT_FOUND');
+    expect((await profile(rook)).intro).toBe('Old raiders, new realm.');
   });
 });

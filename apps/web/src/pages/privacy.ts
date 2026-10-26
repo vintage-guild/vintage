@@ -1,5 +1,6 @@
-import { FASTElement, html } from '@lushly-dev/fast-element';
+import { FASTElement, html, observable, when } from '@lushly-dev/fast-element';
 import { LEGAL_UPDATED } from '../content/legal';
+import { readGuildProfile } from '../guild-profile';
 import { pageStyles } from './page-styles';
 
 // A plain statement of what the site actually collects (checked against the identity, raids,
@@ -83,9 +84,28 @@ const template = html<Page>`
       <h2 id="changes">Changes</h2>
       <p>If we start keeping something new, we'll update this page and say so in Discord.</p>
     </section>
+
+    <section aria-labelledby="contact">
+      <h2 id="contact">Contact</h2>
+      ${when(
+        (x) => x.contactEmail,
+        html<Page>`<p>Write to <a href="mailto:${(x) => x.contactEmail}">${(x) => x.contactEmail}</a>, or ask an officer in our Discord.</p>`,
+      )}
+      ${when((x) => !x.contactEmail, html`<p>Ask an officer in our Discord.</p>`)}
+    </section>
   </article>
 `;
 
 /** `/privacy`: what the site keeps, why, and how to have it removed. */
-export class Page extends FASTElement {}
+export class Page extends FASTElement {
+  /** The contact email from `guild-profile-get`, or empty: then it says to ask in Discord. */
+  @observable contactEmail = '';
+
+  connectedCallback(): void {
+    super.connectedCallback();
+    void readGuildProfile().then((profile) => {
+      this.contactEmail = profile.contactEmail ?? '';
+    });
+  }
+}
 await Page.define({ name: 'vintage-privacy-page', template, styles: pageStyles });

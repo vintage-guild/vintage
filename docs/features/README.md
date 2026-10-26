@@ -13,3 +13,4 @@ when they affect every contributor, in the Decisions table in [AGENTS.md](../../
 |---|---|---|
 | Phase 0 foundation | active | [phase-0-foundation](active/phase-0-foundation/phase-0-foundation.plan.md) |
 | Polls, votes, and surveys | active | [polls](active/polls/polls.plan.md) |
+| PR self-review (review lanes) | proposed | [pr-self-review](proposed/pr-self-review/pr-self-review.plan.md) |

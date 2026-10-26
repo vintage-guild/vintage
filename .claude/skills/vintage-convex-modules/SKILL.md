@@ -12,7 +12,8 @@ Convex component. Scaffold one with `uv run --directory tooling/botcore vintageb
 
 ```
 modules/<name>/
-  module.json             name, maturity (core | official | labs), owners, dependsOn
+  module.json             name, maturity (core | official | labs), owners, dependsOn (= the
+                          @vintage modules in package.json; check:boundaries enforces it)
   src/contract.ts         public types + command names + events (the only cross-module import)
   src/store.ts            <Name>Store port, <Name>Deps, command = commandsFor<Deps>()
   src/commands/           commands + index.ts exporting <name>Commands

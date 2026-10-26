@@ -100,8 +100,10 @@ export function connectVintage(options: ConnectOptions): VintageConnection {
       if (next) {
         void load(next).then(() => resolveReady(current));
       } else {
+        // Drop the token Convex already holds: re-running setAuth with a fetcher that now answers
+        // null keeps the old one, and commands would still run as the member who signed out.
         user = null;
-        convex.setAuth(fetchToken);
+        convex.client.clearAuth();
         emit(null);
         resolveReady(null);
       }

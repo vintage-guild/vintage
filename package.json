@@ -27,7 +27,7 @@
     "validate:full": "node scripts/run-final-validation.mjs --full",
     "check": "pnpm validate:full",
     "manifest:write": "pnpm --filter @vintage/api manifest:write",
-    "prepare": "lefthook install",
+    "prepare": "node scripts/prepare.mjs",
     "check:scripts": "node --test \"scripts/*.test.mjs\"",
     "tokens:build": "tsx scripts/build-design-tokens.mjs",
     "fixtures:bridge": "tsx scripts/build-bridge-fixtures.mjs"

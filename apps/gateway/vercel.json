@@ -1,4 +1,4 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "rewrites": [{ "source": "/discord/interactions", "destination": "/api/discord/interactions" }]
+  "buildCommand": "pnpm run build:vercel"
 }

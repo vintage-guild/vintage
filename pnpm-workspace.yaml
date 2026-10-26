@@ -9,6 +9,11 @@ allowBuilds:
   esbuild: true
   lefthook: true
 
+# better-auth's optional vitest peer (for its test helpers, which we don't use) still says ^4.
+# Without this, pnpm keeps a second vitest 4 tree for it. Drop once better-auth widens the range.
+overrides:
+  better-auth>vitest: "-"
+
 catalog:
   "@lushly-dev/afd-core": ^2.1.0
   convex: ^1.47.0

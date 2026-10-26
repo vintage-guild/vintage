@@ -1,7 +1,13 @@
 import { error, success } from '@vintage/guild-kit';
 import { classSchema } from '@vintage/wow-data';
 import { z } from 'zod';
-import { NEED_LEVELS, RECRUITING_LIMITS, type Recruiting, STARTER_RECRUITING } from '../contract';
+import {
+  byNeed,
+  NEED_LEVELS,
+  RECRUITING_LIMITS,
+  type Recruiting,
+  STARTER_RECRUITING,
+} from '../contract';
 import { command, type StoredRecruiting } from '../store';
 
 const toRecruiting = (stored: StoredRecruiting | null): Recruiting =>
@@ -9,7 +15,7 @@ const toRecruiting = (stored: StoredRecruiting | null): Recruiting =>
     ? {
         headline: stored.headline,
         pitch: stored.pitch,
-        needs: stored.needs,
+        needs: byNeed(stored.needs),
         updatedAt: stored.updatedAt,
       }
     : STARTER_RECRUITING;
@@ -36,7 +42,7 @@ export const recruitingSet = command({
   name: 'recruiting-set',
   description:
     'Change the website’s recruiting band. Give any of: `headline`, `pitch`, and `needs` (the ' +
-    'whole list, in the order to show, one row per class: wowClass, specs as free text like ' +
+    'whole list, one row per class (the band sorts high, medium, closed, keeping your order within each): wowClass, specs as free text like ' +
     '"holy · discipline" or "any", need high | medium | closed). What you leave out stays as ' +
     'it is. Answers the band as it now reads.',
   tier: 'officer',

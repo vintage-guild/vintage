@@ -21,8 +21,10 @@ Maturity: **official**.
   save, `recruiting-get` answers `STARTER_RECRUITING` with `updatedAt: null`, so the band never
   goes blank and a fresh deployment shows the copy the site shipped with.
 - **`recruiting-set` merges.** Fields left out keep their saved value; `needs` is the whole list
-  when given (order is display order). One row per class (`DUPLICATE_CLASS`); an input with no
+  when given. One row per class (`DUPLICATE_CLASS`); an input with no
   field is `NOTHING_TO_CHANGE`.
+- **`recruiting-get` sorts the needs** high, medium, closed (`byNeed`), keeping the saved order
+  within a level, so no surface can show a closed class above an open one.
 - **Classes come from `@vintage/wow-data`.** The component's `wowClass` validator lists the same
   nine; change both together.
 - **The Discord invite is not here yet.** It stays in `apps/web/src/content/recruiting.ts` until

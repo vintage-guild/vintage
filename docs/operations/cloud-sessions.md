@@ -19,9 +19,23 @@ At [claude.ai/code](https://claude.ai/code), add or edit an environment:
 | Field | Value |
 |---|---|
 | Name | `Vintage` |
-| Network access | **Limited**, **Allow package managers** on, allowed domain `nodejs.org` (npm, PyPI, and GitHub releases for the Convex local backend come with the package managers list) |
+| Network access | **Limited**, **Allow package managers** on, and these allowed domains (below) |
 | Environment variables | your git identity (below) |
 | Setup script | the contents of `scripts/cloud/setup.sh` |
+
+Allowed domains, one per line:
+
+```
+nodejs.org
+version.convex.dev
+objects.githubusercontent.com
+release-assets.githubusercontent.com
+```
+
+`nodejs.org` serves Node 24. The other three let `pnpm --filter @vintage/api dev:local` find
+and download the Convex local backend binary. Don't add `github.com` or `api.github.com`: GitHub
+traffic goes through the session's GitHub proxy, which only serves the session's own repos
+whatever the allowlist says.
 
 Never put Discord tokens or Convex deploy keys in the environment: anyone using it can read them.
 Cloud sessions use the anonymous local Convex backend (`pnpm --filter @vintage/api dev:local`),

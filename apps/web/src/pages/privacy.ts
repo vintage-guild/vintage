@@ -66,8 +66,8 @@ const template = html<Page>`
       <h2 id="rights">Keeping, seeing, and removing it</h2>
       <p>We keep it while you're in the guild. If you leave, or at any time, you can ask an
         officer in our Discord to show you what we hold, correct it, or delete it, and we will.
-        The same goes for turning off reminder DMs or removing a character; doing these yourself
-        on the site is coming.</p>
+        You can also remove a character yourself on the <a href="/characters">Characters</a> page
+        and turn reminder DMs off on your <a href="/profile">Profile</a>.</p>
     </section>
 
     <section aria-labelledby="kids">

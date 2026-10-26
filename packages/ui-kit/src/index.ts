@@ -15,11 +15,13 @@ export {
   VintageBossLedger,
 } from './elements/boss-ledger';
 export { type CharacterInput, VintageCharacterForm } from './elements/character-form';
+export { type ListedCharacter, VintageCharacterList } from './elements/character-list';
 export { VintageClassBadge } from './elements/class-badge';
 export { VintageFigure } from './elements/figure';
 export { VintageHero } from './elements/hero';
 export { VintageLogoHeader } from './elements/logo-header';
 export { VintageMemberMenu } from './elements/member-menu';
+export { VintageMemberPrefs } from './elements/member-prefs';
 export {
   COORDINATOR_STATES,
   type CoordinatorState,

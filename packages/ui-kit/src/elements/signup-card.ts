@@ -1,4 +1,13 @@
-import { attr, css, FASTElement, html, observable, repeat, when } from '@lushly-dev/fast-element';
+import {
+  attr,
+  css,
+  FASTElement,
+  html,
+  observable,
+  repeat,
+  volatile,
+  when,
+} from '@lushly-dev/fast-element';
 import { command, failure } from '@lushly-dev/fast-element/command.js';
 import { SIGNUP_STATUSES, type SignupStatus } from '@vintage/comp-solver';
 import { getCommandClient } from '../client';
@@ -321,6 +330,7 @@ export class VintageSignupCard extends FASTElement {
     return isStatus(this.status) ? this.status : 'none';
   }
 
+  @volatile
   get startsLabel(): string {
     const raw = /^\d+$/.test(this.startsAt) ? Number(this.startsAt) : this.startsAt;
     const date = new Date(raw);
@@ -362,6 +372,7 @@ export class VintageSignupCard extends FASTElement {
   }
 
   /** Reactive availability for `vintage.signup-set`. */
+  @volatile
   get answerCanExecute(): boolean {
     return !this.busy && Boolean(this.eventId) && Boolean(this.characterId);
   }

@@ -197,3 +197,34 @@ describe('vintage-tonight', () => {
     expect(el.statusText).toContain('No command named roster-lock');
   });
 });
+
+describe('vintage-tonight, data arriving late', () => {
+  it('counts signups that arrive after the raid, as on a slow connection', async () => {
+    const el = await mount<VintageTonight>('<vintage-tonight time-zone="UTC"></vintage-tonight>');
+    await settle();
+    el.raid = {
+      id: 'e1',
+      name: 'Raid night',
+      startsAt: Date.UTC(2026, 9, 29),
+      size: 40,
+      status: 'open',
+    };
+    await settle();
+    el.signups = [
+      {
+        id: 's1',
+        characterName: 'Bloodfen',
+        class: 'warrior',
+        spec: 'protection',
+        role: 'tank',
+        status: 'accepted',
+        queued: false,
+        note: null,
+        roster: 'pending',
+        group: null,
+      },
+    ];
+    await settle();
+    expect(el.shadowRoot!.querySelector('.counts')?.textContent).toBe('1 / 40 going');
+  });
+});

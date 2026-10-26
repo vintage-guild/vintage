@@ -37,6 +37,10 @@ holds the guild-specific pieces (PLAN §3.9).
   `commands`) and `scripts/check-cem.mjs` fails on a missing element or command. CI runs it.
 - **Violet primitives are imported in one place** (`src/primitives.ts`): violet-elements has no
   per-component exports, so these are deep imports a FAST-AF re-sync may need to touch.
+- **Branching getters are `@volatile`.** FAST records what a getter reads on its first run. A
+  getter that returns early or short-circuits (`if (!this.raid) return`, `a && this.b`) must be
+  `@volatile`, or a property it reads only on a later branch never updates the view. The Tonight
+  count stuck at "0 / 40" when the signups arrived after the raid. Test the late-arrival order.
 
 ## Tests
 

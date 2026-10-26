@@ -1,4 +1,12 @@
-import { css, FASTElement, html, observable, repeat, when } from '@lushly-dev/fast-element';
+import {
+  css,
+  FASTElement,
+  html,
+  observable,
+  repeat,
+  volatile,
+  when,
+} from '@lushly-dev/fast-element';
 import type { CoordinatorAction } from '@vintage/coordinator/contract';
 import type { Character } from '@vintage/identity/contract';
 import type { Poll, PollResults } from '@vintage/polls/contract';
@@ -724,8 +732,10 @@ const styles = css`
     color: var(--color-text-secondary);
   }
 
+  /* The list fills the card's middle row; keep its raids at the top however few there are. */
   .events {
     display: grid;
+    align-content: start;
   }
 
   .ev {
@@ -1131,6 +1141,7 @@ export class Page extends FASTElement {
     return { value: String(days), unit: days === 1 ? 'day' : 'days' };
   }
 
+  @volatile
   get nextDaysCaption(): string {
     const next = this.next;
     if (!next) return this.raidsFailed ? 'calendar is for members' : 'no raid posted yet';
@@ -1167,6 +1178,7 @@ export class Page extends FASTElement {
     return this.raids.slice(1);
   }
 
+  @volatile
   get raidsNote(): string {
     if (this.raidsFailed) return 'members only';
     const n = this.raids.length;
@@ -1228,6 +1240,7 @@ export class Page extends FASTElement {
     return `${name ?? zone} (your profile)`;
   }
 
+  @volatile
   get pollNote(): string {
     if (!this.poll) return '';
     const closes = this.poll.closesAt
@@ -1238,6 +1251,7 @@ export class Page extends FASTElement {
     return `${this.pollBallots} ballot${this.pollBallots === 1 ? '' : 's'} · ${who}${closes}`;
   }
 
+  @volatile
   get progressNote(): string {
     if (!this.progress) return this.progressFailed ? 'sign in to see first kills' : '';
     if (!this.progress.open) return '';

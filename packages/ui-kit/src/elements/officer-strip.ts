@@ -40,10 +40,19 @@ const template = html<VintageOfficerStrip>`
 `;
 
 const styles = css`
+  /* The band runs edge to edge; its contents line up with the page's 80rem column. */
   :host {
     display: block;
     color: var(--color-text-primary);
     font-family: var(--font-family-sans);
+    border-block-end: var(--border-width-thin) solid var(--color-border-default);
+    background:
+      linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--color-accent-secondary) 10%, transparent),
+        transparent 40%
+      ),
+      var(--color-surface-sunken);
   }
 
   .strip {
@@ -54,14 +63,6 @@ const styles = css`
     max-inline-size: 80rem;
     margin-inline: auto;
     padding: var(--space-sm) var(--space-inset);
-    border-block-end: var(--border-width-thin) solid var(--color-border-default);
-    background:
-      linear-gradient(
-        90deg,
-        color-mix(in srgb, var(--color-accent-secondary) 10%, transparent),
-        transparent 40%
-      ),
-      var(--color-surface-sunken);
     font-size: var(--font-size-sm);
   }
 

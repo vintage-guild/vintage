@@ -7,6 +7,7 @@ modules/raids/ @Falkicon
 modules/coordinator/ @Falkicon
 modules/polls/ @Falkicon
 modules/progress/ @Falkicon
+modules/site/ @Falkicon
 apps/api/ @Falkicon
 apps/gateway/ @Falkicon
 apps/web/ @Falkicon

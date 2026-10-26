@@ -7,9 +7,15 @@ import { type IdentityDeps, identityCommands } from '@vintage/identity/commands'
 import { type PollsDeps, pollsCommands } from '@vintage/polls/commands';
 import { type ProgressDeps, progressCommands } from '@vintage/progress/commands';
 import { type RaidsDeps, raidsCommands } from '@vintage/raids/commands';
+import { type SiteDeps, siteCommands } from '@vintage/site/commands';
 
 /** Union of every module's deps. Each host builds this from its own stores. */
-export type VintageDeps = IdentityDeps & RaidsDeps & CoordinatorDeps & PollsDeps & ProgressDeps;
+export type VintageDeps = IdentityDeps &
+  RaidsDeps &
+  CoordinatorDeps &
+  PollsDeps &
+  ProgressDeps &
+  SiteDeps;
 
 export const commands: readonly AnyGuildCommand<VintageDeps>[] = [
   ...identityCommands,
@@ -17,4 +23,5 @@ export const commands: readonly AnyGuildCommand<VintageDeps>[] = [
   ...coordinatorCommands,
   ...pollsCommands,
   ...progressCommands,
+  ...siteCommands,
 ];

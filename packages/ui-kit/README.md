@@ -14,6 +14,7 @@ holds the guild-specific pieces (PLAN §3.9).
 | `vintage-member-menu` | The signed-in member: round avatar (Discord's, or the initial), name, rank, and a menu with Profile and Characters, plus anything slotted (the app adds Sign out) |
 | `vintage-roster-wall` | Every member grouped by rank, each as their main's name in its class color with spec and role; the signed-in member's row marked. Fed from `member-list` |
 | `vintage-poll-card` | A poll: pick one votes on a click; pick any and ranked collect a draft, then vote. Shares only when the server shows the tally (`results-hidden`), the winner once closed. `vintage.vote-cast` / `vintage.vote-retract` → server `vote-cast` / `vote-retract` |
+| `vintage-recruiting-desk` | The officers’ Recruiting tab: the band’s headline, pitch, and a need and specs for each class. `vintage.recruiting-save` runs `recruiting-set`; read-only without `can-edit` |
 | `vintage-polls-desk` | The officers’ Polls tab: open polls with the live tally, closed ones with the result. `vintage.poll-open`, `vintage.poll-close` and `vintage.poll-cancel` (preview, then confirm), `vintage.poll-sweep` |
 | `vintage-hero` | The home page opener: full-bleed art under a dark fade, with slots for eyebrow pills, the heading, a standfirst, actions, and figures; `compact` makes it a band for signed-in members (heading and figures only), `art-phone-src` a portrait for phones |
 | `vintage-figure` | One big tabular number with a unit and caption; rows of them sit in the hero |

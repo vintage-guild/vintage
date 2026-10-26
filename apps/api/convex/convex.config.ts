@@ -4,6 +4,7 @@ import identity from '@vintage/identity/convex.config';
 import polls from '@vintage/polls/convex.config';
 import progress from '@vintage/progress/convex.config';
 import raids from '@vintage/raids/convex.config';
+import site from '@vintage/site/convex.config';
 import { defineApp } from 'convex/server';
 
 const app = defineApp();
@@ -13,5 +14,6 @@ app.use(raids);
 app.use(coordinator);
 app.use(polls);
 app.use(progress);
+app.use(site);
 
 export default app;

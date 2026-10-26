@@ -24,10 +24,17 @@ import { createMemoryProgressStore } from '@vintage/progress/testing';
 import { type RaidsDeps, raidsCommands } from '@vintage/raids/commands';
 import { DEFAULT_TIMINGS } from '@vintage/raids/contract';
 import { createMemoryRaidsStore, createRecordingEventSink } from '@vintage/raids/testing';
+import { type SiteDeps, siteCommands } from '@vintage/site/commands';
+import { createMemorySiteStore } from '@vintage/site/testing';
 import type { CommandClient } from '@vintage/ui-kit';
 import { FIXTURE_GUILD_ID, ROLE_IDS } from './data';
 
-export type FixtureDeps = IdentityDeps & RaidsDeps & ProgressDeps & PollsDeps & CoordinatorDeps;
+export type FixtureDeps = IdentityDeps &
+  RaidsDeps &
+  ProgressDeps &
+  PollsDeps &
+  CoordinatorDeps &
+  SiteDeps;
 
 /** How far ahead the coordinator looks, as in apps/api. */
 const LOOKAHEAD_MS = 29 * 24 * 60 * 60 * 1000;
@@ -107,6 +114,7 @@ export function createFixtureHost(guildId = FIXTURE_GUILD_ID): FixtureHost {
     },
     events: createRecordingEventSink(),
     progress: createMemoryProgressStore(),
+    site: createMemorySiteStore(),
     polls,
     pollMembers: {
       getMember: (g, id) => identity.getMember(g, id),
@@ -163,6 +171,7 @@ export function createFixtureHost(guildId = FIXTURE_GUILD_ID): FixtureHost {
       ...progressCommands,
       ...pollsCommands,
       ...coordinatorCommands,
+      ...siteCommands,
     ],
     confirmSecret: 'development-fixtures',
   });

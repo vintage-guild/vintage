@@ -11,6 +11,7 @@ import type { Poll } from '@vintage/polls/contract';
 import type { ProgressDeps, ProgressStore } from '@vintage/progress/commands';
 import type { RaidsDeps, RaidsEventSink, RaidsStore } from '@vintage/raids/commands';
 import type { Signup } from '@vintage/raids/contract';
+import type { SiteDeps, SiteStore } from '@vintage/site/commands';
 import type { WowClass } from '@vintage/wow-data';
 import {
   type GenericMutationCtx,
@@ -222,6 +223,19 @@ export function progressStore(ctx: Ctx): ProgressStore {
 
 export function progressDeps(ctx: Ctx): ProgressDeps {
   return { progress: progressStore(ctx) };
+}
+
+const site = components.site;
+
+export function siteStore(ctx: Ctx): SiteStore {
+  return {
+    getRecruiting: (guildId) => ctx.runQuery(site.recruiting.get, { guildId }),
+    putRecruiting: (record) => writable(ctx).runMutation(site.recruiting.put, record),
+  };
+}
+
+export function siteDeps(ctx: Ctx): SiteDeps {
+  return { site: siteStore(ctx) };
 }
 
 const coordinator = components.coordinator;

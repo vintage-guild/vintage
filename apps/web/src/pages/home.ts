@@ -22,6 +22,7 @@ import {
   type Signup,
   type SignupStatus,
 } from '@vintage/raids/contract';
+import { type ClassNeed, type Recruiting, STARTER_RECRUITING } from '@vintage/site/contract';
 import {
   type CoordinatorState,
   EMPTY_COUNTS,
@@ -35,7 +36,7 @@ import {
 import { characterLabel } from '../characters';
 import { classIcon } from '../class-icons';
 import { ART } from '../content/art';
-import { type ClassNeed, DISCORD_INVITE_URL, RECRUITING } from '../content/recruiting';
+import { DISCORD_INVITE_URL } from '../content/recruiting';
 import {
   daysUntil,
   formatMonthDay,
@@ -79,15 +80,12 @@ const DISCORD_HREF = DISCORD_INVITE_URL ?? '/#recruiting';
 const DISCORD_SECTION_LINK = DISCORD_INVITE_URL ? '' : 'recruiting';
 
 /** "Warrior, Priest, or Shaman": the classes the band marks high, for the members' one-liner. */
-const HIGH_NEEDS = ((names: string[]) =>
-  names.length <= 1
+function highNeeds(band: Recruiting): string {
+  const names = band.needs.filter((n) => n.need === 'high').map((n) => titleCase(n.wowClass));
+  return names.length <= 1
     ? (names[0] ?? 'raider')
-    : `${names.slice(0, -1).join(', ')}, or ${names.at(-1)}`)(
-  RECRUITING.needs.filter((n) => n.need === 'high').map((n) => n.wowClass),
-);
-
-/** How many classes the band marks high: the visitor's figure when the roster is members-only. */
-const HIGH_NEED_COUNT = RECRUITING.needs.filter((n) => n.need === 'high').length;
+    : `${names.slice(0, -1).join(', ')}, or ${names.at(-1)}`;
+}
 
 /** What a member's answer for the next raid reads as in the hero's figure. */
 const ANSWER_CAPTIONS: Record<SignupStatus, string> = {
@@ -164,7 +162,7 @@ const template = html<Page>`
           )}
           ${when(
             (x) => x.memberCount === null,
-            html<Page>`<vintage-figure value="${HIGH_NEED_COUNT}" unit="roles" caption="we need most · recruiting" tone="good"></vintage-figure>`,
+            html<Page>`<vintage-figure value="${(x) => x.highNeedCount}" unit="roles" caption="we need most · recruiting" tone="good"></vintage-figure>`,
           )}
         </div>
       `,
@@ -182,7 +180,7 @@ const template = html<Page>`
           )}
           ${when(
             (x) => x.memberCount === null,
-            html<Page>`<vintage-figure value="${HIGH_NEED_COUNT}" unit="roles" caption="we need most · know anyone?"></vintage-figure>`,
+            html<Page>`<vintage-figure value="${(x) => x.highNeedCount}" unit="roles" caption="we need most · know anyone?"></vintage-figure>`,
           )}
         </div>
       `,
@@ -328,12 +326,12 @@ const template = html<Page>`
         aria-labelledby="h-recruiting"
       >
         <img class="arms" src="${ART.recruiting}" alt="" loading="lazy" decoding="async" />
-        <div class="wrap">
+        <div class="wrap" ?data-pending="${(x) => !x.recruiting}">
           <div class="two recruit">
             <div class="lead">
-              <span class="eyebrow">Recruiting · updated ${RECRUITING.updatedOn}</span>
-              <h2 id="h-recruiting">${RECRUITING.headline}</h2>
-              <p class="pitch">${RECRUITING.pitch}</p>
+              <span class="eyebrow">${(x) => x.recruitingEyebrow}</span>
+              <h2 id="h-recruiting">${(x) => x.band.headline}</h2>
+              <p class="pitch">${(x) => x.band.pitch}</p>
               <p class="actions">
                 ${when(
                   () => DISCORD_INVITE_URL,
@@ -351,7 +349,7 @@ const template = html<Page>`
               <thead><tr><th>Class</th><th>Specs</th><th class="end">Need</th></tr></thead>
               <tbody>
                 ${repeat(
-                  () => RECRUITING.needs,
+                  (x) => x.band.needs,
                   html<ClassNeed>`
                     <tr>
                       <td class="cls">
@@ -364,7 +362,7 @@ const template = html<Page>`
                           decoding="async"
                           referrerpolicy="no-referrer"
                         />
-                        <span>${(n) => n.wowClass}</span>
+                        <span>${(n) => titleCase(n.wowClass)}</span>
                       </td>
                       <td class="muted">${(n) => n.specs}</td>
                       <td class="end"><span class="need ${(n) => n.need}">${(n) => n.need}</span></td>
@@ -499,12 +497,12 @@ const template = html<Page>`
         data-section-title="Open roles"
         aria-labelledby="h-recruiting"
       >
-        <div class="wrap">
+        <div class="wrap" ?data-pending="${(x) => !x.recruiting}">
           <div class="lead">
-            <span class="eyebrow">Recruiting · updated ${RECRUITING.updatedOn}</span>
-            <h2 id="h-recruiting">${RECRUITING.headline}</h2>
+            <span class="eyebrow">${(x) => x.recruitingEyebrow}</span>
+            <h2 id="h-recruiting">${(x) => x.band.headline}</h2>
           </div>
-          <p class="ask">Know a <b>${HIGH_NEEDS}</b> who wants a home for Forever? Send them this site: signed out, the front page has the open roles and how to join.</p>
+          <p class="ask">Know a <b>${(x) => highNeeds(x.band)}</b> who wants a home for Forever? Send them this site: signed out, the front page has the open roles and how to join.</p>
         </div>
       </section>
     `,
@@ -876,6 +874,11 @@ const styles = css`
     color: var(--color-text-inverse);
   }
 
+  /* Until recruiting-get answers, the band keeps its place but shows nothing. */
+  .wrap[data-pending] {
+    visibility: hidden;
+  }
+
   /* the cream band: recruiting, on the inverse surface tokens */
   .sec.cream {
     position: relative;
@@ -1135,6 +1138,8 @@ export class Page extends FASTElement {
   @observable nextCounts: SignupCounts = EMPTY_COUNTS;
   @observable main: Character | null = null;
   @observable progress: Progress | null = null;
+  /** `recruiting-get`; null until it answers, so the band never shows text it then replaces. */
+  @observable recruiting: Recruiting | null = null;
   /** `progress-get` answered with an error (a public caller, say): show the empty ledger. */
   @observable progressFailed = false;
   /** `raid-list` was refused (visitors): the calendar, the counts, and the log say so. */
@@ -1330,8 +1335,27 @@ export class Page extends FASTElement {
     return `${this.progress.killed} of ${this.progress.total} down`;
   }
 
+  /** The recruiting band as officers last saved it, or the starter text. */
+  @volatile
+  get band(): Recruiting {
+    return this.recruiting ?? STARTER_RECRUITING;
+  }
+
+  /** How many classes the band marks high: a hero figure. */
+  @volatile
+  get highNeedCount(): number {
+    return this.band.needs.filter((n) => n.need === 'high').length;
+  }
+
+  @volatile
+  get recruitingEyebrow(): string {
+    const at = this.band.updatedAt;
+    return at === null ? 'Recruiting' : `Recruiting · updated ${formatMonthDay(at)}`;
+  }
+
   connectedCallback(): void {
     super.connectedCallback();
+    void this.loadRecruiting();
     void this.loadMembers();
     void this.loadRaids().then(() =>
       Promise.all([this.loadFeed(), this.view === 'officer' ? this.loadOfficer() : null]),
@@ -1453,6 +1477,12 @@ export class Page extends FASTElement {
     const result = await getCommandClient().read<Character[]>('character-list');
     const characters = result.success ? (result.data ?? []) : [];
     this.main = characters.find((c) => c.isMain) ?? characters[0] ?? null;
+  }
+
+  /** The recruiting band. A failed read shows the starter text rather than an empty band. */
+  async loadRecruiting(): Promise<void> {
+    const result = await getCommandClient().read<Recruiting>('recruiting-get');
+    this.recruiting = result.success && result.data ? result.data : STARTER_RECRUITING;
   }
 
   /** The ledger: first kills per boss and the latest one. */

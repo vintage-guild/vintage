@@ -7,7 +7,9 @@ import {
   volatile,
   when,
 } from '@lushly-dev/fast-element';
+import { type Tier, tierAllows } from '@vintage/guild-kit';
 import type { RaidEvent, Signup } from '@vintage/raids/contract';
+import type { Recruiting } from '@vintage/site/contract';
 import {
   getCommandClient,
   type PollsDeskPoll,
@@ -32,7 +34,7 @@ const TABS = [
   { id: 'calendar', label: 'Calendar', ready: false, hint: 'schedules and one-off raids' },
   { id: 'coordinator', label: 'Coordinator', ready: false, hint: 'status, settings, the log' },
   { id: 'roster', label: 'Roster', ready: false, hint: 'ranks, sync, recruits on trial' },
-  { id: 'recruiting', label: 'Recruiting', ready: false, hint: 'the open roles and pitch' },
+  { id: 'recruiting', label: 'Recruiting', ready: true, hint: '' },
   { id: 'polls', label: 'Polls', ready: true, hint: '' },
   { id: 'progress', label: 'Progress', ready: false, hint: 'record a kill and its loot' },
 ] as const;
@@ -117,6 +119,22 @@ const template = html<Page>`
             ${when(
               (x) => x.pollsError,
               html<Page>`<p class="error" role="alert">${(x) => x.pollsError}</p>`,
+            )}
+          `,
+        )}
+
+        ${when(
+          (x) => x.tab === 'recruiting',
+          html<Page>`
+            <vintage-recruiting-desk
+              time-zone="${() => preferredTimeZone() ?? ''}"
+              ?can-edit="${(x) => x.canEditRecruiting}"
+              :recruiting="${(x) => x.recruiting}"
+              @recruiting-changed="${(x) => x.loadRecruiting()}"
+            ></vintage-recruiting-desk>
+            ${when(
+              (x) => x.recruitingError,
+              html<Page>`<p class="error" role="alert">${(x) => x.recruitingError}</p>`,
             )}
           `,
         )}
@@ -238,7 +256,8 @@ const styles = css`
  * `/officers`: the officers' quarters, for raid leaders and officers. The view decides whether
  * to show the room; every action inside is a command that checks its own tier, so an under-tier
  * caller who got here would be refused anyway. Tonight reads `raid-list`, `signup-list`,
- * `comp-suggest`, and `coordinator-status`; Polls reads `poll-list` and `poll-results`.
+ * `comp-suggest`, and `coordinator-status`; Polls reads `poll-list` and `poll-results`;
+ * Recruiting reads `recruiting-get` and saves with `recruiting-set` (officers only).
  */
 export class Page extends FASTElement {
   /** Leaders and officers see the room; everyone else gets the sign-in card or a note. */
@@ -255,6 +274,10 @@ export class Page extends FASTElement {
   @observable tab: TabId = tabFromUrl(location.search);
   @observable polls: PollsDeskPoll[] = [];
   @observable pollsError = '';
+  @observable recruiting: Recruiting | null = null;
+  @observable recruitingError = '';
+  /** `recruiting-set` is officer tier; raid leaders read the band here but can't save it. */
+  readonly canEditRecruiting = tierAllows((currentSession()?.tier ?? 'public') as Tier, 'officer');
 
   @volatile
   get raid(): TonightRaid | null {
@@ -269,6 +292,7 @@ export class Page extends FASTElement {
     if (!this.allowed) return;
     void this.load();
     if (this.tab === 'polls') void this.loadPolls();
+    if (this.tab === 'recruiting') void this.loadRecruiting();
   }
 
   /** Switch tabs and keep the choice in the address, so `/officers?tab=polls` links work. */
@@ -280,6 +304,7 @@ export class Page extends FASTElement {
     else url.searchParams.set('tab', id);
     history.replaceState(history.state, '', url);
     if (id === 'polls') void this.loadPolls();
+    if (id === 'recruiting') void this.loadRecruiting();
   }
 
   /**
@@ -307,6 +332,15 @@ export class Page extends FASTElement {
         return { ...p, results: tally.success ? (tally.data?.results ?? null) : null };
       }),
     );
+  }
+
+  /** The band as it reads now, for the editor. */
+  async loadRecruiting(): Promise<void> {
+    const result = await getCommandClient().read<Recruiting>('recruiting-get');
+    this.recruitingError = result.success
+      ? ''
+      : (result.error?.message ?? 'Could not read the band');
+    if (result.success && result.data) this.recruiting = result.data;
   }
 
   pick(eventId: string): void {

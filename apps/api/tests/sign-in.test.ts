@@ -7,6 +7,7 @@ import { createMemoryIdentityDeps } from '@vintage/identity/testing';
 import { createMemoryPollsDeps } from '@vintage/polls/testing';
 import { createMemoryProgressDeps } from '@vintage/progress/testing';
 import { createMemoryRaidsDeps } from '@vintage/raids/testing';
+import { createMemorySiteDeps } from '@vintage/site/testing';
 import { makeCaller, TEST_GUILD_ID, testRegistry } from '@vintage/testing';
 import { describe, expect, it } from 'vitest';
 import { fetchGuildMember } from '../src/discord-directory';
@@ -46,6 +47,7 @@ function host() {
     ...createMemoryCoordinatorDeps(() => ({ guildId: TEST_GUILD_ID, events: [], members: [] })),
     ...createMemoryPollsDeps(),
     ...createMemoryProgressDeps(),
+    ...createMemorySiteDeps(),
   };
   const registry = testRegistry<VintageDeps>(commands);
   const system = makeCaller('officer', { surface: 'system', memberId: undefined });

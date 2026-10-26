@@ -90,7 +90,7 @@ marked **new**.
 | **Calendar** | Schedules and one-off raids, upcoming and past | Create, reschedule, cancel, complete a raid; create, update, materialize a schedule | `raid-list`, `raid-create`, `raid-reschedule`, `raid-cancel`, `raid-complete`, `schedule-list`, `schedule-create`, `schedule-update`, `schedule-materialize` |
 | **Coordinator** | Status, the channels and expected ranks, DM reminders on or off, and the action log across all raids with the "why" per entry | Pause, resume, run a tick, repost; edit the config (`officer`) | `coordinator-status`, `coordinator-log`, `coordinator-pause`, `coordinator-resume`, `coordinator-run`, `coordinator-repost`, `coordinator-config-set` |
 | **Roster** | Members with rank and tier, last sync, who has no character yet, recruits on trial with their start date | Sync from Discord; edit the role-to-rank map (`officer`) | `member-list`, `member-sync`, `guild-roles-get`, `guild-roles-set`; trial start date **new** (identity records when a member became `recruit`) |
-| **Recruiting** | The open roles and the pitch the public band shows | Edit them | **new** `site` module: `site-recruiting-get` (public) and `site-recruiting-set` (`officer`); replaces `apps/web/src/content/recruiting.ts` |
+| **Recruiting** | The open roles and the pitch the public band shows | Edit them | `site` module: `recruiting-get` (public) and `recruiting-set` (`officer`); leaders see the tab read-only |
 | **Polls** | Open and closed polls with results | Open, close, cancel, sweep | `poll-list`, `poll-results`, `poll-open`, `poll-close`, `poll-cancel`, `poll-sweep` |
 | **Progress** | The ledger with a form beside it | Record a kill with its loot | `progress-get`, `kill-record` |
 | **Loot** | Council decisions, soft reserves, award history | As the loot module defines them | Phase 2 (#26, #27); the tab appears when the module lands |
@@ -153,6 +153,7 @@ New jobs for [docs/jtbd](../../../jtbd/README.md), each as a scenario test and a
 | 2026-10-26 | The quarters lives in `apps/web` under `/officers`, not a separate app. Shared shell, tokens, and command client; the tier check is the only wall. |
 | 2026-10-26 | Three compositions of one home page, not three pages or a separate member portal. |
 | 2026-10-26 | No site-side permission model. The session's tier chooses the composition; each command's own tier remains the gate. |
+| 2026-10-26 | The site module's commands are `recruiting-get` / `recruiting-set`, not `site-recruiting-*`: names say the noun, as `progress-get` and `kill-record` do, not the module. Until an officer saves, `recruiting-get` answers the copy the site shipped with. |
 
 ## Open questions
 
@@ -252,7 +253,7 @@ it public would let recruits see the scoreboard (a command change).
 - [x] `/officers` route, tier guard, Tonight tab (digest, non-responders, roster controls, import string)
 - [x] Polls tab: open and closed polls with results, open, close and cancel with confirm, the sweep (#63)
 - [ ] Calendar, Coordinator, Progress tabs
-- [ ] `site` module: `site-recruiting-get` / `site-recruiting-set`, Recruiting tab, band reads it
+- [x] `site` module: `recruiting-get` / `recruiting-set`, Recruiting tab (`vintage-recruiting-desk`), band reads it
 - [ ] Trial start date on identity; Roster tab
-- [ ] J19, J20, J21 in `docs/jtbd` and `apps/api/tests/jtbd`
+- [ ] J19, J20 in `docs/jtbd` and `apps/api/tests/jtbd` (J21 done: `docs/jtbd/recruiting.md`)
 - [ ] Docs: `apps/web/README.md` routes table, `packages/ui-kit/README.md`, architecture status

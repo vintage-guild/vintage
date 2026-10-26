@@ -1,0 +1,7 @@
+{
+  "name": "site",
+  "maturity": "official",
+  "owners": ["@Falkicon"],
+  "dependsOn": [],
+  "description": "The website's editable copy: the recruiting band's headline, pitch, and class needs, set by officers and read by everyone."
+}

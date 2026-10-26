@@ -38,7 +38,7 @@ export function currentView(): View {
 export const HOME_SECTIONS = {
   raids: 'member', // raid-list, signup-list
   progress: 'member', // progress-get
-  recruiting: 'public', // static content until the site module
+  recruiting: 'public', // recruiting-get
   roster: 'recruit', // member-list
   news: 'member', // coordinator-log, poll-list
 } as const satisfies Record<string, Tier>;

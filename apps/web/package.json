@@ -23,6 +23,7 @@
     "@vintage/polls": "workspace:*",
     "@vintage/progress": "workspace:*",
     "@vintage/raids": "workspace:*",
+    "@vintage/site": "workspace:*",
     "@vintage/ui-kit": "workspace:*",
     "@vintage/web-session": "workspace:*",
     "@vintage/wow-data": "workspace:*"

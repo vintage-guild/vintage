@@ -238,7 +238,7 @@ Top to bottom. "Source" is the command the section reads; "now" says what ships 
 | 2 | Timeline (the chain) | Three dated marks the page hangs from: name reservation 2026-10-27, launch 2026-11-04, raids 2026-12-09; a countdown to the next one | static + clock | real |
 | 3 | Next raid | The next event: instance, local time (`Intl`), role counters "Tanks 2/4 · Healers 6/9 · DPS 20/27", signup CTA, lock time | `raid-list`, `signup-list` | fixture client |
 | 4 | Progression ledger | Per raid (Barrow Deeps 8 bosses, Hyjal Summit 13, Onyxia's Lair 1): bosses with first-kill dates; pre-launch shows "unlocks Dec 9" | `progress-get` (`progress` module; leaders record with `kill-record`) | real |
-| 5 | Recruiting (parchment band) | Per class and spec: High / Medium / Closed, with a short pitch, the loot system in one line, and the Apply CTA again | officer config (`recruit-needs-set`, later) | page fixture, marked |
+| 5 | Recruiting (parchment band) | Per class and spec: High / Medium / Closed, with a short pitch, the loot system in one line, and the Apply CTA again | `recruiting-get` (`site` module; officers edit with `recruiting-set`) | real |
 | 6 | Roster wall | Officers quick-look, then every member as a class-colored name grouped by rank; hover shows spec and role; pre-launch, a level progress column | `member-list`, `character-list` | fixture client |
 | 7 | From the coordinator | The last few bot posts rendered as dated cards, newest first (signup post, lock notice, kill) | `coordinator-log` (`CoordinatorAction` rows) | fixture client |
 | 8 | Polls (concept) | "Off-night on Sunday or Monday?" with live-looking bars; a preview of a future `polls` module. (Ruleset and loot are officer decisions, so the sample poll isn't one of those) | none | page fixture, marked |
@@ -361,8 +361,8 @@ upstream (`upstream:fast-af`) and gets a local stub with the issue link.
   the image is `cdn.discordapp.com/avatars/<id>/<hash>.png`), so `Session.avatarUrl` is the
   seam; the fixtures draw the member's initial until then.
 - **Recruiting** is a cream band on the inverse surface tokens with the open roles table.
-  The content is a static module (`apps/web/src/content/recruiting.ts`), not a fixture, so
-  production shows the same thing; a `site` module takes it over later.
+  The content comes from `recruiting-get` (the `site` module), which officers edit in the
+  quarters' Recruiting tab; until the first save it answers the copy the site shipped with.
 - **Roster** is `vintage-roster-wall` over `member-list`: class-colored mains grouped by rank,
   the member's own row marked.
 - **News** is real coordinator output: the fixture host now carries the coordinator (memory

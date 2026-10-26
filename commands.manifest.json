@@ -226,6 +226,26 @@
       }
     },
     {
+      "name": "coordinator-repost",
+      "description": "Replace a raid's signup post with a fresh one (the old message is deleted). Use it after the post was deleted or its layout changed.",
+      "tier": "leader",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "eventId"
+        ]
+      }
+    },
+    {
       "name": "coordinator-resume",
       "description": "Restart a paused coordinator. Anything that came due while paused goes out on the next tick.",
       "tier": "leader",

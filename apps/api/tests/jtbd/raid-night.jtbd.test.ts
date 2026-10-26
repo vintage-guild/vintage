@@ -2,6 +2,7 @@
 // Each test builds a fresh guild, drives it only through commands and coordinator ticks, and
 // checks what members would see in Discord. Extend these when the raid night changes.
 import { decodeRaidImport } from '@vintage/bridge-format';
+import { buttonLabels, messageText } from '@vintage/coordinator/testing';
 import type { Caller } from '@vintage/guild-kit';
 import type { RaidEvent, Signup } from '@vintage/raids/contract';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -87,14 +88,15 @@ describe('JTBD: raid night', () => {
     expect(wed.startsAt).toBe(WED);
     expect(thu.startsAt).toBe(WED + DAY);
     const posts = g.host.sentTo(SIGNUP_CHANNEL);
-    expect(posts.map((p) => p.message.embeds?.[0]?.title)).toEqual([
-      'Raid night — Molten Core',
-      'Raid night — Molten Core',
+    for (const p of posts) expect(messageText(p.message)).toMatch(/## Raid night — Molten Core/);
+    expect(posts).toHaveLength(2);
+    expect(buttonLabels(posts[0]!.message)).toEqual([
+      'Accept',
+      'Late',
+      'Tentative',
+      'Standby',
+      'Decline',
     ]);
-    const buttons = posts[0]!.message.components?.[0]?.components.map((c) =>
-      'label' in c ? c.label : '',
-    );
-    expect(buttons).toEqual(['Accept', 'Late', 'Tentative', 'Bench', 'Decline']);
     // Running again posts nothing new.
     await g.host.tick();
     expect(g.host.sentTo(SIGNUP_CHANNEL)).toHaveLength(2);
@@ -105,12 +107,10 @@ describe('JTBD: raid night', () => {
     await answer(g, g.aeryn, 'aeryn', wed.id, 'accepted');
     await g.host.tick();
     const edit = g.host.editsTo(SIGNUP_CHANNEL).at(-1)!;
-    const embed = edit.message.embeds![0]!;
-    expect(embed.description).toMatch(/1\/40 going/);
-    expect(embed.description).toMatch(/Tanks 1 · Healers 0 · DPS 0/);
-    expect(embed.fields?.find((f) => f.name.startsWith('Tanks'))?.value).toMatch(
-      /Aeryn \(protection warrior\)/,
-    );
+    const text = messageText(edit.message);
+    expect(text).toMatch(/\*\*1\*\* going/);
+    expect(text).toMatch(/\*\*Tanks 1\/4\*\*\n<:spec_warrior_protection:\d+> Aeryn/);
+    expect(text).toMatch(/\*\*Healers 0\/10\*\*/);
   });
 
   it('J03 · only expected raiders who have not answered get pinged, once', async () => {
@@ -184,8 +184,8 @@ describe('JTBD: raid night', () => {
     expect(raid.event.status).toBe('locked');
     const final = g.host
       .sentTo(SIGNUP_CHANNEL)
-      .find((m) => m.message.content?.includes('Final roster'));
-    expect(final?.message.content).toMatch(/Final roster \(2\/40\)/);
+      .find((m) => messageText(m.message).includes('Final roster'));
+    expect(messageText(final!.message)).toMatch(/## Final roster — Raid night[\s\S]*2\/40/);
     const addon = g.host
       .sentTo(OPS_CHANNEL)
       .find((m) => m.message.content?.includes('Addon import'));
@@ -307,11 +307,10 @@ describe('JTBD: raid night', () => {
       note: 'after work, ~20 min',
     });
     await g.host.tick();
-    const embed = g.host.editsTo(SIGNUP_CHANNEL).at(-1)!.message.embeds![0]!;
-    expect(embed.description).toMatch(/1\/40 going/); // late still takes a spot
-    expect(embed.fields?.find((f) => f.name.startsWith('Healers'))?.value).toBe(
-      'Bramble (holy priest) · late: after work, ~20 min',
-    );
+    const text = messageText(g.host.editsTo(SIGNUP_CHANNEL).at(-1)!.message);
+    // Late still takes a spot: listed with the healers, marked late, reason underneath.
+    expect(text).toMatch(/\*\*Healers 1\/10\*\*\n<:spec_priest_holy:\d+> Bramble \*\(late\)\*/);
+    expect(text).toMatch(/-# Late: Bramble \(after work, ~20 min\)/);
     g.host.clock.advance(WED - 24 * HOUR - g.host.clock.now());
     await g.host.tick();
     const digest = g.host.sentTo(OPS_CHANNEL).find((m) => m.message.content?.includes('confirmed'));
@@ -350,8 +349,10 @@ describe('JTBD: raid night', () => {
     });
     expect(eleventh?.queued).toBe(true);
     await g.host.tick();
-    const post = g.host.sentTo(SIGNUP_CHANNEL)[0]!.message.embeds![0]!;
-    expect(post.description).toMatch(/10\/10 going · 1 queued/);
+    const post = messageText(g.host.sentTo(SIGNUP_CHANNEL)[0]!.message);
+    expect(post).toMatch(/\*\*10\*\* going/);
+    expect(post).toMatch(/\*\*1\*\* queued/);
+    expect(post).toMatch(/\*\*Queue\*\*\n1\. <:spec_warrior_fury:\d+> Raiderchark/);
 
     // Someone ahead drops out: the queued raider is in and gets told, once.
     const third = await g.host.ok<Signup>(people[2]!, 'signup-get', { eventId: raid.id });

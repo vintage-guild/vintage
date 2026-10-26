@@ -2,16 +2,7 @@
 // Discord timestamp markup so everyone sees their own local time (PLAN §6.2).
 import { encodeBridge } from '@vintage/bridge-format';
 import { type CompResult, compRoleOf, defaultTemplate, solveComp } from '@vintage/comp-solver';
-import {
-  actionRow,
-  ButtonStyle,
-  button,
-  discordTimestamp,
-  type Embed,
-  embed,
-  type MessageData,
-  TimestampStyle,
-} from '@vintage/discord-kit';
+import { discordTimestamp, type MessageData, TimestampStyle } from '@vintage/discord-kit';
 import { RANK_PRIORITY, type Signup } from '@vintage/raids/contract';
 import type { TickEvent, TickMember } from '../store';
 
@@ -22,19 +13,6 @@ const when = (ms: number) =>
   `${discordTimestamp(ms, TimestampStyle.LONG_DATE_TIME)} (${discordTimestamp(ms, TimestampStyle.RELATIVE)})`;
 
 const mention = (m: TickMember) => `<@${m.discordId}>`;
-
-const label = (s: Signup) => `${s.characterName} (${s.spec} ${s.class})`;
-
-/** A signup line with its late marker and reason, e.g. "Bramble (holy priest) · late: after work". */
-const detailed = (s: Signup) => {
-  const tag = s.status === 'late' ? 'late' : null;
-  const reason = s.note ? s.note : null;
-  const extra = [tag, reason].filter(Boolean).join(': ');
-  return extra ? `${label(s)} · ${extra}` : label(s);
-};
-
-const list = (signups: Signup[], line: (s: Signup) => string = detailed) =>
-  signups.length ? signups.map(line).join('\n') : '—';
 
 const GOING = new Set(['accepted', 'late']);
 
@@ -78,74 +56,6 @@ export function compFor(tick: TickEvent, members: TickMember[]): CompResult {
 
 const gapLine = (comp: CompResult) =>
   comp.gaps.length ? comp.gaps.map((g) => g.reason).join(' · ') : 'No gaps';
-
-const SIGNUP_BUTTONS = [
-  ['accepted', 'Accept', ButtonStyle.SUCCESS],
-  ['late', 'Late', ButtonStyle.PRIMARY],
-  ['tentative', 'Tentative', ButtonStyle.SECONDARY],
-  ['bench', 'Bench', ButtonStyle.SECONDARY],
-  ['declined', 'Decline', ButtonStyle.DANGER],
-] as const;
-
-/**
- * The signup post: a counter line, who's in by role (late people marked, with reasons), the queue
- * when the raid is full, tentative and bench with reasons, comp gaps, and answer buttons. Edited
- * as signups change.
- */
-export function renderSignupPost(tick: TickEvent, members: TickMember[]): MessageData {
-  const { event, signups } = tick;
-  const going = signups.filter(inRaid);
-  const byRole = (role: CompRoleName) => going.filter((s) => compRoleOf(s.role) === role);
-  const queue = signups
-    .filter((s) => GOING.has(s.status) && s.queued)
-    .sort((a, b) => a.signedUpAt - b.signedUpAt);
-  const maybe = signups.filter((s) => s.status === 'tentative');
-  const bench = signups.filter((s) => s.status === 'bench');
-  const declined = signups.filter((s) => s.status === 'declined').length;
-  const locked = event.status === 'locked';
-  const comp = compFor(tick, members);
-
-  const tanks = byRole('tank');
-  const healers = byRole('healer');
-  const dps = byRole('dps');
-  const fields = [
-    { name: `Tanks (${tanks.length})`, value: list(tanks), inline: true },
-    { name: `Healers (${healers.length})`, value: list(healers), inline: true },
-    { name: `DPS (${dps.length})`, value: list(dps), inline: true },
-    ...(queue.length
-      ? [
-          {
-            name: `Queue (${queue.length})`,
-            value: list(queue, (s) => `${queue.indexOf(s) + 1}. ${detailed(s)}`),
-          },
-        ]
-      : []),
-    { name: `Tentative (${maybe.length})`, value: list(maybe), inline: true },
-    { name: `Bench (${bench.length})`, value: list(bench), inline: true },
-    { name: 'Comp', value: gapLine(comp) },
-  ];
-  const post: Embed = embed({
-    title: `${event.name} — ${event.instance}`,
-    description:
-      `${when(event.startsAt)}\n${roleCounters(signups)}\n` +
-      `${event.size}-person · ${going.length}/${event.size} going` +
-      `${queue.length ? ` · ${queue.length} queued` : ''} · ${declined} declined · ` +
-      `signups ${locked ? 'locked' : 'open'}`,
-    fields,
-    footer: { text: 'Answer with the buttons, or sign up on the guild site.' },
-  });
-  return {
-    embeds: [post],
-    components: [
-      actionRow(
-        ...SIGNUP_BUTTONS.map(([status, text, style]) =>
-          button(`signup:${event.id}:${status}`, text, style, { disabled: locked }),
-        ),
-      ),
-    ],
-    allowed_mentions: { parse: [] },
-  };
-}
 
 /** Stable hash of what the post would show, so it's edited only when it changes. */
 export function hashMessage(message: MessageData): string {
@@ -243,32 +153,6 @@ export function finalRoster(
   return {
     going: pick(comp.selected.map((d) => d.signup.id)),
     bench: pick(comp.bench.map((d) => d.signup.id)),
-  };
-}
-
-export function renderFinalRoster(tick: TickEvent, members: TickMember[]): MessageData {
-  const { going, bench } = finalRoster(tick, members);
-  const byRole = (role: 'tank' | 'healer' | 'dps') =>
-    going.filter((s) => compRoleOf(s.role) === role);
-  return {
-    content: `Signups for **${tick.event.name}** are locked. Final roster (${going.length}/${tick.event.size}):`,
-    embeds: [
-      embed({
-        title: `${tick.event.name} — ${tick.event.instance}`,
-        description: when(tick.event.startsAt),
-        fields: [
-          { name: `Tanks (${byRole('tank').length})`, value: list(byRole('tank')), inline: true },
-          {
-            name: `Healers (${byRole('healer').length})`,
-            value: list(byRole('healer')),
-            inline: true,
-          },
-          { name: `DPS (${byRole('dps').length})`, value: list(byRole('dps')), inline: true },
-          { name: `Bench (${bench.length})`, value: list(bench) },
-        ],
-      }),
-    ],
-    allowed_mentions: { parse: [] },
   };
 }
 

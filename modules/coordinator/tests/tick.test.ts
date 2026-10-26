@@ -1,13 +1,15 @@
 import { decodeRaidImport } from '@vintage/bridge-format';
-import { DiscordRestError } from '@vintage/discord-kit';
+import { DiscordRestError, type MessageData, MessageFlags } from '@vintage/discord-kit';
 import { DEFAULT_TIMINGS, type RaidEvent, type Signup } from '@vintage/raids/contract';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { TickEvent, TickMember, TickPorts } from '../src/store';
 import {
+  buttonLabels,
   createFakeDiscord,
   createFakeRaids,
   createMemoryCoordinatorStore,
   createStateSource,
+  messageText,
 } from '../src/testing';
 import { runTick } from '../src/tick';
 
@@ -52,6 +54,19 @@ const signup = (memberId: string, overrides: Partial<Signup> = {}): Signup => ({
   promotedAt: null,
   ...overrides,
 });
+
+/** Every button custom id in a message, wherever its action row sits. */
+function customIds(message: MessageData): string[] {
+  const ids: string[] = [];
+  const walk = (components: unknown[]) => {
+    for (const c of components as { custom_id?: string; components?: unknown[] }[]) {
+      if (c.custom_id) ids.push(c.custom_id);
+      if (c.components) walk(c.components);
+    }
+  };
+  walk(message.components ?? []);
+  return ids;
+}
 
 describe('runTick', () => {
   let event: RaidEvent;
@@ -113,11 +128,9 @@ describe('runTick', () => {
     expect(raids.calls).toEqual(['materialize', 'materialize']);
     expect(sentKinds()).toEqual([`post:${SIGNUPS}`]);
     const [post] = discord.sent;
-    expect(post!.message.embeds?.[0]?.title).toBe('MC nights — Molten Core');
-    const buttons = post!.message.components?.[0]?.components.map((c) =>
-      'custom_id' in c ? c.custom_id : '',
-    );
-    expect(buttons).toEqual([
+    expect(post!.message.flags).toBe(MessageFlags.IS_COMPONENTS_V2);
+    expect(messageText(post!.message)).toMatch(/## MC nights — Molten Core/);
+    expect(customIds(post!.message)).toEqual([
       'signup:raid-1:accepted',
       'signup:raid-1:late',
       'signup:raid-1:tentative',
@@ -211,9 +224,9 @@ describe('runTick', () => {
     await tick(START - 2 * HOUR);
     expect(raids.calls).toContain('lock:raid-1');
     const final = discord.sent.find(
-      (s) => s.to === SIGNUPS && s.message.content?.includes('locked'),
+      (s) => s.to === SIGNUPS && messageText(s.message).includes('Final roster'),
     );
-    expect(final?.message.content).toMatch(/Final roster \(2\/10\)/);
+    expect(messageText(final!.message)).toMatch(/## Final roster — MC nights[\s\S]*2\/10/);
 
     const imported = discord.sent.find(
       (s) => s.to === OPS && s.message.content?.includes('Addon import'),
@@ -298,17 +311,35 @@ describe('runTick', () => {
       signup('pip', { class: 'mage', spec: 'frost', role: 'ranged', queued: true }),
     ];
     await tick(START - 100 * HOUR);
-    const post = discord.sent[0]!.message.embeds![0]!;
-    expect(post.description).toMatch(/Tanks 1 · Healers 1 · DPS 0/); // Pip is queued, not counted
-    expect(post.description).toMatch(/2\/10 going · 1 queued/);
-    const field = (prefix: string) => post.fields!.find((f) => f.name.startsWith(prefix))!.value;
-    expect(field('Healers')).toBe('Bram (holy priest) · late: after work');
-    expect(field('Queue')).toBe('1. Pip (frost mage)');
-    expect(field('Tentative')).toBe('Cade (protection warrior) · maybe');
-    const buttons = discord.sent[0]!.message.components![0]!.components.map((c) =>
-      'label' in c ? c.label : '',
-    );
-    expect(buttons).toEqual(['Accept', 'Late', 'Tentative', 'Bench', 'Decline']);
+    const message = discord.sent[0]!.message;
+    const text = messageText(message);
+    // Who's in per role against the 10-person targets; Pip is queued, so not counted.
+    expect(text).toMatch(/\*\*Tanks 1\/2\*\*/);
+    expect(text).toMatch(/\*\*Healers 1\/3\*\*/);
+    expect(text).toMatch(/\*\*DPS 0\/5\*\*/);
+    expect(text).toMatch(/\*\*1\*\* going · \*\*1\*\* late · \*\*1\*\* tentative/);
+    expect(text).toMatch(/\*\*1\*\* queued/);
+    expect(text).toMatch(/<:spec_priest_holy:\d+> Bram \*\(late\)\*/);
+    expect(text).toMatch(/\*\*Queue\*\*\n1\. <:spec_mage_frost:\d+> Pip/);
+    expect(text).toMatch(/\*\*Tentative\*\* <:spec_warrior_protection:\d+> Cade/);
+    expect(text).toMatch(/-# Late: Bram \(after work\) · Tentative: Cade \(maybe\)/);
+    expect(buttonLabels(message)).toEqual(['Accept', 'Late', 'Tentative', 'Standby', 'Decline']);
+  });
+
+  it('reposts a card deleted in Discord and removes the old message on repost', async () => {
+    await tick(START - 100 * HOUR);
+    const first = discord.sent[0]!;
+    signups = [signup('bram', { class: 'priest', spec: 'holy', role: 'healer' })];
+    discord.edit = async () => {
+      throw new DiscordRestError('PATCH', '/channels/x/messages/y', 404, {
+        code: 10008,
+        message: 'Unknown Message',
+      });
+    };
+    await tick(START - 99 * HOUR); // the edit fails: the post is marked for reposting
+    await tick(START - 98 * HOUR); // a fresh card goes out and the old message is removed
+    expect(discord.sent.filter((m) => m.kind === 'post' && m.to === SIGNUPS)).toHaveLength(2);
+    expect(discord.sent.find((m) => m.kind === 'remove')?.messageId).toBe(first.messageId);
   });
 
   it('lists late, tentative, and bench reasons in the officer digest', async () => {

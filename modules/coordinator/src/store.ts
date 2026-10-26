@@ -97,6 +97,7 @@ export interface CoordinatorDiscord {
   post(channelId: string, message: MessageData): Promise<{ id: string }>;
   edit(channelId: string, messageId: string, message: MessageData): Promise<void>;
   dm(discordUserId: string, message: MessageData): Promise<{ id: string }>;
+  remove(channelId: string, messageId: string): Promise<void>;
 }
 
 /** What a tick asks raids to do; apps/api runs these as raids commands with the system caller. */

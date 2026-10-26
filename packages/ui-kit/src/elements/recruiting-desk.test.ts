@@ -145,3 +145,24 @@ describe('vintage-recruiting-desk after a save re-sorts the band', () => {
     ]);
   });
 });
+
+describe('vintage-recruiting-desk without a band', () => {
+  it('shows why the read failed instead of an empty form, and refuses to save', async () => {
+    const client = useClient(() => ({ success: true }));
+    const el = await mount<VintageRecruitingDesk>(
+      '<vintage-recruiting-desk can-edit></vintage-recruiting-desk>',
+    );
+    expect(shadowText(el)).toContain('Loading the band');
+    expect($(el, '#headline')).toBeNull();
+
+    el.error = 'The guild server doesn’t have the recruiting band yet.';
+    await settle();
+    expect($(el, '[part=error]')?.textContent).toContain('recruiting band yet');
+    expect($(el, '#headline')).toBeNull();
+    expect(rows(el)).toHaveLength(0);
+    expect($(el, 'button[type=submit]')).toBeNull();
+    expect(shadowText(el)).not.toContain('Loading the band');
+    expect((await el.save()).success).toBe(false);
+    expect(client.run).not.toHaveBeenCalled();
+  });
+});

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { DEFAULT_PERSONA, FIXTURE_PERSONAS, isPersona, personaFrom } from './fixtures/persona';
 import { type Session, setSession } from './session';
-import { canSignUp, currentView, viewFor } from './view';
+import { canSignUp, currentView, sectionsFor, viewFor } from './view';
 
 const as = (tier: string): Session => ({
   memberId: 'm1',
@@ -67,5 +67,21 @@ describe('the dev "view as" persona', () => {
       'leader',
       'officer',
     ]);
+  });
+});
+
+describe('sectionsFor', () => {
+  const list = (tier: string | null) => [...sectionsFor(tier ? as(tier) : null)].sort();
+
+  it('shows a section only to tiers whose reads it can make', () => {
+    expect(list(null)).toEqual(['recruiting']);
+    expect(list('public')).toEqual(['recruiting']);
+    expect(list('member')).toEqual(['news', 'progress', 'raids', 'recruiting']);
+    expect(list('recruit')).toEqual(['news', 'progress', 'raids', 'recruiting', 'roster']);
+    expect(list('officer')).toEqual(['news', 'progress', 'raids', 'recruiting', 'roster']);
+  });
+
+  it('gives an unknown tier the storefront, never nothing', () => {
+    expect(list('admin')).toEqual(['recruiting']);
   });
 });

@@ -15,9 +15,11 @@ function brandLogo(): Plugin {
   return {
     name: 'vintage-brand-logo',
     transformIndexHtml: (html) => {
+      // width/height give it an intrinsic size (the header's 5.4rem at the viewBox's ratio), so
+      // even before any CSS loads it can't paint page-wide.
       const svg = readFileSync(logoPath, 'utf8')
         .trim()
-        .replace('<svg ', '<svg aria-hidden="true" focusable="false" ');
+        .replace('<svg ', '<svg aria-hidden="true" focusable="false" width="86" height="47" ');
       return html.replace('<!-- brand:logo -->', svg);
     },
   };

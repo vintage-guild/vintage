@@ -95,7 +95,7 @@ const template = html<VintageTonight>`
     <header class="top" part="header">
       <div class="title">
         <span class="eyebrow">Tonight · ${(x) => x.startsLabel}</span>
-        <h2 id="tonight-title">${(x) => x.raid?.name ?? 'No raid on the calendar'}</h2>
+        <h2 id="tonight-title">${(x) => x.raid?.name ?? (x.loading ? 'Loading tonight…' : 'No raid on the calendar')}</h2>
         <span class="counts">${(x) => x.countsLine}</span>
       </div>
       <div class="actions" part="actions">
@@ -140,15 +140,17 @@ const template = html<VintageTonight>`
     <div class="glance">
       <div class="card" part="gaps">
         <span class="eyebrow">Comp</span>
-        ${when((x) => x.gaps.length === 0, html`<p class="ok">No gaps.</p>`)}
+        ${when((x) => x.loading, html`<p class="muted">Checking…</p>`)}
+        ${when((x) => !x.loading && x.gaps.length === 0, html`<p class="ok">No gaps.</p>`)}
         <ul>
           ${repeat((x) => x.gaps, html<string>`<li>${(g) => g}</li>`)}
         </ul>
       </div>
       <div class="card" part="waiting">
-        <span class="eyebrow">Waiting on ${(x) => x.waiting.length}</span>
+        <span class="eyebrow">Waiting on ${(x) => (x.loading ? '…' : x.waiting.length)}</span>
+        ${when((x) => x.loading, html`<p class="muted">Checking…</p>`)}
         ${when(
-          (x) => x.waiting.length === 0,
+          (x) => !x.loading && x.waiting.length === 0,
           html`<p class="ok">Everyone expected has answered.</p>`,
         )}
         <p class="names">${(x) => x.waiting.join(', ')}</p>
@@ -572,6 +574,8 @@ export class VintageTonight extends FASTElement {
   @observable waiting: string[] = [];
   /** IANA zone to show the start in; empty uses the viewer's. */
   @attr({ attribute: 'time-zone' }) timeZone = '';
+  /** Still reading: the title and the cards say so instead of "no raid" or "no gaps". */
+  @attr({ mode: 'boolean' }) loading = false;
 
   @observable busy = false;
   @observable statusText = '';
@@ -591,7 +595,7 @@ export class VintageTonight extends FASTElement {
 
   @volatile
   get startsLabel(): string {
-    if (!this.raid) return 'nothing posted';
+    if (!this.raid) return this.loading ? 'loading' : 'nothing posted';
     const options: Intl.DateTimeFormatOptions = {
       weekday: 'short',
       month: 'short',

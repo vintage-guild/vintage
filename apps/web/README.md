@@ -71,7 +71,13 @@ pnpm --filter @vintage/web build   # dist/
   the home page composes by the session's tier. Visitors get the storefront; members, recruits,
   and raiders get a compact hero with their own figures, "Your next raid" on top, and
   recruiting as one line at the foot; leaders and officers get the same plus the officer strip above the hero. The view only
-  orders sections; each command's tier is still the gate, and refused reads say who they are for.
+  orders sections; each command's tier is still the gate. A section the session's tier can't read
+  isn't rendered at all, and its header link is removed (`HOME_SECTIONS`): visitors see the hero
+  and recruiting, `member` tier everything but the roster. While a read is pending, its section
+  says it is loading, so a slow connection never reads as "nothing here".
+- **First paint** (`index.html`): a small inline style paints the theme's canvas and text and hides
+  the header at its own height until its element is defined, so the inline logo never flashes
+  page-wide; `src/first-paint.test.ts` keeps those literal colors equal to the tokens.
 - **Times** (`src/dates.ts`) always show their zone, in the member's profile zone when they
   have set one (`member-prefs-set timezone`), else the browser's. The hero's "8 pm ET" pill is
   the guild's stated time; the cards show the viewer's.

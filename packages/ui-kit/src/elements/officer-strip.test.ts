@@ -43,3 +43,19 @@ describe('vintage-officer-strip', () => {
     expect(el.stateLabel).toBe('no status');
   });
 });
+
+describe('vintage-officer-strip while loading', () => {
+  it('says it is checking instead of "0" or "no status", then shows the answer', async () => {
+    const el = await mount<VintageOfficerStrip>(
+      '<vintage-officer-strip loading state="unknown"></vintage-officer-strip>',
+    );
+    expect(cell(el, 'waiting')).toBe('Waiting on … checking');
+    expect(cell(el, 'comp')).toBe('Comp …');
+    expect(cell(el, 'coordinator')).toBe('Coordinator …');
+    el.loading = false;
+    el.state = 'running';
+    await settle();
+    expect(cell(el, 'waiting')).toBe('Waiting on 0 everyone expected has answered');
+    expect(cell(el, 'coordinator')).toBe('Coordinator running');
+  });
+});

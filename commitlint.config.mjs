@@ -25,6 +25,7 @@ export default {
         'testing',
         'config',
         'libs',
+        'vendor',
         'api',
         'gateway',
         'web',

@@ -9,6 +9,15 @@ test('docs-only PR owes no lanes', () => {
   assert.equal(s.ts || s.contract || s.addon || s.botcore || s.workflowContracts, false);
 });
 
+test('vendor change owes ts', () => {
+  const s = selectCi({
+    eventName: 'pull_request',
+    paths: ['vendor/fast-element/dist/esm/index.js'],
+  });
+  assert.equal(s.ts, true);
+  assert.equal(s.contract, false);
+});
+
 test('module command change owes ts and contract', () => {
   const s = selectCi({
     eventName: 'pull_request',

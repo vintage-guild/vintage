@@ -65,7 +65,7 @@ not copies: when one has a bug or a gap, file it upstream (see [Upstream](#upstr
 |---|---|---|---|
 | [AFD](https://github.com/lushly-dev/afd) | Agent-First Development framework: command definitions, `CommandResult`, MCP server/client/CLI, testing helpers | `guild-kit` builds on `@lushly-dev/afd-core`; `/mcp` and `apps/cli` will use `afd-server` / `afd-cli` 2.2 (stateless Streamable HTTP, in progress upstream, not on npm yet) | ✅ core · 🚧 MCP |
 | [botcore](https://github.com/lushly-dev/botcore) | Shared repo tooling for agents: commands, skills, plugins, one MCP server | `tooling/botcore` plugin + `vintagebot` CLI (`module-new`, `repo-check`); `botcore.toml` gates and skill seeding | ✅ |
-| [FAST-AF](https://github.com/lushly-dev/fast-af) | FAST Element v3 runtime with AFD extensions: Definition Schema, `@command`, router, `violet-elements` primitives | Website components in `packages/ui-kit` and `apps/web` | 📋 |
+| [FAST-AF](https://github.com/lushly-dev/fast-af) | FAST Element v3 runtime with AFD extensions: Definition Schema, `@command`, router, `violet-elements` primitives | Website components in `packages/ui-kit` and `apps/web`. Not on npm yet, so the built packages are vendored in `vendor/`, pinned to a commit ([VENDORED.md](../vendor/VENDORED.md)) | 🚧 vendored · 📋 used |
 | [Violet](https://github.com/lushly-dev/violet) | Design-token engine: inheritance tree of token nodes, build-time export | Not used yet: its CLI can't export from in-repo files in CI (spike Q14, upstream [lushly-dev/violet#30](https://github.com/lushly-dev/violet/issues/30)). `libs/design-tokens` keeps Violet's node model in plain DTCG so switching later only swaps the build script | 📋 |
 | AFD site design system | Brand language (palette, type roles, motion, voice) for the AFD site | The `afd-site` base node in `libs/design-tokens`, reskinned by the `vintage` node | ✅ |
 | [Mechanic](https://github.com/Falkicon/Mechanic) | WoW addon dev hub: diagnostics, library sync, sandbox tests, release commands | Addon library management (`libs.json`), offline Lua tests, packaging | 📋 |
@@ -142,6 +142,7 @@ Current packages:
 | `modules/identity` | module | Members, characters, guild ranks, role → rank map, role sync planner | ✅ |
 | `apps/api` | app | Convex: composes components, command surface, crons | ✅ |
 | `apps/gateway` | app | Vercel functions: `/discord/interactions` (later `/mcp`) | 🚧 |
+| `vendor/*` | vendored | Built FAST-AF: `@lushly-dev/fast-element`, `@microsoft/fast-router`, `@lushly-dev/violet-elements`. Never edited; re-synced by script | ✅ vendored, not used yet |
 
 Dependencies only point down: `apps → modules → packages → libs`. Modules reach each other only
 through `/contract`. Libs never import Convex, Discord, OpenAI, Vercel, or FAST-AF. These rules
@@ -177,6 +178,7 @@ are enforced by `pnpm check:boundaries`; the full table is in PLAN.md §4.1.
 | Lint / format | `pnpm lint` | Biome rules, import order, complexity |
 | Boundaries | `pnpm check:boundaries` | Upward deps, cross-module internals, escaping imports, cycles |
 | Agent docs | `pnpm check:agent-docs` | AGENTS.md budget, broken links, missing skills or module docs |
+| Vendor | `pnpm check:vendor` | `vendor/` pin and VENDORED.md disagree, missing LICENSE, tests or maps copied in |
 | Manifest | `pnpm check:manifest` | Stale `commands.manifest.json` |
 | Lockfile | part of `validate:final` | Stale `pnpm-lock.yaml` |
 | Types and tests | `pnpm type-check`, `pnpm test:run` | TypeScript 6 (`tsc6`), Vitest |

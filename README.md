@@ -68,3 +68,5 @@ the attribution). Commercial use needs permission from the guild.
 
 The Vintage logos and brand artwork in [`assets/brand/`](assets/brand/) are **all rights reserved**
 ([details](assets/brand/LICENSE.md)); forks must use their own branding.
+
+Third-party code vendored in [`vendor/`](vendor/VENDORED.md) keeps its own MIT licenses.

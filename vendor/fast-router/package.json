@@ -1,0 +1,15 @@
+{
+  "name": "@microsoft/fast-router",
+  "version": "1.0.0-alpha.29",
+  "private": true,
+  "description": "Vendored from lushly-dev/fast-af@4a9afe0 (packages/element/packages/fast-router). Do not edit; see vendor/VENDORED.md.",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/esm/index.js",
+  "types": "dist/dts/index.d.ts",
+  "sideEffects": false,
+  "dependencies": {
+    "@lushly-dev/fast-element": "workspace:*",
+    "tslib": "^2.6.3"
+  }
+}

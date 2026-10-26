@@ -82,3 +82,4 @@ than no check.
 | 2026-10-25 | Module components live in the module package (`modules/<m>/convex`); spike Q8 passed. |
 | 2026-10-25 | TypeScript 6 (`tsc6`) for type-check, matching Lushly's tooling pin. |
 | 2026-10-25 | Boundary checks are a dependency-free script (`scripts/check-boundaries.mjs`), not dependency-cruiser. |
+| 2026-10-25 | FAST-AF is vendored as built output in `vendor/`, pinned to a commit, until it's on npm. Never edit it ([VENDORED.md](vendor/VENDORED.md)). |

@@ -9,7 +9,12 @@ import {
   RAIDS_OPEN_AT,
   RAIDS_OPEN_ON,
 } from '@vintage/progress/contract';
-import type { RaidEvent, Signup, SignupStatus } from '@vintage/raids/contract';
+import {
+  DEFAULT_TIMINGS,
+  type RaidEvent,
+  type Signup,
+  type SignupStatus,
+} from '@vintage/raids/contract';
 import {
   EMPTY_COUNTS,
   getCommandClient,
@@ -20,8 +25,16 @@ import {
   type SignupCounts,
   titleCase,
 } from '@vintage/ui-kit';
-import { type ClassNeed, RECRUITING } from '../content/recruiting';
-import { daysUntil, LAUNCH_AT, RAIDS_OPEN_AT as RAIDS_OPEN_ISO } from '../dates';
+import { type ClassNeed, DISCORD_INVITE_URL, RECRUITING } from '../content/recruiting';
+import {
+  daysUntil,
+  formatMonthDay,
+  formatTime,
+  formatWeekday,
+  LAUNCH_AT,
+  preferredTimeZone,
+  RAIDS_OPEN_AT as RAIDS_OPEN_ISO,
+} from '../dates';
 import { currentSession } from '../session';
 import {
   consumePendingSection,
@@ -46,11 +59,12 @@ interface RaidRow {
   myStatus: SignupStatus | null;
 }
 
-const weekday = (ms: number) => new Date(ms).toLocaleDateString(undefined, { weekday: 'short' });
-const monthDay = (ms: number) =>
-  new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-const timeOf = (ms: number) =>
-  new Date(ms).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+const weekday = (ms: number) => formatWeekday(ms);
+const monthDay = (ms: number) => formatMonthDay(ms);
+const timeOf = (ms: number) => formatTime(ms);
+/** Where "Join the Discord" goes: the invite, or the recruiting band that says how to get one. */
+const DISCORD_HREF = DISCORD_INVITE_URL ?? '/#recruiting';
+const DISCORD_SECTION_LINK = DISCORD_INVITE_URL ? '' : 'recruiting';
 
 const template = html<Page>`
   <vintage-hero
@@ -74,7 +88,7 @@ const template = html<Page>`
     </p>
     <div slot="actions">
       <a class="btn primary" href="/#recruiting" data-section-link="recruiting">Apply to raid</a>
-      <a class="btn" href="/#news" data-section-link="news">What’s new</a>
+      <a class="btn" href="${DISCORD_HREF}" data-section-link="${DISCORD_SECTION_LINK}" rel="noopener">Join the Discord</a>
     </div>
     <div slot="figures">
       <vintage-figure value="${(x) => x.daysToLaunch}" unit="days" caption="to launch · Wed Nov 4"></vintage-figure>
@@ -110,6 +124,7 @@ const template = html<Page>`
               status="${(x) => x.next?.myStatus ?? 'none'}"
               character-id="${(x) => x.main?.id ?? ''}"
               character-label="${(x) => x.mainLabel}"
+              time-zone="${() => preferredTimeZone() ?? ''}"
               :counts="${(x) => x.nextCounts}"
               @signup-changed="${(x) => x.loadRaids()}"
             >
@@ -144,6 +159,12 @@ const template = html<Page>`
               html`<p class="muted">No other raids in the next two months.</p>`,
             )}
           </div>
+          <p class="how">
+            Raid nights are Wednesday and Thursday. Signups post ${DEFAULT_TIMINGS.leadDays} days
+            ahead and lock ${DEFAULT_TIMINGS.lockHours} hours before the pull; anyone who hasn’t
+            answered is reminded at ${DEFAULT_TIMINGS.reminderHours.join('h and ')}h. Times are
+            shown in ${(x) => x.timeZoneLabel}.
+          </p>
         </div>
       </div>
     </div>
@@ -163,6 +184,22 @@ const template = html<Page>`
         <div class="lead"><span class="eyebrow">Progress</span><h2 id="h-progress">Three raids, twenty-two bosses</h2></div>
         <span class="mono">${(x) => x.progressNote}</span>
       </header>
+      ${when(
+        (x) => !x.ledgerOpen,
+        html<Page>`
+          <div class="callout">
+            <div>
+              <span class="eyebrow">Opens Wednesday, December 9</span>
+              <p class="big">${(x) => x.daysToRaids} days until the first pull.</p>
+            </div>
+            <p class="muted">
+              Barrow Deeps for ten, Hyjal Summit for twenty, Onyxia for forty. Each slot below
+              is a boss; first kills get dated here. Onyxia needs the Drakefire Amulet chain per
+              character and fire resistance, so the attunement runs start in November.
+            </p>
+          </div>
+        `,
+      )}
       <vintage-boss-ledger
         :raids="${(x) => x.ledgerRaids}"
         :latest="${(x) => x.latestKill}"
@@ -187,7 +224,18 @@ const template = html<Page>`
           <span class="eyebrow">Recruiting · posted ${RECRUITING.postedOn}</span>
           <h2 id="h-recruiting">${RECRUITING.headline}</h2>
           <p class="pitch">${RECRUITING.pitch}</p>
-          <p class="actions"><a class="btn primary" href="/about">How we raid</a> <a class="btn" href="/#roster" data-section-link="roster">Who’s in</a></p>
+          <p class="actions">
+            ${when(
+              () => DISCORD_INVITE_URL,
+              html`<a class="btn primary" href="${() => DISCORD_INVITE_URL ?? ''}" rel="noopener">Join the Discord</a>`,
+            )}
+            <a class="btn ${DISCORD_INVITE_URL ? '' : 'primary'}" href="/about">How we raid</a>
+            <a class="btn" href="/#roster" data-section-link="roster">Who’s in</a>
+          </p>
+          ${when(
+            () => !DISCORD_INVITE_URL,
+            html`<p class="muted small">Discord invites come from an officer for now; the public link lands here once the GM sets it.</p>`,
+          )}
         </div>
         <table class="needs">
           <thead><tr><th>Class</th><th>Specs</th><th class="end">Need</th></tr></thead>
@@ -258,6 +306,10 @@ const template = html<Page>`
               html`<p class="muted">Nothing yet. The coordinator posts signups a week ahead and logs every reminder here.</p>`,
             )}
           </div>
+          ${when(
+            (x) => x.feed.length > 0 && x.feed.length < 4,
+            html`<p class="muted small">Early days: the log fills in as the coordinator posts, reminds, locks, and promotes. Every entry answers “why did the bot ping me?”.</p>`,
+          )}
         </div>
         ${when(
           (x) => x.poll,
@@ -309,7 +361,7 @@ const RULE_LABELS: [prefix: string, label: string][] = [
   ['promote', 'Told the next in line a spot opened'],
 ];
 
-function describeAction(action: CoordinatorAction, eventName: string): FeedItem {
+function describeAction(action: CoordinatorAction, row: RaidRow): FeedItem {
   const match = RULE_LABELS.find(([prefix]) => action.rule.startsWith(prefix));
   const what = match ? match[1] : titleCase(action.rule);
   const status =
@@ -318,10 +370,15 @@ function describeAction(action: CoordinatorAction, eventName: string): FeedItem 
       : action.status === 'skipped'
         ? ' · skipped'
         : ` · ${action.status}`;
+  const going = row.counts.accepted + row.counts.late;
+  const answered = going + row.counts.tentative + row.counts.declined + row.counts.bench;
+  const isPost = action.rule.startsWith('post') || action.rule.startsWith('refresh');
+  const detail =
+    action.detail ?? (isPost ? `${answered} answered so far · ${going} going · #raid-signups` : '');
   return {
     at: action.finishedAt ?? action.claimedAt,
-    title: `${what} for ${eventName}${status}`,
-    detail: action.detail ?? '',
+    title: `${what} for ${row.event.name}${status}`,
+    detail,
   };
 }
 
@@ -408,15 +465,46 @@ const styles = css`
     gap: var(--space-xs);
   }
 
-  /* sections */
+  /* sections: one rhythm, a rule between them, no bands of empty space */
   .sec {
-    padding-block: var(--space-2xl);
+    padding-block: var(--space-xl) var(--space-2xl);
     border-block-start: var(--border-width-thin) solid var(--color-border-default);
-    background: linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--color-surface-raised) 40%, var(--color-surface-canvas)),
-      var(--color-surface-canvas) 30%
-    );
+  }
+
+  .small {
+    font-size: var(--font-size-xs);
+  }
+
+  .how {
+    margin: 0;
+    padding-block-start: var(--space-sm);
+    border-block-start: var(--border-width-thin) solid var(--color-border-default);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+  }
+
+  .callout {
+    display: grid;
+    grid-template-columns: minmax(14rem, 1fr) 2fr;
+    gap: var(--space-md);
+    align-items: center;
+    padding: var(--space-md);
+    border-radius: 0.4rem;
+    border: var(--border-width-thin) solid var(--color-border-default);
+    border-inline-start: var(--border-width-thick) solid var(--color-accent-primary);
+    background: var(--color-surface-raised);
+    box-shadow:
+      inset 0 1px 0 rgb(255 244 228 / 6%),
+      0 14px 34px rgb(0 0 0 / 45%);
+  }
+
+  .callout .big {
+    margin: 0;
+    font-family: var(--font-family-display);
+    font-weight: var(--font-weight-heavy);
+    font-size: var(--font-size-xl);
+    line-height: 1.1;
+    letter-spacing: var(--font-tracking-tight);
   }
 
   .wrap {
@@ -467,7 +555,11 @@ const styles = css`
     display: grid;
     grid-template-columns: 1.3fr 1fr;
     gap: var(--space-md);
-    align-items: start;
+    align-items: stretch;
+  }
+
+  .two > .card {
+    grid-template-rows: auto 1fr auto;
   }
 
   .card {
@@ -705,7 +797,8 @@ const styles = css`
 
   @media (max-width: 62rem) {
     .two,
-    .two.recruit {
+    .two.recruit,
+    .callout {
       grid-template-columns: 1fr;
     }
   }
@@ -819,8 +912,17 @@ export class Page extends FASTElement {
 
   get rosterNote(): string {
     if (this.memberCount === null) return '';
-    const mains = this.members.filter((m) => m.main).length;
-    return `${this.memberCount} members · ${mains} with a main registered · ranks from Discord`;
+    return `${this.memberCount} members · ranks from Discord`;
+  }
+
+  /** "Eastern Time (your profile)" or "your browser's time zone". */
+  get timeZoneLabel(): string {
+    const zone = preferredTimeZone();
+    if (!zone) return 'your browser’s time zone';
+    const name = new Intl.DateTimeFormat(undefined, { timeZone: zone, timeZoneName: 'long' })
+      .formatToParts(Date.now())
+      .find((p) => p.type === 'timeZoneName')?.value;
+    return `${name ?? zone} (your profile)`;
   }
 
   get pollNote(): string {
@@ -835,7 +937,7 @@ export class Page extends FASTElement {
 
   get progressNote(): string {
     if (!this.progress) return this.progressFailed ? 'sign in to see first kills' : '';
-    if (!this.progress.open) return `raids unlock Dec 9 · ${this.daysToRaids} days`;
+    if (!this.progress.open) return '';
     return `${this.progress.killed} of ${this.progress.total} down`;
   }
 
@@ -881,9 +983,7 @@ export class Page extends FASTElement {
           eventId: row.event.id,
           limit: 20,
         });
-        return (result.success ? (result.data ?? []) : []).map((a) =>
-          describeAction(a, row.event.name),
-        );
+        return (result.success ? (result.data ?? []) : []).map((a) => describeAction(a, row));
       }),
     );
     this.feed = logs

@@ -12,6 +12,8 @@ export interface Session {
    * (or `embed/avatars/<n>.png` for the default). Absent shows the member's initial.
    */
   avatarUrl?: string;
+  /** IANA zone from the member's preferences (`member-prefs-set timezone`); times show in it. */
+  timezone?: string;
 }
 
 let session: Session | null = null;

@@ -43,8 +43,9 @@ describe('vintage-boss-ledger', () => {
     el.raids = raids();
     await settle();
     const text = shadowText(el);
-    expect(text).toContain('Barrow Deeps 10 players · 3 bosses unlocks Dec 9');
-    expect(text).toContain("Onyxia's Lair 40 players · 1 boss unlocks Dec 9");
+    // Closed rows keep the plain tally; the page says the unlock date once. Slots are numbered.
+    expect(text).toContain('Barrow Deeps 10 players · 3 bosses 0 / 3 1');
+    expect(text).toContain("Onyxia's Lair 40 players · 1 boss 0 / 1 1");
     expect(slots(el).map((s) => s.className)).toEqual([
       'slot locked',
       'slot locked',

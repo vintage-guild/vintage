@@ -2,6 +2,12 @@
 // (the feature plan lists `recruit-needs-set`). Until then it lives here, not in a fixture, so
 // production shows the same thing as development.
 
+/**
+ * The public Discord invite. Null until the GM sets one (feature plan, open question 3): the
+ * calls to action then point at the recruiting band, which says to ask an officer.
+ */
+export const DISCORD_INVITE_URL: string | null = null;
+
 export type Need = 'high' | 'medium' | 'closed';
 
 export interface ClassNeed {

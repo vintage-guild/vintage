@@ -16,13 +16,14 @@ import {
   RAIDS_OPEN_AT,
   RAIDS_OPEN_ON,
 } from '@vintage/progress/contract';
+import type { RaidEvent, Schedule, Signup, SignupStatus } from '@vintage/raids/contract';
 import {
-  DEFAULT_TIMINGS,
-  type RaidEvent,
-  type Signup,
-  type SignupStatus,
-} from '@vintage/raids/contract';
-import { type ClassNeed, type Recruiting, STARTER_RECRUITING } from '@vintage/site/contract';
+  type ClassNeed,
+  type GuildProfile,
+  type Recruiting,
+  STARTER_PROFILE,
+  STARTER_RECRUITING,
+} from '@vintage/site/contract';
 import {
   type CoordinatorState,
   EMPTY_COUNTS,
@@ -36,7 +37,6 @@ import {
 import { characterLabel } from '../characters';
 import { classIcon } from '../class-icons';
 import { ART } from '../content/art';
-import { DISCORD_INVITE_URL } from '../content/recruiting';
 import {
   daysUntil,
   formatMonthDay,
@@ -46,7 +46,9 @@ import {
   preferredTimeZone,
   RAIDS_OPEN_AT as RAIDS_OPEN_ISO,
 } from '../dates';
+import { readGuildProfile } from '../guild-profile';
 import { type PollCardModel, type PollGet, pollCardModel } from '../polls';
+import { describeNights, describeTimings } from '../schedules';
 import { currentSession } from '../session';
 import {
   consumePendingSection,
@@ -75,9 +77,6 @@ interface RaidRow {
 const weekday = (ms: number) => formatWeekday(ms);
 const monthDay = (ms: number) => formatMonthDay(ms);
 const timeOf = (ms: number) => formatTime(ms);
-/** Where "Join the Discord" goes: the invite, or the recruiting band that says how to get one. */
-const DISCORD_HREF = DISCORD_INVITE_URL ?? '/#recruiting';
-const DISCORD_SECTION_LINK = DISCORD_INVITE_URL ? '' : 'recruiting';
 
 /** "Warrior, Priest, or Shaman": the classes the band marks high, for the members' one-liner. */
 function highNeeds(band: Recruiting): string {
@@ -125,10 +124,10 @@ const template = html<Page>`
     ${when(
       (x) => x.view === 'visitor',
       html<Page>`
-        <span slot="eyebrow" class="pill">Normal ruleset</span>
-        <span slot="eyebrow" class="pill">Wed + Thu · 8 pm ET</span>
-        <span slot="eyebrow" class="pill">10 · 20 · 40</span>
-        <span slot="eyebrow" class="pill">Semi-hardcore</span>
+        ${repeat(
+          (x) => (x.guild ? x.guild.pills : []),
+          html<string>`<span slot="eyebrow" class="pill">${(p) => p}</span>`,
+        )}
         <h1>Forming for <em>Forever.</em></h1>
       `,
     )}
@@ -140,14 +139,10 @@ const template = html<Page>`
         <h1>Welcome back, <em>${(x) => x.greetingName}.</em></h1>
       `,
     )}
-    <p slot="standfirst">
-      We're building a raid team for Forever's first tier: people who show up prepared, on time,
-      and good company. Signups, reminders, and loot rules are settled before the first pull, so
-      raid night is just the raid. Raids open December 9.
-    </p>
+    <p slot="standfirst" ?data-pending="${(x) => !x.guild}">${(x) => x.profile.intro}</p>
     <div slot="actions">
       <a class="btn primary" href="/#recruiting" data-section-link="recruiting">Apply to raid</a>
-      <a class="btn" href="${DISCORD_HREF}" data-section-link="${DISCORD_SECTION_LINK}" rel="noopener">Join the Discord</a>
+      <a class="btn" href="${(x) => x.discordHref}" data-section-link="${(x) => (x.profile.discordInvite ? '' : 'recruiting')}" rel="noopener">Join the Discord</a>
     </div>
     ${when(
       (x) => x.view === 'visitor',
@@ -255,11 +250,9 @@ const template = html<Page>`
                   html<Page>`<p class="muted">${(x) => (!x.raidsLoaded ? 'Loading…' : x.raidsFailed ? 'The calendar is for members.' : 'No other raids in the next two months.')}</p>`,
                 )}
               </div>
-              <p class="how">
-                Raid nights are Wednesday and Thursday. Signups post ${DEFAULT_TIMINGS.leadDays} days
-                ahead and lock ${DEFAULT_TIMINGS.lockHours} hours before the pull; anyone who hasn’t
-                answered is reminded at ${DEFAULT_TIMINGS.reminderHours.join('h and ')}h. Times are
-                shown in ${(x) => x.timeZoneLabel}.
+              <p class="how" ?data-pending="${(x) => !x.schedulesLoaded}">
+                ${(x) => x.nightsText} ${(x) => x.timingsText} Times are shown in
+                ${(x) => x.timeZoneLabel}.
               </p>
             </div>
           </div>
@@ -334,14 +327,14 @@ const template = html<Page>`
               <p class="pitch">${(x) => x.band.pitch}</p>
               <p class="actions">
                 ${when(
-                  () => DISCORD_INVITE_URL,
-                  html`<a class="btn primary" href="${() => DISCORD_INVITE_URL ?? ''}" rel="noopener">Join the Discord</a>`,
+                  (x) => x.profile.discordInvite,
+                  html<Page>`<a class="btn primary" href="${(x) => x.profile.discordInvite ?? ''}" rel="noopener">Join the Discord</a>`,
                 )}
-                <a class="btn ${DISCORD_INVITE_URL ? '' : 'primary'}" href="/about">How we raid</a>
+                <a class="btn ${(x) => (x.profile.discordInvite ? '' : 'primary')}" href="/about">How we raid</a>
                 <a class="btn" href="/#roster" data-section-link="roster">Who’s in</a>
               </p>
               ${when(
-                () => !DISCORD_INVITE_URL,
+                (x) => !x.profile.discordInvite,
                 html`<p class="muted small">Discord invites come from an officer for now; the public link lands here once the GM sets it.</p>`,
               )}
             </div>
@@ -874,8 +867,10 @@ const styles = css`
     color: var(--color-text-inverse);
   }
 
-  /* Until recruiting-get answers, the band keeps its place but shows nothing. */
-  .wrap[data-pending] {
+  /* Until recruiting-get or guild-profile-get answers, the text keeps its place but shows nothing. */
+  .wrap[data-pending],
+  [slot='standfirst'][data-pending],
+  .how[data-pending] {
     visibility: hidden;
   }
 
@@ -1140,6 +1135,11 @@ export class Page extends FASTElement {
   @observable progress: Progress | null = null;
   /** `recruiting-get`; null until it answers, so the band never shows text it then replaces. */
   @observable recruiting: Recruiting | null = null;
+  /** `guild-profile-get`; null until it answers, like the band. */
+  @observable guild: GuildProfile | null = null;
+  /** `schedule-list`: the raid nights and their signup timings. */
+  @observable schedules: Schedule[] = [];
+  @observable schedulesLoaded = false;
   /** `progress-get` answered with an error (a public caller, say): show the empty ledger. */
   @observable progressFailed = false;
   /** `raid-list` was refused (visitors): the calendar, the counts, and the log say so. */
@@ -1262,7 +1262,7 @@ export class Page extends FASTElement {
   get nextEmptyText(): string {
     if (!this.raidsLoaded) return 'Loading the calendar…';
     return this.raidsFailed
-      ? 'Raid nights are Wednesday and Thursday at 8 pm Eastern. Sign in with Discord to see the calendar and answer signups.'
+      ? 'Sign in with Discord to see the calendar and answer signups.'
       : 'Nothing on the calendar yet. Raid nights are posted a week ahead.';
   }
 
@@ -1356,6 +1356,8 @@ export class Page extends FASTElement {
   connectedCallback(): void {
     super.connectedCallback();
     void this.loadRecruiting();
+    void this.loadGuild();
+    if (this.shows('raids')) void this.loadSchedules();
     void this.loadMembers();
     void this.loadRaids().then(() =>
       Promise.all([this.loadFeed(), this.view === 'officer' ? this.loadOfficer() : null]),
@@ -1480,6 +1482,43 @@ export class Page extends FASTElement {
   }
 
   /** The recruiting band. A failed read shows the starter text rather than an empty band. */
+  /** The guild's schedules, for the raid nights and signup timings under the calendar. */
+  async loadSchedules(): Promise<void> {
+    const result = await getCommandClient().read<Schedule[]>('schedule-list');
+    this.schedules = result.success ? (result.data ?? []) : [];
+    this.schedulesLoaded = true;
+  }
+
+  /** "Raid nights are Wednesday and Thursday at 8:00 PM EST.", or how one-off raids appear. */
+  @volatile
+  get nightsText(): string {
+    return (
+      describeNights(this.schedules, Date.now(), preferredTimeZone()) ??
+      'Raids go on the calendar as leaders schedule them.'
+    );
+  }
+
+  get timingsText(): string {
+    return describeTimings(this.schedules);
+  }
+
+  /** The hero's facts and intro and the Discord invite. */
+  async loadGuild(): Promise<void> {
+    this.guild = await readGuildProfile();
+  }
+
+  /** The guild profile, or the starter text while it loads. */
+  @volatile
+  get profile(): GuildProfile {
+    return this.guild ?? STARTER_PROFILE;
+  }
+
+  /** Where "Join the Discord" goes: the invite, or the recruiting band that says how to get one. */
+  @volatile
+  get discordHref(): string {
+    return this.profile.discordInvite ?? '/#recruiting';
+  }
+
   async loadRecruiting(): Promise<void> {
     const result = await getCommandClient().read<Recruiting>('recruiting-get');
     this.recruiting = result.success && result.data ? result.data : STARTER_RECRUITING;

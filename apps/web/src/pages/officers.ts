@@ -9,7 +9,7 @@ import {
 } from '@lushly-dev/fast-element';
 import { type Tier, tierAllows } from '@vintage/guild-kit';
 import type { RaidEvent, Signup } from '@vintage/raids/contract';
-import type { Recruiting } from '@vintage/site/contract';
+import type { GuildProfile, Recruiting } from '@vintage/site/contract';
 import {
   getCommandClient,
   type PollsDeskPoll,
@@ -34,6 +34,7 @@ const TABS = [
   { id: 'calendar', label: 'Calendar', ready: false, hint: 'schedules and one-off raids' },
   { id: 'coordinator', label: 'Coordinator', ready: false, hint: 'status, settings, the log' },
   { id: 'roster', label: 'Roster', ready: false, hint: 'ranks, sync, recruits on trial' },
+  { id: 'guild', label: 'Guild', ready: true, hint: '' },
   { id: 'recruiting', label: 'Recruiting', ready: true, hint: '' },
   { id: 'polls', label: 'Polls', ready: true, hint: '' },
   { id: 'progress', label: 'Progress', ready: false, hint: 'record a kill and its loot' },
@@ -137,6 +138,19 @@ const template = html<Page>`
         )}
 
         ${when(
+          (x) => x.tab === 'guild',
+          html<Page>`
+            <vintage-guild-profile-desk
+              time-zone="${() => preferredTimeZone() ?? ''}"
+              ?can-edit="${(x) => x.canEditRecruiting}"
+              :profile="${(x) => x.profile}"
+              :error="${(x) => x.profileError}"
+              @profile-changed="${(x) => x.loadProfile()}"
+            ></vintage-guild-profile-desk>
+          `,
+        )}
+
+        ${when(
           (x) => x.tab === 'tonight' && x.raids.length > 1,
           html<Page>`
             <label class="picker">
@@ -178,14 +192,15 @@ const template = html<Page>`
 `;
 
 /**
- * Why the Recruiting tab has nothing to edit. `recruiting-get` is public, so "not found" can
- * only mean the guild server predates the site module: it needs a deploy, not a higher rank.
+ * Why a site-module tab (Recruiting, Guild) has nothing to edit. Its read is public, so "not
+ * found" can only mean the guild server predates that command: it needs a deploy, not a higher
+ * rank.
  */
-export function recruitingReadError(error?: { code?: string; message?: string }): string {
+export function siteReadError(what: string, error?: { code?: string; message?: string }): string {
   if (error?.code === 'COMMAND_NOT_FOUND') {
-    return 'The guild server doesn’t have the recruiting band yet. It needs the latest deploy; until then the home page shows the starter text.';
+    return `The guild server doesn’t have the ${what} yet. It needs the latest deploy; until then the site shows the starter text.`;
   }
-  return `Couldn’t read the recruiting band: ${error?.message ?? 'the server didn’t answer'}. Try again in a moment.`;
+  return `Couldn’t read the ${what}: ${error?.message ?? 'the server didn’t answer'}. Try again in a moment.`;
 }
 
 const raidOption = (e: RaidEvent) =>
@@ -265,7 +280,8 @@ const styles = css`
  * to show the room; every action inside is a command that checks its own tier, so an under-tier
  * caller who got here would be refused anyway. Tonight reads `raid-list`, `signup-list`,
  * `comp-suggest`, and `coordinator-status`; Polls reads `poll-list` and `poll-results`;
- * Recruiting reads `recruiting-get` and saves with `recruiting-set` (officers only).
+ * Recruiting reads `recruiting-get` and saves with `recruiting-set`; Guild reads
+ * `guild-profile-get` and saves with `guild-profile-set` (both officers only to save).
  */
 export class Page extends FASTElement {
   /** Leaders and officers see the room; everyone else gets the sign-in card or a note. */
@@ -284,7 +300,12 @@ export class Page extends FASTElement {
   @observable pollsError = '';
   @observable recruiting: Recruiting | null = null;
   @observable recruitingError = '';
-  /** `recruiting-set` is officer tier; raid leaders read the band here but can't save it. */
+  @observable profile: GuildProfile | null = null;
+  @observable profileError = '';
+  /**
+   * `recruiting-set` and `guild-profile-set` are officer tier; raid leaders read the band and
+   * the profile here but can't save them.
+   */
   readonly canEditRecruiting = tierAllows((currentSession()?.tier ?? 'public') as Tier, 'officer');
 
   @volatile
@@ -301,6 +322,7 @@ export class Page extends FASTElement {
     void this.load();
     if (this.tab === 'polls') void this.loadPolls();
     if (this.tab === 'recruiting') void this.loadRecruiting();
+    if (this.tab === 'guild') void this.loadProfile();
   }
 
   /** Switch tabs and keep the choice in the address, so `/officers?tab=polls` links work. */
@@ -313,6 +335,7 @@ export class Page extends FASTElement {
     history.replaceState(history.state, '', url);
     if (id === 'polls') void this.loadPolls();
     if (id === 'recruiting') void this.loadRecruiting();
+    if (id === 'guild') void this.loadProfile();
   }
 
   /**
@@ -345,8 +368,15 @@ export class Page extends FASTElement {
   /** The band as it reads now, for the editor. */
   async loadRecruiting(): Promise<void> {
     const result = await getCommandClient().read<Recruiting>('recruiting-get');
-    this.recruitingError = result.success ? '' : recruitingReadError(result.error);
+    this.recruitingError = result.success ? '' : siteReadError('recruiting band', result.error);
     if (result.success && result.data) this.recruiting = result.data;
+  }
+
+  /** The guild profile as it reads now, for the editor. */
+  async loadProfile(): Promise<void> {
+    const result = await getCommandClient().read<GuildProfile>('guild-profile-get');
+    this.profileError = result.success ? '' : siteReadError('guild profile', result.error);
+    if (result.success && result.data) this.profile = result.data;
   }
 
   pick(eventId: string): void {

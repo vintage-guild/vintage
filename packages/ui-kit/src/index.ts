@@ -18,6 +18,11 @@ export { type CharacterInput, VintageCharacterForm } from './elements/character-
 export { type ListedCharacter, VintageCharacterList } from './elements/character-list';
 export { VintageClassBadge } from './elements/class-badge';
 export { VintageFigure } from './elements/figure';
+export {
+  type GuildProfileDeskProfile,
+  type GuildProfileSection,
+  VintageGuildProfileDesk,
+} from './elements/guild-profile-desk';
 export { VintageHero } from './elements/hero';
 export { VintageLogoHeader } from './elements/logo-header';
 export { VintageMemberMenu } from './elements/member-menu';

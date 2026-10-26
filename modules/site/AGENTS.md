@@ -1,8 +1,9 @@
 # site module
 
-The website's editable copy. Today that is the recruiting band on the home page: its headline,
-its pitch, and the classes the guild is recruiting with the specs wanted and how much. Officers
-set it from the officers' quarters (Recruiting tab), Discord, or an agent; everyone reads it.
+The website's editable copy: the recruiting band on the home page (headline, pitch, and the
+classes the guild is recruiting with the specs wanted and how much) and the guild profile (the
+hero's facts and intro, the About page, the Discord invite, the contact email). Officers set them
+from the officers' quarters (Recruiting and Guild tabs), Discord, or an agent; everyone reads them.
 Maturity: **official**.
 
 ## Shape
@@ -11,9 +12,9 @@ Maturity: **official**.
 |---|---|
 | `src/contract.ts` | `ClassNeed`, `NEED_LEVELS` (high, medium, closed), `RECRUITING_LIMITS`, the `Recruiting` view, `STARTER_RECRUITING`. The only import other modules may use |
 | `src/store.ts` | `SiteStore` port (`getRecruiting`, `putRecruiting`), `SiteDeps`, `command` |
-| `src/commands/` | `recruiting-get` (public) and `recruiting-set` (officer) |
+| `src/commands/` | `recruiting-get` / `guild-profile-get` (public) and `recruiting-set` / `guild-profile-set` (officer) |
 | `src/testing.ts` | Memory store, same behavior as the component |
-| `convex/` | The `site` Convex component: the `recruiting` table, one row per guild |
+| `convex/` | The `site` Convex component: the `recruiting` and `profile` tables, one row each per guild |
 
 ## Rules
 
@@ -27,9 +28,13 @@ Maturity: **official**.
   within a level, so no surface can show a closed class above an open one.
 - **Classes come from `@vintage/wow-data`.** The component's `wowClass` validator lists the same
   nine; change both together.
-- **The Discord invite is not here yet.** It stays in `apps/web/src/content/recruiting.ts` until
-  the GM picks one (feature plan, open question 3); move it here as a field when it changes from
-  null.
 - **`recruiting-get` is public.** It answers the band and when it was saved, never who saved it
   (`updatedBy` stays in the row).
+- **The profile works like the band.** `guild-profile-get` answers `STARTER_PROFILE` until the
+  first save, never `updatedBy`; `guild-profile-set` merges, `aboutSections` is the whole list, and
+  `discordInvite` / `contactEmail` take null to clear. The invite must match
+  `DISCORD_INVITE_PATTERN` (https discord.gg or discord.com/invite), so the site's "Join the
+  Discord" can never point anywhere else.
+- **Raid nights are not here.** The website derives them and the signup timings from the raids
+  module's `schedule-list`; the hero's facts are the profile's `pills`, which officers keep true.
 - **`guildId` on every row**, read through `by_guild`.

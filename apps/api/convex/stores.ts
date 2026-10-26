@@ -231,6 +231,8 @@ export function siteStore(ctx: Ctx): SiteStore {
   return {
     getRecruiting: (guildId) => ctx.runQuery(site.recruiting.get, { guildId }),
     putRecruiting: (record) => writable(ctx).runMutation(site.recruiting.put, record),
+    getProfile: (guildId) => ctx.runQuery(site.profile.get, { guildId }),
+    putProfile: (record) => writable(ctx).runMutation(site.profile.put, record),
   };
 }
 

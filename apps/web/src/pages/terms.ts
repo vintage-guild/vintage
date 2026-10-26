@@ -1,5 +1,6 @@
-import { FASTElement, html } from '@lushly-dev/fast-element';
+import { FASTElement, html, observable, when } from '@lushly-dev/fast-element';
 import { LEGAL_UPDATED } from '../content/legal';
+import { readGuildProfile } from '../guild-profile';
 import { pageStyles } from './page-styles';
 
 const template = html<Page>`
@@ -58,9 +59,28 @@ const template = html<Page>`
       <p>We may update these terms; the date above says when, and we'll say so in Discord. Using
         the site after a change means you accept it.</p>
     </section>
+
+    <section aria-labelledby="contact">
+      <h2 id="contact">Contact</h2>
+      ${when(
+        (x) => x.contactEmail,
+        html<Page>`<p>Write to <a href="mailto:${(x) => x.contactEmail}">${(x) => x.contactEmail}</a>, or ask an officer in our Discord.</p>`,
+      )}
+      ${when((x) => !x.contactEmail, html`<p>Ask an officer in our Discord.</p>`)}
+    </section>
   </article>
 `;
 
 /** `/terms`: the ground rules for the site and the bot. */
-export class Page extends FASTElement {}
+export class Page extends FASTElement {
+  /** The contact email from `guild-profile-get`, or empty: then it says to ask in Discord. */
+  @observable contactEmail = '';
+
+  connectedCallback(): void {
+    super.connectedCallback();
+    void readGuildProfile().then((profile) => {
+      this.contactEmail = profile.contactEmail ?? '';
+    });
+  }
+}
 await Page.define({ name: 'vintage-terms-page', template, styles: pageStyles });

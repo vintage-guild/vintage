@@ -108,6 +108,19 @@ export async function seedFixtures(host: FixtureHost): Promise<void> {
   }
 
   await seedMorePolls(host, memberNamed);
+
+  // The raid nights the calendar's "Raid nights are…" line reads. Made after the tick, so the
+  // raids seeded above stay the whole calendar.
+  await must(
+    host.run(host.callerFor(leader), 'schedule-create', {
+      name: 'Raid night',
+      instance: "Onyxia's Lair",
+      size: 40,
+      weekdays: ['wed', 'thu'],
+      time: '20:00',
+      timeZone: 'America/New_York',
+    }),
+  );
 }
 
 /** The other polls: a closed result, an officers-only vote, and an open ranked poll. */

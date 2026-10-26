@@ -1,37 +1,39 @@
-import { FASTElement, html, repeat } from '@lushly-dev/fast-element';
-import { ROLES, type Role } from '@vintage/wow-data';
+import { FASTElement, html, observable, repeat, when } from '@lushly-dev/fast-element';
+import type { AboutSection, GuildProfile } from '@vintage/site/contract';
+import { paragraphs, readGuildProfile } from '../guild-profile';
 import { pageStyles } from './page-styles';
 
-// Placeholder copy until officers edit pages through the `site` module.
 const template = html<Page>`
-  <article class="page">
+  <article class="page" aria-busy="${(x) => !x.profile}">
     <header>
       <h1>Vintage</h1>
-      <p class="lead">A raiding guild on WoW: Forever, run on one system that posts our raids,
-        reminds people, and records the loot.</p>
+      ${when((x) => x.profile, html<Page>`<p class="lead">${(x) => x.profile?.aboutLead}</p>`)}
     </header>
-
-    <section aria-labelledby="raids">
-      <h2 id="raids">Raiding</h2>
-      <p>WoW: Forever launches on November 4. Barrow Deeps, Hyjal Summit, and Onyxia's Lair
-        unlock on December 9, and we plan to be ready for them.</p>
-      <p>Signups, reminders, and the final roster run through Discord and this site, so nobody has
-        to chase a spreadsheet on raid night.</p>
-    </section>
-
-    <section aria-labelledby="recruiting">
-      <h2 id="recruiting">Recruitment</h2>
-      <p>We raid with every role:</p>
-      <p class="row">
-        ${repeat(() => ROLES, html<Role>`<vintage-role-badge raid-role="${(r) => r}"></vintage-role-badge>`)}
-      </p>
-      <p>To join, ask an officer for an invite to our Discord. New members start as recruits for
-        about two weeks, and Discord ranks are guild ranks here, so there's nothing to manage
-        twice. Once you're in, sign in with Discord to add your characters.</p>
-    </section>
+    ${repeat(
+      (x) => x.profile?.aboutSections ?? [],
+      html<AboutSection>`
+        <section>
+          <h2>${(s) => s.heading}</h2>
+          ${repeat((s) => paragraphs(s.body), html<string>`<p>${(p) => p}</p>`)}
+        </section>
+      `,
+    )}
   </article>
 `;
 
-/** The public about and recruitment page. */
-export class Page extends FASTElement {}
+/**
+ * The public About page, in the guild's own words: `guild-profile-get`'s lead and sections,
+ * which officers edit in the quarters' Guild tab.
+ */
+export class Page extends FASTElement {
+  @observable profile: GuildProfile | null = null;
+
+  connectedCallback(): void {
+    super.connectedCallback();
+    void readGuildProfile().then((profile) => {
+      this.profile = profile;
+    });
+  }
+}
+
 await Page.define({ name: 'vintage-about-page', template, styles: pageStyles });

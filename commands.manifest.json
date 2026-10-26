@@ -302,6 +302,98 @@
       }
     },
     {
+      "name": "guild-profile-get",
+      "description": "The guild’s own words on the public pages: the hero’s pills (ruleset, raid nights, sizes, style) and intro, the About page’s lead and sections, the public Discord invite, and the contact email for privacy and terms questions. `updatedAt` is null while it shows the starter text no officer has saved.",
+      "tier": "public",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "guild-profile-set",
+      "description": "Change the guild profile the public pages show. Give any of: `pills` (short hero facts, in order), `intro` (the hero paragraph), `aboutLead`, `aboutSections` (the whole list of {heading, body}; separate paragraphs in a body with a blank line), `discordInvite` (a discord.gg or discord.com/invite link, or null to remove it), `contactEmail` (or null). What you leave out stays as it is. Answers the profile as it now reads.",
+      "tier": "officer",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pills": {
+            "minItems": 1,
+            "maxItems": 6,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 32
+            }
+          },
+          "intro": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 400
+          },
+          "aboutLead": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "aboutSections": {
+            "minItems": 1,
+            "maxItems": 6,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "heading": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 60
+                },
+                "body": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1500
+                }
+              },
+              "required": [
+                "heading",
+                "body"
+              ]
+            }
+          },
+          "discordInvite": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^https:\\/\\/(discord\\.gg|discord\\.com\\/invite)\\/[A-Za-z0-9-]+$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "contactEmail": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "email",
+                "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
       "name": "guild-roles-get",
       "description": "The Discord role id → guild rank map that member-sync uses to set rank and tier.",
       "tier": "leader",

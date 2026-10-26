@@ -1,5 +1,5 @@
 import { commandsFor } from '@vintage/guild-kit';
-import type { ClassNeed } from './contract';
+import type { AboutSection, ClassNeed } from './contract';
 
 /** The saved recruiting copy for one guild. */
 export interface StoredRecruiting {
@@ -7,6 +7,19 @@ export interface StoredRecruiting {
   headline: string;
   pitch: string;
   needs: ClassNeed[];
+  updatedAt: number;
+  updatedBy: string;
+}
+
+/** The saved guild profile for one guild. */
+export interface StoredProfile {
+  guildId: string;
+  pills: string[];
+  intro: string;
+  aboutLead: string;
+  aboutSections: AboutSection[];
+  discordInvite: string | null;
+  contactEmail: string | null;
   updatedAt: number;
   updatedBy: string;
 }
@@ -20,6 +33,10 @@ export interface SiteStore {
   getRecruiting(guildId: string): Promise<StoredRecruiting | null>;
   /** Insert or replace the guild's one recruiting record. */
   putRecruiting(record: StoredRecruiting): Promise<StoredRecruiting>;
+  /** Null until an officer saves the profile for the first time. */
+  getProfile(guildId: string): Promise<StoredProfile | null>;
+  /** Insert or replace the guild's one profile record. */
+  putProfile(record: StoredProfile): Promise<StoredProfile>;
 }
 
 /** Keyed `site` so it never collides with another module's deps in apps/api. */

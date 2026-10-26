@@ -10,7 +10,7 @@ import {
 import { type Infer, v } from 'convex/values';
 import { commands, type VintageDeps } from '../src/registry';
 import { internalMutation, mutation, query } from './_generated/server';
-import { identityDeps, identityStore } from './stores';
+import { identityDeps, identityStore, raidsDeps } from './stores';
 
 /** Single-guild deployment for now; every record still carries guildId (PLAN §3.11). */
 export const GUILD_ID = process.env.VINTAGE_GUILD_ID ?? 'vintage';
@@ -23,7 +23,7 @@ function registry() {
 
 type Ctx = Parameters<typeof identityStore>[0];
 
-const deps = (ctx: Ctx): VintageDeps => identityDeps(ctx);
+const deps = (ctx: Ctx): VintageDeps => ({ ...identityDeps(ctx), ...raidsDeps(ctx) });
 
 /**
  * Resolve the caller from the auth identity. Better Auth's Discord provider (Phase 0, next step)

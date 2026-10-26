@@ -710,7 +710,7 @@ Phase 0 has about ten days and one maintainer, so it is cut to the minimum that 
 
 ### Phase 1 — Raid coordinator (2026-11-04 → ~11-25)
 
-- [ ] `raids`: schedules, events, signups, roster, `comp.suggest` via `libs/comp-solver`
+- [x] `raids`: schedules, events, signups, roster, `comp-suggest` via `libs/comp-solver` (#14)
 - [ ] `coordinator`: materialize events, post signups, button flow, T-72h/T-24h reminders, officer digest, lock + final roster, `CoordinatorAction` log, `#vintage-ops` errors
 - [x] `libs/discord-kit`: signature verification, embeds, components, timestamps Landed early in Phase 0 (#43).
 - [x] `libs/comp-solver`: selected roster, bench, and gaps with reasons (part of #15; `comp-suggest` lands with `raids`)

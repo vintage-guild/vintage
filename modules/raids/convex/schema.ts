@@ -1,0 +1,107 @@
+import { defineSchema, defineTable } from 'convex/server';
+import { v } from 'convex/values';
+
+export const raidSize = v.union(v.literal(10), v.literal(20), v.literal(40));
+
+export const weekday = v.union(
+  v.literal('sun'),
+  v.literal('mon'),
+  v.literal('tue'),
+  v.literal('wed'),
+  v.literal('thu'),
+  v.literal('fri'),
+  v.literal('sat'),
+);
+
+export const roleTargets = v.union(
+  v.object({ tank: v.number(), healer: v.number(), dps: v.number() }),
+  v.null(),
+);
+
+export const raidStatus = v.union(
+  v.literal('open'),
+  v.literal('locked'),
+  v.literal('cancelled'),
+  v.literal('completed'),
+);
+
+export const signupStatus = v.union(
+  v.literal('accepted'),
+  v.literal('late'),
+  v.literal('tentative'),
+  v.literal('bench'),
+  v.literal('declined'),
+);
+
+export const rosterState = v.union(
+  v.literal('pending'),
+  v.literal('rostered'),
+  v.literal('benched'),
+);
+
+export const role = v.union(
+  v.literal('tank'),
+  v.literal('healer'),
+  v.literal('melee'),
+  v.literal('ranged'),
+);
+
+export const scheduleFields = {
+  guildId: v.string(),
+  name: v.string(),
+  instance: v.string(),
+  size: raidSize,
+  recurrence: v.object({ weekdays: v.array(weekday), time: v.string(), timeZone: v.string() }),
+  durationMinutes: v.number(),
+  timings: v.object({
+    leadDays: v.number(),
+    reminderHours: v.array(v.number()),
+    lockHours: v.number(),
+  }),
+  roleTargets,
+  lootMethodId: v.union(v.string(), v.null()),
+  active: v.boolean(),
+  configVersion: v.number(),
+};
+
+export const eventFields = {
+  guildId: v.string(),
+  scheduleId: v.union(v.string(), v.null()),
+  name: v.string(),
+  instance: v.string(),
+  size: raidSize,
+  startsAt: v.number(),
+  durationMinutes: v.number(),
+  status: raidStatus,
+  roleTargets,
+  lootMethodId: v.union(v.string(), v.null()),
+  configVersion: v.number(),
+};
+
+export const signupFields = {
+  guildId: v.string(),
+  eventId: v.string(),
+  memberId: v.string(),
+  characterId: v.string(),
+  characterName: v.string(),
+  class: v.string(),
+  spec: v.string(),
+  role,
+  status: signupStatus,
+  note: v.union(v.string(), v.null()),
+  signedUpAt: v.number(),
+  updatedAt: v.number(),
+  roster: rosterState,
+  group: v.union(v.number(), v.null()),
+};
+
+// Every table carries guildId and is read through a guild-scoped index.
+export default defineSchema({
+  schedules: defineTable(scheduleFields).index('by_guild', ['guildId']),
+  raidEvents: defineTable(eventFields)
+    .index('by_guild_start', ['guildId', 'startsAt'])
+    .index('by_guild_schedule_start', ['guildId', 'scheduleId', 'startsAt']),
+  signups: defineTable(signupFields)
+    .index('by_guild_event', ['guildId', 'eventId'])
+    .index('by_guild_event_member', ['guildId', 'eventId', 'memberId']),
+});

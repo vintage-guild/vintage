@@ -42,7 +42,7 @@ flowchart TB
         REG["guild-kit registry ✅<br/>caller · tier · validation · confirm"]
         subgraph Modules
             ID["identity ✅"]
-            RAIDS["raids 📋"]
+            RAIDS["raids ✅"]
             COORD["coordinator 📋"]
             LOOT["loot 📋"]
         end
@@ -135,7 +135,7 @@ Current packages:
 | Package | Layer | What it is | Status |
 |---|---|---|---|
 | `libs/wow-data` | lib | Classes, specs, raid roles | ✅ |
-| `libs/comp-solver` | lib | Raid-comp scoring: selected roster, bench, and gaps with reasons, from signups, raid size, and a role/buff template (`solveComp`) | ✅ built and tested; `comp-suggest` waits on the raids module (#15) |
+| `libs/comp-solver` | lib | Raid-comp scoring: selected roster, bench, and gaps with reasons, from signups, raid size, and a role/buff template (`solveComp`) | ✅ built and tested; used by `comp-suggest` in raids |
 | `libs/discord-kit` | lib | Interaction signature verification, response/embed/component builders, timestamps, rate-limit-aware REST client | ✅ |
 | `libs/design-tokens` | lib | DTCG token nodes and exporters: CSS themes, TS map (`discordColor`), FenUI Lua theme | ✅ |
 | `libs/bridge-format` | lib | Game ↔ web paste strings: import/export Zod schemas, LibSerialize + LibDeflate compatible codec, golden fixtures | 🚧 TS side built and tested; Lua side (addon) not built |
@@ -143,6 +143,7 @@ Current packages:
 | `packages/testing` | package | Test callers, clock, registry helpers | ✅ |
 | `packages/ui-kit` | package | Web composites on FAST-AF + violet-elements: logo header, class/role badges, character form (`@command` → `character-add`), signup and sign-in cards, theme switch; a `CommandClient` port (stubbed until Convex is wired); Violet → Vintage token bridge; Custom Elements Manifest | ✅ |
 | `modules/identity` | module | Members, characters, guild ranks, role → rank map, role sync planner | ✅ |
+| `modules/raids` | module | Schedules (DST-safe recurrence), raid events, signups, roster groups, `comp-suggest`; emits `signup-changed` and `raid-completed` | ✅ built and tested; not yet driven by the coordinator |
 | `apps/api` | app | Convex: composes components, command surface, crons | ✅ |
 | `apps/gateway` | app | Vercel functions: `/discord/interactions` (later `/mcp`) | 🚧 |
 | `apps/web` | app | The website: Vite SPA on the FAST-AF router; about/recruitment, profile, and characters pages; `data-theme` switching. Member pages are signed out until sign-in (#7); not deployed yet | 🚧 |

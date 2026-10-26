@@ -9,7 +9,6 @@ import {
 } from '@lushly-dev/fast-element';
 import type { CoordinatorAction } from '@vintage/coordinator/contract';
 import type { Character } from '@vintage/identity/contract';
-import type { Poll, PollResults } from '@vintage/polls/contract';
 import {
   LAUNCH_BOSS_COUNT,
   LAUNCH_RAIDS,
@@ -29,7 +28,6 @@ import {
   getCommandClient,
   type LedgerKill,
   type LedgerRaid,
-  type PollCardOption,
   type RosterMember,
   type SignupCounts,
   titleCase,
@@ -45,6 +43,7 @@ import {
   preferredTimeZone,
   RAIDS_OPEN_AT as RAIDS_OPEN_ISO,
 } from '../dates';
+import { type PollCardModel, type PollGet, pollCardModel } from '../polls';
 import { currentSession } from '../session';
 import {
   consumePendingSection,
@@ -440,21 +439,35 @@ const template = html<Page>`
             ${when(
               (x) => x.poll,
               html<Page>`
-                <vintage-poll-card
-                  poll-id="${(x) => x.poll?.id}"
-                  question="${(x) => x.poll?.question}"
-                  description="${(x) => x.poll?.description ?? ''}"
-                  note="${(x) => x.pollNote}"
-                  ?readonly="${(x) => x.poll?.status !== 'open'}"
-                  :options="${(x) => x.pollOptions}"
-                  :myVote="${(x) => x.myVote}"
-                  @vote-cast="${(x) => x.loadPoll()}"
-                ></vintage-poll-card>
+                <div class="poll">
+                  <vintage-poll-card
+                    poll-id="${(x) => x.poll?.id}"
+                    question="${(x) => x.poll?.question}"
+                    description="${(x) => x.poll?.description}"
+                    note="${(x) => x.poll?.note}"
+                    method="${(x) => x.poll?.method}"
+                    :maxChoices="${(x) => x.poll?.maxChoices ?? null}"
+                    ?readonly="${(x) => x.poll?.readonly}"
+                    ?results-hidden="${(x) => x.poll?.resultsHidden}"
+                    ballots="${(x) => x.poll?.ballots}"
+                    :options="${(x) => x.poll?.options ?? []}"
+                    :myChoices="${(x) => x.poll?.myChoices ?? []}"
+                    :winners="${(x) => x.poll?.winners ?? []}"
+                    @vote-cast="${(x) => x.loadPoll()}"
+                    @vote-retract="${(x) => x.loadPoll()}"
+                  ></vintage-poll-card>
+                  <p class="muted small poll-links">
+                    <a href="/polls">All polls</a>${when(
+                      (x) => x.view === 'officer',
+                      html` · <a href="/officers?tab=polls">Results and closing in the quarters</a>`,
+                    )}
+                  </p>
+                </div>
               `,
             )}
             ${when(
               (x) => !x.poll,
-              html<Page>`<div class="card"><span class="eyebrow">The question</span><p class="muted">${(x) => (x.pollFailed ? 'Polls are for members. Sign in with Discord to see the open question and vote.' : 'No open poll. Raid leaders open one with poll-create, in Discord or here.')}</p></div>`,
+              html<Page>`<div class="card"><span class="eyebrow">The question</span><p class="muted">${(x) => (x.pollFailed ? 'Polls are for members. Sign in with Discord to see the open question and vote.' : 'No open poll. Raid leaders open one with /vintage poll create in Discord.')}</p>${when((x) => !x.pollFailed, html`<p class="muted small"><a href="/polls">Closed polls and results</a></p>`)}</div>`,
             )}
           </div>
         </div>
@@ -489,13 +502,6 @@ interface FeedItem {
   at: number;
   title: string;
   detail: string;
-}
-
-/** What `poll-get` answers: the poll (with its live tally when visible) and my ballot. */
-interface PollGet {
-  poll: Poll & { results?: PollResults | null; tally?: PollResults | null };
-  myVote: string[] | null;
-  ballots: number;
 }
 
 /** The coordinator's rule kinds (modules/coordinator tick.ts), in words. */
@@ -1082,10 +1088,8 @@ export class Page extends FASTElement {
   @observable memberCount: number | null = null;
   @observable members: MemberRow[] = [];
   @observable feed: FeedItem[] = [];
-  @observable poll: PollGet['poll'] | null = null;
-  @observable pollOptions: PollCardOption[] = [];
-  @observable myVote = '';
-  @observable pollBallots = 0;
+  /** The open poll the member may vote on, as the card shows it. */
+  @observable poll: PollCardModel | null = null;
   @observable raids: RaidRow[] = [];
   @observable nextCounts: SignupCounts = EMPTY_COUNTS;
   @observable main: Character | null = null;
@@ -1284,17 +1288,6 @@ export class Page extends FASTElement {
   }
 
   @volatile
-  get pollNote(): string {
-    if (!this.poll) return '';
-    const closes = this.poll.closesAt
-      ? ` · closes ${new Date(this.poll.closesAt).toLocaleDateString(undefined, { weekday: 'long' })}`
-      : '';
-    const who =
-      this.poll.eligibleTier === 'member' ? 'everyone' : `${this.poll.eligibleTier}s and up`;
-    return `${this.pollBallots} ballot${this.pollBallots === 1 ? '' : 's'} · ${who}${closes}`;
-  }
-
-  @volatile
   get progressNote(): string {
     if (!this.progress) return this.progressFailed ? 'sign in to see first kills' : '';
     if (!this.progress.open) return '';
@@ -1397,8 +1390,17 @@ export class Page extends FASTElement {
     this.feedLoaded = true;
   }
 
-  /** The first open poll the member may see, with its live tally and their own ballot. */
+  /**
+   * The first open poll the member may vote on, with their ballot and the tally when the poll
+   * shows it. Visitors don't ask: the role view already says polls are for members, and the
+   * server would refuse `poll-list` anyway.
+   */
   async loadPoll(): Promise<void> {
+    if (this.view === 'visitor') {
+      this.pollFailed = true;
+      this.poll = null;
+      return;
+    }
     const client = getCommandClient();
     const list = await client.read<{ id: string }[]>('poll-list');
     this.pollFailed = !list.success;
@@ -1408,20 +1410,7 @@ export class Page extends FASTElement {
       return;
     }
     const got = await client.read<PollGet>('poll-get', { pollId: first.id });
-    if (!got.success || !got.data) {
-      this.poll = null;
-      return;
-    }
-    const { poll, myVote, ballots } = got.data;
-    const tally = poll.tally ?? poll.results ?? null;
-    this.poll = poll;
-    this.pollBallots = ballots;
-    this.myVote = myVote?.[0] ?? '';
-    this.pollOptions = poll.options.map((o) => ({
-      id: o.id,
-      label: o.label,
-      votes: tally?.options.find((t) => t.optionId === o.id)?.votes ?? 0,
-    }));
+    this.poll = got.success && got.data ? pollCardModel(got.data) : null;
   }
 
   async loadMain(): Promise<void> {

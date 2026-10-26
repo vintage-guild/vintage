@@ -8,7 +8,13 @@ import {
   when,
 } from '@lushly-dev/fast-element';
 import type { RaidEvent, Signup } from '@vintage/raids/contract';
-import { getCommandClient, type TonightRaid, type TonightSignup } from '@vintage/ui-kit';
+import {
+  getCommandClient,
+  type PollsDeskPoll,
+  type PollsDeskResults,
+  type TonightRaid,
+  type TonightSignup,
+} from '@vintage/ui-kit';
 import { formatMonthDay, formatWeekday, preferredTimeZone } from '../dates';
 import { canSignIn, currentSession } from '../session';
 import { currentView } from '../view';
@@ -27,11 +33,21 @@ const TABS = [
   { id: 'coordinator', label: 'Coordinator', ready: false, hint: 'status, settings, the log' },
   { id: 'roster', label: 'Roster', ready: false, hint: 'ranks, sync, recruits on trial' },
   { id: 'recruiting', label: 'Recruiting', ready: false, hint: 'the open roles and pitch' },
-  { id: 'polls', label: 'Polls', ready: false, hint: 'open, close, results' },
+  { id: 'polls', label: 'Polls', ready: true, hint: '' },
   { id: 'progress', label: 'Progress', ready: false, hint: 'record a kill and its loot' },
 ] as const;
 
 type Tab = (typeof TABS)[number];
+type TabId = Tab['id'];
+
+/** The tab named in `?tab=`, if it is built; Tonight otherwise. */
+export function tabFromUrl(search: string): TabId {
+  const wanted = new URLSearchParams(search).get('tab');
+  return TABS.find((t) => t.id === wanted && t.ready)?.id ?? 'tonight';
+}
+
+/** One row of `poll-list`: the poll, its frozen result once closed, and the ballot count. */
+type PollRow = Omit<PollsDeskPoll, 'results'> & { results: PollsDeskResults | null };
 
 /** One row of `raid-list`. */
 interface RaidRow {
@@ -81,16 +97,32 @@ const template = html<Page>`
               <button
                 type="button"
                 class="tab"
-                aria-current="${(t) => (t.id === 'tonight' ? 'page' : 'false')}"
+                aria-current="${(t, c) => (t.id === (c.parent as Page).tab ? 'page' : 'false')}"
                 ?disabled="${(t) => !t.ready}"
                 title="${(t) => (t.ready ? '' : `Coming: ${t.hint}`)}"
+                @click="${(t, c) => (c.parent as Page).select(t.id)}"
               >${(t) => t.label}${(t) => (t.ready ? '' : ' · soon')}</button>
             `,
           )}
         </nav>
 
         ${when(
-          (x) => x.raids.length > 1,
+          (x) => x.tab === 'polls',
+          html<Page>`
+            <vintage-polls-desk
+              time-zone="${() => preferredTimeZone() ?? ''}"
+              :polls="${(x) => x.polls}"
+              @polls-changed="${(x) => x.loadPolls()}"
+            ></vintage-polls-desk>
+            ${when(
+              (x) => x.pollsError,
+              html<Page>`<p class="error" role="alert">${(x) => x.pollsError}</p>`,
+            )}
+          `,
+        )}
+
+        ${when(
+          (x) => x.tab === 'tonight' && x.raids.length > 1,
           html<Page>`
             <label class="picker">
               <span>Raid</span>
@@ -107,18 +139,23 @@ const template = html<Page>`
           `,
         )}
 
-        <vintage-tonight
-          time-zone="${() => preferredTimeZone() ?? ''}"
-          :raid="${(x) => x.raid}"
-          :signups="${(x) => x.signups}"
-          :gaps="${(x) => x.gaps}"
-          :waiting="${(x) => x.waiting}"
-          ?loading="${(x) => !x.loaded}"
-          @tonight-changed="${(x) => x.load()}"
-        ></vintage-tonight>
         ${when(
-          (x) => x.loadError,
-          html<Page>`<p class="error" role="alert">${(x) => x.loadError}</p>`,
+          (x) => x.tab === 'tonight',
+          html<Page>`
+            <vintage-tonight
+              time-zone="${() => preferredTimeZone() ?? ''}"
+              :raid="${(x) => x.raid}"
+              :signups="${(x) => x.signups}"
+              :gaps="${(x) => x.gaps}"
+              :waiting="${(x) => x.waiting}"
+              ?loading="${(x) => !x.loaded}"
+              @tonight-changed="${(x) => x.load()}"
+            ></vintage-tonight>
+            ${when(
+              (x) => x.loadError,
+              html<Page>`<p class="error" role="alert">${(x) => x.loadError}</p>`,
+            )}
+          `,
         )}
       `,
     )}
@@ -201,7 +238,7 @@ const styles = css`
  * `/officers`: the officers' quarters, for raid leaders and officers. The view decides whether
  * to show the room; every action inside is a command that checks its own tier, so an under-tier
  * caller who got here would be refused anyway. Tonight reads `raid-list`, `signup-list`,
- * `comp-suggest`, and `coordinator-status`.
+ * `comp-suggest`, and `coordinator-status`; Polls reads `poll-list` and `poll-results`.
  */
 export class Page extends FASTElement {
   /** Leaders and officers see the room; everyone else gets the sign-in card or a note. */
@@ -214,6 +251,10 @@ export class Page extends FASTElement {
   @observable loadError = '';
   /** The first load has settled; later re-reads keep showing the last answer. */
   @observable loaded = false;
+  /** The open tab, from `?tab=` (Tonight by default). */
+  @observable tab: TabId = tabFromUrl(location.search);
+  @observable polls: PollsDeskPoll[] = [];
+  @observable pollsError = '';
 
   @volatile
   get raid(): TonightRaid | null {
@@ -225,7 +266,47 @@ export class Page extends FASTElement {
 
   connectedCallback(): void {
     super.connectedCallback();
-    if (this.allowed) void this.load();
+    if (!this.allowed) return;
+    void this.load();
+    if (this.tab === 'polls') void this.loadPolls();
+  }
+
+  /** Switch tabs and keep the choice in the address, so `/officers?tab=polls` links work. */
+  select(id: TabId): void {
+    if (!TABS.some((t) => t.id === id && t.ready) || id === this.tab) return;
+    this.tab = id;
+    const url = new URL(location.href);
+    if (id === 'tonight') url.searchParams.delete('tab');
+    else url.searchParams.set('tab', id);
+    history.replaceState(history.state, '', url);
+    if (id === 'polls') void this.loadPolls();
+  }
+
+  /**
+   * Every draft, open, and closed poll the caller may see. Closed polls carry their frozen
+   * result; open ones get their live tally from `poll-results`, which officers always see and
+   * which answers `RESULTS_HIDDEN` to a leader when the poll keeps it back.
+   */
+  async loadPolls(): Promise<void> {
+    const client = getCommandClient();
+    const list = await client.read<PollRow[]>('poll-list', {
+      statuses: ['draft', 'open', 'closed'],
+    });
+    if (!list.success) {
+      this.pollsError = list.error?.message ?? 'Could not read the polls';
+      return;
+    }
+    this.pollsError = '';
+    const rows = list.data ?? [];
+    this.polls = await Promise.all(
+      rows.map(async (p): Promise<PollsDeskPoll> => {
+        if (p.status !== 'open') return p;
+        const tally = await client.read<{ results: PollsDeskResults }>('poll-results', {
+          pollId: p.id,
+        });
+        return { ...p, results: tally.success ? (tally.data?.results ?? null) : null };
+      }),
+    );
   }
 
   pick(eventId: string): void {

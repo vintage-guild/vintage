@@ -47,6 +47,8 @@ export interface VintageConnection {
 }
 
 const ONE_TIME_TOKEN = 'ott';
+/** Where Better Auth's cross-domain client keeps the session (its default storage prefix). */
+const SESSION_STORAGE_KEY = 'better-auth_cookie';
 
 /** https://x.convex.cloud → https://x.convex.site */
 export const siteUrlOf = (convexUrl: string) =>
@@ -123,6 +125,14 @@ export function connectVintage(options: ConnectOptions): VintageConnection {
   }
 
   void start();
+
+  // Another tab signed in or out: the stored session changed under us. Re-check it, so this tab
+  // drops its Convex token (or picks up the new member) instead of acting as whoever was here.
+  if (typeof window !== 'undefined') {
+    window.addEventListener('storage', (event) => {
+      if (event.key === SESSION_STORAGE_KEY) auth.updateSession();
+    });
+  }
 
   return {
     commands,

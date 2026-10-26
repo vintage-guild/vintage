@@ -3,7 +3,7 @@
 // officer points the coordinator at a channel and runs a tick, and a raid leader opens a poll.
 import type { Member } from '@vintage/identity/contract';
 import type { Poll } from '@vintage/polls/contract';
-import { CHANNELS, type FixtureMember, MEMBERS, POLL, RAIDS, ROLE_IDS } from './data';
+import { CHANNELS, type FixtureMember, MEMBERS, MORE_POLLS, POLL, RAIDS, ROLE_IDS } from './data';
 import type { FixtureHost } from './host';
 
 const discordIdOf = (m: FixtureMember) =>
@@ -105,5 +105,35 @@ export async function seedFixtures(host: FixtureHost): Promise<void> {
         choices: [option.id],
       }),
     );
+  }
+
+  await seedMorePolls(host, memberNamed);
+}
+
+/** The other polls: a closed result, an officers-only vote, and an open ranked poll. */
+async function seedMorePolls(
+  host: FixtureHost,
+  memberNamed: (name: string) => Member,
+): Promise<void> {
+  for (const extra of MORE_POLLS) {
+    const creator = host.callerFor(memberNamed(extra.createdBy));
+    const made = await must<Poll>(
+      host.run(creator, 'poll-create', {
+        question: extra.question,
+        options: [...extra.options],
+        method: extra.method,
+        eligibleTier: extra.eligibleTier,
+        anonymous: extra.anonymous ?? false,
+        resultsVisible: extra.resultsVisible ?? 'live',
+        closesAt: POLL.closesAt,
+      }),
+    );
+    for (const [name, picks] of extra.votes) {
+      const choices = picks.map((i) => made.options[i]?.id).filter((id): id is string => !!id);
+      await must(
+        host.run(host.callerFor(memberNamed(name)), 'vote-cast', { pollId: made.id, choices }),
+      );
+    }
+    if (extra.closed) await must(host.run(creator, 'poll-close', { pollId: made.id }));
   }
 }

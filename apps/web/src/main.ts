@@ -76,6 +76,14 @@ if (signInButton && !session && canSignIn()) {
   signInButton.addEventListener('click', () => signIn());
 }
 
+// Members and up get Polls in the header; visitors would only find a sign-in card there.
+if (currentView() !== 'visitor') {
+  const link = document.createElement('a');
+  link.href = '/polls';
+  link.textContent = 'Polls';
+  document.getElementById('member-menu')?.before(link);
+}
+
 // Leaders and officers get the quarters in the header; the page itself also checks the view.
 if (currentView() === 'officer') {
   const link = document.createElement('a');

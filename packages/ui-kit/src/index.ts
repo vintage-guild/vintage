@@ -25,7 +25,12 @@ export {
   type CoordinatorState,
   VintageOfficerStrip,
 } from './elements/officer-strip';
-export { type PollCardOption, VintagePollCard } from './elements/poll-card';
+export { type PollCardMethod, type PollCardOption, VintagePollCard } from './elements/poll-card';
+export {
+  type PollsDeskPoll,
+  type PollsDeskResults,
+  VintagePollsDesk,
+} from './elements/polls-desk';
 export { VintageRoleBadge } from './elements/role-badge';
 export { RANK_GROUPS, type RosterMember, VintageRosterWall } from './elements/roster-wall';
 export { VintageSignInCard } from './elements/sign-in-card';

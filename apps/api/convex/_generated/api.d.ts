@@ -13,6 +13,7 @@ import type * as coordinator from "../coordinator.js";
 import type * as crons from "../crons.js";
 import type * as discord from "../discord.js";
 import type * as http from "../http.js";
+import type * as polls from "../polls.js";
 import type * as roleSync from "../roleSync.js";
 import type * as stores from "../stores.js";
 
@@ -28,6 +29,7 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   discord: typeof discord;
   http: typeof http;
+  polls: typeof polls;
   roleSync: typeof roleSync;
   stores: typeof stores;
 }>;
@@ -62,5 +64,6 @@ export declare const components: {
   identity: import("@vintage/identity/_generated/component.js").ComponentApi<"identity">;
   raids: import("@vintage/raids/_generated/component.js").ComponentApi<"raids">;
   coordinator: import("@vintage/coordinator/_generated/component.js").ComponentApi<"coordinator">;
+  polls: import("@vintage/polls/_generated/component.js").ComponentApi<"polls">;
   progress: import("@vintage/progress/_generated/component.js").ComponentApi<"progress">;
 };

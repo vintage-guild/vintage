@@ -21,6 +21,7 @@ Docs change **in the same PR** as the code. A stale doc is worse than none: agen
 | A foundation gap (AFD, botcore, Violet, FAST-AF, Mechanic, FenUI/FenCore) | File it upstream, link it, update PLAN.md §7.5 |
 | `vendor/` (re-synced FAST-AF) | The pinned commit in `vendor/VENDORED.md` and its "Known upstream gaps"; `pnpm check:vendor` |
 | What a member can do (a new or changed job) | A job in `docs/jtbd/<suite>.md` and its scenario in `apps/api/tests/jtbd` (`vintage-jtbd` skill) |
+| A reviewer agent, a review lane, or the PR Review section | The `vintage-review` skill and its `references/lanes.md`; the agent files in `.claude/agents/` |
 | A repeatable workflow agents keep re-deriving | Write or update a `vintage-*` skill |
 
 ## Skills

@@ -146,10 +146,10 @@ Current packages:
 | `modules/identity` | module | Members, characters, guild ranks, role → rank map, role sync planner | ✅ |
 | `modules/coordinator` | module | The raid coordinator loop on a 5-minute cron: signup posts, reminders (pings + optional DMs), officer digest, lock, final roster, addon import string; `CoordinatorAction` log | 🚧 built, tested, and run live on the test server; button clicks wait on the gateway (#10) |
 | `modules/raids` | module | Schedules (DST-safe recurrence), raid events, signups, roster groups, `comp-suggest`; emits `signup-changed` and `raid-completed` | ✅ built and tested; not yet driven by the coordinator |
-| `modules/polls` | module | Polls and ballots shared by Discord, the website, and MCP: contract, store port, memory store, pure tally (single, multi, instant-runoff ranked) | 🚧 contract, tally, and commands built and tested; not registered in apps/api until the component (#61); surfaces wait |
+| `modules/polls` | module | Polls and ballots shared by Discord, the website, and MCP: contract, store port, memory store, pure tally (single, multi, instant-runoff ranked) | 🚧 commands and Convex component built and tested, registered in apps/api, `poll-sweep` cron every 5 minutes; checked end to end on the local backend. Discord (#62) and website (#63) surfaces wait |
 | `modules/progress` | module | Raid progression: the launch raids and their (datamined) bosses as data, `kill-record` (leader), `progress-get` (member) with first kills, next target, and the latest kill's loot; `kills` component | ✅ built and tested; shown on the home page; Convex component not yet pushed to a deployment |
 | `apps/api` | app | Convex: composes components, command surface, crons | ✅ |
-| `apps/gateway` | app | Vercel functions: `/discord/interactions` (signature check, PING, `/vintage ping`; signup buttons and modals forwarded to Convex), later `/mcp` | 🚧 built and tested locally end to end; not deployed |
+| `apps/gateway` | app | Vercel functions: `/discord/interactions` (signature check, PING, `/vintage ping`; signup buttons and modals forwarded to Convex), later `/mcp` | ✅ deployed to Vercel (`vintage-gateway`) and live: real signup clicks verified 2026-10-25 |
 | `apps/web` | app | The website: Vite SPA on the FAST-AF router; home (hero, raids, and the progression ledger, with the rest of the page in progress), about/recruitment, profile, and characters pages; `data-theme` switching; self-hosted fonts. In dev, an in-memory guild behind the real registry seeds the pages through commands. Member pages are signed out until sign-in (#7); not deployed yet | 🚧 |
 | `vendor/*` | vendored | Built FAST-AF: `@lushly-dev/fast-element`, `@microsoft/fast-router`, `@lushly-dev/violet-elements`. Never edited; re-synced by script | ✅ used by `ui-kit` and `web` |
 
@@ -164,7 +164,8 @@ are enforced by `pnpm check:boundaries`; the full table is in PLAN.md §4.1.
 - **App-level tables** in `apps/api/convex/schema.ts`: `events` (the cross-module bus).
   ✅ schema · 📋 bus. The Discord role → rank map belongs to identity (`roleRanks`). ✅
 - **Crons** in `apps/api/convex/crons.ts`: role sync every 15 minutes keeps ranks and tiers in
-  step with Discord roles. ✅ (live Discord path unverified until the bot exists)
+  step with Discord roles. ✅ (live Discord path unverified until the bot exists). The poll sweep
+  every 5 minutes opens due drafts and closes due polls. ✅
 - **Every record carries `guildId`**, even though Vintage is single-guild today.
 - **Codegen** (`convex/_generated`) is committed. Regenerate with
   `pnpm --filter @vintage/api dev:local`, which runs an anonymous local backend (no account).
@@ -208,7 +209,10 @@ to area-ownership, CODEOWNERS, commitlint scopes, and the issue-form Area dropdo
 - **AGENTS.md** routes agents to commands, invariants, and skills; it stays short on purpose.
 - **Skills** in `.claude/skills/` (shared with Codex): botcore-seeded generic skills plus
   `vintage-*` project skills, loaded on demand.
-- **Reviewer agents** in `.claude/agents/`: read-only general, security, and addon reviewers.
+- **Self-review:** every PR is reviewed before its commit with the `vintage-review` skill: claims
+  first, lanes by changed path, fixes in the PR, two passes (a third only for a merge blocker),
+  recorded in the PR's Review section. Read-only reviewer agents in `.claude/agents/` (general,
+  security, addon) take lanes that need a fresh context; all share one report contract.
 - **Issues** follow the `agent-task` form (context, goal, non-goals, acceptance criteria);
   `fleet:candidate` marks work bounded enough for an agent.
 - **Attribution:** the human driving a change authors and signs off its commits; AI help is

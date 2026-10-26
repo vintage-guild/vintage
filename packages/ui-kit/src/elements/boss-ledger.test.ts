@@ -6,8 +6,9 @@ import './boss-ledger';
 afterEach(cleanup);
 
 const OPENS_ON = '2026-12-09';
-const DEC_10 = Date.UTC(2026, 11, 11, 2);
-const DEC_17 = Date.UTC(2026, 11, 18, 2);
+// Noon UTC, so the rendered day is the same from UTC-11 to UTC+11 (CI runs in UTC, dev in ET or PT).
+const DEC_10 = Date.UTC(2026, 11, 10, 12);
+const DEC_17 = Date.UTC(2026, 11, 17, 12);
 
 const boss = (id: string, name: string, firstKillAt: number | null = null, datamined = true) => ({
   id,

@@ -4,6 +4,7 @@
 import { createMemoryCoordinatorDeps } from '@vintage/coordinator/testing';
 import type { MemberSyncInput } from '@vintage/identity/commands';
 import { createMemoryIdentityDeps } from '@vintage/identity/testing';
+import { createMemoryPollsDeps } from '@vintage/polls/testing';
 import { createMemoryProgressDeps } from '@vintage/progress/testing';
 import { createMemoryRaidsDeps } from '@vintage/raids/testing';
 import { makeCaller, TEST_GUILD_ID, testRegistry } from '@vintage/testing';
@@ -165,6 +166,7 @@ describe('runRoleSync', () => {
       ...createMemoryIdentityDeps({ ...OFFICER_ROLE_MAP }),
       ...createMemoryRaidsDeps(),
       ...createMemoryCoordinatorDeps(() => ({ guildId: TEST_GUILD_ID, events: [], members: [] })),
+      ...createMemoryPollsDeps(),
       ...createMemoryProgressDeps(),
     };
     const registry = testRegistry<VintageDeps>(commands);

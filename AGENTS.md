@@ -56,6 +56,7 @@ lives in skills and module `AGENTS.md` files.
 | `vintage-discord` | Discord code, the bot, slash commands, role sync |
 | `vintage-design-tokens` | Changing tokens or styling anything (website, embeds, addon theme) |
 | `vintage-pr-workflow` | Committing, opening a PR, CI failures, CodeQL, merging |
+| `vintage-review` | Reviewing a diff: the self-review before every PR, or someone else's PR |
 | `vintage-maintain-docs` | Finishing any PR that changes behavior, structure, or setup |
 | `vintage-jtbd` | A feature changes what a member can do; validating end to end; a live run |
 

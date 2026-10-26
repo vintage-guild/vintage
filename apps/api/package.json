@@ -21,6 +21,7 @@
     "@vintage/discord-kit": "workspace:*",
     "@vintage/guild-kit": "workspace:*",
     "@vintage/identity": "workspace:*",
+    "@vintage/polls": "workspace:*",
     "@vintage/progress": "workspace:*",
     "@vintage/raids": "workspace:*",
     "@vintage/wow-data": "workspace:*",

@@ -489,6 +489,484 @@
       }
     },
     {
+      "name": "poll-cancel",
+      "description": "Cancel a draft or open poll with no result. Votes are kept for history. Shows a preview first; confirm to cancel. Raid leaders only.",
+      "tier": "leader",
+      "mutation": true,
+      "destructive": true,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pollId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "pollId"
+        ]
+      }
+    },
+    {
+      "name": "poll-close",
+      "description": "Close an open poll now and record its result. Shows the result that would be recorded first; confirm to close. The creator or a raid leader. Closing cannot be undone.",
+      "tier": "raider",
+      "mutation": true,
+      "destructive": true,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pollId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "pollId"
+        ]
+      }
+    },
+    {
+      "name": "poll-create",
+      "description": "Create a poll: a question, 2–25 options, a method (single, multi, or ranked), who may vote (eligibleTier, raider by default), and optional anonymity, hidden results, quorum, and close time. Opens at once unless open is false or opensAt is later. Raiders create polls for raiders and up; reaching members or recruits takes a raid leader, and nobody can target a tier above their own.",
+      "tier": "raider",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "options": {
+            "minItems": 2,
+            "maxItems": 25,
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "label": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 80
+                    },
+                    "emoji": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 64
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 200
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "label"
+                  ]
+                }
+              ]
+            }
+          },
+          "method": {
+            "default": "single",
+            "type": "string",
+            "enum": [
+              "single",
+              "multi",
+              "ranked"
+            ]
+          },
+          "maxChoices": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 25
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "eligibleTier": {
+            "default": "raider",
+            "type": "string",
+            "enum": [
+              "public",
+              "member",
+              "recruit",
+              "raider",
+              "leader",
+              "officer"
+            ]
+          },
+          "anonymous": {
+            "default": false,
+            "type": "boolean"
+          },
+          "resultsVisible": {
+            "default": "live",
+            "type": "string",
+            "enum": [
+              "live",
+              "after-close",
+              "officers"
+            ]
+          },
+          "quorum": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "opensAt": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "closesAt": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tags": {
+            "default": [],
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 40,
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+            }
+          },
+          "open": {
+            "default": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "question",
+          "options"
+        ]
+      }
+    },
+    {
+      "name": "poll-get",
+      "description": "One poll, your own vote, and the ballot count. The tally is included when you may see it (per the poll’s resultsVisible; officers always).",
+      "tier": "member",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pollId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "pollId"
+        ]
+      }
+    },
+    {
+      "name": "poll-list",
+      "description": "Polls you may vote on, soonest to close first. Filter by status (open by default) or tag. Each includes the ballot count; tallies are left to poll-get and poll-results.",
+      "tier": "member",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "statuses": {
+            "default": [
+              "open"
+            ],
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "open",
+                "closed",
+                "cancelled"
+              ]
+            }
+          },
+          "tag": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "poll-open",
+      "description": "Open a draft poll for voting now. The creator or a raid leader.",
+      "tier": "raider",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pollId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "pollId"
+        ]
+      }
+    },
+    {
+      "name": "poll-results",
+      "description": "The tally for a poll, and who voted for what when the poll is not anonymous. Live results show only when the poll allows it; officers always see the tally but never the voters of an anonymous poll.",
+      "tier": "member",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pollId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "pollId"
+        ]
+      }
+    },
+    {
+      "name": "poll-sweep",
+      "description": "Open drafts whose opensAt has passed and close open polls whose closesAt has passed. Safe to run repeatedly; the cron runs it every few minutes.",
+      "tier": "leader",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "poll-update",
+      "description": "Change a draft or open poll: question, description, close time, result visibility, quorum, or tags. Options can change only while nobody has voted. The creator or a raid leader.",
+      "tier": "raider",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pollId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "question": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "options": {
+            "minItems": 2,
+            "maxItems": 25,
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "label": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 80
+                    },
+                    "emoji": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 64
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 200
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "label"
+                  ]
+                }
+              ]
+            }
+          },
+          "closesAt": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "resultsVisible": {
+            "type": "string",
+            "enum": [
+              "live",
+              "after-close",
+              "officers"
+            ]
+          },
+          "quorum": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tags": {
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 40,
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+            }
+          }
+        },
+        "required": [
+          "pollId"
+        ]
+      }
+    },
+    {
       "name": "progress-get",
       "description": "The progression ledger: the three launch raids, every boss with the guild’s first-kill time (null until it dies), the next target per raid, the totals, and the latest first kill with its loot. Before the raids unlock, `open` is false and every slot is empty. Boss names flagged `datamined` come from the beta client, not from Blizzard.",
       "tier": "member",
@@ -1292,6 +1770,56 @@
           "eventId",
           "characterId",
           "status"
+        ]
+      }
+    },
+    {
+      "name": "vote-cast",
+      "description": "Vote on an open poll, or change your vote. choices are option ids: one for single polls, up to maxChoices for multi, and in preference order for ranked. One ballot per member; the same vote from Discord or the website replaces the last one.",
+      "tier": "member",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pollId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "choices": {
+            "minItems": 1,
+            "maxItems": 25,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "required": [
+          "pollId",
+          "choices"
+        ]
+      }
+    },
+    {
+      "name": "vote-retract",
+      "description": "Take back your vote on an open poll.",
+      "tier": "member",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "pollId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "pollId"
         ]
       }
     }

@@ -31,3 +31,9 @@ Thumbs.db
 
 # Upstream checkouts used to refresh vendor/ (never committed)
 .vendor-src/
+
+# Vercel CLI project link (local only)
+.vercel/
+
+.vercel
+.env*

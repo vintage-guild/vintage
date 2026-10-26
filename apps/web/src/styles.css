@@ -139,6 +139,51 @@ html[data-theme="vintage-dark"] .site-footer {
   letter-spacing: 0;
 }
 
+/* "Preview as" for leaders and officers (src/preview.ts), bottom right; loud while previewing. */
+.preview-switch {
+  position: fixed;
+  inset-block-end: calc(var(--space-sm) + env(safe-area-inset-bottom, 0px));
+  inset-inline-end: calc(var(--space-sm) + env(safe-area-inset-right, 0px));
+  z-index: 50;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+  max-inline-size: calc(100vw - 2 * var(--space-sm));
+  padding: 0.3rem 0.4rem 0.3rem 0.7rem;
+  border: var(--border-width-thin) solid var(--color-border-strong);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-surface-sunken) 92%, transparent);
+  color: var(--color-text-secondary);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  letter-spacing: var(--font-tracking-wide);
+  text-transform: uppercase;
+  box-shadow: 0 8px 20px rgb(0 0 0 / 35%);
+}
+
+.preview-switch.on {
+  border-color: var(--color-accent-secondary);
+  color: var(--color-text-primary);
+}
+
+.preview-note {
+  padding-inline-end: 0.4rem;
+  color: var(--color-accent-secondary);
+  font-size: inherit;
+}
+
+.preview-switch select {
+  border: var(--border-width-thin) solid var(--color-border-default);
+  border-radius: 999px;
+  padding: 0.2rem 0.5rem;
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  font: inherit;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
 .visually-hidden {
   position: absolute;
   inline-size: 1px;

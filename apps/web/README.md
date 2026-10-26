@@ -78,6 +78,12 @@ pnpm --filter @vintage/web build   # dist/
   isn't rendered at all, and its header link is removed (`HOME_SECTIONS`): visitors see the hero
   and recruiting, `member` tier everything but the roster. While a read is pending, its section
   says it is loading, so a slow connection never reads as "nothing here".
+- **Preview as** (`src/preview.ts`): leaders and officers get a control at the bottom right, on
+  the live site too, to see every page as a visitor, member, recruit, raider, or (for officers)
+  raid leader. `?preview=<tier>` picks one and the tab remembers it; `?preview=self` ends it.
+  The session is capped to that tier (`currentSession()`; `realSession()` is who is signed in),
+  reads above it answer `COMMAND_NOT_FOUND` by the manifest's tiers, and every action answers
+  `PREVIEW_ONLY`, so nothing is saved while previewing.
 - **First paint** (`index.html`): a small inline style paints the theme's canvas and text and hides
   the header at its own height until its element is defined, so the inline logo never flashes
   page-wide; `src/first-paint.test.ts` keeps those literal colors equal to the tokens.

@@ -11,7 +11,7 @@ import './styles.css';
 import '@vintage/ui-kit';
 import { fastRouterRegistration } from '@microsoft/fast-router';
 import { VintageRoutes } from './routes';
-import { canSignIn, currentSession, signIn, signOut } from './session';
+import { canSignIn, currentPreview, currentSession, realSession, signIn, signOut } from './session';
 import { installSectionLinks, trackScrollProgress } from './site-context';
 import { currentView, HOME_SECTIONS, type HomeSection, sectionsFor } from './view';
 
@@ -46,8 +46,19 @@ if (import.meta.env.DEV) {
   await connectLive();
 }
 
+// Leaders and officers can preview the site as a lower tier (src/preview.ts).
+if (['leader', 'officer'].includes(realSession()?.tier ?? '')) {
+  await (await import('./preview')).installPreview();
+}
+
+/** Sign in, or, while previewing as a visitor, go back to being yourself. */
+const startSignIn = (): void => {
+  if (currentPreview()) void import('./preview').then((m) => m.endPreview());
+  else signIn();
+};
+
 // The sign-in card and the header button ask; the shell starts Discord sign-in.
-document.addEventListener('sign-in-requested', () => signIn());
+document.addEventListener('sign-in-requested', () => startSignIn());
 
 const session = currentSession();
 const menu = document.getElementById('member-menu') as
@@ -73,7 +84,7 @@ if (menu && session) {
 const signInButton = document.getElementById('sign-in') as HTMLButtonElement | null;
 if (signInButton && !session && canSignIn()) {
   signInButton.hidden = false;
-  signInButton.addEventListener('click', () => signIn());
+  signInButton.addEventListener('click', () => startSignIn());
 }
 
 // Members and up get Polls in the header; visitors would only find a sign-in card there.

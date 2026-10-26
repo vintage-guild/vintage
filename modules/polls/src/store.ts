@@ -64,10 +64,14 @@ export interface PollsEventSink {
   ): Promise<void>;
 }
 
+/**
+ * Keys are prefixed so they never collide with another module's deps when apps/api merges
+ * them into one object (raids already uses `members` and `events`).
+ */
 export interface PollsDeps {
   polls: PollsStore;
-  members: PollsMembers;
-  events: PollsEventSink;
+  pollMembers: PollsMembers;
+  pollEvents: PollsEventSink;
 }
 
 export const command = commandsFor<PollsDeps>();

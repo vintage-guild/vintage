@@ -125,11 +125,11 @@ export function createRecordingEventSink(): PollsEventSink & { emitted: EmittedE
 
 export function createMemoryPollsDeps(members: Member[] = []): PollsDeps & {
   polls: ReturnType<typeof createMemoryPollsStore>;
-  events: ReturnType<typeof createRecordingEventSink>;
+  pollEvents: ReturnType<typeof createRecordingEventSink>;
 } {
   return {
     polls: createMemoryPollsStore(),
-    members: createMemoryPollsMembers(members),
-    events: createRecordingEventSink(),
+    pollMembers: createMemoryPollsMembers(members),
+    pollEvents: createRecordingEventSink(),
   };
 }

@@ -21,6 +21,8 @@ vote from the website are the same `vote-cast` command on the same poll. Design:
   feature that wants a poll creates one, tags it (`raid-night`), and reacts to `poll-closed`
   for that tag. Never import raids, coordinator, or loot here; they depend on polls, not the
   other way round. `PollOption.value` carries the caller's own data (a start time) opaquely.
+- **Deps keys are prefixed** (`polls`, `pollMembers`, `pollEvents`). apps/api merges every
+  module's deps into one object, so a generic key like `members` would collide with raids.
 - **One ballot per member per poll.** Changing your vote replaces it; the store refuses a
   second insert.
 - **Anonymous means every surface.** For an anonymous poll no command result, render, or event

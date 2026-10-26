@@ -645,7 +645,7 @@ Allow/deny lists (no force push, no reading `.env`), `PreToolUse` hooks for safe
 |---|---|---|
 | Session | `do-init-vintage` → `do-prepare-pr` → `do-end-session` | One contributor (human or agent) taking a change from start to PR |
 | Backlog | `do-sweep` → `do-triage` → `do-run-fleet` | Find work, label and route it, then let agent fleets claim and complete it |
-| Review | `pnpm review:lanes` (max 2 passes), `do-address-pr-feedback` | Pre-PR review lanes, then responding to reviewers |
+| Review | `vintage-review` lanes before the commit (max 2 passes), `do-review`, `do-address-pr-feedback` | Pre-PR self-review, then responding to reviewers ([plan](docs/features/proposed/pr-self-review/pr-self-review.plan.md)) |
 
 - **Triage** picks up unassigned, unlabeled issues, applies type/priority/area labels, and either marks them `fleet:candidate` or assigns a human owner via `area-ownership.json`.
 - **Fleet** claims issues with `fleet:in-progress` (plus a lease so stale claims expire), works up to ~3 issues in one area per PR, and supports local and cloud modes.

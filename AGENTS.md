@@ -14,6 +14,7 @@ lives in skills and module `AGENTS.md` files.
 - **The plan (architecture, phases, open questions):** [PLAN.md](PLAN.md)
 - **Local validation:** [docs/operations/local-validation.md](docs/operations/local-validation.md)
 - **Feature docs:** [docs/features/README.md](docs/features/README.md)
+- **End-to-end jobs (JTBD):** [docs/jtbd/README.md](docs/jtbd/README.md)
 
 ## Commands
 
@@ -55,6 +56,7 @@ lives in skills and module `AGENTS.md` files.
 | `vintage-design-tokens` | Changing tokens or styling anything (website, embeds, addon theme) |
 | `vintage-pr-workflow` | Committing, opening a PR, CI failures, CodeQL, merging |
 | `vintage-maintain-docs` | Finishing any PR that changes behavior, structure, or setup |
+| `vintage-jtbd` | A feature changes what a member can do; validating end to end; a live run |
 
 ## Commits and attribution
 

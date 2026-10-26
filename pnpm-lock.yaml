@@ -87,6 +87,9 @@ importers:
       '@types/node':
         specifier: ^24.10.0
         version: 24.19.2
+      '@vintage/bridge-format':
+        specifier: workspace:*
+        version: link:../../libs/bridge-format
       '@vintage/config':
         specifier: workspace:*
         version: link:../../packages/config

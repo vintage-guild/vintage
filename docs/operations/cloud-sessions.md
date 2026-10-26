@@ -77,7 +77,12 @@ lefthook hooks are installed by `pnpm install`, so `pre-push` still runs `pnpm v
 ## Lockfile registry
 
 `pnpm-lock.yaml` must not pin tarball URLs to a private feed: cloud sessions (and anyone without
-access) can't download them. If `pnpm install` on a machine with a corporate npm mirror adds
-`tarball:` fields, strip them before committing; pnpm then builds URLs from whatever registry
-each machine is configured with. A session that hits this reports
+access) can't download them. `pnpm install` on a machine with a corporate npm mirror adds
+`tarball:` fields for new packages, and `pnpm check:lockfile` (part of `validate:final` and CI)
+fails on them. Strip them before committing; pnpm then builds URLs from whatever registry each
+machine is configured with:
+
+```bash
+sed -i -E 's#, tarball: https://[^}]*\}#}#' pnpm-lock.yaml
+``` A session that hits this reports
 `pnpm install failed` from the SessionStart hook.

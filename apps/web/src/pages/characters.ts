@@ -1,5 +1,5 @@
 import { FASTElement, html, when } from '@lushly-dev/fast-element';
-import { currentSession, SIGN_IN_HREF } from '../session';
+import { canSignIn, currentSession } from '../session';
 import { pageStyles } from './page-styles';
 
 const template = html<Page>`
@@ -8,7 +8,7 @@ const template = html<Page>`
     ${when(
       () => !currentSession(),
       html`
-        <vintage-sign-in-card heading="Your characters" href="${() => SIGN_IN_HREF}">
+        <vintage-sign-in-card heading="Your characters" ?available="${() => canSignIn()}">
           Sign in with Discord to register your main and alts for raid signups.
         </vintage-sign-in-card>
       `,

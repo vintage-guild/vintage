@@ -6,10 +6,10 @@ const template = html<VintageSignInCard>`
     <h2 slot="header" class="title" part="title">${(x) => x.heading}</h2>
     <p class="body" part="body"><slot>Sign in with Discord to see your profile and characters.</slot></p>
     <div slot="footer" class="footer">
-      <violet-button appearance="primary" ?disabled="${(x) => !x.href}" @click="${(x) => x.signIn()}">
+      <violet-button appearance="primary" ?disabled="${(x) => !x.available}" @click="${(x) => x.signIn()}">
         Sign in with Discord
       </violet-button>
-      <span class="note" part="note">${(x) => (x.href ? '' : x.unavailable)}</span>
+      <span class="note" part="note">${(x) => (x.available ? '' : x.unavailable)}</span>
     </div>
   </violet-card>
 `;
@@ -54,12 +54,14 @@ const styles = css`
 `;
 
 /**
- * What a member page shows to a signed-out visitor. With no `href` the button is disabled and
- * the `unavailable` note explains why; Discord sign-in (#7) supplies the href.
+ * What a member page shows to a signed-out visitor. The button raises `sign-in-requested`
+ * (bubbling out of shadow roots) and the app starts Discord sign-in; ui-kit never sees the auth
+ * client. Without `available` the button is disabled and the `unavailable` note explains why.
  *
  * @tagname vintage-sign-in-card
  * @summary Signed-out placeholder with the Discord sign-in button.
  * @slot - Why signing in is needed on this page.
+ * @fires sign-in-requested - The visitor pressed "Sign in with Discord".
  * @csspart card - The violet-card surface.
  * @csspart title - The heading.
  * @csspart body - The explanation.
@@ -67,13 +69,13 @@ const styles = css`
  */
 export class VintageSignInCard extends FASTElement {
   @attr heading = 'Members only';
-  /** Where the sign-in button goes. Empty disables it. */
-  @attr href = '';
-  /** The note shown while there's no sign-in href. */
-  @attr unavailable = 'Discord sign-in is coming soon.';
+  /** Whether sign-in can start here; without it the button is disabled. */
+  @attr({ mode: 'boolean' }) available = false;
+  /** The note shown while sign-in isn't available. */
+  @attr unavailable = 'Discord sign-in isn’t connected here.';
 
   signIn(): void {
-    if (this.href) window.location.assign(this.href);
+    if (this.available) this.$emit('sign-in-requested');
   }
 }
 

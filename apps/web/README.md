@@ -12,8 +12,8 @@ pnpm --filter @vintage/web build   # dist/
 |---|---|
 | `/` | Home, one page of sections ([feature plan](../../docs/features/active/home-page/home-page.plan.md)): the hero (identity pills, headline, figures from `member-list` and `progress-get`); **Raids** (the next raid as a `vintage-signup-card` with the member's own answer via `signup-set`, the rest of the calendar from `raid-list`); **Progress** (`vintage-boss-ledger` from `progress-get`); **Recruiting** (a cream band with the open roles, content in `src/content/recruiting.ts` until a `site` module owns it); **Roster** (`vintage-roster-wall` from `member-list`); **News** (the coordinator's log from `coordinator-log` per upcoming raid, and the first open poll from `poll-list` / `poll-get` as a `vintage-poll-card` that votes through `vote-cast`) |
 | `/about` | About and recruitment (placeholder copy until the `site` module) |
-| `/profile` | Member profile; signed out until Discord sign-in (#7) |
-| `/characters` | Character registration; signed out until #7, then `vintage-character-form` |
+| `/profile` | Member profile; a sign-in card when signed out |
+| `/characters` | Character registration; a sign-in card when signed out, then `vintage-character-form` |
 | `/officers` | The officers' quarters, for leaders and officers (others get a sign-in card or a note): the Tonight tab (`vintage-tonight`) over `raid-list`, `signup-list`, `comp-suggest`, `coordinator-status`, the roster commands, and `addon-import-get`; the other tabs are listed and disabled until built |
 | `/ui` | Dev only: every ui-kit element (and the theme switch), for checking both themes |
 
@@ -27,9 +27,20 @@ pnpm --filter @vintage/web build   # dist/
   takes the click before the router, scrolls on the home page, and from another page navigates
   home and scrolls once it mounts. The same module puts the section in view on the header and
   marks its nav link, and keeps the progress line in step with scroll.
-- **The member menu** (`vintage-member-menu`) shows the session's avatar, name, and rank with
-  Profile and Characters links. `Session.avatarUrl` is where Discord's avatar goes once sign-in
-  (#7) supplies it; the dev fixtures use a generated initial.
+- **The member menu** (`vintage-member-menu`) shows the session's Discord avatar, name, and
+  rank with Profile and Characters links, and Sign out when signed in for real. Signed out, the
+  header shows a Sign in button instead. The dev fixtures use a generated initial and no sign-out.
+- **Sign-in** (`src/connect.ts`) goes through
+  [`@vintage/web-session`](../../packages/web-session/README.md): Discord sign-in, the session,
+  and the `CommandClient` over Convex. The shell waits for the first known session (including
+  the return from Discord) before the router mounts a page, then reloads when who is signed in
+  or their tier changes, so the page is composed for them; a new time zone just updates the
+  session. Tab focus re-reads the session for rank changes from role sync. The sign-in card and
+  the header button raise `sign-in-requested` and the shell answers, so ui-kit never sees the
+  auth client. Someone signed in with Discord who isn't in the guild's server has no member id
+  and is `public`, so they see the storefront. The server is production
+  (`PROD_CONVEX_URL`) unless `VITE_CONVEX_URL` says otherwise; if it can't be reached the site
+  stays up, signed out.
 - **Fonts** are self-hosted from Fontsource (Bitter variable for display, IBM Plex Sans and
   Mono), imported in `src/main.ts`; the families are design tokens.
 - **Art** (`public/art/`, Bloodfen's generated pieces, used with permission; not covered by the
@@ -50,10 +61,12 @@ pnpm --filter @vintage/web build   # dist/
   for the tab and set by the floating "View as" control; the default is Bloodfen, a flex raider,
   and visitor signs in nobody and runs commands as a public caller. No kills are seeded (today
   is before the raids unlock), so the ledger shows the pre-launch state; `/ui` shows a raiding
-  one. Pages read through the normal `CommandClient`, so swapping to Convex changes `main.ts`,
-  not the pages. Production stays on the stub client until sign-in (#7) and a hosted
-  deployment exist.
-- `src/session.ts` is the sign-in seam: `currentSession()` is null until sign-in sets it.
+  one. Pages read through the normal `CommandClient`, the same one the live server answers.
+  `?as=live` uses the real server and Discord sign-in from the dev server instead: real
+  members, and production data (production's `SITE_URL` allows http://localhost:5173).
+  Production builds always connect to the server and leave the fixtures out.
+- `src/session.ts` is the sign-in seam: `currentSession()`, and `signIn` / `signOut` /
+  `refreshSession`, which do nothing until a backend installs handlers (`canSignIn()`).
 - **Views** (`src/view.ts`, [feature plan](../../docs/features/active/role-aware-views/role-aware-views.plan.md)):
   the home page composes by the session's tier. Visitors get the storefront; members, recruits,
   and raiders get a compact hero with their own figures, "Your next raid" on top, and

@@ -229,6 +229,12 @@ New jobs for [docs/jtbd](../../../jtbd/README.md), each as a scenario test and a
 - Phone: the room fits at 375 px without sideways scroll, but each signup row stacks to about
   140 px, so a forty-player list is long. A compact row is worth doing once officers use it.
 
+**Pass 4 (2026-10-26): real sessions.** Discord sign-in is wired (`apps/web/src/connect.ts` over
+`@vintage/web-session`), so the views now follow the signed-in member, not just the dev switch.
+The page reloads when who is signed in or their tier changes, which keeps the compose-once
+design. Someone signed in with Discord who isn't in the server is `public` and gets the
+storefront. The dev switch gained `live` for the real server.
+
 ## Tasks
 
 - [x] `view` from the session; home page composes by view; dev fixture switch

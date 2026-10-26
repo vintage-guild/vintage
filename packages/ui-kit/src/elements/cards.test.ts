@@ -20,16 +20,25 @@ describe('vintage-logo-header', () => {
 });
 
 describe('vintage-sign-in-card', () => {
-  it('is disabled with a note while there is no sign-in href', async () => {
+  it('is disabled with a note while sign-in is not available, and asks for nothing', async () => {
     const el = await mount<VintageSignInCard>('<vintage-sign-in-card></vintage-sign-in-card>');
     expect(el.shadowRoot!.querySelector('violet-button')?.hasAttribute('disabled')).toBe(true);
-    expect(shadowText(el)).toContain('Discord sign-in is coming soon.');
+    expect(shadowText(el)).toContain('Discord sign-in isn’t connected here.');
+    const asked: Event[] = [];
+    document.addEventListener('sign-in-requested', (e) => asked.push(e));
+    el.signIn();
+    expect(asked).toEqual([]);
   });
 
-  it('enables the button once an href is set', async () => {
+  it('when available, asks the app to sign in with an event that leaves the shadow root', async () => {
     const el = await mount<VintageSignInCard>(
-      '<vintage-sign-in-card href="/auth/discord"></vintage-sign-in-card>',
+      '<vintage-sign-in-card available></vintage-sign-in-card>',
     );
     expect(el.shadowRoot!.querySelector('violet-button')?.hasAttribute('disabled')).toBe(false);
+    const asked: Event[] = [];
+    document.addEventListener('sign-in-requested', (e) => asked.push(e), { once: true });
+    el.signIn();
+    expect(asked).toHaveLength(1);
+    expect(asked[0]?.composed).toBe(true);
   });
 });

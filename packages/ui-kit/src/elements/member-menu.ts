@@ -125,7 +125,8 @@ const styles = css`
   }
 
   .panel a,
-  ::slotted(a) {
+  ::slotted(a),
+  ::slotted(button) {
     padding: var(--space-xs) var(--space-sm);
     border-radius: 0.25rem;
     color: var(--color-text-primary);
@@ -135,7 +136,8 @@ const styles = css`
   }
 
   .panel a:hover,
-  ::slotted(a:hover) {
+  ::slotted(a:hover),
+  ::slotted(button:hover) {
     background: color-mix(in srgb, var(--color-text-primary) 8%, transparent);
   }
 

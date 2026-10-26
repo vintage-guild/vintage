@@ -79,6 +79,8 @@ describe('vintage-roster-wall', () => {
       'color: var(--color-class-warrior)',
     );
     expect(shadowText(el)).toContain('no character yet');
+    // Class and role, not spec: Forever's specs are fuzzy.
+    expect(you.querySelector('small')?.textContent).toBe('Warrior · Tank');
   });
 });
 

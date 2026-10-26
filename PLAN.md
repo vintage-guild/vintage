@@ -703,7 +703,7 @@ Phase 0 has about ten days and one maintainer, so it is cut to the minimum that 
 - [x] `libs/design-tokens`: `afd-site` + `vintage` nodes exporting CSS/TS as-is (no reskin yet); `docs/design/` forked from the AFD site Includes the emblem palette and a FenUI Lua theme (#45); `docs/design/` still to do.
 - [x] FAST-AF vendored in `vendor/` (fast-element, fast-router, violet-elements), pinned to a commit
 - [ ] `packages/ui-kit` on FAST-AF + `violet-elements` (vendored): sign-in, profile, and character components with `@command`; Custom Elements Manifest in CI Built: logo header, badges, character form (`@command` → `character-add`), signup and sign-in cards, CEM checked in CI; the command client is stubbed until sign-in (#7) and Convex are wired.
-- [ ] `apps/web`: shell on the FAST-AF Router, public about/recruitment page, member profile + characters, deployed to Vercel Shell, routes, theme switching, and Discord sign-in built; deployed to Vercel (`vintage-web`, https://vintage-web-pi.vercel.app) from the CLI; per-push deploys wait on the GitHub app; profile and characters pages still thin.
+- [ ] `apps/web`: shell on the FAST-AF Router, public about/recruitment page, member profile + characters, deployed to Vercel Shell, routes, theme switching, and Discord sign-in built; deployed to Vercel (`vintage-web`, https://vintage-web-pi.vercel.app) on every push to `main` with PR previews; profile and characters pages still thin.
 - [ ] Discord application created ✅; `/discord/interactions` built and tested (#43), **not yet deployed or verified by Discord**
 
 **Done when:** a guildie signs in with Discord, sees the tier matching their Discord role, adds characters, and an officer's agent lists members over MCP from Claude or the CLI.

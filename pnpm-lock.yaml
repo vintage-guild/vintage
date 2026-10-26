@@ -12,6 +12,9 @@ catalogs:
     convex:
       specifier: ^1.47.0
       version: 1.47.0
+    fast-check:
+      specifier: ^4.10.2
+      version: 4.10.2
     typescript:
       specifier: npm:@typescript/typescript6@^6.0.2
       version: 6.0.2
@@ -103,6 +106,25 @@ importers:
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
+      typescript:
+        specifier: 'catalog:'
+        version: '@typescript/typescript6@6.0.2'
+
+  libs/comp-solver:
+    dependencies:
+      '@vintage/wow-data':
+        specifier: workspace:*
+        version: link:../wow-data
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.7
+    devDependencies:
+      '@vintage/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      fast-check:
+        specifier: 'catalog:'
+        version: 4.10.2
       typescript:
         specifier: 'catalog:'
         version: '@typescript/typescript6@6.0.2'
@@ -1038,6 +1060,10 @@ packages:
     resolution: {integrity: sha1-JO338MxppE0AhWe6RZSrlvPDo9Y=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/expect-type/-/expect-type-1.4.0.tgz}
     engines: {node: '>=12.0.0'}
 
+  fast-check@4.10.2:
+    resolution: {integrity: sha512-iK2f+YrcmoeGqk6fA0ea2bptcu/itMIm4NfEozq6N25+aG6h7s5HZbB/k1aV7b5w5sFLMCbbtRUsTVR+BgC3xw==, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/fast-check/-/fast-check-4.10.2.tgz}
+    engines: {node: '>=12.17.0'}
+
   fast-deep-equal@3.1.3:
     resolution: {integrity: sha1-On1WtVnWy8PrUSMlJE5hmmXGxSU=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/fast-deep-equal/-/fast-deep-equal-3.1.3.tgz}
 
@@ -1305,6 +1331,9 @@ packages:
     resolution: {integrity: sha512-skGHTH1Yb9QvaTC4hWnRTzEYtCpApF0UMBPz+t/0ZPzP8ihefo/btKd+QA7pUE0fEwA1SbS/NmhyEcstdXOIdA==, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/prettier/-/prettier-3.9.10.tgz}
     engines: {node: '>=14'}
     hasBin: true
+
+  pure-rand@8.4.2:
+    resolution: {integrity: sha1-yDpyhLoG/oDiLQQHfEjNk9vs2IM=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/pure-rand/-/pure-rand-8.4.2.tgz}
 
   require-from-string@2.0.2:
     resolution: {integrity: sha1-iaf92TgmEmcxjq/hT5wy5ZjDaQk=, tarball: https://ms-feed-25.pkgs.visualstudio.com/1es-public/_packaging/npm-public/npm/registry/require-from-string/-/require-from-string-2.0.2.tgz}
@@ -2155,6 +2184,10 @@ snapshots:
 
   expect-type@1.4.0: {}
 
+  fast-check@4.10.2:
+    dependencies:
+      pure-rand: 8.4.2
+
   fast-deep-equal@3.1.3: {}
 
   fast-uri@3.1.8: {}
@@ -2356,6 +2389,8 @@ snapshots:
       source-map-js: 1.2.2
 
   prettier@3.9.10: {}
+
+  pure-rand@8.4.2: {}
 
   require-from-string@2.0.2: {}
 

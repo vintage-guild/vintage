@@ -135,6 +135,7 @@ Current packages:
 | Package | Layer | What it is | Status |
 |---|---|---|---|
 | `libs/wow-data` | lib | Classes, specs, raid roles | ✅ |
+| `libs/comp-solver` | lib | Raid-comp scoring: selected roster, bench, and gaps with reasons, from signups, raid size, and a role/buff template (`solveComp`) | ✅ built and tested; `comp-suggest` waits on the raids module (#15) |
 | `libs/discord-kit` | lib | Interaction signature verification, response/embed/component builders, timestamps, rate-limit-aware REST client | ✅ |
 | `libs/design-tokens` | lib | DTCG token nodes and exporters: CSS themes, TS map (`discordColor`), FenUI Lua theme | ✅ |
 | `packages/guild-kit` | package | Commands, tiers, registry, confirm tokens, manifest | ✅ |

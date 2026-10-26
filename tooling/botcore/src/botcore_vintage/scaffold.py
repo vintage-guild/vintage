@@ -184,6 +184,117 @@ export default defineSchema({});
     }
 
 
+# Shared repo files that list every module. Each register function edits one file in place,
+# inserting a single line in the file's existing style, and returns the new text, the same
+# text when the module is already listed, or None when it can't find where the line goes.
+
+
+def _insert_line(lines: list[str], index: int, line: str) -> str:
+    return "".join([*lines[:index], line, *lines[index:]])
+
+
+def _register_ownership(name: str, owner: str):
+    def register(text: str) -> str | None:
+        try:
+            if name in json.loads(text).get("areas", {}):
+                return text
+        except ValueError:
+            return None
+        lines = text.splitlines(keepends=True)
+        anchors = [i for i, ln in enumerate(lines) if '"paths": ["modules/' in ln]
+        if not anchors:
+            return None
+        anchor = lines[anchors[-1]].rstrip()
+        indent = anchor[: len(anchor) - len(anchor.lstrip())]
+        last = not anchor.endswith(",")
+        if last:  # the new entry becomes the last one
+            lines[anchors[-1]] = f"{anchor},\n"
+        entry = f'"{name}": {{ "paths": ["modules/{name}/"], "owners": [{json.dumps(owner)}] }}'
+        line = f"{indent}{entry}{'' if last else ','}\n"
+        updated = _insert_line(lines, anchors[-1] + 1, line)
+        try:
+            json.loads(updated)  # the insertion must leave valid JSON
+        except ValueError:
+            return None
+        return updated
+
+    return register
+
+
+def _register_codeowners(name: str, owner: str):
+    def register(text: str) -> str | None:
+        lines = text.splitlines(keepends=True)
+        if any(ln.split()[:1] == [f"modules/{name}/"] for ln in lines):
+            return text
+        anchors = [i for i, ln in enumerate(lines) if ln.startswith("modules/")]
+        if not anchors:
+            return None
+        return _insert_line(lines, anchors[-1] + 1, f"modules/{name}/ {owner}\n")
+
+    return register
+
+
+def _register_scope(name: str):
+    def register(text: str) -> str | None:
+        if f"'{name}'" in text:
+            return text
+        lines = text.splitlines(keepends=True)
+        start = next((i for i, ln in enumerate(lines) if ln.strip() == "// modules"), None)
+        if start is None:
+            return None
+        end = next(
+            (i for i in range(start + 1, len(lines)) if not lines[i].strip().startswith("'")),
+            None,
+        )
+        if end is None or end == start + 1:
+            return None
+        indent = lines[start][: len(lines[start]) - len(lines[start].lstrip())]
+        return _insert_line(lines, end, f"{indent}'{name}',\n")
+
+    return register
+
+
+AREA_OPTIONS = re.compile(r"^(?P<lead>\s*options:\s*\[)(?P<items>[^\]]*)\]\s*$")
+
+
+def _register_area_option(name: str):
+    def register(text: str) -> str | None:
+        lines = text.splitlines(keepends=True)
+        label = next((i for i, ln in enumerate(lines) if ln.strip() == "label: Area"), None)
+        if label is None:
+            return None
+        for i in range(label + 1, min(label + 4, len(lines))):
+            match = AREA_OPTIONS.match(lines[i])
+            if not match:
+                continue
+            items = [item.strip() for item in match["items"].split(",")]
+            if name in items:
+                return text
+            # Modules come first; insert after them, before the first package or app area.
+            at = items.index("guild-kit") if "guild-kit" in items else len(items)
+            items.insert(at, name)
+            lines[i] = f"{match['lead']}{', '.join(items)}]\n"
+            return "".join(lines)
+        return None
+
+    return register
+
+
+def _registrations(name: str, owner: str):
+    """(path, register, manual step if it fails) for each shared file that lists modules."""
+    templates = [f".github/ISSUE_TEMPLATE/{t}.yml" for t in ("agent-task", "bug", "feature-task")]
+    return [
+        (
+            ".github/area-ownership.json",
+            _register_ownership(name, owner),
+            f'add "{name}": {{ "paths": ["modules/{name}/"], "owners": ["{owner}"] }}',
+        ),
+        (".github/CODEOWNERS", _register_codeowners(name, owner), f"add modules/{name}/ {owner}"),
+        ("commitlint.config.mjs", _register_scope(name), f"add '{name}' to scope-enum"),
+        *((t, _register_area_option(name), f"add {name} to the Area dropdown") for t in templates),
+    ]
+
+
 def scaffold_module(
     root: Path, name: str, maturity: str = "labs", owner: str = "@Falkicon"
 ) -> ScaffoldResult:
@@ -205,17 +316,21 @@ def scaffold_module(
         path.write_text(content, encoding="utf-8", newline="\n")
         result.files.append(path)
 
-    ownership = root / ".github" / "area-ownership.json"
-    if ownership.exists():
-        data = json.loads(ownership.read_text(encoding="utf-8"))
-        data.setdefault("areas", {})[name] = {"paths": [f"modules/{name}/"], "owners": [owner]}
-        ownership.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8", newline="\n")
-        result.files.append(ownership)
+    manual: list[str] = []
+    for relative, register, step in _registrations(name, owner):
+        path = root / relative
+        text = path.read_text(encoding="utf-8") if path.exists() else None
+        updated = register(text) if text is not None else None
+        if updated is None:
+            manual.append(f"{relative}: {step}")
+        elif updated != text:
+            path.write_text(updated, encoding="utf-8", newline="\n")
+            result.files.append(path)
 
     camel = _camel(name)
     result.next_steps = [
         "pnpm install",
-        f"Add '{name}' to scope-enum in commitlint.config.mjs",
+        *manual,
         f"apps/api/convex/convex.config.ts: app.use({camel}) from '@vintage/{name}/convex.config'",
         f"apps/api/src/registry.ts: add {camel}Commands and extend VintageDeps",
         "apps/api/convex/stores.ts + commands.ts: adapt the store to components."

@@ -37,7 +37,9 @@ async def vintage_module_new(name: str, maturity: str = "labs", owner: str = "@F
     """Scaffold a new Vintage module under modules/<name> (PLAN §4.2).
 
     Creates a package with a contract, store port, one working command, memory store, test,
-    Convex component, and AGENTS.md, and registers it in .github/area-ownership.json.
+    Convex component, and AGENTS.md, and registers it in .github/area-ownership.json, CODEOWNERS,
+    the commitlint scope-enum, and the issue-form Area dropdowns (or lists any it can't edit
+    in next_steps).
 
     Args:
         name: Kebab-case module name, e.g. "raids" or "loot-council".

@@ -5,11 +5,14 @@
 //   3. libs stay platform-free
 //   4. module package.json `exports` expose only the public subpaths
 //   5. no relative import escapes its package
-import { dirname, resolve } from 'node:path';
+//   6. module.json `dependsOn` matches the modules in the module's package.json
+import { existsSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import {
   importsOf,
   LAYER_RANK,
   ROOT,
+  readJson,
   rel,
   sourceFiles,
   workspacePackages,
@@ -76,6 +79,28 @@ function checkModuleExports(p) {
     .map((key) => `${p.name}: export "${key}" is not a public module subpath`);
 }
 
+/** Rule 6: module.json `dependsOn` names exactly the modules package.json depends on. */
+function checkDependsOn(p, byName) {
+  if (p.layer !== 'modules') return [];
+  const manifest = join(p.dir, 'module.json');
+  if (!existsSync(manifest)) return [`${p.name}: missing module.json`];
+  const declared = new Set(readJson(manifest).dependsOn ?? []);
+  const actual = new Set(
+    Object.keys(allDeps(p))
+      .map((name) => byName.get(name))
+      .filter((dep) => dep && dep.name !== p.name && dep.layer === 'modules')
+      .map((dep) => dep.folder),
+  );
+  return [
+    ...[...actual]
+      .filter((m) => !declared.has(m))
+      .map((m) => `${p.name}: depends on module "${m}" but module.json dependsOn omits it`),
+    ...[...declared]
+      .filter((m) => !actual.has(m))
+      .map((m) => `${p.name}: module.json dependsOn lists "${m}" but package.json does not`),
+  ];
+}
+
 /** Rules 2, 3, 5: what a single import specifier is allowed to reach. */
 function checkImport(p, file, spec, byName, root) {
   const where = `${rel(file, root)} imports "${spec}"`;
@@ -117,6 +142,7 @@ export function checkBoundaries(root = ROOT) {
       ...checkName(p, root),
       ...checkDependencyDirection(p, byName),
       ...checkModuleExports(p),
+      ...checkDependsOn(p, byName),
       ...checkImports(p, byName, root),
     ]),
     ...findCycles(packages, byName),

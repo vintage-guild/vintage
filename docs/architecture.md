@@ -184,14 +184,14 @@ are enforced by `pnpm check:boundaries`; the full table is in PLAN.md §4.1.
 | Gate | Command | Catches |
 |---|---|---|
 | Lint / format | `pnpm lint` | Biome rules, import order, complexity |
-| Boundaries | `pnpm check:boundaries` | Upward deps, cross-module internals, escaping imports, cycles |
+| Boundaries | `pnpm check:boundaries` | Upward deps, cross-module internals, escaping imports, cycles, `module.json` `dependsOn` out of sync with `package.json` |
 | Agent docs | `pnpm check:agent-docs` | AGENTS.md budget, broken links, missing skills or module docs |
 | Vendor | `pnpm check:vendor` | `vendor/` pin and VENDORED.md disagree, missing LICENSE, tests or maps copied in |
 | Manifest | `pnpm check:manifest` | Stale `commands.manifest.json` |
 | Lockfile | part of `validate:final` | Stale `pnpm-lock.yaml` |
 | Types and tests | `pnpm type-check`, `pnpm test:run` | TypeScript 6 (`tsc6`), Vitest |
 | Build | `pnpm build` | `apps/web` Vite build; ui-kit Custom Elements Manifest missing an element or `@command` |
-| Gate self-tests | `pnpm check:scripts` | The CI selection, contract-break, DCO, and PR-title logic |
+| Gate self-tests | `pnpm check:scripts` | The CI selection, boundaries, contract-break, DCO, and PR-title logic |
 
 CI runs a `select` job that decides which lanes a change needs (TS, contract, addon, botcore,
 workflow contracts), then a single required check, **`ci-ok`**, that fails if any owed lane
@@ -199,7 +199,8 @@ didn't pass. `select` also verifies PR commit sign-offs and the PR title. Locall
 `pnpm validate:final` runs the same gates; the pre-push hook runs it for you.
 
 botcore's `vintagebot` exposes repo commands to people, CI, and agents:
-`vintagebot module-new <name>` scaffolds a module that already passes every gate.
+`vintagebot module-new <name>` scaffolds a module that already passes every gate and adds it
+to area-ownership, CODEOWNERS, commitlint scopes, and the issue-form Area dropdowns.
 
 ## Agent-native workflow
 

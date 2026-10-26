@@ -38,6 +38,9 @@ describe('vintage-signup-card', () => {
     expect(text).toContain('Launch night');
     expect(text).toContain('27 Going');
     expect(text).toContain('4 Tanks');
+    expect(
+      [...el.shadowRoot!.querySelectorAll('.counts span')].map((s) => s.textContent?.trim()),
+    ).toEqual(['Going', 'Tanks', 'Healers', 'DPS', 'Tentative']);
     expect(text).toContain('as Bloodfen · Protection');
     expect(el.shadowRoot!.querySelector('time')?.getAttribute('datetime')).toBe(
       '2026-11-05T01:00:00Z',

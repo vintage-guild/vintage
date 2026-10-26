@@ -46,4 +46,9 @@ pnpm --filter @vintage/web build   # dist/
   not the pages. Production stays on the stub client until sign-in (#7) and a hosted
   deployment exist.
 - `src/session.ts` is the sign-in seam: `currentSession()` is null until sign-in sets it.
+- **Times** (`src/dates.ts`) always show their zone, in the member's profile zone when they
+  have set one (`member-prefs-set timezone`), else the browser's. The hero's "8 pm ET" pill is
+  the guild's stated time; the cards show the viewer's.
+- **Discord invite:** `DISCORD_INVITE_URL` in `src/content/recruiting.ts`, null until the GM
+  sets it; the calls to action then point at the recruiting band.
 - Not deployed yet: Vercel needs its GitHub app installed on the org first.

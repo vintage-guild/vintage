@@ -26,8 +26,9 @@ export interface FixtureMember {
   rank: Exclude<GuildRank, 'friend'>;
 }
 
-/** The signed-in member during development. */
+/** The signed-in member during development, and the time zone in their profile. */
 export const FIXTURE_ME = 'Bloodfen';
+export const FIXTURE_TIMEZONE = 'America/New_York';
 
 export const MEMBERS: readonly FixtureMember[] = [
   { name: 'Stridulent', class: 'warrior', spec: 'protection', role: 'tank', rank: 'officer' },

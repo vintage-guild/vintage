@@ -86,8 +86,8 @@ function slotView(
   return { boss, state, tip, date };
 }
 
-function tallyOf(killed: number, total: number, open: boolean, opensLabel: string): string {
-  if (!open) return opensLabel;
+/** "k / n" (the unlock date is said once, by the page, not on every closed row). */
+function tallyOf(killed: number, total: number): string {
   return killed === total ? `${killed} / ${total} · cleared` : `${killed} / ${total}`;
 }
 
@@ -138,9 +138,14 @@ const template = html<VintageBossLedger>`
                       (s) => s.state === 'killed',
                       html<SlotView>`<span class="mark">${check}</span><span class="date">${(s) => s.date}</span>`,
                     )}
+                    ${when(
+                      (s) => s.state !== 'killed',
+                      html<SlotView>`<span class="index" aria-hidden="true">${(_, c) => c.index + 1}</span>`,
+                    )}
                     <span class="tip" role="tooltip" aria-hidden="true">${(s) => s.tip}</span>
                   </li>
                 `,
+                { positioning: true },
               )}
             </ol>
           </li>
@@ -342,6 +347,18 @@ const styles = css`
     border-style: dotted;
   }
 
+  .index {
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    opacity: 0.7;
+  }
+
+  .slot.next .index {
+    color: var(--color-verdigris-200);
+    opacity: 1;
+  }
+
   .slot.next {
     border-style: dashed;
     border-color: var(--color-verdigris-400);
@@ -500,7 +517,7 @@ export class VintageBossLedger extends FASTElement {
       return {
         raid,
         killed,
-        tally: tallyOf(killed, raid.bosses.length, open, opensLabel),
+        tally: tallyOf(killed, raid.bosses.length),
         slots: raid.bosses.map((boss) => slotView(boss, open, nextId, opensLabel)),
       };
     });

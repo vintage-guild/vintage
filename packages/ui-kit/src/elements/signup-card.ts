@@ -153,7 +153,7 @@ const styles = css`
 
   .counts {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(5rem, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(4.25rem, 1fr));
     gap: var(--space-xs);
   }
 
@@ -309,6 +309,8 @@ export class VintageSignupCard extends FASTElement {
   @attr({ attribute: 'character-id' }) characterId = '';
   /** How that character is shown, e.g. "Bloodfen · Protection". */
   @attr({ attribute: 'character-label' }) characterLabel = '';
+  /** IANA zone to show the start time in; empty uses the viewer's. The zone is always shown. */
+  @attr({ attribute: 'time-zone' }) timeZone = '';
 
   @observable counts: SignupCounts = EMPTY_COUNTS;
   @observable busy = false;
@@ -323,27 +325,40 @@ export class VintageSignupCard extends FASTElement {
     const raw = /^\d+$/.test(this.startsAt) ? Number(this.startsAt) : this.startsAt;
     const date = new Date(raw);
     if (!this.startsAt || Number.isNaN(date.getTime())) return 'Time to be announced';
-    return date.toLocaleString(undefined, {
+    const options: Intl.DateTimeFormatOptions = {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
-    });
+      timeZoneName: 'short',
+    };
+    try {
+      return date.toLocaleString(
+        undefined,
+        this.timeZone ? { ...options, timeZone: this.timeZone } : options,
+      );
+    } catch {
+      return date.toLocaleString(undefined, options);
+    }
   }
 
-  /** The counts as [label, value, class] rows, in display order. */
+  /**
+   * The counts as [label, value, class] rows: who is going and the comp, then the secondary
+   * states (late, tentative, queued) only when someone is in them, so zeros don't crowd the row.
+   */
   get countRows(): [string, number, string][] {
     const c = this.counts;
-    return [
+    const rows: [string, number, string][] = [
       ['Going', c.accepted, 'accepted'],
-      ['Late', c.late, 'late'],
-      ['Tentative', c.tentative, 'tentative'],
       ['Tanks', c.tank, 'tank'],
       ['Healers', c.healer, 'healer'],
       ['DPS', c.dps, 'dps'],
-      ['Queued', c.queued, 'queued'],
     ];
+    if (c.late) rows.push(['Late', c.late, 'late']);
+    if (c.tentative) rows.push(['Tentative', c.tentative, 'tentative']);
+    if (c.queued) rows.push(['Queued', c.queued, 'queued']);
+    return rows;
   }
 
   /** Reactive availability for `vintage.signup-set`. */

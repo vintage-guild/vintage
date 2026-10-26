@@ -3,7 +3,7 @@
 // the Convex client.
 import { setCommandClient } from '@vintage/ui-kit';
 import { type Session, setSession } from '../session';
-import { FIXTURE_ME } from './data';
+import { FIXTURE_ME, FIXTURE_TIMEZONE } from './data';
 import { createFixtureHost, createHostClient, type FixtureHost } from './host';
 import { seedFixtures } from './seed';
 
@@ -32,13 +32,17 @@ export async function installFixtures(): Promise<InstalledFixtures> {
   await seedFixtures(host);
   const me = await host.member(FIXTURE_ME);
   if (!me) throw new Error(`fixtures: ${FIXTURE_ME} is not in the example guild`);
-  setCommandClient(createHostClient(host, host.callerFor(me)));
+  // The example member has set a time zone in their profile, so raid times show in it.
+  await host.run(host.callerFor(me), 'member-prefs-set', { timezone: FIXTURE_TIMEZONE });
+  const refreshed = (await host.member(FIXTURE_ME)) ?? me;
+  setCommandClient(createHostClient(host, host.callerFor(refreshed)));
   const session: Session = {
-    memberId: me.id,
-    displayName: me.displayName,
-    tier: me.tier,
-    rank: me.rank,
-    avatarUrl: placeholderAvatar(me.displayName),
+    memberId: refreshed.id,
+    displayName: refreshed.displayName,
+    tier: refreshed.tier,
+    rank: refreshed.rank,
+    avatarUrl: placeholderAvatar(refreshed.displayName),
+    timezone: refreshed.prefs.timezone,
   };
   setSession(session);
   return { host, session };

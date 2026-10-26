@@ -380,6 +380,25 @@ upstream (`upstream:fast-af`) and gets a local stub with the issue link.
   commands); preloading the display face; alpha shadows and highlights in ui-kit styles are
   literal `rgb()` values rather than tokens.
 
+**Review fixes (2026-10-26), from a 7/10 walk of the live page:**
+
+- **Rhythm:** sections open with a tighter top (`--space-xl`) and no gradient band, so the
+  page reads as one page moving down rather than stacked screens.
+- **Raids:** the counts show Going, Tanks, Healers, DPS, then Late, Tentative, and Queued only
+  when someone is in them, so zeros don't crowd the row. The Coming up card fills its column
+  with the real timings from the raids contract (lead days, lock hours, reminder hours).
+- **Time zones:** times always carry the zone, and show in the member's own zone when their
+  profile has one (`member-prefs-set timezone`, which identity already stored); the browser's
+  otherwise. The dev fixtures set Bloodfen's to Eastern, so "8:00 PM EST" matches the pill.
+  The signup card takes a `time-zone` attribute for the same reason.
+- **Progress before Dec 9:** a callout with the days to the first pull and what the three raids
+  are, numbered slots, and the plain `0 / n` tally; the unlock date is said once, not per row.
+- **News:** post entries carry how many answered and how many are going, and a short line
+  explains the log while it is thin.
+- **Discord:** "Join the Discord" is back in the hero. `DISCORD_INVITE_URL` is null until the
+  GM sets one (open question 3), so it points at the recruiting band, which says invites come
+  from an officer; once set, both the hero and the band link straight to it.
+
 ## Tasks
 
 - [x] Research pass folded into this doc; direction chosen (concept E, 2026-10-25)

@@ -35,14 +35,14 @@ export interface InteractionHandlerOptions {
   now?: () => Date;
 }
 
-const TROUBLE = reply('Vintage could not reach its backend. Please try again in a minute.', {
+const TROUBLE = reply('Random could not reach its backend. Please try again in a minute.', {
   ephemeral: true,
 });
 
 /** Send a verified component or modal interaction to Convex and return its response. */
 async function forward(convex: ConvexForward | undefined, interaction: Interaction) {
   if (!convex) {
-    return reply('This part of Vintage is not set up in Discord yet.', { ephemeral: true });
+    return reply('This part of Random is not set up in Discord yet.', { ephemeral: true });
   }
   try {
     const url = `${convex.siteUrl.replace(/\/$/, '')}/gateway/interaction`;

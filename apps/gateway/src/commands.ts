@@ -93,7 +93,7 @@ export const VINTAGE_COMMAND = {
     {
       type: T.SUB_COMMAND,
       name: 'ping',
-      description: 'Check that Vintage is answering',
+      description: 'Check that Random is answering',
     },
     POLL_GROUP,
   ],

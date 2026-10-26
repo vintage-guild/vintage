@@ -228,7 +228,7 @@ export async function handlePollInteraction(
 ): Promise<InteractionResponse | null> {
   if (!isPollInteraction(interaction)) return null;
   if (!ports.discordGuildId || interaction.guild_id !== ports.discordGuildId) {
-    return ephemeral('Vintage only runs polls in the Vintage guild server.');
+    return ephemeral('Random only runs polls in the Vintage guild server.');
   }
   const user = interactionUser(interaction);
   const member = user ? await ports.memberByDiscordId(user.id) : null;

@@ -141,9 +141,9 @@ const template = html<Page>`
       `,
     )}
     <p slot="standfirst">
-      We're building a raid team for Forever's first tier: people who show up prepared, on time,
-      and good company. Signups, reminders, and loot rules are settled before the first pull, so
-      raid night is just the raid. Raids open December 9.
+      Many of us have raided together since Vanilla, through The Burning Crusade and Wrath, with
+      server firsts and Ahead of the Curve along the way. Forever is a fresh start for the same
+      group, with room for a few more. Raids open December 9.
     </p>
     <div slot="actions">
       <a class="btn primary" href="/#recruiting" data-section-link="recruiting">Apply to raid</a>

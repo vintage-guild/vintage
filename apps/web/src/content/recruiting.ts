@@ -21,9 +21,8 @@ export const RECRUITING = {
   headline: 'We need a second main tank, and two healers for the twenties.',
   pitch:
     'Semi-hardcore: come prepared, be on time, be kind. Loot is decided before the first raid ' +
-    'and written here. New members start as recruits for about two weeks; Discord ranks are ' +
-    'guild ranks, so nothing is managed twice. To join, ask an officer for an invite to the ' +
-    'Discord, then sign in here to add your characters.',
+    'and written here. New members start as recruits for about two weeks. To join, ask an ' +
+    'officer for an invite to the Discord, then sign in here to add your characters.',
   needs: [
     { wowClass: 'Warrior', specs: 'protection', need: 'high' },
     { wowClass: 'Priest', specs: 'holy · discipline', need: 'high' },

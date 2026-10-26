@@ -6,6 +6,7 @@ import { type CoordinatorConfig, defaultConfig } from '@vintage/coordinator/cont
 import type { IdentityDeps, IdentityStore } from '@vintage/identity/commands';
 import type { Character, GuildRank, Member, RoleRankMap } from '@vintage/identity/contract';
 import type { PollsDeps, PollsEventSink, PollsStore } from '@vintage/polls/commands';
+import type { ProgressDeps, ProgressStore } from '@vintage/progress/commands';
 import type { RaidsDeps, RaidsEventSink, RaidsStore } from '@vintage/raids/commands';
 import type { Signup } from '@vintage/raids/contract';
 import type { WowClass } from '@vintage/wow-data';
@@ -206,6 +207,19 @@ export function pollsDeps(ctx: Ctx): PollsDeps {
     },
     pollEvents: eventSink(ctx),
   };
+}
+
+const progress = components.progress;
+
+export function progressStore(ctx: Ctx): ProgressStore {
+  return {
+    listKills: (guildId, filter = {}) => ctx.runQuery(progress.kills.list, { guildId, ...filter }),
+    insertKill: (kill) => writable(ctx).runMutation(progress.kills.insert, kill),
+  };
+}
+
+export function progressDeps(ctx: Ctx): ProgressDeps {
+  return { progress: progressStore(ctx) };
 }
 
 const coordinator = components.coordinator;

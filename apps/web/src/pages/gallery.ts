@@ -1,9 +1,57 @@
 import { css, FASTElement, html, repeat } from '@lushly-dev/fast-element';
-import { SIGNUP_STATUSES, type SignupStatus } from '@vintage/ui-kit';
+import { LAUNCH_RAIDS, RAIDS_OPEN_ON } from '@vintage/progress/contract';
+import {
+  type LedgerKill,
+  type LedgerRaid,
+  SIGNUP_STATUSES,
+  type SignupStatus,
+} from '@vintage/ui-kit';
 import { CLASS_NAMES, CLASSES, ROLES, type Role, type WowClass } from '@vintage/wow-data';
 import { pageStyles } from './page-styles';
 
 const firstSpec = (c: WowClass) => Object.keys(CLASSES[c])[0] ?? '';
+
+/** The launch raids with no kills: what the ledger shows before Dec 9. */
+const emptyLedger = (): LedgerRaid[] =>
+  LAUNCH_RAIDS.map((raid) => ({
+    ...raid,
+    bosses: raid.bosses.map((boss) => ({ ...boss, firstKillAt: null, loot: [] })),
+  }));
+
+const killedOn = (day: number) =>
+  Date.parse(`2026-12-${String(day).padStart(2, '0')}T22:10:00-05:00`);
+
+/** A second raid week: the shape `progress-get` answers once kills exist. */
+function raidingLedger(): { raids: LedgerRaid[]; latest: LedgerKill } {
+  const raids = emptyLedger();
+  const kills: [number, number, number][] = [
+    [0, 0, 10],
+    [0, 1, 10],
+    [0, 2, 11],
+    [0, 3, 17],
+    [1, 0, 16],
+    [1, 1, 17],
+  ];
+  for (const [r, b, day] of kills) raids[r]!.bosses[b]!.firstKillAt = killedOn(day);
+  const latest = raids[1]!.bosses[1]!;
+  latest.loot = [
+    { name: 'Mantle of the Rotting Bough', quality: 'epic' },
+    { name: 'Decaybark Band', quality: 'rare' },
+    { name: 'Mossgrown Satchel', quality: 'uncommon' },
+  ];
+  return {
+    raids,
+    latest: {
+      raidName: raids[1]!.name,
+      bossName: latest.name,
+      killedAt: latest.firstKillAt ?? 0,
+      loot: latest.loot,
+    },
+  };
+}
+
+const LEDGER_LOCKED = emptyLedger();
+const LEDGER_RAIDING = raidingLedger();
 
 // Dev only (see routes.ts): every ui-kit element with sample data.
 const template = html<Page>`
@@ -41,6 +89,16 @@ const template = html<Page>`
           `,
         )}
       </div>
+    </section>
+    <section>
+      <h2>Boss ledger · before Dec 9</h2>
+      <p>Every slot empty and each row says when it unlocks. Hover or focus a slot for the boss name.</p>
+      <vintage-boss-ledger :raids="${() => LEDGER_LOCKED}" opens-on="${RAIDS_OPEN_ON}"></vintage-boss-ledger>
+    </section>
+    <section>
+      <h2>Boss ledger · raiding</h2>
+      <p>What <code>progress-get</code> answers once kills exist: gold slots with the first-kill date, the next target dashed, and the latest kill's loot in quality colors.</p>
+      <vintage-boss-ledger open :raids="${() => LEDGER_RAIDING.raids}" :latest="${() => LEDGER_RAIDING.latest}" opens-on="${RAIDS_OPEN_ON}"></vintage-boss-ledger>
     </section>
     <section><h2>Sign-in card</h2><vintage-sign-in-card></vintage-sign-in-card></section>
     <section>

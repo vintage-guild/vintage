@@ -11,6 +11,7 @@ holds the guild-specific pieces (PLAN §3.9).
 | `vintage-figure` | One big tabular number with a unit and caption; rows of them sit in the hero |
 | `vintage-class-badge` / `vintage-role-badge` | Class (and spec) or raid role with its color token, from `@vintage/wow-data` |
 | `vintage-character-form` | Name, class, spec, main; submits through the `vintage.character-add` command |
+| `vintage-boss-ledger` | The progression ledger: one row per raid, one slot per boss. Killed slots are gold with a check and the first-kill date, the next target is dashed verdigris, closed rows say "unlocks Dec 9"; boss names show on hover/focus with a datamined note; a "first kill" card above names the latest kill with its loot in `--color-quality-*`. Fed from `progress-get` |
 | `vintage-signup-card` | One raid: its counts (statuses from `raid-list`, roles from `signup-list`) and the member's own answer. Going / Late / Tentative / Can't run the `vintage.signup-set` command → server `signup-set` with the member's character |
 | `vintage-sign-in-card` | What member pages show when signed out; enabled once sign-in (#7) gives it an `href` |
 | `vintage-theme-switch` | Dark / parchment switch (`data-theme` on `<html>`), also the `vintage.theme-toggle` command |

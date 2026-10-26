@@ -15,6 +15,7 @@ export default {
         'raids',
         'coordinator',
         'polls',
+        'progress',
         'loot',
         'wishlist',
         'site',

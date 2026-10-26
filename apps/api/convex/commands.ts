@@ -10,7 +10,14 @@ import {
 import { type Infer, v } from 'convex/values';
 import { commands, type VintageDeps } from '../src/registry';
 import { internalMutation, mutation, query } from './_generated/server';
-import { coordinatorDeps, identityDeps, identityStore, pollsDeps, raidsDeps } from './stores';
+import {
+  coordinatorDeps,
+  identityDeps,
+  identityStore,
+  pollsDeps,
+  progressDeps,
+  raidsDeps,
+} from './stores';
 
 /** Single-guild deployment for now; every record still carries guildId (PLAN §3.11). */
 export const GUILD_ID = process.env.VINTAGE_GUILD_ID ?? 'vintage';
@@ -28,6 +35,7 @@ const deps = (ctx: Ctx): VintageDeps => ({
   ...raidsDeps(ctx),
   ...coordinatorDeps(ctx),
   ...pollsDeps(ctx),
+  ...progressDeps(ctx),
 });
 
 /**

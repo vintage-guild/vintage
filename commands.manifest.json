@@ -329,6 +329,92 @@
       }
     },
     {
+      "name": "kill-record",
+      "description": "Record a boss kill: the raid, the boss (ids from progress-get), when (defaults to now), and what dropped with its quality. The guild’s first kill of a boss is what the ledger shows; later kills are kept as the kill log.",
+      "tier": "leader",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "raidId": {
+            "type": "string",
+            "enum": [
+              "barrow-deeps",
+              "hyjal-summit",
+              "onyxias-lair"
+            ]
+          },
+          "bossId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "killedAt": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+              }
+            ]
+          },
+          "loot": {
+            "default": [],
+            "maxItems": 12,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "quality": {
+                  "type": "string",
+                  "enum": [
+                    "poor",
+                    "common",
+                    "uncommon",
+                    "rare",
+                    "epic",
+                    "legendary"
+                  ]
+                }
+              },
+              "required": [
+                "name",
+                "quality"
+              ]
+            }
+          },
+          "note": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "raidId",
+          "bossId"
+        ]
+      }
+    },
+    {
       "name": "member-list",
       "description": "Guild members with their rank, tier, and main character. Discord-only friends are not listed.",
       "tier": "recruit",
@@ -898,6 +984,18 @@
         "required": [
           "pollId"
         ]
+      }
+    },
+    {
+      "name": "progress-get",
+      "description": "The progression ledger: the three launch raids, every boss with the guild’s first-kill time (null until it dies), the next target per raid, the totals, and the latest first kill with its loot. Before the raids unlock, `open` is false and every slot is empty. Boss names flagged `datamined` come from the beta client, not from Blizzard.",
+      "tier": "member",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {}
       }
     },
     {

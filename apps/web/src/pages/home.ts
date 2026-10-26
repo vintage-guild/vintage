@@ -1,13 +1,25 @@
 import { css, FASTElement, html, observable, repeat, when } from '@lushly-dev/fast-element';
 import type { Character } from '@vintage/identity/contract';
+import {
+  LAUNCH_BOSS_COUNT,
+  LAUNCH_RAIDS,
+  type Progress,
+  RAIDS_OPEN_AT,
+  RAIDS_OPEN_ON,
+} from '@vintage/progress/contract';
 import type { RaidEvent, Signup, SignupStatus } from '@vintage/raids/contract';
-import { EMPTY_COUNTS, getCommandClient, type SignupCounts, titleCase } from '@vintage/ui-kit';
-import { daysUntil, LAUNCH_AT, RAIDS_OPEN_AT } from '../dates';
+import {
+  EMPTY_COUNTS,
+  getCommandClient,
+  type LedgerKill,
+  type LedgerRaid,
+  type SignupCounts,
+  titleCase,
+} from '@vintage/ui-kit';
+import { daysUntil, LAUNCH_AT, RAIDS_OPEN_AT as RAIDS_OPEN_ISO } from '../dates';
 import { sectionContext, setSiteContext, watchSections } from '../site-context';
 import { pageStyles } from './page-styles';
 
-/** Bosses across the three launch raids (8 + 13 + 1). A `progress` module will own this. */
-const BOSSES_AT_LAUNCH = 22;
 /** How far ahead the calendar looks. */
 const CALENDAR_DAYS = 60;
 const DAY_MS = 86_400_000;
@@ -58,7 +70,7 @@ const template = html<Page>`
     <div slot="figures">
       <vintage-figure value="${(x) => x.daysToLaunch}" unit="days" caption="to launch · Wed Nov 4"></vintage-figure>
       <vintage-figure value="${(x) => x.daysToRaids}" unit="days" caption="to raids · Wed Dec 9"></vintage-figure>
-      <vintage-figure value="0" unit="/ ${BOSSES_AT_LAUNCH}" caption="bosses down"></vintage-figure>
+      <vintage-figure value="${(x) => x.bossesDown}" unit="/ ${(x) => x.bossTotal}" caption="bosses down"></vintage-figure>
       <vintage-figure value="${(x) => x.memberCountText}" caption="${(x) => x.memberCaption}" tone="good"></vintage-figure>
     </div>
   </vintage-hero>
@@ -125,6 +137,29 @@ const template = html<Page>`
           </div>
         </div>
       </div>
+    </div>
+  </section>
+
+  <section
+    class="sec"
+    id="progress"
+    data-section
+    data-section-eyebrow="Progress"
+    data-section-title="Three raids, twenty-two bosses"
+    data-section-action="See the ledger"
+    aria-labelledby="h-progress"
+  >
+    <div class="wrap">
+      <header>
+        <div class="lead"><span class="eyebrow">Progress</span><h2 id="h-progress">Three raids, twenty-two bosses</h2></div>
+        <span class="mono">${(x) => x.progressNote}</span>
+      </header>
+      <vintage-boss-ledger
+        :raids="${(x) => x.ledgerRaids}"
+        :latest="${(x) => x.latestKill}"
+        ?open="${(x) => x.ledgerOpen}"
+        opens-on="${RAIDS_OPEN_ON}"
+      ></vintage-boss-ledger>
     </div>
   </section>
 `;
@@ -377,15 +412,19 @@ const styles = css`
 `;
 
 /**
- * The home page: the hero and the next-raid section; progression, recruiting, roster, and the
- * coordinator feed follow (docs/features/proposed/home-page). Everything shown comes through
- * the command client: `member-list`, `raid-list`, `signup-list`, `character-list`.
+ * The home page: the hero, the next-raid section, and the progression ledger; recruiting, the
+ * roster, and the coordinator feed follow (docs/features/proposed/home-page). Everything shown
+ * comes through the command client: `member-list`, `raid-list`, `signup-list`,
+ * `character-list`, `progress-get`.
  */
 export class Page extends FASTElement {
   @observable memberCount: number | null = null;
   @observable raids: RaidRow[] = [];
   @observable nextCounts: SignupCounts = EMPTY_COUNTS;
   @observable main: Character | null = null;
+  @observable progress: Progress | null = null;
+  /** `progress-get` answered with an error (a public caller, say): show the empty ledger. */
+  @observable progressFailed = false;
   private stopWatching: (() => void) | null = null;
 
   get daysToLaunch(): string {
@@ -393,7 +432,7 @@ export class Page extends FASTElement {
   }
 
   get daysToRaids(): string {
-    return String(daysUntil(RAIDS_OPEN_AT));
+    return String(daysUntil(RAIDS_OPEN_ISO));
   }
 
   get memberCountText(): string {
@@ -432,11 +471,43 @@ export class Page extends FASTElement {
     return this.main ? `${this.main.name} · ${titleCase(this.main.spec)}` : '';
   }
 
+  /** The ledger rows: `progress-get`, or the launch raids with every slot empty. */
+  get ledgerRaids(): LedgerRaid[] {
+    if (this.progress) return this.progress.raids;
+    return LAUNCH_RAIDS.map((raid) => ({
+      ...raid,
+      bosses: raid.bosses.map((boss) => ({ ...boss, firstKillAt: null, loot: [] })),
+    }));
+  }
+
+  get latestKill(): LedgerKill | null {
+    return this.progress?.latest ?? null;
+  }
+
+  get ledgerOpen(): boolean {
+    return this.progress ? this.progress.open : Date.now() >= RAIDS_OPEN_AT;
+  }
+
+  get bossesDown(): string {
+    return String(this.progress?.killed ?? 0);
+  }
+
+  get bossTotal(): number {
+    return this.progress?.total ?? LAUNCH_BOSS_COUNT;
+  }
+
+  get progressNote(): string {
+    if (!this.progress) return this.progressFailed ? 'sign in to see first kills' : '';
+    if (!this.progress.open) return `raids unlock Dec 9 · ${this.daysToRaids} days`;
+    return `${this.progress.killed} of ${this.progress.total} down`;
+  }
+
   connectedCallback(): void {
     super.connectedCallback();
     void this.loadMembers();
     void this.loadRaids();
     void this.loadMain();
+    void this.loadProgress();
     const sections = this.shadowRoot?.querySelectorAll('[data-section]') ?? [];
     this.stopWatching = watchSections(sections, (section) =>
       setSiteContext(sectionContext(section)),
@@ -458,6 +529,13 @@ export class Page extends FASTElement {
     const result = await getCommandClient().read<Character[]>('character-list');
     const characters = result.success ? (result.data ?? []) : [];
     this.main = characters.find((c) => c.isMain) ?? characters[0] ?? null;
+  }
+
+  /** The ledger: first kills per boss and the latest one. */
+  async loadProgress(): Promise<void> {
+    const result = await getCommandClient().read<Progress>('progress-get');
+    this.progress = result.success ? (result.data ?? null) : null;
+    this.progressFailed = !result.success;
   }
 
   /** The calendar, soonest first, plus the role counts for the next raid. */

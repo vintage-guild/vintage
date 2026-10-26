@@ -1,0 +1,7 @@
+{
+  "name": "progress",
+  "maturity": "official",
+  "owners": ["@Falkicon"],
+  "dependsOn": [],
+  "description": "Raid progression: the launch raids and their bosses as data, the guild's kills, and the first-kill ledger the website shows (docs/features/proposed/home-page)."
+}

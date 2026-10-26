@@ -1,0 +1,28 @@
+{
+  "name": "@vintage/progress",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Raid progression: the launch raids, their bosses, and the guild's first kills.",
+  "exports": {
+    "./contract": "./src/contract.ts",
+    "./commands": "./src/commands/index.ts",
+    "./testing": "./src/testing.ts",
+    "./convex.config": "./convex/convex.config.ts",
+    "./_generated/component.js": "./convex/_generated/component.ts",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "type-check": "tsc6 -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@vintage/guild-kit": "workspace:*",
+    "convex": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@vintage/config": "workspace:*",
+    "@vintage/testing": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

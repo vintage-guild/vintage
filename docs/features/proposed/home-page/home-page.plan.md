@@ -237,7 +237,7 @@ Top to bottom. "Source" is the command the section reads; "now" says what ships 
 | 1 | Hero | Emblem, manifesto, one Apply CTA and one Discord link, and the **identity strip**: ruleset, raid size, Wed + Thu with time zone, tier (research item 1) | static | real |
 | 2 | Timeline (the chain) | Three dated marks the page hangs from: name reservation 2026-10-27, launch 2026-11-04, raids 2026-12-09; a countdown to the next one | static + clock | real |
 | 3 | Next raid | The next event: instance, local time (`Intl`), role counters "Tanks 2/4 · Healers 6/9 · DPS 20/27", signup CTA, lock time | `raid-list`, `signup-list` | fixture client |
-| 4 | Progression ledger | Per raid (Barrow Deeps 8 bosses, Hyjal Summit 13, Onyxia's Lair 1): bosses with first-kill dates; pre-launch shows "unlocks Dec 9" | none yet (`progress` module, later) | page fixture, marked |
+| 4 | Progression ledger | Per raid (Barrow Deeps 8 bosses, Hyjal Summit 13, Onyxia's Lair 1): bosses with first-kill dates; pre-launch shows "unlocks Dec 9" | `progress-get` (`progress` module; leaders record with `kill-record`) | real |
 | 5 | Recruiting (parchment band) | Per class and spec: High / Medium / Closed, with a short pitch, the loot system in one line, and the Apply CTA again | officer config (`recruit-needs-set`, later) | page fixture, marked |
 | 6 | Roster wall | Officers quick-look, then every member as a class-colored name grouped by rank; hover shows spec and role; pre-launch, a level progress column | `member-list`, `character-list` | fixture client |
 | 7 | From the coordinator | The last few bot posts rendered as dated cards, newest first (signup post, lock notice, kill) | `coordinator-log` (`CoordinatorAction` rows) | fixture client |
@@ -271,7 +271,7 @@ New `packages/ui-kit` composites (tokens only, CEM entries, `@command` for anyth
 |---|---|---|
 | `vintage-countdown` | `violet-text` | Tabular numerals; `datetime` attr; ticks once a minute, no layout shift |
 | `vintage-raid-next` | `violet-card`, `violet-progress` | Evolves `vintage-signup-card`; role counters; `@command` → `signup-set` once sign-in exists |
-| `vintage-boss-ledger` | `violet-data-grid` or a list | Boss rows, kill date, "not yet" state; quality-colored loot later |
+| `vintage-boss-ledger` | plain | One row per raid, one slot per boss: gold check + first-kill date, dashed next target, "unlocks Dec 9" before; boss names on hover/focus with the datamined note; a first-kill card with quality-colored loot (built, pass 3) |
 | `vintage-roster-wall` | plain | Class-colored names in a dense wrap; rank groups; hover card |
 | `vintage-role-meter` | `violet-progress` | Open/full per role for recruiting |
 | `vintage-feed-card` | `violet-card` | Renders a `CoordinatorAction` the way Discord would |
@@ -326,6 +326,28 @@ upstream (`upstream:fast-af`) and gets a local stub with the issue link.
   concept's scale, because a page's own `h1` rule outranks the hero's `::slotted` styles.
 - Parchment: untouched except the `late` color override the contrast test requires.
 
+**Pass 3 (2026-10-25), the progression ledger:**
+
+- A `progress` module (official): the three launch raids and their bosses are data in the
+  contract, flagged `datamined` for Barrow Deeps and Hyjal Summit (beta client build
+  1.60.1.70532 via wowforeverbuilds.com; Onyxia is the only name Blizzard has confirmed). The
+  guild owns its kills: `kill-record` (leader; raid, boss, time, loot with quality) and
+  `progress-get` (member; per-raid rows with first-kill times, the next target, totals, the
+  latest first kill). First kill = earliest `killedAt`; later kills stay in the log. The
+  `kills` component is wired into apps/api; its generated files were written by hand to match
+  the others because `dev:local` and the botcore scaffold couldn't reach the network here.
+- `vintage-boss-ledger`: killed slots gold-500 with a check and the date, next target dashed
+  verdigris, closed rows "unlocks Dec 9" (a calendar date, so it reads the same in every zone),
+  tooltips on hover and keyboard focus that double as the slot's accessible name, and the
+  "first kill" callout with loot in `--color-quality-*`. Hidden tooltips take no layout space,
+  so the 13-slot Hyjal row never widens the page on a phone.
+- Home page: the `#progress` section after raids, the hero's "bosses down" figure now from
+  `progress-get`, and a fallback to the empty ledger from `LAUNCH_RAIDS` when the read fails
+  (`progress-get` is member tier; a public read is an open question).
+- No dev switch exists for a "raiding" state, so the fixtures seed no kills and the page shows
+  the pre-launch state; the `/ui` gallery shows both states. JTBD J16 covers the job.
+- Verified: dark theme at desktop and phone width, both states, no console errors.
+
 ## Tasks
 
 - [x] Research pass folded into this doc; direction chosen (concept E, 2026-10-25)
@@ -334,7 +356,7 @@ upstream (`upstream:fast-af`) and gets a local stub with the issue link.
 - [x] Hero + identity pills + figures
 - [x] Sticky header with section context, both themes, phone width
 - [x] Next raid block (`raid-list` / `signup-list`): the member's own answer as `@command` → `signup-set`
-- [ ] Progression ledger (fixture)
+- [x] Progression ledger (`progress-get`; `kill-record` for leaders)
 - [ ] Recruiting band (parchment theme inline)
 - [ ] Roster wall (`member-list` / `character-list`)
 - [ ] Coordinator feed cards
@@ -350,6 +372,7 @@ upstream (`upstream:fast-af`) and gets a local stub with the issue link.
 | 2026-10-25 | Dev fixtures are the real registry over memory stores, seeded through commands; no fixture client fakes a command's answer | Keeps the page honest to AFD, and the seed exercises the real tier rules; swapping to Convex is one line in `main.ts` |
 | 2026-10-25 | The site palette is plum, verdigris, rose, and gold 500 on top of the emblem palette; Bitter / IBM Plex as token families | Concept E, chosen by Bloodfen after three rounds; the emblem's gold and crimson stay for the logo and WoW frames |
 | 2026-10-25 | Sections with no command yet use marked local fixtures and no fake command names | The manifest is the contract; no phantom commands |
+| 2026-10-25 | Raids and bosses are data in the `progress` contract, not rows; kills are the records. Datamined names carry a flag every surface shows | Blizzard's launch raids don't vary per guild; the flag keeps the page honest until the names are official |
 
 ## Open questions
 
@@ -362,6 +385,8 @@ upstream (`upstream:fast-af`) and gets a local stub with the issue link.
 | 5 | Ruleset (Normal / PvP / RP), realm, and start time with zone for the identity strip (PLAN Q2) | GM |
 | 6 | Enable the Discord server widget so the page can show online count and the invite without auth | GM |
 | 7 | Loot system line for the recruiting band (PLAN Q5); until decided, the band says "decided before the first raid" | GM + officers |
+| 8 | Should `progress-get` be public, so signed-out visitors see the ledger? Today it is member tier and the page falls back to the empty ledger | GM |
+| 9 | A dev switch for the fixtures' "raiding" state (seed kills through `kill-record`), so the page can be checked filled without the gallery | Bloodfen |
 
 ## Sources
 

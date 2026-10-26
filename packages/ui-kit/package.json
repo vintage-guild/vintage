@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Vintage web composites on FAST-AF and violet-elements: sticky site header, hero and figures, class and role badges, character form, signup and sign-in cards, theme switch. Styled only by design-token CSS variables.",
+  "description": "Vintage web composites on FAST-AF and violet-elements: sticky site header, hero and figures, class and role badges, character form, signup and sign-in cards, boss ledger, theme switch. Styled only by design-token CSS variables.",
   "exports": {
     ".": "./src/index.ts",
     "./client": "./src/client.ts",

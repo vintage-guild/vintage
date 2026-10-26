@@ -19,6 +19,7 @@
     "@vintage/design-tokens": "workspace:*",
     "@vintage/guild-kit": "workspace:*",
     "@vintage/identity": "workspace:*",
+    "@vintage/progress": "workspace:*",
     "@vintage/raids": "workspace:*",
     "@vintage/ui-kit": "workspace:*",
     "@vintage/wow-data": "workspace:*"

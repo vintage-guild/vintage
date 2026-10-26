@@ -62,4 +62,5 @@ export declare const components: {
   identity: import("@vintage/identity/_generated/component.js").ComponentApi<"identity">;
   raids: import("@vintage/raids/_generated/component.js").ComponentApi<"raids">;
   coordinator: import("@vintage/coordinator/_generated/component.js").ComponentApi<"coordinator">;
+  progress: import("@vintage/progress/_generated/component.js").ComponentApi<"progress">;
 };

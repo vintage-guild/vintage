@@ -6,12 +6,14 @@ import { createGuildRegistry, systemCaller } from '@vintage/guild-kit';
 import { type IdentityDeps, identityCommands } from '@vintage/identity/commands';
 import type { GuildRank, Member, RoleRankMap } from '@vintage/identity/contract';
 import { createMemoryIdentityDeps } from '@vintage/identity/testing';
+import { type ProgressDeps, progressCommands } from '@vintage/progress/commands';
+import { createMemoryProgressStore } from '@vintage/progress/testing';
 import { type RaidsDeps, raidsCommands } from '@vintage/raids/commands';
 import { createMemoryRaidsStore, createRecordingEventSink } from '@vintage/raids/testing';
 import type { CommandClient } from '@vintage/ui-kit';
 import { FIXTURE_GUILD_ID, ROLE_IDS } from './data';
 
-export type FixtureDeps = IdentityDeps & RaidsDeps;
+export type FixtureDeps = IdentityDeps & RaidsDeps & ProgressDeps;
 
 export interface FixtureHost {
   guildId: string;
@@ -37,9 +39,10 @@ export function createFixtureHost(guildId = FIXTURE_GUILD_ID): FixtureHost {
       getMember: (g, id) => identity.getMember(g, id),
     },
     events: createRecordingEventSink(),
+    progress: createMemoryProgressStore(),
   };
   const registry = createGuildRegistry<FixtureDeps>({
-    commands: [...identityCommands, ...raidsCommands],
+    commands: [...identityCommands, ...raidsCommands, ...progressCommands],
     confirmSecret: 'development-fixtures',
   });
 

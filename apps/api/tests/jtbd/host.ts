@@ -7,6 +7,7 @@ import { type Interaction, InteractionType } from '@vintage/discord-kit';
 import type { Caller, CommandResult } from '@vintage/guild-kit';
 import { systemCaller } from '@vintage/guild-kit';
 import { createMemoryIdentityDeps } from '@vintage/identity/testing';
+import { createMemoryProgressStore } from '@vintage/progress/testing';
 import type { Signup } from '@vintage/raids/contract';
 import { createMemoryRaidsStore, createRecordingEventSink } from '@vintage/raids/testing';
 import { fixedClock, testRegistry } from '@vintage/testing';
@@ -65,6 +66,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     coordinator,
     tickSource,
     scheduler: { runTickNow: async (g) => void ticksRequested.push(g) },
+    progress: createMemoryProgressStore(),
   };
   const registry = testRegistry<VintageDeps>(commands, clock);
   const discord = createFakeDiscord();

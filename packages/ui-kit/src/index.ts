@@ -6,6 +6,13 @@ export {
   NOT_CONNECTED,
   setCommandClient,
 } from './client';
+export {
+  type LedgerBoss,
+  type LedgerKill,
+  type LedgerLoot,
+  type LedgerRaid,
+  VintageBossLedger,
+} from './elements/boss-ledger';
 export { type CharacterInput, VintageCharacterForm } from './elements/character-form';
 export { VintageClassBadge } from './elements/class-badge';
 export { VintageFigure } from './elements/figure';

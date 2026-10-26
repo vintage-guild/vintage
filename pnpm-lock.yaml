@@ -71,6 +71,9 @@ importers:
       '@vintage/identity':
         specifier: workspace:*
         version: link:../../modules/identity
+      '@vintage/progress':
+        specifier: workspace:*
+        version: link:../../modules/progress
       '@vintage/raids':
         specifier: workspace:*
         version: link:../../modules/raids
@@ -148,6 +151,9 @@ importers:
       '@vintage/identity':
         specifier: workspace:*
         version: link:../../modules/identity
+      '@vintage/progress':
+        specifier: workspace:*
+        version: link:../../modules/progress
       '@vintage/raids':
         specifier: workspace:*
         version: link:../../modules/raids
@@ -316,6 +322,28 @@ importers:
       '@vintage/identity':
         specifier: workspace:*
         version: link:../identity
+      convex:
+        specifier: 'catalog:'
+        version: 1.47.0
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.7
+    devDependencies:
+      '@vintage/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@vintage/testing':
+        specifier: workspace:*
+        version: link:../../packages/testing
+      typescript:
+        specifier: 'catalog:'
+        version: '@typescript/typescript6@6.0.2'
+
+  modules/progress:
+    dependencies:
+      '@vintage/guild-kit':
+        specifier: workspace:*
+        version: link:../../packages/guild-kit
       convex:
         specifier: 'catalog:'
         version: 1.47.0

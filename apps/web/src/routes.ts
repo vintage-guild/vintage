@@ -19,6 +19,7 @@ export class VintageRoutes extends RouterConfiguration {
         title: 'Characters',
         element: page(() => import('./pages/characters')),
       },
+      { path: 'polls/{id?}', title: 'Polls', element: page(() => import('./pages/polls')) },
       {
         path: 'officers',
         title: 'Officers’ quarters',

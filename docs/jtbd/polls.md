@@ -41,3 +41,14 @@ the winner to become the raid, **so I can** skip counting replies and copying da
   winning time and posts its signup message; another tick never makes a second raid.
 - [ ] A tie, a missed quorum, or no votes creates nothing and tells the ops channel why, with
   what to do next.
+
+### J22 · See the guild's polls and their results on the site
+**When** I'm signed in, **I (raider) want** to vote and see results on the website too, **so I
+can** answer from wherever I am, and **I (officer) want** every closed result in one place.
+- [ ] As a raider, `/polls` lists the open polls I may vote on and recently closed ones. Voting
+  there is the same ballot as in Discord. Ranked polls are voted here.
+- [ ] A poll with results "when it closes" shows no counts until it closes; an officers-only
+  result never shows to a raider, and an officers-only poll doesn't appear for a raid leader.
+- [ ] As an officer, the quarters' Polls tab shows open polls with the live tally and every
+  closed poll with its result, and closes or cancels only after a preview and a confirm.
+- [ ] A visitor gets the sign-in card, and the home page says polls are for members.

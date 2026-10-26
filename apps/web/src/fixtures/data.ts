@@ -125,6 +125,71 @@ export const POLL = {
   closesAt: '2026-10-30T23:00:00-04:00',
 };
 
+/** A fixture poll beyond the main one: created, voted on, and closed when `closed`. */
+export interface FixturePoll {
+  createdBy: string;
+  question: string;
+  options: readonly string[];
+  method: 'single' | 'multi' | 'ranked';
+  eligibleTier: 'member' | 'recruit' | 'raider' | 'leader' | 'officer';
+  anonymous?: boolean;
+  resultsVisible?: 'live' | 'after-close' | 'officers';
+  closed: boolean;
+  /** Who votes, and their choices by option index (in order, for ranked). */
+  votes: readonly (readonly [string, readonly number[]])[];
+}
+
+/**
+ * The other polls the fixtures hold, so the polls page and the quarters show every state: a
+ * closed result everyone may see, an officers-only vote whose result only officers see, and an
+ * open ranked poll (voted on the website, since Discord links here for ranked).
+ */
+export const MORE_POLLS: readonly FixturePoll[] = [
+  {
+    createdBy: 'Garrick',
+    question: 'Loot method for Molten Core?',
+    options: ['Soft reserve', 'Loot council', 'Open roll'],
+    method: 'single',
+    eligibleTier: 'raider',
+    closed: true,
+    votes: [
+      ['Stridulent', [0]],
+      ['Aeryn', [0]],
+      ['Morwenna', [1]],
+      ['Kaelthir', [0]],
+      ['Brannoch', [2]],
+      ['Ysolde', [0]],
+    ],
+  },
+  {
+    createdBy: 'Stridulent',
+    question: 'Promote Kaelthir to raider?',
+    options: ['Yes', 'Not yet'],
+    method: 'single',
+    eligibleTier: 'officer',
+    anonymous: true,
+    resultsVisible: 'officers',
+    closed: true,
+    votes: [
+      ['Stridulent', [0]],
+      ['Aeryn', [0]],
+    ],
+  },
+  {
+    createdBy: 'Garrick',
+    question: 'Rank the next attunement runs',
+    options: ['Onyxia key', 'Molten Core', 'Blackwing Lair', 'Zul’Gurub'],
+    method: 'ranked',
+    eligibleTier: 'raider',
+    closed: false,
+    votes: [
+      ['Stridulent', [0, 1]],
+      ['Morwenna', [1, 0, 3]],
+      ['Kaelthir', [0, 3]],
+    ],
+  },
+];
+
 export const RAIDS: readonly FixtureRaid[] = [
   {
     name: 'Launch night',

@@ -262,6 +262,6 @@ them; only #2 is costly to change once votes exist.
 - [x] Convex component (`polls`, `votes`, `pollPosts`), adapters in `apps/api`, register the commands and write the manifest, `poll-sweep` cron (#61)
 - [x] `render/discord.ts` with tests; `/vintage poll create` (slash options, no modal), vote buttons, select, close with confirm (#62)
 - [x] Poster in `apps/api/convex/pollPosts.ts`: post, debounced refresh, final render; the sweep also refreshes open posts (#62)
-- [ ] `ui-kit` poll card + `apps/web` `/polls` routes (after sign-in #7)
+- [x] `ui-kit` poll card (pick one, pick any, ranked, hidden results) + `/polls` and `/polls/<id>`, home card by role view, officers' Polls tab (#63)
 - [x] Raid-night picker in the coordinator: `raid-night-poll`, settled by the tick (#64)
 - [x] Docs: module `AGENTS.md`, architecture table row, this plan → `active/` (#59)

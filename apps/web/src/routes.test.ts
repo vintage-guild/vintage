@@ -23,6 +23,8 @@ describe('VintageRoutes', () => {
     ['about', 'About'],
     ['profile', 'Profile'],
     ['characters', 'Characters'],
+    ['polls', 'Polls'],
+    ['polls/j971cqgtxed9zmwk9nfvwafby18h1hwn', 'Polls'],
     ['officers', 'Officers’ quarters'],
     ['ui', 'Components'],
   ])('maps /%s', async (path, title) => {

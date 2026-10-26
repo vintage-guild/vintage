@@ -136,6 +136,134 @@
       }
     },
     {
+      "name": "coordinator-config-set",
+      "description": "Set where the coordinator posts (signup and officer channels), whose answers it chases (expectedRanks), and whether it DMs non-responders.",
+      "tier": "officer",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "signupChannelId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{17,20}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "opsChannelId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{17,20}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expectedRanks": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "officer",
+                "raid-leader",
+                "raider",
+                "flex-raider",
+                "recruit",
+                "member",
+                "friend"
+              ]
+            }
+          },
+          "dmReminders": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "name": "coordinator-log",
+      "description": "What the coordinator did for a raid and why: posts, reminders, DMs, locks. Answers 'why did the bot ping me?'.",
+      "tier": "member",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "limit": {
+            "default": 50,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          }
+        },
+        "required": [
+          "eventId"
+        ]
+      }
+    },
+    {
+      "name": "coordinator-pause",
+      "description": "Stop the coordinator: no posts, reminders, or locks until coordinator-resume.",
+      "tier": "leader",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "coordinator-resume",
+      "description": "Restart a paused coordinator. Anything that came due while paused goes out on the next tick.",
+      "tier": "leader",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "coordinator-run",
+      "description": "Run a coordinator tick now instead of waiting for the schedule (it runs every few minutes). Safe to repeat: nothing is sent twice.",
+      "tier": "leader",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "coordinator-status",
+      "description": "Whether the coordinator is running, its settings, and for each upcoming raid what it has done and what it will do next.",
+      "tier": "leader",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
       "name": "guild-roles-get",
       "description": "The Discord role id → guild rank map that member-sync uses to set rank and tier.",
       "tier": "leader",

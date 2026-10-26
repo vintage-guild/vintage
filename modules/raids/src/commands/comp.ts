@@ -2,19 +2,9 @@ import { type CompSignup, defaultTemplate, solveComp } from '@vintage/comp-solve
 import { success } from '@vintage/guild-kit';
 import type { GuildRank } from '@vintage/identity/contract';
 import { z } from 'zod';
+import { RANK_PRIORITY } from '../contract';
 import { command } from '../store';
 import { eventNotFound } from './shared';
-
-/** Coordinator priority by guild rank: raiders get first dibs over flex raiders (PLAN §3.4). */
-const RANK_PRIORITY: Record<GuildRank, number> = {
-  officer: 3,
-  'raid-leader': 3,
-  raider: 3,
-  'flex-raider': 2,
-  recruit: 1,
-  member: 0,
-  friend: 0,
-};
 
 export const compSuggest = command({
   name: 'comp-suggest',

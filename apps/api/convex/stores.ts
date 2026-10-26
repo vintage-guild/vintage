@@ -1,11 +1,24 @@
 // Adapters from module ports to Convex: each module's store calls its own component.
 // Commands never see Convex; they get these through `deps` (PLAN §3.3).
+
+import type {
+  CoordinatorDeps,
+  CoordinatorStore,
+  TickMember,
+  TickSource,
+} from '@vintage/coordinator/commands';
+import { type CoordinatorConfig, defaultConfig } from '@vintage/coordinator/contract';
 import type { IdentityDeps, IdentityStore } from '@vintage/identity/commands';
 import type { Character, GuildRank, Member, RoleRankMap } from '@vintage/identity/contract';
 import type { RaidsDeps, RaidsEventSink, RaidsStore } from '@vintage/raids/commands';
 import type { Signup } from '@vintage/raids/contract';
+import { DEFAULT_TIMINGS } from '@vintage/raids/contract';
 import type { WowClass } from '@vintage/wow-data';
-import type { GenericMutationCtx, GenericQueryCtx } from 'convex/server';
+import {
+  type GenericMutationCtx,
+  type GenericQueryCtx,
+  makeFunctionReference,
+} from 'convex/server';
 import { components } from './_generated/api';
 import type { DataModel } from './_generated/dataModel';
 
@@ -153,5 +166,106 @@ export function raidsDeps(ctx: Ctx): RaidsDeps {
       getMember: (guildId, memberId) => people.getMember(guildId, memberId),
     },
     events: eventSink(ctx),
+  };
+}
+
+const coordinator = components.coordinator;
+
+export function coordinatorStore(ctx: Ctx): CoordinatorStore {
+  const getConfig = async (guildId: string): Promise<CoordinatorConfig> =>
+    (await ctx.runQuery(coordinator.config.get, { guildId })) ?? defaultConfig(guildId);
+  return {
+    getConfig,
+    setConfig: async (guildId, patch, now) => {
+      const { guildId: _g, updatedAt: _u, ...current } = await getConfig(guildId);
+      return writable(ctx).runMutation(coordinator.config.put, {
+        guildId,
+        config: { ...current, ...patch },
+        updatedAt: now,
+      });
+    },
+    listActions: (guildId, filter = {}) =>
+      ctx.runQuery(coordinator.actions.list, { guildId, ...filter }),
+    claimAction: (key, now, staleMs) =>
+      writable(ctx).runMutation(coordinator.actions.claim, { ...key, now, staleMs }),
+    completeAction: (guildId, actionId, result, now) =>
+      writable(ctx).runMutation(coordinator.actions.complete, {
+        guildId,
+        actionId,
+        status: result.status,
+        discordMessageId: result.discordMessageId ?? null,
+        detail: result.detail ?? null,
+        renderHash: result.renderHash ?? null,
+        now,
+      }),
+    setRenderHash: async (guildId, actionId, renderHash) => {
+      await writable(ctx).runMutation(coordinator.actions.setRenderHash, {
+        guildId,
+        actionId,
+        renderHash,
+      });
+    },
+  };
+}
+
+/** How far ahead the coordinator looks; longer than any schedule's lead window (28 days max). */
+const LOOKAHEAD_MS = 29 * 24 * 60 * 60 * 1000;
+
+/** Reads raids, identity, and the action log for one tick (or coordinator-status). */
+export function tickSource(ctx: Ctx): TickSource {
+  const raidsData = raidsStore(ctx);
+  const people = identityStore(ctx);
+  const log = coordinatorStore(ctx);
+  return {
+    load: async (guildId, now) => {
+      const events = await raidsData.listEvents(guildId, {
+        from: now,
+        to: now + LOOKAHEAD_MS,
+        statuses: ['open', 'locked'],
+      });
+      const ticks = await Promise.all(
+        events.map(async (event) => {
+          const schedule = event.scheduleId
+            ? await raidsData.getSchedule(guildId, event.scheduleId)
+            : null;
+          return {
+            event,
+            timings: schedule?.timings ?? DEFAULT_TIMINGS,
+            signups: await raidsData.listSignups(guildId, event.id),
+          };
+        }),
+      );
+      const members: TickMember[] = (await people.listMembers(guildId)).map((m) => ({
+        memberId: m.id,
+        discordId: m.discordId,
+        displayName: m.displayName,
+        rank: m.rank,
+        dmOptOut: m.prefs.dmOptOut,
+      }));
+      return {
+        guildId,
+        config: await log.getConfig(guildId),
+        events: ticks,
+        members,
+        actions: events.length
+          ? await log.listActions(guildId, { eventIds: events.map((e) => e.id) })
+          : [],
+      };
+    },
+  };
+}
+
+// Referenced by name to avoid a type cycle between this file and the generated api.
+const tickNow = makeFunctionReference<'action', Record<string, never>>('coordinator:tick');
+
+export function coordinatorDeps(ctx: Ctx): CoordinatorDeps {
+  return {
+    coordinator: coordinatorStore(ctx),
+    tickSource: tickSource(ctx),
+    scheduler: {
+      runTickNow: async () => {
+        await writable(ctx).scheduler.runAfter(0, tickNow, {});
+      },
+    },
   };
 }

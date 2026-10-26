@@ -59,6 +59,12 @@ importers:
 
   apps/api:
     dependencies:
+      '@vintage/coordinator':
+        specifier: workspace:*
+        version: link:../../modules/coordinator
+      '@vintage/discord-kit':
+        specifier: workspace:*
+        version: link:../../libs/discord-kit
       '@vintage/guild-kit':
         specifier: workspace:*
         version: link:../../packages/guild-kit
@@ -212,6 +218,46 @@ importers:
       '@vintage/config':
         specifier: workspace:*
         version: link:../../packages/config
+      typescript:
+        specifier: 'catalog:'
+        version: '@typescript/typescript6@6.0.2'
+
+  modules/coordinator:
+    dependencies:
+      '@vintage/bridge-format':
+        specifier: workspace:*
+        version: link:../../libs/bridge-format
+      '@vintage/comp-solver':
+        specifier: workspace:*
+        version: link:../../libs/comp-solver
+      '@vintage/discord-kit':
+        specifier: workspace:*
+        version: link:../../libs/discord-kit
+      '@vintage/guild-kit':
+        specifier: workspace:*
+        version: link:../../packages/guild-kit
+      '@vintage/identity':
+        specifier: workspace:*
+        version: link:../identity
+      '@vintage/raids':
+        specifier: workspace:*
+        version: link:../raids
+      '@vintage/wow-data':
+        specifier: workspace:*
+        version: link:../../libs/wow-data
+      convex:
+        specifier: 'catalog:'
+        version: 1.47.0
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.7
+    devDependencies:
+      '@vintage/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@vintage/testing':
+        specifier: workspace:*
+        version: link:../../packages/testing
       typescript:
         specifier: 'catalog:'
         version: '@typescript/typescript6@6.0.2'

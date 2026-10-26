@@ -81,6 +81,19 @@ The role-sync cron does nothing until `DISCORD_BOT_TOKEN` and `DISCORD_GUILD_ID`
 Convex environment (`npx convex env set …` in `apps/api`). See the `vintage-discord` skill for
 how the pieces fit.
 
+### Coordinator (raid posts and reminders)
+
+The coordinator cron (every 5 minutes) does nothing until it knows where to post. Point it at
+the channels once, as an officer or the system caller:
+
+```bash
+npx convex run commands:runAsSystem '{"name":"coordinator-config-set","input":{"signupChannelId":"<#raid-signups id>","opsChannelId":"<#vintage-ops id>"}}'
+npx convex run coordinator:tick   # run one tick now instead of waiting
+```
+
+`coordinator-pause` / `coordinator-resume` stop and restart it; `coordinator-status` shows what
+it did and what is due. DMs to non-responders are on by default (`dmReminders`).
+
 ### First role map (bootstrap)
 
 `guild-roles-set` needs an officer, and nobody is an officer until the map exists. Someone with

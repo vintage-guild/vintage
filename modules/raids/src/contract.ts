@@ -1,6 +1,7 @@
 // Public surface of the raids module. Other modules import only this file.
 
 import type { RaidSize, RoleTargets, SignupStatus } from '@vintage/comp-solver';
+import type { GuildRank } from '@vintage/identity/contract';
 import type { Role, WowClass } from '@vintage/wow-data';
 
 export type { RaidSize, RoleTargets, SignupStatus } from '@vintage/comp-solver';
@@ -92,6 +93,27 @@ export interface Signup {
   /** Raid group 1–8 when rostered, otherwise null. */
   group: number | null;
 }
+
+/**
+ * Comp priority by guild rank (PLAN §3.4): raiders and above get first dibs, then flex raiders,
+ * then recruits. Shared so comp-suggest and the coordinator rank people the same way.
+ */
+export const RANK_PRIORITY: Record<GuildRank, number> = {
+  officer: 3,
+  'raid-leader': 3,
+  raider: 3,
+  'flex-raider': 2,
+  recruit: 1,
+  member: 0,
+  friend: 0,
+};
+
+/** Coordinator timings for one-off raids that have no schedule. */
+export const DEFAULT_TIMINGS: ScheduleTimings = {
+  leadDays: 7,
+  reminderHours: [72, 24],
+  lockHours: 2,
+};
 
 export const RAIDS_COMMANDS = [
   'schedule-create',

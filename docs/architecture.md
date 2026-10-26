@@ -43,7 +43,7 @@ flowchart TB
         subgraph Modules
             ID["identity ✅"]
             RAIDS["raids ✅"]
-            COORD["coordinator 📋"]
+            COORD["coordinator 🚧"]
             LOOT["loot 📋"]
         end
     end
@@ -143,6 +143,7 @@ Current packages:
 | `packages/testing` | package | Test callers, clock, registry helpers | ✅ |
 | `packages/ui-kit` | package | Web composites on FAST-AF + violet-elements: logo header, class/role badges, character form (`@command` → `character-add`), signup and sign-in cards, theme switch; a `CommandClient` port (stubbed until Convex is wired); Violet → Vintage token bridge; Custom Elements Manifest | ✅ |
 | `modules/identity` | module | Members, characters, guild ranks, role → rank map, role sync planner | ✅ |
+| `modules/coordinator` | module | The raid coordinator loop on a 5-minute cron: signup posts, reminders (pings + optional DMs), officer digest, lock, final roster, addon import string; `CoordinatorAction` log | 🚧 built, tested, and run live on the test server; button clicks wait on the gateway (#10) |
 | `modules/raids` | module | Schedules (DST-safe recurrence), raid events, signups, roster groups, `comp-suggest`; emits `signup-changed` and `raid-completed` | ✅ built and tested; not yet driven by the coordinator |
 | `apps/api` | app | Convex: composes components, command surface, crons | ✅ |
 | `apps/gateway` | app | Vercel functions: `/discord/interactions` (later `/mcp`) | 🚧 |

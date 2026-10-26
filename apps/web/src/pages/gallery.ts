@@ -7,6 +7,7 @@ import {
   type RosterMember,
   SIGNUP_STATUSES,
   type SignupStatus,
+  type TonightSignup,
 } from '@vintage/ui-kit';
 import { CLASS_NAMES, CLASSES, ROLES, type Role, type WowClass } from '@vintage/wow-data';
 import { ART } from '../content/art';
@@ -90,6 +91,27 @@ const GALLERY_ROSTER: RosterMember[] = [
   { id: 'm6', displayName: 'Wendeline', rank: 'recruit', main: null },
 ];
 
+const GALLERY_TONIGHT_SIGNUPS: TonightSignup[] = [
+  ['Stridulent', 'warrior', 'protection', 'tank', 'accepted', null, 1],
+  ['Bloodfen Il', 'warrior', 'protection', 'tank', 'late', 'by 8:30', null],
+  ['Aeryn', 'priest', 'holy', 'healer', 'accepted', null, 2],
+  ['Garrick', 'paladin', 'holy', 'healer', 'tentative', 'depends on work', null],
+  ['Brannoch', 'warrior', 'fury', 'melee', 'accepted', null, 1],
+  ['Morwenna', 'mage', 'frost', 'ranged', 'accepted', null, 2],
+  ['Nimue', 'mage', 'fire', 'ranged', 'declined', null, null],
+].map(([name, cls, spec, role, status, note, group], i) => ({
+  id: `s${i}`,
+  characterName: name as string,
+  class: cls as string,
+  spec: spec as string,
+  role: role as string,
+  status: status as string,
+  queued: false,
+  note: note as string | null,
+  roster: group ? 'rostered' : 'pending',
+  group: group as number | null,
+}));
+
 const GALLERY_POLL: PollCardOption[] = [
   { id: 'o1', label: 'Sunday', votes: 14 },
   { id: 'o2', label: 'Monday', votes: 9 },
@@ -112,6 +134,17 @@ const template = html<Page>`
         :gaps="${() => ['need 1 more healer', 'no Mark of the Wild']}"
       ></vintage-officer-strip>
       <vintage-officer-strip state="paused" href="/officers"></vintage-officer-strip>
+    </section>
+    <section>
+      <h2>Tonight</h2>
+      <p>The officers' quarters' first tab. Actions here run against the gallery's client, so they report a refusal.</p>
+      <vintage-tonight
+        time-zone="America/New_York"
+        :raid="${() => ({ id: 'demo', name: 'Launch night', startsAt: Date.UTC(2026, 10, 5, 1), size: 10, status: 'open' })}"
+        :signups="${() => GALLERY_TONIGHT_SIGNUPS}"
+        :gaps="${() => ['need 1 more healer']}"
+        :waiting="${() => ['Elowen', 'Fenwick']}"
+      ></vintage-tonight>
     </section>
     <section>
       <h2>Member menu</h2>

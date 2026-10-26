@@ -99,6 +99,7 @@ const template = html<Page>`
         state-detail="${(x) => x.coordinator.detail}"
         :waiting="${(x) => x.officerWaiting}"
         :gaps="${(x) => x.officerGaps}"
+        href="/officers"
       ></vintage-officer-strip>
     `,
   )}

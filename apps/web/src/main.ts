@@ -13,6 +13,7 @@ import { fastRouterRegistration } from '@microsoft/fast-router';
 import { VintageRoutes } from './routes';
 import { currentSession } from './session';
 import { installSectionLinks, trackScrollProgress } from './site-context';
+import { currentView } from './view';
 
 if (import.meta.env.DEV) {
   // An in-memory guild behind the real commands, signed in as the persona the dev switch picks
@@ -34,6 +35,14 @@ if (menu && session) {
   menu.detail = rank.charAt(0).toUpperCase() + rank.slice(1);
   menu.avatarSrc = session.avatarUrl ?? '';
   menu.hidden = false;
+}
+
+// Leaders and officers get the quarters in the header; the page itself also checks the view.
+if (currentView() === 'officer') {
+  const link = document.createElement('a');
+  link.href = '/officers';
+  link.textContent = 'Officers';
+  document.getElementById('member-menu')?.before(link);
 }
 
 const updated = document.getElementById('updated') as HTMLTimeElement | null;

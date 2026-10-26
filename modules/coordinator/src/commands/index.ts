@@ -3,7 +3,7 @@ import { GUILD_RANKS } from '@vintage/identity/contract';
 import { z } from 'zod';
 import { renderSignupPost } from '../domain/card';
 import { nonResponders, planTick } from '../domain/plan';
-import { hashMessage } from '../domain/render';
+import { buildImportString, hashMessage } from '../domain/render';
 import { command } from '../store';
 import { raidNightPoll } from './raid-night';
 
@@ -175,6 +175,38 @@ export const coordinatorRepost = command({
 });
 
 /** Every coordinator command, registered by apps/api through guild-kit. */
+export const addonImportGet = command({
+  name: 'addon-import-get',
+  description:
+    'The addon import string for an upcoming raid: who goes by the comp, with their groups, ' +
+    'ready to paste into the Vintage addon. The same string the coordinator posts to the ' +
+    'officer channel after lock.',
+  tier: 'leader',
+  input: z.object({ eventId: z.string().min(1) }),
+  handler: async ({ eventId }, { guildId, deps, now }) => {
+    const at = now();
+    const state = await deps.tickSource.load(guildId, at);
+    const tick = state.events.find((t) => t.event.id === eventId);
+    if (!tick) {
+      return error('RAID_NOT_UPCOMING', `No upcoming open or locked raid ${eventId}`, {
+        suggestion: 'Pick a raid from raid-list that has not started, been completed, or cancelled',
+        retryable: false,
+      });
+    }
+    const { characters, encoded } = buildImportString(tick, state.members, guildId, at);
+    if (!encoded.ok) {
+      return error('IMPORT_BUILD_FAILED', `Could not build the import: ${encoded.error.message}`, {
+        suggestion: 'Check the signups for missing characters, then try again',
+        retryable: false,
+      });
+    }
+    return success(
+      { eventId, name: tick.event.name, characters, importString: encoded.value },
+      { reasoning: `${characters} characters for ${tick.event.name}` },
+    );
+  },
+});
+
 export const coordinatorCommands = [
   coordinatorStatus,
   coordinatorPause,
@@ -184,4 +216,5 @@ export const coordinatorCommands = [
   coordinatorLog,
   coordinatorRepost,
   raidNightPoll,
+  addonImportGet,
 ] as const;

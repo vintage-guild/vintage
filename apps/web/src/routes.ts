@@ -19,6 +19,11 @@ export class VintageRoutes extends RouterConfiguration {
         title: 'Characters',
         element: page(() => import('./pages/characters')),
       },
+      {
+        path: 'officers',
+        title: 'Officers’ quarters',
+        element: page(() => import('./pages/officers')),
+      },
     );
     if (import.meta.env.DEV) {
       // A dev-only gallery of every ui-kit element, for checking both themes.

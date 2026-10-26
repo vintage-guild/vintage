@@ -74,6 +74,7 @@ export const COORDINATOR_COMMANDS = [
   'coordinator-log',
   'coordinator-repost',
   'raid-night-poll',
+  'addon-import-get',
 ] as const;
 export type CoordinatorCommandName = (typeof COORDINATOR_COMMANDS)[number];
 

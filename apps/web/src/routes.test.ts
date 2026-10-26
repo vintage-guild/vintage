@@ -23,6 +23,7 @@ describe('VintageRoutes', () => {
     ['about', 'About'],
     ['profile', 'Profile'],
     ['characters', 'Characters'],
+    ['officers', 'Officers’ quarters'],
     ['ui', 'Components'],
   ])('maps /%s', async (path, title) => {
     expect(await titleOf(path)).toBe(title);

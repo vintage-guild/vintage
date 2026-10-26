@@ -40,6 +40,7 @@ export {
   VintageSignupCard,
 } from './elements/signup-card';
 export { VintageThemeSwitch } from './elements/theme-switch';
+export { type TonightRaid, type TonightSignup, VintageTonight } from './elements/tonight';
 export { titleCase } from './labels';
 export { describeError, type ElementResult, toElementResult } from './result';
 export {

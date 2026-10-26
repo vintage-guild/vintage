@@ -1,0 +1,22 @@
+{
+  "name": "@vintage/comp-solver",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Pure raid-composition scoring: pick a roster from signups, bench the rest, list the gaps.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "type-check": "tsc6 -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@vintage/wow-data": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@vintage/config": "workspace:*",
+    "fast-check": "catalog:",
+    "typescript": "catalog:"
+  }
+}

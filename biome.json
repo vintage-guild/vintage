@@ -16,7 +16,8 @@
       "!tooling/botcore",
       "!PLAN.md",
       "!vendor",
-      "!commands.manifest.json"
+      "!commands.manifest.json",
+      "!libs/bridge-format/fixtures"
     ]
   },
   "javascript": {

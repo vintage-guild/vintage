@@ -1,0 +1,10 @@
+{
+  "description": "An unknown kind at the current version is refused",
+  "payload": {
+    "v": 1,
+    "kind": "raid-teleport",
+    "at": 1793000000
+  },
+  "error": "UNKNOWN_KIND",
+  "encoded": "!VIN:1!JrZukXs0iR7ZKdoLDM5LYLkkXmtr3ssnNuli)IkrOYygaa"
+}

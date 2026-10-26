@@ -6,49 +6,9 @@ import {
   type ScheduleTimings,
   type Weekday,
 } from '@vintage/raids/contract';
+import { wallClock, zonedInstant } from '@vintage/ui-kit/zoned';
 
 const DAY_MS = 86_400_000;
-
-/** Year, month, day, hour, minute, and weekday of an instant as a zone's wall clock shows it. */
-function wallClock(ms: number, timeZone: string) {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    hourCycle: 'h23',
-    weekday: 'short',
-    year: 'numeric',
-    month: 'numeric',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: 'numeric',
-  }).formatToParts(ms);
-  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
-  return {
-    year: Number(get('year')),
-    month: Number(get('month')) - 1,
-    day: Number(get('day')),
-    hour: Number(get('hour')),
-    minute: Number(get('minute')),
-    weekday: get('weekday').toLowerCase() as Weekday,
-  };
-}
-
-/** The instant a zone's wall clock reads the given date and time (DST-safe). */
-export function zonedInstant(
-  year: number,
-  month: number,
-  day: number,
-  hour: number,
-  minute: number,
-  timeZone: string,
-): number {
-  const wanted = Date.UTC(year, month, day, hour, minute);
-  const offsetAt = (ms: number) => {
-    const w = wallClock(ms, timeZone);
-    return Date.UTC(w.year, w.month, w.day, w.hour, w.minute) - ms;
-  };
-  const first = wanted - offsetAt(wanted);
-  return wanted - offsetAt(first);
-}
 
 /** The next start of a schedule's night on `weekday`, after `now`. */
 export function nextNight(weekday: Weekday, schedule: Schedule, now: number): number {

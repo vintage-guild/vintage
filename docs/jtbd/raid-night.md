@@ -102,6 +102,18 @@ that** people who committed first stay ahead of me.
 - [ ] Accepted → tentative → accepted puts me behind people who accepted after my first answer.
   Changing character, or switching between accepted and late, keeps my place.
 
+### J24 · Keep the calendar right from the quarters
+**When** plans change, **I (raid leader) want** to add, move, pause, and close out raids on the
+site, **so I can** keep the calendar true without commands (the quarters' Calendar tab).
+- [ ] Rook adds a one-off raid; a raider answers it; Rook moves it an hour later and the answer
+  comes along.
+- [ ] Rook pauses the schedule: creating raids now makes none. Resumed, its next nights appear.
+- [ ] Once a raid has started, Rook marks it done; it moves under Earlier.
+- [ ] Cancel previews first ("N people have signed up"), then cancels (J08).
+- [ ] A raider reads the calendar but `raid-create` answers `COMMAND_NOT_FOUND`.
+- [ ] Viewed from Europe in late October, a raid shows the guild's clock beside the viewer's and
+  notes it is an hour off from usual.
+
 ### J15 · Answer straight from the Discord post, privately
 **When** I see a raid post, **I (raider) want** to answer with one click, **so I can** sign up
 without leaving Discord.

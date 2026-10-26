@@ -15,6 +15,9 @@ holds the guild-specific pieces (PLAN §3.9).
 | `vintage-roster-wall` | Every member grouped by rank, each as their main's name in its class color with spec and role; the signed-in member's row marked. Fed from `member-list` |
 | `vintage-poll-card` | A poll: pick one votes on a click; pick any and ranked collect a draft, then vote. Shares only when the server shows the tally (`results-hidden`), the winner once closed. `vintage.vote-cast` / `vintage.vote-retract` → server `vote-cast` / `vote-retract` |
 | `vintage-recruiting-desk` | The officers’ Recruiting tab: the band’s headline, pitch, and a need and specs for each class. `vintage.recruiting-save` runs `recruiting-set`; read-only without `can-edit` |
+| `vintage-calendar-desk` | The officers' Calendar tab: raids as an agenda by day (or the month), the last month under Earlier, and the schedules. Times in the viewer's zone with the guild's clock beside them, overlap and clock-change notes. `vintage.raid-create`, `vintage.raid-reschedule`, `vintage.raid-complete`, `vintage.raid-cancel` (preview, then confirm), `vintage.schedule-materialize`, `vintage.schedule-active`; read-only without `can-edit` |
+| `vintage-raid-month` | A month of raids as a plain table, placed by the viewer's zone; raids are buttons that raise `raid-selected`, dots under 32rem |
+| `vintage-schedule-form`, `vintage-raid-form` | The calendar's forms: a schedule (only what changed on edit) and a one-off or moved raid, read in a chosen zone; raise `form-submit` with the command and input |
 | `vintage-polls-desk` | The officers’ Polls tab: open polls with the live tally, closed ones with the result. `vintage.poll-open`, `vintage.poll-close` and `vintage.poll-cancel` (preview, then confirm), `vintage.poll-sweep` |
 | `vintage-hero` | The home page opener: full-bleed art under a dark fade, with slots for eyebrow pills, the heading, a standfirst, actions, and figures; `compact` makes it a band for signed-in members (heading and figures only), `art-phone-src` a portrait for phones |
 | `vintage-figure` | One big tabular number with a unit and caption; rows of them sit in the hero |
@@ -24,6 +27,10 @@ holds the guild-specific pieces (PLAN §3.9).
 | `vintage-signup-card` | One raid: its counts (statuses from `raid-list`, roles from `signup-list`) and the member's own answer. Going / Late / Tentative / Can't run the `vintage.signup-set` command → server `signup-set` with the member's character |
 | `vintage-sign-in-card` | What member pages show when signed out; with `available`, its button raises `sign-in-requested` and the app starts Discord sign-in (ui-kit never sees the auth client) |
 | `vintage-theme-switch` | Dark / parchment switch (`data-theme` on `<html>`), also the `vintage.theme-toggle` command. Shown in the `/ui` gallery; the site header no longer carries it |
+
+Times: `src/zoned.ts` (also `@vintage/ui-kit/zoned`, which registers no elements) has the DST-safe
+wall-clock helpers (`zonedInstant`, `dayKey`, `offsetMinutes`, `instantFromInputs`); the website's
+schedule wording uses them too.
 
 ## Rules
 

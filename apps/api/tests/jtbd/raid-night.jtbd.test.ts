@@ -454,4 +454,52 @@ describe('JTBD: raid night', () => {
       'accepted',
     );
   });
+
+  it('J24 · a raid leader keeps the calendar right from the quarters: one-offs, moves, pauses, done', async () => {
+    const { wed } = await scheduleRaidNights(g);
+    const schedules = await g.host.ok<{ id: string }[]>(g.rook, 'schedule-list', {});
+    const scheduleId = schedules[0]!.id;
+
+    // A one-off on Saturday, then moved an hour later: Aeryn's answer comes along.
+    const saturday = Date.UTC(2026, 9, 31, 22); // Sat 31 Oct, 18:00 New York
+    const alt = await g.host.ok<RaidEvent>(g.rook, 'raid-create', {
+      name: 'Alt run',
+      instance: 'Barrow Deeps',
+      size: 10,
+      startsAt: saturday,
+    });
+    await answer(g, g.aeryn, 'aeryn', alt.id, 'accepted');
+    await g.host.ok(g.rook, 'raid-reschedule', { eventId: alt.id, startsAt: saturday + HOUR });
+    const moved = await g.host.ok<{ event: RaidEvent }>(g.aeryn, 'raid-get', { eventId: alt.id });
+    expect(moved.event.startsAt).toBe(saturday + HOUR);
+    expect((await g.host.ok<Signup>(g.aeryn, 'signup-get', { eventId: alt.id })).status).toBe(
+      'accepted',
+    );
+
+    // A week on, a paused schedule creates nothing; resumed, its next two nights appear.
+    g.host.clock.advance(7 * DAY);
+    await g.host.ok(g.rook, 'schedule-update', { scheduleId, active: false });
+    const paused = await g.host.ok<{ created: RaidEvent[] }>(g.rook, 'schedule-materialize', {});
+    expect(paused.created).toHaveLength(0);
+    await g.host.ok(g.rook, 'schedule-update', { scheduleId, active: true });
+    const resumed = await g.host.ok<{ created: RaidEvent[] }>(g.rook, 'schedule-materialize', {});
+    expect(resumed.created.map((e) => e.startsAt)).toEqual([
+      WED + 7 * DAY + HOUR,
+      WED + 8 * DAY + HOUR,
+    ]);
+
+    // Last Wednesday has started, so it can be marked done.
+    await g.host.ok(g.rook, 'raid-complete', { eventId: wed.id });
+    const done = await g.host.ok<{ event: RaidEvent }>(g.aeryn, 'raid-get', { eventId: wed.id });
+    expect(done.event.status).toBe('completed');
+
+    // Raiders read the calendar but can't change it.
+    const refused = await g.host.run(g.aeryn, 'raid-create', {
+      name: 'Mine',
+      instance: 'Barrow Deeps',
+      size: 10,
+      startsAt: saturday + DAY,
+    });
+    expect(refused).toMatchObject({ success: false, error: { code: 'COMMAND_NOT_FOUND' } });
+  });
 });

@@ -48,6 +48,10 @@ commands). Everything runs serverless: no always-on gateway process.
   environment variables. Never commit values or echo the token in output.
 - Portal settings (Public Bot, intents, install link) change who can install the bot: a human
   officer changes them, not an agent. The bot needs the **Server Members** intent for role sync.
+- **The app is public** (decided 2026-10-25, so the GM can add it). Anyone can add it to their
+  own server, so the bot must only act for the configured guild: role sync reads
+  `DISCORD_GUILD_ID`, the coordinator posts only to configured channels, and the gateway must
+  ignore interactions from any other guild (#10).
 - Read-only checks are fine: `GET /users/@me` (token valid), `GET /applications/@me`
   (`bot_public`, `verify_key`, intent flags), `GET /users/@me/guilds` (servers joined).
 

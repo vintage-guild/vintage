@@ -1,15 +1,18 @@
 // Development fixtures: an in-memory guild behind the real command client, and a signed-in
-// member (FIXTURE_ME). Installed by main.ts in dev only; production waits on sign-in (#7) and
-// the Convex client.
+// member chosen by the dev "view as" switch (persona.ts; Bloodfen by default). Installed by
+// main.ts in dev only; production waits on sign-in (#7) and the Convex client.
+import { publicCaller } from '@vintage/guild-kit';
 import { setCommandClient } from '@vintage/ui-kit';
 import { type Session, setSession } from '../session';
-import { FIXTURE_ME, FIXTURE_TIMEZONE } from './data';
+import { FIXTURE_TIMEZONE } from './data';
 import { createFixtureHost, createHostClient, type FixtureHost } from './host';
+import { DEFAULT_PERSONA, FIXTURE_PERSONAS, type FixturePersona } from './persona';
 import { seedFixtures } from './seed';
 
 export interface InstalledFixtures {
   host: FixtureHost;
-  session: Session;
+  /** Null for the visitor persona: nobody signed in, commands run as a public caller. */
+  session: Session | null;
 }
 
 /**
@@ -26,15 +29,23 @@ export function placeholderAvatar(displayName: string): string {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
-/** Seed the example guild and point the command client and session at it. */
-export async function installFixtures(): Promise<InstalledFixtures> {
+/** Seed the example guild and point the command client and session at the persona. */
+export async function installFixtures(
+  persona: FixturePersona = DEFAULT_PERSONA,
+): Promise<InstalledFixtures> {
   const host = createFixtureHost();
   await seedFixtures(host);
-  const me = await host.member(FIXTURE_ME);
-  if (!me) throw new Error(`fixtures: ${FIXTURE_ME} is not in the example guild`);
+  const name = FIXTURE_PERSONAS[persona];
+  if (!name) {
+    setCommandClient(createHostClient(host, publicCaller(host.guildId)));
+    setSession(null);
+    return { host, session: null };
+  }
+  const me = await host.member(name);
+  if (!me) throw new Error(`fixtures: ${name} is not in the example guild`);
   // The example member has set a time zone in their profile, so raid times show in it.
   await host.run(host.callerFor(me), 'member-prefs-set', { timezone: FIXTURE_TIMEZONE });
-  const refreshed = (await host.member(FIXTURE_ME)) ?? me;
+  const refreshed = (await host.member(name)) ?? me;
   setCommandClient(createHostClient(host, host.callerFor(refreshed)));
   const session: Session = {
     memberId: refreshed.id,

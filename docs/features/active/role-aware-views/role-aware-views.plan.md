@@ -1,6 +1,6 @@
 # Role-aware views and the officers' quarters
 
-> Status: proposed · Created 2026-10-26 · Owner: Bloodfen · Depends on sign-in (#7)
+> Status: active · Created 2026-10-26 · Owner: Bloodfen · Depends on sign-in (#7)
 > Related: [home page](../../active/home-page/home-page.plan.md), [PLAN.md §3.4](../../../../PLAN.md)
 > (tiers), [docs/jtbd](../../../jtbd/README.md)
 
@@ -165,10 +165,39 @@ New jobs for [docs/jtbd](../../../jtbd/README.md), each as a scenario test and a
 4. Whether `raid-leader` rank should see the Coordinator tab's config items. Proposed: no; config
    is `officer` tier in the manifest already, and the tab hides what the tier can't run.
 
+## Build log
+
+**Pass 1 (2026-10-26): the three compositions and the dev switch.**
+
+- `src/view.ts`: `viewFor(session)` maps tiers to `visitor` (signed out, `public`), `member`
+  (member, recruit, raider), `officer` (leader, officer); an unknown tier gets the storefront.
+  `canSignUp` mirrors `signup-set`'s recruit tier. A signed-in Discord user who isn't in the
+  server is `public`, so they get the storefront too.
+- Dev switch: `?as=visitor|member|recruit|raider|leader|officer`, remembered for the tab, plus a
+  floating "View as" control (dev builds only). Personas are fixture members, one per tier
+  (Gwendolyn, Wendeline, Bloodfen, Garrick, Aeryn); visitor signs in nobody and runs commands
+  as a public caller, so every refusal on the page is the registry's real answer.
+- `vintage-hero` `compact`: heading kept (the page's h1, now "Welcome back, Bloodfen."), the
+  standfirst and actions hidden, a shorter band. Member figures: days to their next raid, going
+  count with their own answer ("you're going", "you haven't answered" in accent, or "recruits
+  and up sign up"), bosses down, names on the rolls. Pills become their rank and main character.
+- Composition: members get "Your next raid" at the top, the signup card read-only with a note
+  for `member` tier, and recruiting as one line at the foot ("Know a Warrior, Priest, or
+  Shaman…"). The full band stays the visitor's. Officers get the member composition for now;
+  the officer strip is the next task.
+- Refused reads now say why instead of looking empty: the calendar, roster, coordinator log, and
+  poll tell visitors they are for members, and the roster tells `member` tier it opens at
+  recruit. When the roster is refused the count figure becomes "3 roles we need most".
+- Fixed in passing: `vintage-member-menu` ignored `hidden` (its `:host` display won), so a
+  signed-out page showed a "?" avatar. That would have shipped to production.
+- Phone check (375 px, raider): the "10 days to Launch night" and "you're going" figures end at
+  430 px, inside the first screen. Changing the answer still needs a scroll to the card; the
+  queued count, lock time, and raid notes are the next card task.
+
 ## Tasks
 
-- [ ] `view` from the session; home page composes by view; dev fixture switch
-- [ ] `vintage-hero` compact mode and member-bound figures
+- [x] `view` from the session; home page composes by view; dev fixture switch
+- [x] `vintage-hero` compact mode and member-bound figures
 - [ ] Signup card: queued and how many ahead, lock time; `notes` on `RaidEvent` (raids contract, manifest)
 - [ ] `vintage-officer-strip`
 - [ ] `/officers` route, tier guard, Tonight tab (digest, non-responders, roster controls, import string)

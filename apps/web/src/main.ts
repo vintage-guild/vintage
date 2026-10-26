@@ -15,9 +15,13 @@ import { currentSession } from './session';
 import { installSectionLinks, trackScrollProgress } from './site-context';
 
 if (import.meta.env.DEV) {
-  // An in-memory guild behind the real commands, with an example member signed in.
+  // An in-memory guild behind the real commands, signed in as the persona the dev switch picks
+  // (`?as=visitor|member|recruit|raider|leader|officer`, remembered for the tab).
   const { installFixtures } = await import('./fixtures');
-  await installFixtures();
+  const { choosePersona, installPersonaSwitch } = await import('./fixtures/persona');
+  const persona = choosePersona();
+  await installFixtures(persona);
+  installPersonaSwitch(persona);
 }
 
 const session = currentSession();

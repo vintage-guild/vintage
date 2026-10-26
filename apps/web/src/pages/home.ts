@@ -44,6 +44,7 @@ import {
   setSiteContext,
   watchSections,
 } from '../site-context';
+import { canSignUp, currentView, type View } from '../view';
 import { pageStyles } from './page-styles';
 
 /** How far ahead the calendar looks. */
@@ -67,37 +68,100 @@ const timeOf = (ms: number) => formatTime(ms);
 const DISCORD_HREF = DISCORD_INVITE_URL ?? '/#recruiting';
 const DISCORD_SECTION_LINK = DISCORD_INVITE_URL ? '' : 'recruiting';
 
+/** "Warrior, Priest, or Shaman": the classes the band marks high, for the members' one-liner. */
+const HIGH_NEEDS = ((names: string[]) =>
+  names.length <= 1
+    ? (names[0] ?? 'raider')
+    : `${names.slice(0, -1).join(', ')}, or ${names.at(-1)}`)(
+  RECRUITING.needs.filter((n) => n.need === 'high').map((n) => n.wowClass),
+);
+
+/** How many classes the band marks high: the visitor's figure when the roster is members-only. */
+const HIGH_NEED_COUNT = RECRUITING.needs.filter((n) => n.need === 'high').length;
+
+/** What a member's answer for the next raid reads as in the hero's figure. */
+const ANSWER_CAPTIONS: Record<SignupStatus, string> = {
+  accepted: 'you’re going',
+  late: 'you’re in, late',
+  tentative: 'you’re tentative',
+  declined: 'you’re out this time',
+  bench: 'you’re on the bench',
+};
+
 const template = html<Page>`
   <vintage-hero
     id="top"
     art-src="${ART.hero}"
     art-phone-src="${ART.heroPhone}"
+    ?compact="${(x) => x.view !== 'visitor'}"
     data-section
     data-section-eyebrow="Vintage"
     data-section-title="A guild on WoW: Forever"
-    data-section-action="Apply to raid"
-    data-section-href="/#recruiting"
+    data-section-action="${(x) => (x.view === 'visitor' ? 'Apply to raid' : 'Sign up')}"
+    data-section-href="${(x) => (x.view === 'visitor' ? '/#recruiting' : '/#raids')}"
   >
-    <span slot="eyebrow" class="pill">Normal ruleset</span>
-    <span slot="eyebrow" class="pill">Wed + Thu · 8 pm ET</span>
-    <span slot="eyebrow" class="pill">10 · 20 · 40</span>
-    <span slot="eyebrow" class="pill">Semi-hardcore</span>
-    <h1>Forming for <em>Forever.</em></h1>
+    ${when(
+      (x) => x.view === 'visitor',
+      html<Page>`
+        <span slot="eyebrow" class="pill">Normal ruleset</span>
+        <span slot="eyebrow" class="pill">Wed + Thu · 8 pm ET</span>
+        <span slot="eyebrow" class="pill">10 · 20 · 40</span>
+        <span slot="eyebrow" class="pill">Semi-hardcore</span>
+        <h1>Forming for <em>Forever.</em></h1>
+      `,
+    )}
+    ${when(
+      (x) => x.view !== 'visitor',
+      html<Page>`
+        <span slot="eyebrow" class="pill">${(x) => x.rankLabel}</span>
+        ${when((x) => x.main, html<Page>`<span slot="eyebrow" class="pill">${(x) => x.mainLabel}</span>`)}
+        <h1>Welcome back, <em>${(x) => x.greetingName}.</em></h1>
+      `,
+    )}
     <p slot="standfirst">
-      A raiding guild for WoW: Forever. ${(x) => x.memberCountWords} on the rolls, two raid
-      nights a week, and a bot that posts the signups so nobody has to chase a spreadsheet.
-      Raids open December 9.
+      A raiding guild for WoW: Forever. ${(x) => x.rollsClause} raid nights a week, and a bot
+      that posts the signups so nobody has to chase a spreadsheet. Raids open December 9.
     </p>
     <div slot="actions">
       <a class="btn primary" href="/#recruiting" data-section-link="recruiting">Apply to raid</a>
       <a class="btn" href="${DISCORD_HREF}" data-section-link="${DISCORD_SECTION_LINK}" rel="noopener">Join the Discord</a>
     </div>
-    <div slot="figures">
-      <vintage-figure value="${(x) => x.daysToLaunch}" unit="days" caption="to launch · Wed Nov 4"></vintage-figure>
-      <vintage-figure value="${(x) => x.daysToRaids}" unit="days" caption="to raids · Wed Dec 9"></vintage-figure>
-      <vintage-figure value="${(x) => x.bossesDown}" unit="/ ${(x) => x.bossTotal}" caption="bosses down"></vintage-figure>
-      <vintage-figure value="${(x) => x.memberCountText}" caption="${(x) => x.memberCaption}" tone="good"></vintage-figure>
-    </div>
+    ${when(
+      (x) => x.view === 'visitor',
+      html<Page>`
+        <div slot="figures">
+          <vintage-figure value="${(x) => x.daysToLaunch}" unit="days" caption="to launch · Wed Nov 4"></vintage-figure>
+          <vintage-figure value="${(x) => x.daysToRaids}" unit="days" caption="to raids · Wed Dec 9"></vintage-figure>
+          <vintage-figure value="${(x) => x.bossesDown}" unit="/ ${(x) => x.bossTotal}" caption="bosses down"></vintage-figure>
+          ${when(
+            (x) => x.memberCount !== null,
+            html<Page>`<vintage-figure value="${(x) => x.memberCountText}" caption="${(x) => x.memberCaption}" tone="good"></vintage-figure>`,
+          )}
+          ${when(
+            (x) => x.memberCount === null,
+            html<Page>`<vintage-figure value="${HIGH_NEED_COUNT}" unit="roles" caption="we need most · recruiting" tone="good"></vintage-figure>`,
+          )}
+        </div>
+      `,
+    )}
+    ${when(
+      (x) => x.view !== 'visitor',
+      html<Page>`
+        <div slot="figures">
+          <vintage-figure value="${(x) => x.nextDays.value}" unit="${(x) => x.nextDays.unit}" caption="${(x) => x.nextDaysCaption}"></vintage-figure>
+          <vintage-figure value="${(x) => x.nextGoing}" unit="going" caption="${(x) => x.myAnswer.caption}" tone="${(x) => x.myAnswer.tone}"></vintage-figure>
+          <vintage-figure value="${(x) => x.bossesDown}" unit="/ ${(x) => x.bossTotal}" caption="bosses down"></vintage-figure>
+          ${when(
+            (x) => x.memberCount !== null,
+            html<Page>`<vintage-figure value="${(x) => x.memberCountText}" caption="on the rolls"></vintage-figure>`,
+          )}
+          ${when(
+            (x) => x.memberCount === null,
+            html<Page>`<vintage-figure value="${HIGH_NEED_COUNT}" unit="roles" caption="we need most · know anyone?"></vintage-figure>`,
+          )}
+        </div>
+      `,
+    )}
   </vintage-hero>
 
   <section
@@ -105,13 +169,13 @@ const template = html<Page>`
     id="raids"
     data-section
     data-section-eyebrow="Raids"
-    data-section-title="Next on the calendar"
+    data-section-title="${(x) => x.raidsTitle}"
     data-section-action="Sign up"
     aria-labelledby="h-raids"
   >
     <div class="wrap">
       <header>
-        <div class="lead"><span class="eyebrow">Raids</span><h2 id="h-raids">Next on the calendar</h2></div>
+        <div class="lead"><span class="eyebrow">Raids</span><h2 id="h-raids">${(x) => x.raidsTitle}</h2></div>
         <span class="mono">${(x) => x.raidsNote}</span>
       </header>
       <div class="two">
@@ -124,19 +188,23 @@ const template = html<Page>`
               starts-at="${(x) => x.next?.event.startsAt}"
               lock-label="${(x) => x.lockLabel}"
               status="${(x) => x.next?.myStatus ?? 'none'}"
-              character-id="${(x) => x.main?.id ?? ''}"
+              character-id="${(x) => (x.signUpAllowed ? (x.main?.id ?? '') : '')}"
               character-label="${(x) => x.mainLabel}"
               time-zone="${() => preferredTimeZone() ?? ''}"
               :counts="${(x) => x.nextCounts}"
               @signup-changed="${(x) => x.loadRaids()}"
             >
               <p class="note">${(x) => x.next?.event.instance} · ${(x) => x.next?.event.size} players</p>
+              ${when(
+                (x) => !x.signUpAllowed,
+                html`<p class="note">Signups open to recruits and up. Ask an officer about raiding with us.</p>`,
+              )}
             </vintage-signup-card>
           `,
         )}
         ${when(
           (x) => !x.next,
-          html<Page>`<div class="card empty"><span class="eyebrow">Next up</span><p>Nothing on the calendar yet. Raid nights are posted a week ahead.</p></div>`,
+          html<Page>`<div class="card empty"><span class="eyebrow">Next up</span><p>${(x) => (x.raidsFailed ? 'Raid nights are Wednesday and Thursday at 8 pm Eastern. Sign in with Discord to see the calendar and answer signups.' : 'Nothing on the calendar yet. Raid nights are posted a week ahead.')}</p></div>`,
         )}
         <div class="card">
           <span class="eyebrow">Coming up</span>
@@ -158,7 +226,7 @@ const template = html<Page>`
             )}
             ${when(
               (x) => x.later.length === 0,
-              html`<p class="muted">No other raids in the next two months.</p>`,
+              html<Page>`<p class="muted">${(x) => (x.raidsFailed ? 'The calendar is for members.' : 'No other raids in the next two months.')}</p>`,
             )}
           </div>
           <p class="how">
@@ -212,53 +280,58 @@ const template = html<Page>`
     </div>
   </section>
 
-  <section
-    class="sec cream"
-    id="recruiting"
-    data-section
-    data-section-eyebrow="Recruiting"
-    data-section-title="Open roles"
-    data-section-action="Apply to raid"
-    aria-labelledby="h-recruiting"
-  >
-    <img class="arms" src="${ART.recruiting}" alt="" loading="lazy" decoding="async" />
-    <div class="wrap">
-      <div class="two recruit">
-        <div class="lead">
-          <span class="eyebrow">Recruiting · posted ${RECRUITING.postedOn}</span>
-          <h2 id="h-recruiting">${RECRUITING.headline}</h2>
-          <p class="pitch">${RECRUITING.pitch}</p>
-          <p class="actions">
-            ${when(
-              () => DISCORD_INVITE_URL,
-              html`<a class="btn primary" href="${() => DISCORD_INVITE_URL ?? ''}" rel="noopener">Join the Discord</a>`,
-            )}
-            <a class="btn ${DISCORD_INVITE_URL ? '' : 'primary'}" href="/about">How we raid</a>
-            <a class="btn" href="/#roster" data-section-link="roster">Who’s in</a>
-          </p>
-          ${when(
-            () => !DISCORD_INVITE_URL,
-            html`<p class="muted small">Discord invites come from an officer for now; the public link lands here once the GM sets it.</p>`,
-          )}
+  ${when(
+    (x) => x.view === 'visitor',
+    html<Page>`
+      <section
+        class="sec cream"
+        id="recruiting"
+        data-section
+        data-section-eyebrow="Recruiting"
+        data-section-title="Open roles"
+        data-section-action="Apply to raid"
+        aria-labelledby="h-recruiting"
+      >
+        <img class="arms" src="${ART.recruiting}" alt="" loading="lazy" decoding="async" />
+        <div class="wrap">
+          <div class="two recruit">
+            <div class="lead">
+              <span class="eyebrow">Recruiting · posted ${RECRUITING.postedOn}</span>
+              <h2 id="h-recruiting">${RECRUITING.headline}</h2>
+              <p class="pitch">${RECRUITING.pitch}</p>
+              <p class="actions">
+                ${when(
+                  () => DISCORD_INVITE_URL,
+                  html`<a class="btn primary" href="${() => DISCORD_INVITE_URL ?? ''}" rel="noopener">Join the Discord</a>`,
+                )}
+                <a class="btn ${DISCORD_INVITE_URL ? '' : 'primary'}" href="/about">How we raid</a>
+                <a class="btn" href="/#roster" data-section-link="roster">Who’s in</a>
+              </p>
+              ${when(
+                () => !DISCORD_INVITE_URL,
+                html`<p class="muted small">Discord invites come from an officer for now; the public link lands here once the GM sets it.</p>`,
+              )}
+            </div>
+            <table class="needs">
+              <thead><tr><th>Class</th><th>Specs</th><th class="end">Need</th></tr></thead>
+              <tbody>
+                ${repeat(
+                  () => RECRUITING.needs,
+                  html<ClassNeed>`
+                    <tr>
+                      <td class="cls">${(n) => n.wowClass}</td>
+                      <td class="muted">${(n) => n.specs}</td>
+                      <td class="end"><span class="need ${(n) => n.need}">${(n) => n.need}</span></td>
+                    </tr>
+                  `,
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-        <table class="needs">
-          <thead><tr><th>Class</th><th>Specs</th><th class="end">Need</th></tr></thead>
-          <tbody>
-            ${repeat(
-              () => RECRUITING.needs,
-              html<ClassNeed>`
-                <tr>
-                  <td class="cls">${(n) => n.wowClass}</td>
-                  <td class="muted">${(n) => n.specs}</td>
-                  <td class="end"><span class="need ${(n) => n.need}">${(n) => n.need}</span></td>
-                </tr>
-              `,
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </section>
+      </section>
+    `,
+  )}
 
   <section
     class="sec"
@@ -274,7 +347,11 @@ const template = html<Page>`
         <div class="lead"><span class="eyebrow">Roster</span><h2 id="h-roster">On the rolls</h2></div>
         <span class="mono">${(x) => x.rosterNote}</span>
       </header>
-      <vintage-roster-wall :members="${(x) => x.members}" me="${(x) => x.meId}"></vintage-roster-wall>
+      ${when(
+        (x) => !x.membersFailed,
+        html<Page>`<vintage-roster-wall :members="${(x) => x.members}" me="${(x) => x.meId}"></vintage-roster-wall>`,
+      )}
+      ${when((x) => x.membersFailed, html<Page>`<p class="muted">${(x) => x.rosterRefused}</p>`)}
     </div>
   </section>
 
@@ -311,7 +388,7 @@ const template = html<Page>`
             )}
             ${when(
               (x) => x.feed.length === 0,
-              html`<p class="muted">Nothing yet. The coordinator posts signups a week ahead and logs every reminder here.</p>`,
+              html<Page>`<p class="muted">${(x) => (x.raidsFailed ? 'The coordinator’s log is for members. Sign in with Discord to see what it posted and why.' : 'Nothing yet. The coordinator posts signups a week ahead and logs every reminder here.')}</p>`,
             )}
           </div>
           ${when(
@@ -336,11 +413,32 @@ const template = html<Page>`
         )}
         ${when(
           (x) => !x.poll,
-          html`<div class="card"><span class="eyebrow">The question</span><p class="muted">No open poll. Raid leaders open one with <code>poll-create</code>, in Discord or here.</p></div>`,
+          html<Page>`<div class="card"><span class="eyebrow">The question</span><p class="muted">${(x) => (x.pollFailed ? 'Polls are for members. Sign in with Discord to see the open question and vote.' : 'No open poll. Raid leaders open one with poll-create, in Discord or here.')}</p></div>`,
         )}
       </div>
     </div>
   </section>
+  ${when(
+    (x) => x.view !== 'visitor',
+    html<Page>`
+      <section
+        class="sec cream slim"
+        id="recruiting"
+        data-section
+        data-section-eyebrow="Recruiting"
+        data-section-title="Open roles"
+        aria-labelledby="h-recruiting"
+      >
+        <div class="wrap">
+          <div class="lead">
+            <span class="eyebrow">Recruiting · posted ${RECRUITING.postedOn}</span>
+            <h2 id="h-recruiting">${RECRUITING.headline}</h2>
+          </div>
+          <p class="ask">Know a <b>${HIGH_NEEDS}</b> who wants a home for Forever? Send them this site: signed out, the front page has the open roles and how to join.</p>
+        </div>
+      </section>
+    `,
+  )}
 `;
 
 /** One line of the coordinator feed: an action, in words. */
@@ -654,6 +752,39 @@ const styles = css`
     color: var(--color-text-accent);
   }
 
+  /* Signed in, the hero is a band and its heading a greeting (vintage-hero compact). */
+  vintage-hero[compact] > h1 {
+    font-size: clamp(2rem, 4.2vw, 3.4rem);
+    max-inline-size: none;
+  }
+
+  /* Members get recruiting as one line at the foot of the page: the ask, not the pitch. */
+  .sec.cream.slim {
+    padding-block: var(--space-lg);
+  }
+
+  .sec.cream.slim .wrap {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap: var(--space-sm) var(--space-xl);
+    align-items: end;
+  }
+
+  .sec.cream.slim h2 {
+    font-size: clamp(1.4rem, 2.4vw, 2rem);
+    line-height: 1.1;
+  }
+
+  .sec.cream.slim .ask {
+    margin: 0;
+    max-inline-size: 46ch;
+    color: var(--color-leather-700);
+  }
+
+  .sec.cream.slim .ask b {
+    color: var(--color-text-inverse);
+  }
+
   /* the cream band: recruiting, on the inverse surface tokens */
   .sec.cream {
     position: relative;
@@ -845,7 +976,8 @@ const styles = css`
   @media (max-width: 62rem) {
     .two,
     .two.recruit,
-    .callout {
+    .callout,
+    .sec.cream.slim .wrap {
       grid-template-columns: 1fr;
     }
 
@@ -894,6 +1026,16 @@ export class Page extends FASTElement {
   @observable progress: Progress | null = null;
   /** `progress-get` answered with an error (a public caller, say): show the empty ledger. */
   @observable progressFailed = false;
+  /** `raid-list` was refused (visitors): the calendar, the counts, and the log say so. */
+  @observable raidsFailed = false;
+  /** `member-list` was refused (visitors and `member` tier): the roster says why. */
+  @observable membersFailed = false;
+  /** `poll-list` was refused (visitors): the poll card says polls are for members. */
+  @observable pollFailed = false;
+  /** Who the page is composed for, from the session (src/view.ts). Fixed for the page's life. */
+  readonly view: View = currentView();
+  /** Whether this member may answer signups (`signup-set` is recruit tier). */
+  readonly signUpAllowed = canSignUp(currentSession());
   private stopWatching: (() => void) | null = null;
 
   get daysToLaunch(): string {
@@ -908,8 +1050,9 @@ export class Page extends FASTElement {
     return this.memberCount === null ? '—' : String(this.memberCount);
   }
 
-  get memberCountWords(): string {
-    return this.memberCount === null ? 'Names' : `${this.memberCount} names`;
+  /** "33 names on the rolls, two", or "Two" when the roster is members-only to this caller. */
+  get rollsClause(): string {
+    return this.memberCount === null ? 'Two' : `${this.memberCount} names on the rolls, two`;
   }
 
   get memberCaption(): string {
@@ -920,11 +1063,68 @@ export class Page extends FASTElement {
     return this.raids[0] ?? null;
   }
 
+  get raidsTitle(): string {
+    return this.view === 'visitor' ? 'Next on the calendar' : 'Your next raid';
+  }
+
+  /** "Bloodfen", the session's name for the greeting. */
+  get greetingName(): string {
+    return currentSession()?.displayName ?? 'friend';
+  }
+
+  /** "Flex raider", from the session's rank. */
+  get rankLabel(): string {
+    const rank = (currentSession()?.rank ?? 'member').replace('-', ' ');
+    return rank.charAt(0).toUpperCase() + rank.slice(1);
+  }
+
+  /** Days to the member's next raid, as the hero figure shows it: "2 days", "1 day", "Tonight". */
+  get nextDays(): { value: string; unit: string } {
+    const next = this.next;
+    if (!next) return { value: '—', unit: '' };
+    const days = daysUntil(new Date(next.event.startsAt).toISOString());
+    if (days === 0) return { value: 'Tonight', unit: '' };
+    return { value: String(days), unit: days === 1 ? 'day' : 'days' };
+  }
+
+  get nextDaysCaption(): string {
+    const next = this.next;
+    if (!next) return this.raidsFailed ? 'calendar is for members' : 'no raid posted yet';
+    return `to ${next.event.name} · ${weekday(next.event.startsAt)}`;
+  }
+
+  /** Going for the next raid: accepted and late, from `raid-list`'s counts. */
+  get nextGoing(): string {
+    const counts = this.next?.counts;
+    return counts ? String((counts.accepted ?? 0) + (counts.late ?? 0)) : '—';
+  }
+
+  /** The member's own answer for the next raid, said plainly, with a nudge when unanswered. */
+  get myAnswer(): { caption: string; tone: 'default' | 'good' | 'accent' } {
+    const next = this.next;
+    if (!next) return { caption: 'for the next raid', tone: 'default' };
+    const mine = next.myStatus;
+    if (mine) {
+      const good = mine === 'accepted' || mine === 'late';
+      return { caption: ANSWER_CAPTIONS[mine], tone: good ? 'good' : 'default' };
+    }
+    return this.signUpAllowed
+      ? { caption: 'you haven’t answered', tone: 'accent' }
+      : { caption: 'recruits and up sign up', tone: 'default' };
+  }
+
+  get rosterRefused(): string {
+    return this.view === 'visitor'
+      ? 'The roster is for members. Sign in with Discord to see who’s in.'
+      : 'The roster opens to recruits and up. Ask an officer about raiding with us.';
+  }
+
   get later(): RaidRow[] {
     return this.raids.slice(1);
   }
 
   get raidsNote(): string {
+    if (this.raidsFailed) return 'members only';
     const n = this.raids.length;
     return n === 0 ? 'nothing posted yet' : `${n} raid${n === 1 ? '' : 's'} in the next two months`;
   }
@@ -1031,6 +1231,7 @@ export class Page extends FASTElement {
     const result = await getCommandClient().read<MemberRow[]>('member-list');
     this.members = result.success ? (result.data ?? []) : [];
     this.memberCount = result.success ? this.members.length : null;
+    this.membersFailed = !result.success;
   }
 
   /** The coordinator's log across the upcoming raids, newest first. */
@@ -1055,6 +1256,7 @@ export class Page extends FASTElement {
   async loadPoll(): Promise<void> {
     const client = getCommandClient();
     const list = await client.read<{ id: string }[]>('poll-list');
+    this.pollFailed = !list.success;
     const first = list.success ? (list.data ?? [])[0] : undefined;
     if (!first) {
       this.poll = null;
@@ -1097,6 +1299,7 @@ export class Page extends FASTElement {
       to: Date.now() + CALENDAR_DAYS * DAY_MS,
     });
     this.raids = list.success ? (list.data ?? []) : [];
+    this.raidsFailed = !list.success;
     const next = this.next;
     if (!next) {
       this.nextCounts = EMPTY_COUNTS;

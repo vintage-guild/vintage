@@ -126,6 +126,19 @@ describe('identity commands', () => {
     expect(result).toMatchObject({ success: false, error: { code: 'COMMAND_NOT_FOUND' } });
   });
 
+  it('member-sync is system-only: an officer on any surface cannot promote anyone', async () => {
+    const promote = { discordId: 'd-mallory', displayName: 'Mallory', inServer: true };
+    for (const surface of ['web', 'mcp', 'discord', 'agent', 'cli'] as const) {
+      const officer = makeCaller('officer', { surface, memberId: 'm-officer' });
+      const result = await run('member-sync', { ...promote, roleIds: ['role-officer'] }, officer);
+      expect(result, surface).toMatchObject({
+        success: false,
+        error: { code: 'COMMAND_NOT_FOUND' },
+      });
+    }
+    expect(await deps.identity.getMemberByDiscordId(TEST_GUILD_ID, 'd-mallory')).toBeNull();
+  });
+
   it('first character becomes the main, later ones are alts unless flagged', async () => {
     const main = await run(
       'character-add',

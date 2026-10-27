@@ -24,6 +24,8 @@ async function keypair() {
 describe('verifyInteraction', () => {
   const body = JSON.stringify({ type: 1, id: 'i1' });
   const timestamp = '1761400000';
+  const signedAt = new Date(Number(timestamp) * 1000);
+  const atSigning = { now: () => signedAt };
   let key: Awaited<ReturnType<typeof keypair>>;
   let signature: string;
 
@@ -33,45 +35,115 @@ describe('verifyInteraction', () => {
   });
 
   it('accepts a valid signature over timestamp + raw body', async () => {
-    expect(await verifyInteraction(key.publicHex, { signature, timestamp, body })).toBe(true);
+    expect(await verifyInteraction(key.publicHex, { signature, timestamp, body }, atSigning)).toBe(
+      true,
+    );
   });
 
   it('accepts a pre-imported key and a byte body', async () => {
     const imported = await importPublicKey(key.publicHex);
     const bytes = new TextEncoder().encode(body);
-    expect(await verifyInteraction(imported, { signature, timestamp, body: bytes })).toBe(true);
+    expect(
+      await verifyInteraction(imported, { signature, timestamp, body: bytes }, atSigning),
+    ).toBe(true);
   });
 
   it('rejects a tampered body', async () => {
     const tampered = body.replace('i1', 'i2');
-    expect(await verifyInteraction(key.publicHex, { signature, timestamp, body: tampered })).toBe(
-      false,
-    );
+    expect(
+      await verifyInteraction(key.publicHex, { signature, timestamp, body: tampered }, atSigning),
+    ).toBe(false);
   });
 
   it('rejects a tampered timestamp', async () => {
     expect(
-      await verifyInteraction(key.publicHex, { signature, timestamp: '1761400001', body }),
+      await verifyInteraction(
+        key.publicHex,
+        { signature, timestamp: '1761400001', body },
+        atSigning,
+      ),
     ).toBe(false);
   });
 
   it('rejects a signature from another key', async () => {
     const other = await keypair();
-    expect(await verifyInteraction(other.publicHex, { signature, timestamp, body })).toBe(false);
+    expect(
+      await verifyInteraction(other.publicHex, { signature, timestamp, body }, atSigning),
+    ).toBe(false);
   });
 
   it('rejects missing or malformed headers without throwing', async () => {
     const pk = key.publicHex;
-    expect(await verifyInteraction(pk, { signature: null, timestamp, body })).toBe(false);
-    expect(await verifyInteraction(pk, { signature, timestamp: undefined, body })).toBe(false);
-    expect(await verifyInteraction(pk, { signature: 'zz', timestamp, body })).toBe(false);
-    expect(await verifyInteraction(pk, { signature: 'ab'.repeat(32), timestamp, body })).toBe(
+    expect(await verifyInteraction(pk, { signature: null, timestamp, body }, atSigning)).toBe(
+      false,
+    );
+    expect(await verifyInteraction(pk, { signature, timestamp: undefined, body }, atSigning)).toBe(
+      false,
+    );
+    expect(await verifyInteraction(pk, { signature: 'zz', timestamp, body }, atSigning)).toBe(
+      false,
+    );
+    expect(
+      await verifyInteraction(pk, { signature: 'ab'.repeat(32), timestamp, body }, atSigning),
+    ).toBe(false);
+  });
+
+  it('rejects a malformed public key without throwing', async () => {
+    expect(await verifyInteraction('not-hex', { signature, timestamp, body }, atSigning)).toBe(
       false,
     );
   });
 
-  it('rejects a malformed public key without throwing', async () => {
-    expect(await verifyInteraction('not-hex', { signature, timestamp, body })).toBe(false);
+  describe('replay window', () => {
+    const at = (offsetSeconds: number) => ({
+      now: () => new Date(signedAt.getTime() + offsetSeconds * 1000),
+    });
+    const verifyAt = (offsetSeconds: number) =>
+      verifyInteraction(key.publicHex, { signature, timestamp, body }, at(offsetSeconds));
+
+    it('accepts a request signed up to 5 minutes ago or ahead', async () => {
+      expect(await verifyAt(300)).toBe(true);
+      expect(await verifyAt(-300)).toBe(true);
+    });
+
+    it('rejects a correctly signed request replayed more than 5 minutes later', async () => {
+      expect(await verifyAt(301)).toBe(false);
+      expect(await verifyAt(24 * 60 * 60)).toBe(false);
+    });
+
+    it('rejects a timestamp more than 5 minutes in the future', async () => {
+      expect(await verifyAt(-301)).toBe(false);
+    });
+
+    it('honours a custom window', async () => {
+      const opts = { ...at(61), maxAgeSeconds: 60 };
+      expect(await verifyInteraction(key.publicHex, { signature, timestamp, body }, opts)).toBe(
+        false,
+      );
+    });
+
+    it('rejects a signed timestamp that is not a whole number of seconds', async () => {
+      for (const ts of ['', 'abc', '1761400000.5', '1e9', ' 1761400000', '-1']) {
+        const sig = await key.sign(ts, body);
+        expect(
+          await verifyInteraction(
+            key.publicHex,
+            { signature: sig, timestamp: ts, body },
+            atSigning,
+          ),
+          ts,
+        ).toBe(false);
+      }
+    });
+
+    it('checks against the real clock by default', async () => {
+      const fresh = String(Math.floor(Date.now() / 1000));
+      const sig = await key.sign(fresh, body);
+      expect(
+        await verifyInteraction(key.publicHex, { signature: sig, timestamp: fresh, body }),
+      ).toBe(true);
+      expect(await verifyInteraction(key.publicHex, { signature, timestamp, body })).toBe(false);
+    });
   });
 });
 

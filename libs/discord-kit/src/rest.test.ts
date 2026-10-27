@@ -107,6 +107,28 @@ describe('createDiscordRest', () => {
     expect((call.init.headers as Record<string, string>).Authorization).toBeUndefined();
   });
 
+  it('keeps the interaction token out of a failed webhook call', async () => {
+    const token = 'aW50ZXJhY3Rpb246MTIzNDU2Nzg5MDpzZWNyZXQ';
+    const { fetch } = fakeFetch(
+      json(404, { message: 'Unknown Webhook', code: 10015 }),
+      json(404, { message: 'Unknown Webhook', code: 10015 }),
+    );
+    const rest = createDiscordRest({ fetch });
+    const errors = [
+      await rest.editOriginalResponse('app1', token, { content: 'x' }).catch((e: unknown) => e),
+      await rest.createFollowup('app1', token, { content: 'x' }).catch((e: unknown) => e),
+    ];
+    for (const err of errors) {
+      expect(err).toBeInstanceOf(DiscordRestError);
+      expect(String(err)).not.toContain(token);
+      expect(JSON.stringify(err)).not.toContain(token);
+      expect((err as DiscordRestError).path).not.toContain(token);
+      expect((err as Error).message).toContain('/webhooks/app1/:token');
+      expect(err).toMatchObject({ status: 404, code: 10015 });
+    }
+    expect((errors[0] as Error).message).toContain('/webhooks/app1/:token/messages/@original');
+  });
+
   it('upserts guild and global commands', async () => {
     const { fetch, calls } = fakeFetch(json(201, {}), json(200, {}));
     const rest = createDiscordRest({ token: 't', fetch });

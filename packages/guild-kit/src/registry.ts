@@ -33,6 +33,12 @@ export interface GuildRegistry<Deps> {
   execute(request: ExecuteRequest, deps: Deps): Promise<CommandResult<unknown>>;
 }
 
+/** The caller's tier allows the command, and a system-only command has the system caller. */
+function mayRun(caller: Caller, command: AnyGuildCommand): boolean {
+  if (command.systemOnly && caller.surface !== 'system') return false;
+  return tierAllows(caller.tier, command.tier);
+}
+
 function subjectOf(caller: Caller): string {
   return caller.memberId ?? caller.discordId ?? `${caller.surface}:${caller.tier}`;
 }
@@ -57,12 +63,12 @@ export function createGuildRegistry<Deps>(
     get: (name) => byName.get(name),
     visibleTo: (caller) =>
       [...byName.values()]
-        .filter((c) => tierAllows(caller.tier, c.tier))
+        .filter((c) => mayRun(caller, c))
         .sort((a, b) => a.name.localeCompare(b.name)),
 
     async execute({ name, input, caller, confirmToken }, deps) {
       const command = byName.get(name);
-      if (!command || !tierAllows(caller.tier, command.tier)) {
+      if (!command || !mayRun(caller, command)) {
         // Same answer for unknown and forbidden, so the surface doesn't reveal private commands (AFD D4).
         return error('COMMAND_NOT_FOUND', `No command named "${name}" is available to you`, {
           suggestion: 'Use afd-discover to list the commands you can run',

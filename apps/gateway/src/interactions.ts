@@ -125,11 +125,15 @@ export function createInteractionHandler({
     const key = await keyPromise;
     if (!key) return problem(500, 'interactions endpoint is misconfigured');
     const body = await request.text();
-    const valid = await verifyInteraction(key, {
-      signature: request.headers.get(SIGNATURE_HEADER),
-      timestamp: request.headers.get(TIMESTAMP_HEADER),
-      body,
-    });
+    const valid = await verifyInteraction(
+      key,
+      {
+        signature: request.headers.get(SIGNATURE_HEADER),
+        timestamp: request.headers.get(TIMESTAMP_HEADER),
+        body,
+      },
+      { now },
+    );
     if (!valid) return problem(401, 'invalid request signature');
 
     const interaction = parse(body);

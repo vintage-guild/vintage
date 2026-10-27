@@ -55,15 +55,18 @@ export const memberList = command({
 });
 
 /**
- * Upsert a member from Discord data. The host calls it at sign-in and from the role-sync cron
- * (system caller); officers can also force a resync.
+ * Upsert a member from Discord data. The host calls it at sign-in and from the role-sync cron,
+ * with roles it read from Discord itself. System-only: the role ids are trusted input, so an
+ * officer (or a stolen officer session) must not be able to hand in any Discord id with any roles.
  */
 export const memberSync = command({
   name: 'member-sync',
   description:
-    "Sync one member's guild rank and tier from their Discord server membership and roles.",
+    "Sync one member's guild rank and tier from their Discord server membership and roles. " +
+    'System only: runs at sign-in and from the role-sync cron.',
   tier: 'officer',
   mutation: true,
+  systemOnly: true,
   input: z.object({
     discordId: z.string().min(1),
     displayName: z.string().min(1),

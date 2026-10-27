@@ -56,6 +56,13 @@ describe('interactions endpoint', () => {
     expect(res.status).toBe(401);
   });
 
+  it('rejects a correctly signed request replayed after the 5-minute window with 401', async () => {
+    const request = await signedRequest({ ...base, type: InteractionType.PING });
+    const later = new Date(NOW.getTime() + 6 * 60 * 1000);
+    const res = await createInteractionHandler({ publicKey, now: () => later })(request);
+    expect(res.status).toBe(401);
+  });
+
   it('rejects missing signature headers with 401', async () => {
     const res = await handler()(new Request(ENDPOINT, { method: 'POST', body: '{"type":1}' }));
     expect(res.status).toBe(401);
@@ -160,6 +167,7 @@ describe('interactions endpoint', () => {
       const notOurs = (async () => new Response('{}', { status: 404 })) as typeof fetch;
       const handle = createInteractionHandler({
         publicKey,
+        now: () => NOW,
         convex: { siteUrl: 'https://x.convex.site', secret: 's', fetch: notOurs },
       });
       const res = await handle(await signedRequest(click));
@@ -204,6 +212,7 @@ describe('interactions endpoint', () => {
       }) as typeof fetch;
       const handle = createInteractionHandler({
         publicKey,
+        now: () => NOW,
         convex: { siteUrl: 'https://x.convex.site', secret: 's', fetch: fakeFetch },
       });
       const res = await handle(await signedRequest(pollCreate));
@@ -219,6 +228,7 @@ describe('interactions endpoint', () => {
       }) as typeof fetch;
       const handle = createInteractionHandler({
         publicKey,
+        now: () => NOW,
         convex: { siteUrl: 'https://x.convex.site', secret: 's', fetch: fakeFetch },
       });
       const stale = {
@@ -261,6 +271,7 @@ describe('interactions endpoint', () => {
       }) as typeof fetch;
       const handle = createInteractionHandler({
         publicKey,
+        now: () => NOW,
         convex: { siteUrl: 'https://x.convex.site', secret: 's', fetch: fakeFetch },
       });
       const res = await handle(await signedRequest(raidCreate));
@@ -287,6 +298,7 @@ describe('interactions endpoint', () => {
       }) as typeof fetch;
       const handle = createInteractionHandler({
         publicKey,
+        now: () => NOW,
         convex: { siteUrl: 'https://x.convex.site', secret: 's', fetch: fakeFetch },
       });
       const res = await handle(await signedRequest(help));
@@ -317,6 +329,7 @@ describe('interactions endpoint', () => {
       }) as typeof fetch;
       const handle = createInteractionHandler({
         publicKey,
+        now: () => NOW,
         convex: { siteUrl: 'https://x.convex.site', secret: 's', fetch: fakeFetch },
       });
       const res = await handle(await signedRequest(ask));

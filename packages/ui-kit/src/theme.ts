@@ -2,7 +2,7 @@
 export const THEMES = ['vintage-dark', 'vintage-parchment'] as const;
 export type Theme = (typeof THEMES)[number];
 export const DEFAULT_THEME: Theme = 'vintage-dark';
-/** localStorage key; apps/web's index.html reads it before first paint. */
+/** localStorage key; apps/web's public/first-paint.js reads it before first paint. */
 export const THEME_STORAGE_KEY = 'vintage-theme';
 
 export const isTheme = (value: unknown): value is Theme =>

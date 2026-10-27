@@ -18,7 +18,7 @@
     "auth:schema": "tsx scripts/auth-schema.ts"
   },
   "dependencies": {
-    "@better-auth/oauth-provider": "1.6.33",
+    "@better-auth/oauth-provider": "1.7.0",
     "@convex-dev/better-auth": "0.12.5",
     "@vintage/agent": "workspace:*",
     "@vintage/agent-runtime": "workspace:*",

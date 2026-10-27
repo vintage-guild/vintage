@@ -268,6 +268,32 @@ describe('interactions endpoint', () => {
       expect(bodies).toEqual([raidCreate]);
     });
 
+    it('forwards /random help to Convex, so the page fits the reader’s rank', async () => {
+      const help = {
+        ...base,
+        type: InteractionType.APPLICATION_COMMAND,
+        guild_id: 'g1',
+        data: {
+          name: 'random',
+          options: [
+            { name: 'help', type: 1, options: [{ name: 'topic', type: 3, value: 'polls' }] },
+          ],
+        },
+      };
+      const bodies: unknown[] = [];
+      const fakeFetch = (async (_url: string, init: RequestInit) => {
+        bodies.push(JSON.parse(init.body as string));
+        return new Response(JSON.stringify({ type: 4, data: { content: 'help', flags: 64 } }));
+      }) as typeof fetch;
+      const handle = createInteractionHandler({
+        publicKey,
+        convex: { siteUrl: 'https://x.convex.site', secret: 's', fetch: fakeFetch },
+      });
+      const res = await handle(await signedRequest(help));
+      expect(await res.json()).toMatchObject({ data: { content: 'help' } });
+      expect(bodies).toEqual([help]);
+    });
+
     it('forwards /random ask to Convex and returns its deferred reply', async () => {
       const ask = {
         ...base,

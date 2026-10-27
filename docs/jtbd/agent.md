@@ -1,9 +1,10 @@
 # Guild agent
 
 Jobs for Random's answers in Discord (epic #126): asking in plain words, confirming a change the
-agent prepared, and officers seeing the notes that need them. The automated scenarios run every
-command, tier, tool, and Discord render for real; only the OpenAI turn is stood in for (the test
-calls the same registry tools the agent would). The live checklist runs the real turn.
+agent prepared, officers seeing the notes that need them, and help that fits your rank (#155).
+The automated scenarios run every command, tier, tool, and Discord render for real; only the
+OpenAI turn is stood in for (the test calls the same registry tools the agent would). The live
+checklist runs the real turn.
 
 ## Live setup
 
@@ -63,3 +64,21 @@ Live checklist:
       everyone's.
 - [ ] With `insights-optin-set dms:true`, an officer's `insights-send` previews me as a recipient,
       and after Confirm I get one DM; without the opt-in I get none.
+
+### J31 · Find out what I can do, for my rank
+
+When I can't remember Random's commands, I want help inside Discord that shows what my rank can
+do, with examples, so I can get on with it without asking an officer.
+
+Live checklist:
+
+- [ ] As a raider, `/random help` answers privately: polls, ask, signups, and recruiting I can
+      use, and one line saying raid leaders and officers can make events.
+- [ ] As a raider, `/random event help` says my rank can't use these yet and who can.
+- [ ] As a raid leader, `/random help topic:Events` lists `/random event create` and
+      `pick-night` with their options (kind, role counts) and examples, on one screen.
+- [ ] `/random poll help` links the website's polls page (with `VINTAGE_SITE_URL` set).
+- [ ] From an account Random hasn't synced yet, `/random help` starts with the role-sync note
+      and shows only what anyone can do.
+- [ ] `/random ask question: how do I make a dungeon run?` answers with the command to type, from
+      the same page.

@@ -26,6 +26,11 @@ commands). Everything runs serverless: no always-on gateway process.
   ever accepts one. Never parse or route an unverified body.
 - **Answer within 3 seconds.** Anything slower returns a deferred response (type 5, or 6 for
   component updates) and finishes through the interaction token (valid 15 minutes).
+- **Help follows the definitions.** `/random help` and `/random <group> help` render in Convex
+  (`src/help.ts`, `help-get`) from `RANDOM_COMMAND` plus `src/help-topics.ts`, fitted to the
+  reader's tier. A new subcommand needs a topic entry and an example, a new group a `help`
+  subcommand; `tests/help.test.ts` fails otherwise. Help runs before the group flows in
+  `convex/discord.ts`.
 - **Commands, not logic, in the endpoint.** Interactions translate to guild-kit commands through
   the registry; the endpoint never holds business rules. `/random ping` answers locally; buttons,
   modals, and the subcommand groups in `FORWARDED_GROUPS` (`/random poll`, `/random event`, `/random ask`) go to

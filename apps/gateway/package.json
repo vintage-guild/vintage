@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "description": "Vercel functions: the public HTTP surfaces (/discord/interactions now, /mcp later) in front of Convex.",
+  "exports": {
+    "./commands": "./src/commands.ts"
+  },
   "scripts": {
     "type-check": "tsc6 -p tsconfig.json --noEmit",
     "register-commands": "tsx scripts/register-commands.ts",

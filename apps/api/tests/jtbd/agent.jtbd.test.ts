@@ -1,5 +1,5 @@
 // JTBD: the guild agent (docs/jtbd/agent.md). A raider asks Random in Discord, confirms a change it
-// prepared, and an officer sees the notes that need them. Only the OpenAI turn is stood in for:
+// prepared, an officer sees the notes that need them, and help fits each rank. Only the OpenAI turn is stood in for:
 // agentUi.answer calls the same registry tools the agent would, as the asking member.
 
 import { createFakeDecisions } from '@vintage/decisions/testing';
@@ -143,6 +143,50 @@ describe('Guild agent', () => {
     expect(digest).toMatch(
       /\*\*Needs an officer\*\* \(1\): Aeryn \(can I bring my alt Kol instead\?\)/,
     );
+  });
+
+  it('J31 · Find out what I can do, for my rank', async () => {
+    const ROOK = '500000000000000002';
+    await g.host.discordMember(ROOK, 'Rook', [ROLES.raidLeader]);
+    const page = (response: unknown) =>
+      (response as { data: { flags: number; embeds: { title: string; description: string }[] } })
+        .data;
+
+    // A raider: privately, what they can do first; one line on what raid leaders can do.
+    const raider = page(await g.host.helpUi.slash(AERYN));
+    expect(raider.flags).toBe(64);
+    expect(raider.embeds[0]?.title).toBe('Random help');
+    expect(raider.embeds[0]?.description).toContain('You can use `/random poll create`.');
+    expect(raider.embeds[0]?.description).toContain(
+      '-# Raid leaders and officers can: `/random event create`, `/random event pick-night`.',
+    );
+    const raiderEvents = page(await g.host.helpUi.slash(AERYN, { group: 'event' }));
+    expect(raiderEvents.embeds[0]?.description).toContain('Your rank can’t use these yet.');
+
+    // A raid leader: the event commands, their options, and examples.
+    const leader = page(await g.host.helpUi.slash(ROOK, { topic: 'events' }));
+    expect(leader.embeds[0]?.title).toBe('Random help: Events');
+    expect(leader.embeds[0]?.description).toContain(
+      '**`/random event create`** · Make a one-off event, open for signups',
+    );
+    expect(leader.embeds[0]?.description).toContain('**Examples**');
+
+    // Someone Random doesn't know yet: the role-sync note and what anyone can do.
+    const stranger = page(await g.host.helpUi.slash('500000000000000099'));
+    expect(stranger.embeds[0]?.description).toMatch(/^-# I don't know you yet/);
+    expect(stranger.embeds[0]?.description).toContain('You can use `/random apply`');
+
+    // Asking in plain words: the agent reads the same page as the member.
+    await g.host.agentUi.ask(AERYN, 'how do I make a dungeon run?');
+    const { runId } = g.host.agentUi.queued[0]!;
+    await g.host.agentUi.answer(
+      runId,
+      [{ tool: 'afd-call', args: { name: 'help-get', input: { topic: 'events' } } }],
+      'Raid leaders and officers make events with /random event create.',
+    );
+    const read = await g.host.deps.agent.getToolResult('guild-test', runId, 'call-0');
+    expect(read?.output).toContain('Your rank can’t use these yet.');
+    expect(read?.output).toContain('Raid leaders and officers can: `/random event create`');
   });
 });
 

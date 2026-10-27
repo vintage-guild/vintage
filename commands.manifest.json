@@ -882,6 +882,30 @@
       }
     },
     {
+      "name": "help-get",
+      "description": "How to use Random, the guild’s Discord bot: an overview, or one topic’s commands, options, and examples, for your own rank.",
+      "tier": "public",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "topic": {
+            "description": "One topic; leave out for the overview",
+            "type": "string",
+            "enum": [
+              "events",
+              "signups",
+              "polls",
+              "ask",
+              "recruiting"
+            ]
+          }
+        }
+      }
+    },
+    {
       "name": "insights-get",
       "description": "One run’s findings (the latest without an id). Officers see every raider’s; members see only their own.",
       "tier": "member",

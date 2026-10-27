@@ -5,6 +5,7 @@
 //
 // `other` is the catch-all (a levelling group anyone can join): its size and instance are
 // optional. No size means open: no cap and no queue.
+import type { z } from 'zod';
 import { defaultTemplate } from './catalog';
 import {
   type CompTemplate,
@@ -50,6 +51,32 @@ export const AKind = (kind: EventKind) => aKind(kind).replace(/^a/, 'A');
 /** Only `other` events may leave out their size (open: no cap, no queue) and instance. */
 export const sizeOptional = (kind: EventKind) => kind === 'other';
 export const instanceOptional = (kind: EventKind) => kind === 'other';
+
+/**
+ * What the kind requires, as Zod issues so a command's input schema stays the source of truth:
+ * every kind but `other` needs a size and an instance. raid-create, schedule-create, and
+ * raid-night-poll all use this one, so a poll can never accept a night raid-create would refuse.
+ * Whether a given size fits the kind is `sizeFits`.
+ */
+export function kindRules(
+  input: { kind: EventKind; size: number | null; instance: string },
+  ctx: z.RefinementCtx,
+): void {
+  if (input.size === null && !sizeOptional(input.kind)) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['size'],
+      message: `${AKind(input.kind)} needs a size (${sizesText(input.kind)})`,
+    });
+  }
+  if (!input.instance && !instanceOptional(input.kind)) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['instance'],
+      message: `${AKind(input.kind)} needs an instance, e.g. Molten Core`,
+    });
+  }
+}
 
 /** Whether `size` is allowed for `kind`; null (open) only for `other`. */
 export function sizeFits(kind: EventKind, size: number | null): boolean {

@@ -14,6 +14,7 @@ export {
   KIND_SIZES,
   kindNoun,
   kindOf,
+  kindRules,
   MAX_EVENT_SIZE,
   sizeFits,
   sizeLabel,

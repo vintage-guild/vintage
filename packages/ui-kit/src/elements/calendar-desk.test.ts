@@ -503,6 +503,19 @@ describe('vintage-raid-form', () => {
     expect(page).not.toContain('Raid · 40-player');
     expect(page).toContain('Dungeon · 5-player Scarlet Monastery');
   });
+
+  it('shows an open event without a size, and its count without a cap', async () => {
+    const open = raid({ id: 'r3', kind: 'other', size: null, instance: '', scheduleId: null });
+    const el = await desk({ raids: [open] });
+    const page = text(el.shadowRoot as unknown as Element);
+    expect(page).toContain('Event · Open');
+    expect(page).toContain('13 going');
+    expect(page).not.toMatch(/null|of 40/);
+    const { describeWhat } = await import('./calendar-shared');
+    expect(describeWhat({ kind: 'other', size: null, instance: 'Westfall' })).toBe(
+      'Event · Open · Westfall',
+    );
+  });
 });
 
 describe('clockShift', () => {

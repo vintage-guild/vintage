@@ -9,7 +9,6 @@ import {
   instanceOptional,
   type RaidEvent,
   sizeFits,
-  sizeOptional,
   sizesText,
 } from '../contract';
 
@@ -75,29 +74,8 @@ export const optionalSizeSchema = groupSizeSchema
 /** Instance for create inputs: free text, left out (empty) only for `other` (`kindRules`). */
 export const optionalInstanceSchema = z.string().trim().max(60).default('');
 
-/**
- * What the kind requires, as Zod issues so the schema stays the source of truth: every kind but
- * `other` needs a size and an instance. Whether a given size fits the kind is `sizeForKind`.
- */
-export function kindRules(
-  input: { kind: EventKind; size: number | null; instance: string },
-  ctx: z.RefinementCtx,
-): void {
-  if (input.size === null && !sizeOptional(input.kind)) {
-    ctx.addIssue({
-      code: 'custom',
-      path: ['size'],
-      message: `${AKind(input.kind)} needs a size (${sizesText(input.kind)})`,
-    });
-  }
-  if (!input.instance && !instanceOptional(input.kind)) {
-    ctx.addIssue({
-      code: 'custom',
-      path: ['instance'],
-      message: `${AKind(input.kind)} needs an instance, e.g. Molten Core`,
-    });
-  }
-}
+/** What the kind requires on create (comp-solver's, shared with raid-night-poll). */
+export { kindRules } from '../contract';
 
 /** A size the kind doesn't allow (a 7-player dungeon, a raid with none), or null when it fits. */
 export function sizeForKind(kind: EventKind, size: number | null) {

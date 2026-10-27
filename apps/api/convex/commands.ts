@@ -5,10 +5,10 @@ import {
   type Caller,
   type CommandResult,
   createGuildRegistry,
-  error,
   systemCaller,
 } from '@vintage/guild-kit';
 import { type Infer, v } from 'convex/values';
+import { refuseMutationInRead } from '../src/read-only';
 import { commands, type VintageDeps } from '../src/registry';
 import { discordIdOf, webCaller } from '../src/web-caller';
 import { internalMutation, mutation, query } from './_generated/server';
@@ -76,14 +76,11 @@ export const read = query({
   args: requestArgs,
   handler: async (ctx, { name, input }) => {
     const reg = registry();
-    if (reg.get(name)?.mutation) {
-      return toConvex(
-        error('USE_RUN', `${name} changes data; call commands.run instead`, { retryable: false }),
-      );
-    }
-    return toConvex(
-      await reg.execute({ name, input, caller: await resolveCaller(ctx) }, deps(ctx)),
-    );
+    const caller = await resolveCaller(ctx);
+    const refusal = refuseMutationInRead(reg, caller, name);
+    if (refusal) return toConvex(refusal);
+    // A mutation the caller may not run gets COMMAND_NOT_FOUND here, before any handler runs.
+    return toConvex(await reg.execute({ name, input, caller }, deps(ctx)));
   },
 });
 

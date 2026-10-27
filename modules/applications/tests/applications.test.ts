@@ -11,6 +11,7 @@ import {
   labelsLine,
   parseApplicationCustomId,
   renderApplicationPost,
+  renderRecruitingPost,
 } from '../src/render/discord';
 import type { ApplicationsDeps } from '../src/store';
 import { createMemoryApplicationsDeps } from '../src/testing';
@@ -279,5 +280,21 @@ describe('Discord rendering', () => {
     expect(closed.components).toEqual([]);
     expect(JSON.stringify(closed.embeds)).toMatch(/Accepted · application app-1/);
     expect(labelsLine(null)).toMatch(/Not labeled/);
+  });
+});
+
+describe('the recruiting post', () => {
+  const needs = [{ wowClass: 'priest' as const, specs: 'holy', need: 'high' as const }];
+  const text = (siteUrl: string | null) =>
+    JSON.stringify(renderRecruitingPost('Two healers for the twenties.', needs, siteUrl));
+
+  it('points to the website apply page when the site is known', () => {
+    expect(text('https://vintageguild.gg/')).toContain('https://vintageguild.gg/apply');
+    expect(text('https://vintageguild.gg/')).toContain('/random apply');
+  });
+
+  it('points only to Discord without a site', () => {
+    expect(text(null)).not.toContain('https://');
+    expect(text(null)).not.toContain('on the site');
   });
 });

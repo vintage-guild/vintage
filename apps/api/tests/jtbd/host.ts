@@ -569,7 +569,9 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
             },
           ],
         },
-      } as Partial<Interaction>)) as { data: { custom_id: string } };
+      } as Partial<Interaction>)) as { type: number; data: { custom_id: string } };
+      // Refused before the form (already raiding, or an application still open): that reply.
+      if (opened.type !== 9) return opened;
       return applicationInteract(discordId, {
         type: InteractionType.MODAL_SUBMIT,
         data: {

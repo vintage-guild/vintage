@@ -218,7 +218,9 @@ export function renderRecruitingPost(
           '',
           ...lines,
           '',
-          'Apply with `/random apply` here in Discord.',
+          siteUrl
+            ? `Apply with \`/random apply\` here in Discord, or on the site: ${siteUrl.replace(/\/+$/, '')}/apply`
+            : 'Apply with `/random apply` here in Discord.',
         ].join('\n'),
         ...(siteUrl ? { url: siteUrl } : {}),
       }),

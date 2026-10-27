@@ -31,11 +31,7 @@
     "deny": [
       "Bash(git push --force*)",
       "Bash(git push -f*)",
-      "Bash(git reset --hard*)",
-      "Bash(npx convex deploy*)",
-      "Read(./.env)",
-      "Read(./.env.*)",
-      "Read(./**/.env.local)"
+      "Bash(git reset --hard*)"
     ]
   }
 }

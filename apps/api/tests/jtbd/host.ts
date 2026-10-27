@@ -19,6 +19,7 @@ import {
 import type { Caller, CommandResult } from '@vintage/guild-kit';
 import { systemCaller } from '@vintage/guild-kit';
 import { createMemoryIdentityDeps } from '@vintage/identity/testing';
+import { createMemoryInsightsStore } from '@vintage/insights/testing';
 import { buildPollCard, renderPollPost } from '@vintage/polls/commands';
 import type { Poll } from '@vintage/polls/contract';
 import {
@@ -86,6 +87,8 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
   /** Rewording for the weekly assessment; null keeps the facts (like a deployment with no key). */
   let wording: string | null = null;
   const applicationsStore = createMemoryApplicationsStore();
+  /** Runs whose insights an officer sent (the DMs themselves need Discord). */
+  const insightsSent: string[] = [];
   /** Application effects the commands scheduled (label and post, accept, reply, refresh). */
   const applicationEffects: { effect: string; id: string }[] = [];
   /** Questions agent-ask queued, with where the answer goes (as the Convex action receives them). */
@@ -124,6 +127,18 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     },
     progress: createMemoryProgressStore(),
     site: siteStore,
+    insights: createMemoryInsightsStore(),
+    characterOwners: {
+      ownersOf: async (g, names) => {
+        const owners = new Map<string, string>();
+        for (const c of await identity.listCharacters(g)) {
+          const name = names.find((n) => n.toLowerCase() === c.name.toLowerCase());
+          if (name && !owners.has(name)) owners.set(name, c.memberId);
+        }
+        return owners;
+      },
+    },
+    insightsEffects: { send: async (_g, runId) => void insightsSent.push(runId) },
     applications: applicationsStore,
     applicationEffects: {
       submitted: async (_g, id) => void applicationEffects.push({ effect: 'submitted', id }),
@@ -155,6 +170,13 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
       : undefined;
     if (!token) return first;
     return registry.execute({ name, input, caller, confirmToken: token }, deps);
+  }
+
+  /** A destructive command's preview only: what the caller sees before Confirm. */
+  async function preview<T = unknown>(caller: Caller, name: string, input: unknown = {}) {
+    const result = await registry.execute({ name, input, caller }, deps);
+    if (!result.success) throw new Error(`${name} failed: ${JSON.stringify(result.error)}`);
+    return (result.data as { preview: T }).preview;
   }
 
   /** Run a command and return its data, failing loudly with the error otherwise. */
@@ -609,6 +631,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     agentUi,
     applicationUi,
     applicationEffects,
+    insightsSent,
     discordUi,
     eventUi,
     pollUi,
@@ -619,6 +642,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     system,
     ticksRequested,
     run,
+    preview,
     ok,
     as,
     discordMember,

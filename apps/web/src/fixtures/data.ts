@@ -216,3 +216,33 @@ export const RAIDS: readonly FixtureRaid[] = [
     tentative: [],
   },
 ];
+
+/**
+ * Two open applications for the quarters' Applications tab (`application-submit`). The applicants
+ * are Discord accounts that are not guild members yet, so no dev persona has applied: `?as=member`
+ * still sees an empty form.
+ */
+export const APPLICANTS = [
+  {
+    applicantName: 'Thessaly',
+    discordId: '300000000000000001',
+    characterName: 'Thessaly',
+    wowClass: 'mage',
+    spec: 'Frost',
+    role: 'raider',
+    about: 'Mage main since vanilla, back for Forever with two friends from my old guild.',
+    experience: 'Cleared Molten Core through Naxxramas 10 in 2019 Classic; raided Sunwell in TBC.',
+    availability: 'Wednesday and Thursday, 8 to 11 Eastern',
+  },
+  {
+    applicantName: 'Oswin',
+    discordId: '300000000000000002',
+    characterName: 'Oswin',
+    wowClass: 'paladin',
+    spec: 'Holy',
+    role: 'flex-raider',
+    about: 'Healer with a young kid, so I can make most raids but not every week.',
+    experience: 'Molten Core and Onyxia on a pug alt; this would be my first raiding guild.',
+    availability: 'Thursdays, sometimes Wednesday',
+  },
+] as const;

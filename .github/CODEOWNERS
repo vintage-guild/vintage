@@ -14,6 +14,7 @@ modules/agent/ @Falkicon
 packages/agent-runtime/ @Falkicon
 packages/decisions/ @Falkicon
 modules/applications/ @Falkicon
+modules/insights/ @Falkicon
 apps/api/ @Falkicon
 apps/gateway/ @Falkicon
 apps/web/ @Falkicon

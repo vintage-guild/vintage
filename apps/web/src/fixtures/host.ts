@@ -1,6 +1,9 @@
 // An in-memory Vintage for development: the real command registry over every module's memory
 // store, seeded through the same commands the site will call for real. Nothing here fakes a
 // command's answer; swapping to Convex replaces the client, not the pages.
+
+import { type ApplicationsDeps, applicationsCommands } from '@vintage/applications/commands';
+import { createMemoryApplicationsStore } from '@vintage/applications/testing';
 import {
   type CoordinatorDeps,
   coordinatorCommands,
@@ -34,7 +37,8 @@ export type FixtureDeps = IdentityDeps &
   ProgressDeps &
   PollsDeps &
   CoordinatorDeps &
-  SiteDeps;
+  SiteDeps &
+  ApplicationsDeps;
 
 /** How far ahead the coordinator looks, as in apps/api. */
 const LOOKAHEAD_MS = 29 * 24 * 60 * 60 * 1000;
@@ -115,6 +119,14 @@ export function createFixtureHost(guildId = FIXTURE_GUILD_ID): FixtureHost {
     events: createRecordingEventSink(),
     progress: createMemoryProgressStore(),
     site: createMemorySiteStore(),
+    // Applications in dev: no labeling or Discord post; the quarters' desk reads the store.
+    applications: createMemoryApplicationsStore(),
+    applicationEffects: {
+      submitted: async () => undefined,
+      accepted: async () => undefined,
+      replied: async () => undefined,
+      changed: async () => undefined,
+    },
     polls,
     pollMembers: {
       getMember: (g, id) => identity.getMember(g, id),
@@ -172,6 +184,7 @@ export function createFixtureHost(guildId = FIXTURE_GUILD_ID): FixtureHost {
       ...pollsCommands,
       ...coordinatorCommands,
       ...siteCommands,
+      ...applicationsCommands,
     ],
     confirmSecret: 'development-fixtures',
   });

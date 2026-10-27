@@ -3,6 +3,7 @@
 import type { GuildRank } from '@vintage/identity/contract';
 import { setCommandClient } from '@vintage/ui-kit';
 import { connectVintage, type WebSession } from '@vintage/web-session';
+import { setOAuth } from './oauth';
 import { type Session, setSession, setSignInHandlers } from './session';
 
 /**
@@ -48,6 +49,7 @@ export async function connectSite(convexUrl: string): Promise<Session | null> {
       await vintage.refresh();
     },
   });
+  setOAuth(vintage.oauth);
   // The first call repeats `ready`'s value; the guard skips it.
   vintage.onSession((next) => {
     const session = toSession(next);

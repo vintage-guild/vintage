@@ -33,7 +33,14 @@ writeFileSync(
   `${JSON.stringify(
     {
       version: 3,
-      routes: [{ src: '^/discord/interactions/?$', dest: '/api/discord/interactions' }],
+      routes: [
+        { src: '^/discord/interactions/?$', dest: '/api/discord/interactions' },
+        // /mcp's protected-resource metadata (RFC 9728), at the root and path-inserted for /mcp.
+        {
+          src: '^/\\.well-known/oauth-protected-resource(/mcp)?/?$',
+          dest: '/api/discord/interactions',
+        },
+      ],
     },
     null,
     2,
@@ -41,5 +48,5 @@ writeFileSync(
 );
 cpSync(join(root, 'public'), join(out, 'static'), { recursive: true });
 console.log(
-  'Built .vercel/output (function: /api/discord/interactions, also /discord/interactions)',
+  'Built .vercel/output (function: /api/discord/interactions, also /discord/interactions and /.well-known/oauth-protected-resource)',
 );

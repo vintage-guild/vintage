@@ -3,6 +3,7 @@ import agent from '@vintage/agent/convex.config';
 import applications from '@vintage/applications/convex.config';
 import coordinator from '@vintage/coordinator/convex.config';
 import identity from '@vintage/identity/convex.config';
+import insights from '@vintage/insights/convex.config';
 import polls from '@vintage/polls/convex.config';
 import progress from '@vintage/progress/convex.config';
 import raids from '@vintage/raids/convex.config';
@@ -19,5 +20,6 @@ app.use(progress);
 app.use(site);
 app.use(agent);
 app.use(applications);
+app.use(insights);
 
 export default app;

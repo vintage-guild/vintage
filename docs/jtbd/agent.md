@@ -49,3 +49,17 @@ Live checklist:
 - [ ] With notes like "can I bring my alt?" and "late 20 min", the digest at the last reminder
       shows **Needs an officer** with the alt question and keeps "late" in the Late line.
 - [ ] With `agent-pause`, the next digest shows every note raw, as before.
+
+### J30 · Get a private note on what the log says I could do better
+
+When we've raided and someone has the log, I want a short private note on one or two things I
+could do better, with the evidence, so I can improve without being singled out in the guild.
+
+Live checklist:
+
+- [ ] A raider imports the night's Farsight summary (`run-import` with the `farsight.run` upload);
+      importing it again does nothing.
+- [ ] `insights-get` shows me only my findings, each with its times or counts; an officer sees
+      everyone's.
+- [ ] With `insights-optin-set dms:true`, an officer's `insights-send` previews me as a recipient,
+      and after Confirm I get one DM; without the opt-in I get none.

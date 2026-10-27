@@ -58,13 +58,22 @@ export function createMemoryApplicationsStore(): ApplicationsStore & {
   };
 }
 
-export type EffectCall = { effect: keyof ApplicationEffects; applicationId: string };
+export type EffectCall = {
+  effect: Exclude<keyof ApplicationEffects, 'limitReached'>;
+  applicationId: string;
+};
 
-/** Memory deps; the effects record what was scheduled, in order. `recruitRoleId` stands in for the role map. */
+/**
+ * Memory deps; the effects record what was scheduled, in order. `recruitRoleId` stands in for the
+ * role map. Every Discord account counts as in the Vintage server unless added to `notInServer`;
+ * `limitAlerts` records each rolling-limit alert's retry time.
+ */
 export function createMemoryApplicationsDeps(recruitRoleId: string | null = null) {
   const effects: EffectCall[] = [];
+  const notInServer = new Set<string>();
+  const limitAlerts: number[] = [];
   const record =
-    (effect: keyof ApplicationEffects) => async (_guildId: string, applicationId: string) => {
+    (effect: EffectCall['effect']) => async (_guildId: string, applicationId: string) => {
       effects.push({ effect, applicationId });
     };
   const deps = {
@@ -75,8 +84,14 @@ export function createMemoryApplicationsDeps(recruitRoleId: string | null = null
       onboard: record('onboard'),
       replied: record('replied'),
       changed: record('changed'),
+      limitReached: async (_guildId: string, retryAt: number) => {
+        limitAlerts.push(retryAt);
+      },
     },
     applicationRoles: { recruitRoleId: async () => recruitRoleId },
+    applicationMembers: {
+      inServer: async (_guildId: string, discordId: string) => !notInServer.has(discordId),
+    },
   } satisfies ApplicationsDeps;
-  return { deps, effects };
+  return { deps, effects, notInServer, limitAlerts };
 }

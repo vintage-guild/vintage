@@ -27,6 +27,7 @@ const member: Member = {
   discordId: 'd-fen',
   displayName: 'Fen',
   roleIds: [],
+  inServer: true,
   rank: 'raider',
   tier: 'raider',
   prefs: { dmOptOut: false },

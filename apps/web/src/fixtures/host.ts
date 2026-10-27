@@ -153,7 +153,10 @@ export function createFixtureHost(
       onboard: async () => undefined,
       replied: async () => undefined,
       changed: async () => undefined,
+      limitReached: async () => undefined,
     },
+    // Dev has no Discord server to be in: every signed-in account counts as joined.
+    applicationMembers: { inServer: async () => true },
     applicationRoles: {
       recruitRoleId: async (g) =>
         Object.entries(await identity.getRoleRankMap(g)).find(([, r]) => r === 'recruit')?.[0] ??

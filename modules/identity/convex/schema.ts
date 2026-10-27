@@ -54,6 +54,8 @@ export default defineSchema({
     discordId: v.string(),
     displayName: v.string(),
     roleIds: v.array(v.string()),
+    // Optional so rows from before it stay valid; read from the rank until the next sync writes it.
+    inServer: v.optional(v.boolean()),
     // Optional so rows written before ranks existed stay valid; read as null until the next sync.
     rank: v.optional(rank),
     tier,

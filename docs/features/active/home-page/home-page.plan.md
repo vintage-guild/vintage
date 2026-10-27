@@ -441,7 +441,7 @@ upstream (`upstream:fast-af`) and gets a local stub with the issue link.
   highlights became the shared 6% edge. Still literal, with no clean match: the cream band's
   inner shading and its button, the hero's text shadow over art, the dev and preview switches,
   and `vintage-signup-card` (left for the signup-card batch to swap in).
-- **JTBD J42** (`docs/jtbd/polls.md`): voting from the home card and `/polls/<id>`, ranked
+- **JTBD J43** (`docs/jtbd/polls.md`): voting from the home card and `/polls/<id>`, ranked
   included, through `poll-list`, `poll-get`, `vote-cast`, and `vote-retract`.
 
 ## Tasks

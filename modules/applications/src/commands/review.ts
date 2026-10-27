@@ -122,7 +122,7 @@ export const applicationConfigGet = command({
 export const applicationConfigSet = command({
   name: 'application-config-set',
   description:
-    'Set the recruitment channel new applications are posted to (a Discord channel id, or null to stop posting) and the onboarding note (`{site}` becomes the website address). The channel must be visible to officers only: posts carry each applicant’s answers and labels.',
+    'Set the recruitment channel new applications are posted to (a Discord channel id, or null to stop posting), the onboarding note (`{site}` becomes the website address), and the guild’s rolling limit on new applications (`limitCount` per `limitWindowMinutes`; default 10 per 30). The channel must be visible to officers only: posts carry each applicant’s answers and labels.',
   tier: 'officer',
   mutation: true,
   input: z.object({
@@ -132,17 +132,23 @@ export const applicationConfigSet = command({
       .nullable()
       .optional(),
     onboarding: z.string().trim().min(1).max(APPLICATION_LIMITS.onboarding).optional(),
+    /** The guild's rolling limit: at most this many new applications per window (#145). */
+    limitCount: z.number().int().min(1).max(100).optional(),
+    limitWindowMinutes: z.number().int().min(5).max(240).optional(),
   }),
   handler: async (input, { guildId, deps, now }) => {
-    if (input.channelId === undefined && input.onboarding === undefined) {
-      return error('NOTHING_TO_CHANGE', 'Give a channelId or an onboarding note', {
+    const { channelId, onboarding, limitCount, limitWindowMinutes } = input;
+    if ([channelId, onboarding, limitCount, limitWindowMinutes].every((v) => v === undefined)) {
+      return error('NOTHING_TO_CHANGE', 'Give a channelId, an onboarding note, or a limit', {
         suggestion: 'Read the settings with application-config-get',
         retryable: false,
       });
     }
     const patch = {
-      ...(input.channelId !== undefined ? { channelId: input.channelId } : {}),
-      ...(input.onboarding !== undefined ? { onboarding: input.onboarding } : {}),
+      ...(channelId !== undefined ? { channelId } : {}),
+      ...(onboarding !== undefined ? { onboarding } : {}),
+      ...(limitCount !== undefined ? { limitCount } : {}),
+      ...(limitWindowMinutes !== undefined ? { limitWindowMinutes } : {}),
     };
     return success(await deps.applications.setConfig(guildId, patch, now()));
   },

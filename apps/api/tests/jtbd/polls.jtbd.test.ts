@@ -185,7 +185,7 @@ describe('JTBD: polls', () => {
     });
   });
 
-  it('J42 · a raider votes from the home page and the poll page, ranked polls too', async () => {
+  it('J43 · a raider votes from the home page and the poll page, ranked polls too', async () => {
     type Got = { poll: Poll & { results: PollResults | null }; myVote: string[] | null };
     const get = (who: Caller, pollId: string) => g.host.ok<Got>(who, 'poll-get', { pollId });
     const votes = (got: Got) => got.poll.results?.options.map((o) => o.votes);

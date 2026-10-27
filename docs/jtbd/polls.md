@@ -53,7 +53,7 @@ can** answer from wherever I am, and **I (officer) want** every closed result in
   closed poll with its result, and closes or cancels only after a preview and a confirm.
 - [ ] A visitor gets the sign-in card, and the home page says polls are for members.
 
-### J42 · Vote from the website
+### J43 · Vote from the website
 **When** I'm on the site anyway, **I (raider) want** to answer the open poll from the home page,
 and rank a ranked poll on its own page, **so I can** vote without opening Discord and know it
 counts the same.

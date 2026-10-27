@@ -8,10 +8,12 @@
  * @module
  */
 
+import type * as agent from "../agent.js";
 import type * as auth from "../auth.js";
 import type * as commands from "../commands.js";
 import type * as coordinator from "../coordinator.js";
 import type * as crons from "../crons.js";
+import type * as decisions from "../decisions.js";
 import type * as discord from "../discord.js";
 import type * as http from "../http.js";
 import type * as pollPosts from "../pollPosts.js";
@@ -26,10 +28,12 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  agent: typeof agent;
   auth: typeof auth;
   commands: typeof commands;
   coordinator: typeof coordinator;
   crons: typeof crons;
+  decisions: typeof decisions;
   discord: typeof discord;
   http: typeof http;
   pollPosts: typeof pollPosts;
@@ -72,4 +76,5 @@ export declare const components: {
   polls: import("@vintage/polls/_generated/component.js").ComponentApi<"polls">;
   progress: import("@vintage/progress/_generated/component.js").ComponentApi<"progress">;
   site: import("@vintage/site/_generated/component.js").ComponentApi<"site">;
+  agent: import("@vintage/agent/_generated/component.js").ComponentApi<"agent">;
 };

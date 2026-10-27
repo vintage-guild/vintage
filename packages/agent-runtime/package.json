@@ -1,0 +1,23 @@
+{
+  "name": "@vintage/agent-runtime",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The hosted guild agent's runtime (PLAN §3.10): an OpenAI Agents API client, the turn loop that answers function tools, and the registry tools that run commands as the asking member.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing.ts"
+  },
+  "scripts": {
+    "type-check": "tsc6 -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@vintage/guild-kit": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@vintage/config": "workspace:*",
+    "@vintage/testing": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

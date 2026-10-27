@@ -1,6 +1,7 @@
 // The role-sync path with a mocked Discord REST API (no network): the fetch-backed directory,
 // then the full run feeding member-sync through the registry and the memory store.
 
+import { createMemoryAgentDeps } from '@vintage/agent/testing';
 import { createMemoryCoordinatorDeps } from '@vintage/coordinator/testing';
 import type { MemberSyncInput } from '@vintage/identity/commands';
 import { createMemoryIdentityDeps } from '@vintage/identity/testing';
@@ -170,6 +171,7 @@ describe('runRoleSync', () => {
       ...createMemoryPollsDeps(),
       ...createMemoryProgressDeps(),
       ...createMemorySiteDeps(),
+      ...createMemoryAgentDeps().deps,
     };
     const registry = testRegistry<VintageDeps>(commands);
     const system = makeCaller('officer', { surface: 'system', memberId: undefined });

@@ -1,6 +1,7 @@
 // An in-memory Vintage for JTBD scenarios: every module's memory store, the real command registry,
 // the real coordinator tick, and a fake Discord that records what the bot sends. Callers are
 // resolved from synced members the way commands.ts does it, so tiers come from Discord roles.
+import { createMemoryAgentStore } from '@vintage/agent/testing';
 import { runTick } from '@vintage/coordinator/commands';
 import { createFakeDiscord, createMemoryCoordinatorStore } from '@vintage/coordinator/testing';
 import {
@@ -103,6 +104,13 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     },
     progress: createMemoryProgressStore(),
     site: createMemorySiteStore(),
+    agent: createMemoryAgentStore(),
+    // Questions stay queued in JTBD runs: the turn itself needs OpenAI (covered in agent tests).
+    agentQueue: { enqueue: async () => undefined },
+    agentRunner: {
+      run: (caller, name, input, confirmToken) =>
+        registry.execute({ name, input, caller, ...(confirmToken ? { confirmToken } : {}) }, deps),
+    },
   };
   const registry = testRegistry<VintageDeps>(commands, clock);
   const discord = createFakeDiscord();

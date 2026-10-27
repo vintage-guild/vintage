@@ -1,6 +1,7 @@
 // Every command Vintage exposes, from every module. One list feeds every surface:
 // Convex functions, /mcp, Discord, the CLI, the hosted agent, and the command manifest.
 
+import { type AgentDeps, agentCommands } from '@vintage/agent/commands';
 import { type CoordinatorDeps, coordinatorCommands } from '@vintage/coordinator/commands';
 import type { AnyGuildCommand } from '@vintage/guild-kit';
 import { type IdentityDeps, identityCommands } from '@vintage/identity/commands';
@@ -15,7 +16,8 @@ export type VintageDeps = IdentityDeps &
   CoordinatorDeps &
   PollsDeps &
   ProgressDeps &
-  SiteDeps;
+  SiteDeps &
+  AgentDeps;
 
 export const commands: readonly AnyGuildCommand<VintageDeps>[] = [
   ...identityCommands,
@@ -24,4 +26,5 @@ export const commands: readonly AnyGuildCommand<VintageDeps>[] = [
   ...pollsCommands,
   ...progressCommands,
   ...siteCommands,
+  ...agentCommands,
 ];

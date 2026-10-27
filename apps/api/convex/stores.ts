@@ -1,6 +1,13 @@
 // Adapters from module ports to Convex: each module's store calls its own component.
 // Commands never see Convex; they get these through `deps` (PLAN §3.3).
 
+import type { AgentDeps, AgentStore } from '@vintage/agent/commands';
+import {
+  type AgentConfig,
+  type AgentConfirmation,
+  type AgentRun,
+  defaultAgentConfig,
+} from '@vintage/agent/contract';
 import type { CoordinatorDeps, CoordinatorStore, TickSource } from '@vintage/coordinator/commands';
 import { type CoordinatorConfig, defaultConfig } from '@vintage/coordinator/contract';
 import type { Caller, CommandResult } from '@vintage/guild-kit';
@@ -339,5 +346,91 @@ export function coordinatorDeps(ctx: Ctx, run: RunCommand): CoordinatorDeps {
     tickSource: tickSource(ctx),
     scheduler: coordinatorScheduler(ctx),
     coordinatorPolls: coordinatorPolls(ctx, run),
+  };
+}
+
+const agent = components.agent;
+
+/** The agent component, mapped to the module's port. Unsaved config answers the defaults. */
+export function agentStore(ctx: Ctx): AgentStore {
+  return {
+    getConfig: async (guildId) =>
+      (await ctx.runQuery(agent.config.get, { guildId })) ?? defaultAgentConfig(guildId),
+    setConfig: async (guildId, patch, now, updatedBy) => {
+      const current =
+        (await ctx.runQuery(agent.config.get, { guildId })) ?? defaultAgentConfig(guildId);
+      const next = { ...current, ...patch, guildId, updatedAt: now, updatedBy };
+      return writable(ctx).runMutation(agent.config.put, next) as Promise<AgentConfig>;
+    },
+    insertRun: (run) => writable(ctx).runMutation(agent.runs.insert, run) as Promise<AgentRun>,
+    getRun: (guildId, runId) =>
+      ctx.runQuery(agent.runs.get, { guildId, runId }) as Promise<AgentRun | null>,
+    updateRun: (guildId, runId, patch) =>
+      writable(ctx).runMutation(agent.runs.update, { guildId, runId, patch }) as Promise<AgentRun>,
+    listRuns: (guildId, filter = {}) =>
+      ctx.runQuery(agent.runs.list, { guildId, ...filter }) as Promise<AgentRun[]>,
+    countRuns: (guildId, { limit: _limit, ...filter }) =>
+      ctx.runQuery(agent.runs.count, { guildId, ...filter }),
+    getSession: (guildId, threadKey) => ctx.runQuery(agent.sessions.get, { guildId, threadKey }),
+    putSession: (record) => writable(ctx).runMutation(agent.sessions.put, record),
+    deleteSession: (guildId, threadKey) =>
+      writable(ctx).runMutation(agent.sessions.remove, { guildId, threadKey }),
+    listIdleSessions: (guildId, before) => ctx.runQuery(agent.sessions.idle, { guildId, before }),
+    insertConfirmation: (confirmation) =>
+      writable(ctx).runMutation(agent.confirmations.insert, {
+        ...confirmation,
+        input: toJson(confirmation.input),
+        preview: toJson(confirmation.preview),
+        result: toJson(confirmation.result),
+      }) as Promise<AgentConfirmation>,
+    getConfirmation: (guildId, confirmationId) =>
+      ctx.runQuery(agent.confirmations.get, {
+        guildId,
+        confirmationId,
+      }) as Promise<AgentConfirmation | null>,
+    updateConfirmation: (guildId, confirmationId, patch) =>
+      writable(ctx).runMutation(agent.confirmations.update, {
+        guildId,
+        confirmationId,
+        patch: {
+          ...patch,
+          ...(patch.result === undefined ? {} : { result: toJson(patch.result) }),
+        },
+      }) as Promise<AgentConfirmation>,
+    listConfirmations: (guildId, runId) =>
+      ctx.runQuery(agent.confirmations.byRun, { guildId, runId }) as Promise<AgentConfirmation[]>,
+    listExpiredConfirmations: (guildId, now) =>
+      ctx.runQuery(agent.confirmations.expired, { guildId, now }) as Promise<AgentConfirmation[]>,
+    getUsage: (guildId, key) => ctx.runQuery(agent.usage.get, { guildId, key }),
+    bumpUsage: (guildId, key) => writable(ctx).runMutation(agent.usage.bump, { guildId, key }),
+    getToolResult: (guildId, runId, callId) =>
+      ctx.runQuery(agent.confirmations.getToolResult, { guildId, runId, callId }),
+    putToolResult: (result) => writable(ctx).runMutation(agent.confirmations.putToolResult, result),
+  };
+}
+
+/** Convex values can't hold `undefined`; command results are JSON-shaped, so round-trip them. */
+const toJson = (value: unknown) => (value === undefined ? null : JSON.parse(JSON.stringify(value)));
+
+// Referenced by name to avoid a type cycle between this file and the generated api.
+const answerRun = makeFunctionReference<'action', { runId: string }>('agent:answer');
+
+/** Runs a command as a caller, with a confirm token for destructive ones (agent-confirm). */
+export type RunConfirmedCommand = (
+  caller: Caller,
+  name: string,
+  input: unknown,
+  confirmToken?: string,
+) => Promise<CommandResult<unknown>>;
+
+export function agentDeps(ctx: Ctx, run: RunConfirmedCommand): AgentDeps {
+  return {
+    agent: agentStore(ctx),
+    agentQueue: {
+      enqueue: async (_guildId, runId) => {
+        await writable(ctx).scheduler.runAfter(0, answerRun, { runId });
+      },
+    },
+    agentRunner: { run },
   };
 }

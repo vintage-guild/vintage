@@ -71,9 +71,18 @@ importers:
       '@convex-dev/better-auth':
         specifier: 0.12.5
         version: 0.12.5(@standard-schema/spec@1.1.0)(@typescript/typescript6@6.0.2)(better-auth@1.6.33(react@19.3.1)(vitest@5.0.5(@types/node@24.19.2)(@vitest/coverage-v8@5.0.5)(happy-dom@21.0.3)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))))(convex@1.47.0(react@19.3.1))(react@19.3.1)
+      '@vintage/agent':
+        specifier: workspace:*
+        version: link:../../modules/agent
+      '@vintage/agent-runtime':
+        specifier: workspace:*
+        version: link:../../packages/agent-runtime
       '@vintage/coordinator':
         specifier: workspace:*
         version: link:../../modules/coordinator
+      '@vintage/decisions':
+        specifier: workspace:*
+        version: link:../../packages/decisions
       '@vintage/discord-kit':
         specifier: workspace:*
         version: link:../../libs/discord-kit
@@ -285,6 +294,28 @@ importers:
         specifier: 'catalog:'
         version: '@typescript/typescript6@6.0.2'
 
+  modules/agent:
+    dependencies:
+      '@vintage/guild-kit':
+        specifier: workspace:*
+        version: link:../../packages/guild-kit
+      convex:
+        specifier: 'catalog:'
+        version: 1.47.0(react@19.3.1)
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.7
+    devDependencies:
+      '@vintage/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@vintage/testing':
+        specifier: workspace:*
+        version: link:../../packages/testing
+      typescript:
+        specifier: 'catalog:'
+        version: '@typescript/typescript6@6.0.2'
+
   modules/coordinator:
     dependencies:
       '@vintage/bridge-format':
@@ -465,7 +496,35 @@ importers:
         specifier: 'catalog:'
         version: '@typescript/typescript6@6.0.2'
 
+  packages/agent-runtime:
+    dependencies:
+      '@vintage/guild-kit':
+        specifier: workspace:*
+        version: link:../guild-kit
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.7
+    devDependencies:
+      '@vintage/config':
+        specifier: workspace:*
+        version: link:../config
+      '@vintage/testing':
+        specifier: workspace:*
+        version: link:../testing
+      typescript:
+        specifier: 'catalog:'
+        version: '@typescript/typescript6@6.0.2'
+
   packages/config: {}
+
+  packages/decisions:
+    devDependencies:
+      '@vintage/config':
+        specifier: workspace:*
+        version: link:../config
+      typescript:
+        specifier: 'catalog:'
+        version: '@typescript/typescript6@6.0.2'
 
   packages/guild-kit:
     dependencies:

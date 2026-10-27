@@ -30,8 +30,8 @@ Start from the command, not the UI. Business logic belongs in module commands an
 | Folder | Holds |
 |---|---|
 | `libs/` | Pure TS, platform-free (`wow-data`, `comp-solver`, `discord-kit`, `design-tokens`, `bridge-format`) |
-| `packages/` | Platform glue (`guild-kit`, `testing`, `config`, `ui-kit` web components) |
-| `modules/` | Features with their own data (`identity`, `raids`, `coordinator`, `polls`, `progress`) |
+| `packages/` | Platform glue (`guild-kit`, `testing`, `config`, `ui-kit` web components, `agent-runtime`, `decisions`) |
+| `modules/` | Features with their own data (`identity`, `raids`, `coordinator`, `polls`, `progress`, `site`, `agent`) |
 | `apps/` | Composition and transport (`api` on Convex, `gateway` on Vercel, `web` the website) |
 | `vendor/` | Built FAST-AF packages, pinned; never edit ([VENDORED.md](vendor/VENDORED.md)) |
 | `tooling/botcore/` | Repo commands for humans, CI, and agents |

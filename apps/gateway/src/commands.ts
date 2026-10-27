@@ -85,6 +85,22 @@ const POLL_GROUP = {
   ],
 };
 
+/** `/random ask`: a question for the guild agent (#18); the answer arrives privately. */
+const ASK = {
+  type: T.SUB_COMMAND,
+  name: 'ask',
+  description: 'Ask Random about raids, signups, the roster, polls, or recruiting',
+  options: [
+    {
+      type: T.STRING,
+      name: 'question',
+      description: 'Your question, in plain words',
+      required: true,
+      max_length: 2000,
+    },
+  ],
+};
+
 export const RANDOM_COMMAND = {
   name: 'random',
   description: 'Vintage guild tools',
@@ -96,10 +112,11 @@ export const RANDOM_COMMAND = {
       description: 'Check that Random is answering',
     },
     POLL_GROUP,
+    ASK,
   ],
 } satisfies ApplicationCommand;
 
-/** Subcommand groups whose work runs in Convex; the gateway forwards them. */
-export const FORWARDED_GROUPS: ReadonlySet<string> = new Set([POLL_GROUP.name]);
+/** Subcommands and groups whose work runs in Convex; the gateway forwards them. */
+export const FORWARDED_GROUPS: ReadonlySet<string> = new Set([POLL_GROUP.name, ASK.name]);
 
 export const COMMANDS: readonly ApplicationCommand[] = [RANDOM_COMMAND];

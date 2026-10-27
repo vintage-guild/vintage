@@ -1,4 +1,5 @@
 import { decodeRaidImport } from '@vintage/bridge-format';
+import { createFakeDecisions } from '@vintage/decisions/testing';
 import { DiscordRestError, type MessageData } from '@vintage/discord-kit';
 import { DEFAULT_TIMINGS, type RaidEvent, type Signup } from '@vintage/raids/contract';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -373,6 +374,49 @@ describe('runTick', () => {
     expect(digest.message.content).toMatch(/Tanks \d · Healers \d · DPS \d/);
     expect(digest.message.content).toMatch(/Late \(1\): Bram \(after work\)/);
     expect(digest.message.content).toMatch(/Bench \(1\): Cade \(happy to sit\)/);
+  });
+
+  it('lifts notes that need an officer and swap offers when the notes are labeled', async () => {
+    signups = [
+      signup('aeryn', { note: 'can I bring my alt Kol instead?' }),
+      signup('bram', { status: 'late', note: 'after work' }),
+      signup('cade', { note: 'happy to go heals if short' }),
+    ];
+    ports.decisions = createFakeDecisions({
+      kind_0: { choice: 'swap', confidence: 0.95 },
+      officer_0: { predicate: 0.9 },
+      kind_1: { choice: 'late', confidence: 0.99 },
+      officer_1: { predicate: 0 },
+      kind_2: { choice: 'swap', confidence: 0.9 },
+      officer_2: { predicate: 0.05 },
+    });
+    await tick(START - 100 * HOUR);
+    await tick(START - 24 * HOUR);
+    const digest = discord.sent.find(
+      (m) => m.to === OPS && m.message.content?.includes('confirmed'),
+    )!;
+    expect(digest.message.content).toMatch(
+      /\*\*Needs an officer\*\* \(1\): Aeryn \(can I bring my alt Kol instead\?\)/,
+    );
+    expect(digest.message.content).toMatch(
+      /Offers to swap \(1\): Cade \(happy to go heals if short\)/,
+    );
+    expect(digest.message.content).toMatch(/Late \(1\): Bram \(after work\)/);
+  });
+
+  it('prints notes raw, as before, when labeling fails', async () => {
+    signups = [signup('aeryn'), signup('bram', { status: 'late', note: 'after work' })];
+    const fake = createFakeDecisions();
+    fake.failNext();
+    ports.decisions = fake;
+    await tick(START - 100 * HOUR);
+    await tick(START - 24 * HOUR);
+    const digest = discord.sent.find(
+      (m) => m.to === OPS && m.message.content?.includes('confirmed'),
+    )!;
+    expect(digest.message.content).toMatch(/Late \(1\): Bram \(after work\)/);
+    expect(digest.message.content).not.toMatch(/Needs an officer|Offers to swap/);
+    expect(fake.requests).toHaveLength(1);
   });
 
   it('tells someone promoted from the queue that they are in, once', async () => {

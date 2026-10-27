@@ -16,6 +16,8 @@
     "type-check": "tsc6 -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@vintage/decisions": "workspace:*",
+    "@vintage/discord-kit": "workspace:*",
     "@vintage/guild-kit": "workspace:*",
     "convex": "catalog:",
     "zod": "catalog:"
@@ -23,6 +25,7 @@
   "devDependencies": {
     "@vintage/config": "workspace:*",
     "@vintage/testing": "workspace:*",
+    "tsx": "^4.23.15",
     "typescript": "catalog:"
   }
 }

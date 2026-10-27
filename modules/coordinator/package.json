@@ -18,6 +18,7 @@
   "dependencies": {
     "@vintage/bridge-format": "workspace:*",
     "@vintage/comp-solver": "workspace:*",
+    "@vintage/decisions": "workspace:*",
     "@vintage/design-tokens": "workspace:*",
     "@vintage/discord-kit": "workspace:*",
     "@vintage/guild-kit": "workspace:*",
@@ -31,6 +32,7 @@
   "devDependencies": {
     "@vintage/config": "workspace:*",
     "@vintage/testing": "workspace:*",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "tsx": "^4.23.15"
   }
 }

@@ -1,3 +1,4 @@
+import type { DecisionsPort } from '@vintage/decisions';
 import type { MessageData } from '@vintage/discord-kit';
 import { type Caller, type CommandResult, commandsFor } from '@vintage/guild-kit';
 import type { GuildRank } from '@vintage/identity/contract';
@@ -160,6 +161,8 @@ export interface TickPorts {
   raids: CoordinatorRaids;
   discord: CoordinatorDiscord;
   polls: Pick<CoordinatorPolls, 'get'>;
+  /** Labels signup notes for the digest (#132). Absent or null: notes stay raw. */
+  decisions?: DecisionsPort | null;
 }
 
 export const command = commandsFor<CoordinatorDeps>();

@@ -83,7 +83,8 @@ export interface Interaction {
       components: { type: number; custom_id: string; value?: string }[];
     }[];
   };
-  message?: { id: string };
+  /** The message a component is attached to (Discord sends the whole message). */
+  message?: { id: string; content?: string };
 }
 
 /** The user behind an interaction, whether it came from a guild or a DM. */

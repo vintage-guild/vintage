@@ -199,6 +199,36 @@ describe('interactions endpoint', () => {
       expect(bodies).toEqual([pollCreate]);
     });
 
+    it('forwards /random ask to Convex and returns its deferred reply', async () => {
+      const ask = {
+        ...base,
+        type: InteractionType.APPLICATION_COMMAND,
+        guild_id: 'g1',
+        data: {
+          name: 'random',
+          options: [
+            {
+              name: 'ask',
+              type: 1,
+              options: [{ name: 'question', type: 3, value: 'When is the next raid?' }],
+            },
+          ],
+        },
+      };
+      const bodies: unknown[] = [];
+      const fakeFetch = (async (_url: string, init: RequestInit) => {
+        bodies.push(JSON.parse(init.body as string));
+        return new Response(JSON.stringify({ type: 5, data: { flags: 64 } }));
+      }) as typeof fetch;
+      const handle = createInteractionHandler({
+        publicKey,
+        convex: { siteUrl: 'https://x.convex.site', secret: 's', fetch: fakeFetch },
+      });
+      const res = await handle(await signedRequest(ask));
+      expect(await res.json()).toEqual({ type: 5, data: { flags: 64 } });
+      expect(bodies).toEqual([ask]);
+    });
+
     it('keeps /random ping local', async () => {
       const calls: unknown[] = [];
       const fakeFetch = (async () => {

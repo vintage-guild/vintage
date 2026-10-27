@@ -18,7 +18,7 @@ import { convex, crossDomain } from '@convex-dev/better-auth/plugins';
 import { type BetterAuthOptions, betterAuth } from 'better-auth';
 import { v } from 'convex/values';
 import { fetchGuildMember } from '../src/discord-directory';
-import { oauthBeforeHook, oauthPlugins } from '../src/oauth-server';
+import { oauthBeforeHook, oauthPlugins, oauthServerOptions } from '../src/oauth-server';
 import { type SignInSync, syncOnSignIn } from '../src/sign-in';
 import { DISCORD_ID_CLAIM } from '../src/web-caller';
 import { components, internal } from './_generated/api';
@@ -27,32 +27,15 @@ import { internalAction, type MutationCtx } from './_generated/server';
 import authConfig from './auth.config';
 import authSchema from './betterAuth/schema';
 
-const siteUrl = () => process.env.SITE_URL ?? 'http://localhost:5173';
+/** The OAuth server's settings from the Convex env, built the same way the tests build them. */
+const oauthOptions = () => oauthServerOptions(process.env);
+const siteUrl = () => oauthOptions().siteUrl;
 
 /** The /mcp endpoint, the only audience OAuth tokens may be issued for. */
-export const mcpUrl = () => process.env.VINTAGE_MCP_URL ?? 'https://vintage-gateway.vercel.app/mcp';
+export const mcpUrl = () => oauthOptions().mcpUrl;
 
 /** The website origins allowed to sign in: SITE_URL plus VINTAGE_TRUSTED_ORIGINS. */
-export const siteOrigins = () => [
-  siteUrl(),
-  ...(process.env.VINTAGE_TRUSTED_ORIGINS ?? '')
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean),
-];
-
-/** Where a sign-in callback may land: the site's origins, and this auth server's own pages. */
-const callbackOrigins = () => {
-  const origins = siteOrigins().map((url) => new URL(url).origin);
-  const self = process.env.CONVEX_SITE_URL;
-  return self ? [...origins, new URL(self).origin] : origins;
-};
-
-const oauthServerOptions = () => ({
-  siteUrl: siteUrl(),
-  mcpUrl: mcpUrl(),
-  callbackOrigins: callbackOrigins(),
-});
+export const siteOrigins = () => oauthOptions().siteOrigins;
 
 /** A Discord account was linked or signed in again: sync the member right away. */
 async function afterSignIn(ctx: MutationCtx, account: { providerId: string; accountId: string }) {
@@ -99,7 +82,7 @@ export const createAuthOptions = (ctx: GenericCtx<DataModel>) =>
     secret: process.env.BETTER_AUTH_SECRET,
     // Guards for the OAuth server (src/oauth-server.ts): sign-in never carries an authorization,
     // and only /mcp may be requested.
-    hooks: { before: oauthBeforeHook(oauthServerOptions()) },
+    hooks: { before: oauthBeforeHook(oauthOptions()) },
     trustedOrigins: siteOrigins(),
     database: authComponent.adapter(ctx),
     socialProviders: {
@@ -119,7 +102,7 @@ export const createAuthOptions = (ctx: GenericCtx<DataModel>) =>
     plugins: [
       // OAuth 2.1 for MCP clients (#9), then the callback guard. Order matters: both must come
       // before crossDomain, whose callback hook appends the session's one-time token.
-      ...oauthPlugins(oauthServerOptions()),
+      ...oauthPlugins(oauthOptions()),
       crossDomain({ siteUrl: siteUrl() }),
       convex({
         authConfig,

@@ -11,7 +11,13 @@ import { betterAuth } from 'better-auth';
 import { memoryAdapter } from 'better-auth/adapters/memory';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hashToken } from '../src/mcp-caller';
-import { oauthBeforeHook, oauthPlugins } from '../src/oauth-server';
+import {
+  allowedCallbackLocation,
+  oauthBeforeHook,
+  oauthPlugins,
+  oauthServerOptions,
+  siteOriginsFrom,
+} from '../src/oauth-server';
 
 const SITE = 'https://site.test';
 const AUTH = 'https://auth.test';
@@ -19,12 +25,15 @@ const BASE = `${AUTH}/api/auth`;
 const MCP = 'https://gateway.test/mcp';
 const ATTACKER = 'https://attacker.test/callback';
 
+/** The environment, as production reads it (convex/auth.ts builds its options the same way). */
+const ENV = { SITE_URL: SITE, VINTAGE_MCP_URL: MCP, CONVEX_SITE_URL: AUTH };
+
 function makeAuth({ guard = true } = {}) {
-  const options = { siteUrl: SITE, mcpUrl: MCP };
+  const options = oauthServerOptions(ENV);
   return betterAuth({
     baseURL: AUTH,
     secret: 'test-secret-test-secret-test-secret-32',
-    trustedOrigins: [SITE],
+    trustedOrigins: options.siteOrigins,
     database: memoryAdapter({
       user: [],
       session: [],
@@ -290,6 +299,34 @@ describe('the OAuth server guards', () => {
     expect(stored).not.toBeNull();
   });
 
+  it('refuses a sign-in that would return to the auth server instead of the site', async () => {
+    const auth = makeAuth();
+    const clientId = await registerAttackerClient(auth);
+    // Better Auth trusts its own origin for callbackURL; an authorize URL there would run the
+    // attacker's authorization with the session's one-time token attached.
+    for (const field of ['callbackURL', 'errorCallbackURL', 'newUserCallbackURL']) {
+      const res = await post(auth, '/sign-in/social', {
+        provider: 'discord',
+        callbackURL: SITE,
+        [field]: `${BASE}/oauth2/authorize?${smuggledQuery(clientId)}`,
+      });
+      expect(res.status, field).toBe(400);
+    }
+  });
+
+  it('a callback to an auth-server page other than its error page lands on the site instead', async () => {
+    // Without the sign-in guard: only the callback guard stands between the token and the route.
+    const auth = makeAuth({ guard: false });
+    const clientId = await registerAttackerClient(auth);
+    const start = await post(auth, '/sign-in/social', {
+      provider: 'discord',
+      callbackURL: `${BASE}/oauth2/authorize?${smuggledQuery(clientId)}`,
+    });
+    expect(start.status).toBe(200);
+    const landed = await discordCallback(auth, start);
+    expect(landed.origin).toBe(SITE);
+  });
+
   it('refuses an oauth_query anywhere but continue and consent', async () => {
     const auth = makeAuth();
     const res = await post(auth, '/cross-domain/one-time-token/verify', {
@@ -297,5 +334,33 @@ describe('the OAuth server guards', () => {
       oauth_query: 'client_id=x&sig=y',
     });
     expect(res.status).toBe(400);
+  });
+});
+
+describe('oauthServerOptions', () => {
+  it('skips a malformed trusted origin instead of breaking sign-in', () => {
+    expect(
+      siteOriginsFrom({
+        SITE_URL: 'https://vintageguild.gg',
+        VINTAGE_TRUSTED_ORIGINS:
+          'https://vintage-web-pi.vercel.app, not a url, ,http://localhost:5173/',
+      }),
+    ).toEqual([
+      'https://vintageguild.gg',
+      'https://vintage-web-pi.vercel.app',
+      'http://localhost:5173',
+    ]);
+  });
+
+  it('allows a callback to the site, or exactly the auth error page, and nowhere else', () => {
+    const o = oauthServerOptions(ENV);
+    const allowed = (location: string) => allowedCallbackLocation(location, BASE, o);
+    expect(allowed(`${SITE}/oauth/sign-in?x=1`)).toBe(true);
+    expect(allowed(`${BASE}/error?error=state_mismatch`)).toBe(true);
+    expect(allowed(`${BASE}/oauth2/authorize?client_id=x`)).toBe(false);
+    expect(allowed(`${BASE}/error/extra`)).toBe(false);
+    expect(allowed(ATTACKER)).toBe(false);
+    expect(allowed(`//attacker.test/x`)).toBe(false);
+    expect(allowed('https://site.test.attacker.test/')).toBe(false);
   });
 });

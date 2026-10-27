@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// Writes libs/design-tokens/generated/* from the DTCG nodes (PLAN §3.8, plain-DTCG fallback).
-// The lib stays pure (no node: imports); this runner owns the filesystem.
+// Writes libs/design-tokens/generated/* from the DTCG nodes (PLAN §3.8, plain-DTCG fallback),
+// plus the addon's copy of the FenUI theme (addon/Vintage/Theme/VintageTokens.lua), which ships
+// inside the addon package. The lib stays pure (no node: imports); this runner owns the filesystem.
 //   pnpm tokens:build          → write the generated files
 //   pnpm tokens:build --check  → exit 1 if a committed file is stale (the lib's tests check too)
 // Runs under tsx so it can import the lib's TypeScript directly.
@@ -12,6 +13,21 @@ import { buildOutputs } from '../libs/design-tokens/src/build.ts';
 const LIB = fileURLToPath(new URL('../libs/design-tokens/', import.meta.url));
 const check = process.argv.includes('--check');
 
+/** Generated files that are also written elsewhere in the repo, relative to the lib. */
+const COPIES = {
+  'generated/lua/VintageTokens.lua': ['../../addon/Vintage/Theme/VintageTokens.lua'],
+};
+
+/** Every file to write: the lib's outputs plus their copies. */
+function targets() {
+  const files = {};
+  for (const [rel, content] of Object.entries(buildOutputs())) {
+    files[rel] = content;
+    for (const copy of COPIES[rel] ?? []) files[copy] = content;
+  }
+  return files;
+}
+
 const read = (path) => {
   try {
     return readFileSync(path, 'utf8').replaceAll('\r\n', '\n');
@@ -21,7 +37,7 @@ const read = (path) => {
 };
 
 const stale = [];
-for (const [rel, content] of Object.entries(buildOutputs())) {
+for (const [rel, content] of Object.entries(targets())) {
   const path = join(LIB, rel);
   if (read(path) === content) continue;
   stale.push(rel);

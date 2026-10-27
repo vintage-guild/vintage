@@ -19,6 +19,7 @@ apps/api/ @Falkicon
 apps/gateway/ @Falkicon
 apps/web/ @Falkicon
 libs/ @Falkicon
+addon/ @Falkicon
 vendor/ @Falkicon
 .github/ @Falkicon
 scripts/ @Falkicon

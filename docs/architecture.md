@@ -30,7 +30,7 @@ flowchart TB
         DISCORD["Discord 🚧<br/>buttons · slash commands"]
         MCP["Agent harnesses 📋<br/>Claude · Codex · afd-cli"]
         AGENT["Hosted guild agent 🚧<br/>OpenAI Agents API"]
-        ADDON["WoW addon 📋<br/>import/export strings"]
+        ADDON["WoW addon 🚧<br/>import/export strings"]
     end
 
     subgraph Gateway["apps/gateway · Vercel 🚧"]
@@ -69,8 +69,8 @@ not copies: when one has a bug or a gap, file it upstream (see [Upstream](#upstr
 | [FAST-AF](https://github.com/lushly-dev/fast-af) | FAST Element v3 runtime with AFD extensions: Definition Schema, `@command`, router, `violet-elements` primitives | Website components in `packages/ui-kit` (with `@command` actions and a Custom Elements Manifest) and the `apps/web` shell on the router. Not on npm yet, so the built packages are vendored in `vendor/`, pinned to a commit ([VENDORED.md](../vendor/VENDORED.md)) | ✅ vendored · 🚧 used |
 | [Violet](https://github.com/lushly-dev/violet) | Design-token engine: inheritance tree of token nodes, build-time export | Not used yet: its CLI can't export from in-repo files in CI (spike Q14, upstream [lushly-dev/violet#30](https://github.com/lushly-dev/violet/issues/30)). `libs/design-tokens` keeps Violet's node model in plain DTCG so switching later only swaps the build script | 📋 |
 | AFD site design system | Brand language (palette, type roles, motion, voice) for the AFD site | The `afd-site` base node in `libs/design-tokens`, reskinned by the `vintage` node | ✅ |
-| [Mechanic](https://github.com/Falkicon/Mechanic) | WoW addon dev hub: diagnostics, library sync, sandbox tests, release commands | Addon library management (`libs.json`), offline Lua tests, packaging | 📋 |
-| FenCore · FenUI · MechanicLib | WoW addon libraries: pure logic domains, themeable widgets with design tokens, Mechanic integration | The `Vintage` addon's core, UI, and diagnostics. `libs/design-tokens` already generates a theme table for `FenUI:RegisterTheme` | 📋 |
+| [Mechanic](https://github.com/Falkicon/Mechanic) | WoW addon dev hub: diagnostics, library sync, sandbox tests, release commands | Addon library management (`addon/Vintage/Libs/libs.json`), lint and offline tests, live diagnostics on the Forever client | 🚧 libraries synced; MCP checks not yet run on the addon |
+| FenCore · FenUI · MechanicLib | WoW addon libraries: pure logic domains, themeable widgets with design tokens, Mechanic integration | The `Vintage` addon's results and secret-value checks (FenCore), its raid window (FenUI), and Mechanic tests. `pnpm tokens:build` writes the FenUI theme into the addon; FenUI applies theme colors only globally, so Vintage registers its themes without switching to them (PLAN Q13) | 🚧 embedded in the addon scaffold |
 
 Outside that set, the main platforms are **Convex** (database, functions, crons), **Vercel**
 (website and gateway hosting), **Better Auth** (Discord sign-in, MCP OAuth), **Discord**
@@ -187,7 +187,7 @@ are enforced by `pnpm check:boundaries`; the full table is in PLAN.md §4.1.
 | MCP | `/mcp` on AFD 2.2's stateless handler (MCP 2026-07-28 spec); AFD meta-tools (`afd-discover`, `afd-detail`, `afd-call`, `afd-batch`, `afd-pipe`); Better Auth OAuth | 📋 |
 | CLI | `afd-cli --transport streamable` pointed at `/mcp` | 📋 |
 | Hosted agent | OpenAI Agents API sessions driven from a Convex action; three registry tools run as the asking member; changes only through `agent-confirm` (PLAN §3.10). Reachable through `agent-ask` from any surface. Discord: `/random ask` answers privately by editing the deferred reply, with Confirm and Drop buttons per prepared change (`apps/api/src/discord-agent.ts`). A Decisions router answers off-topic and officer-only questions without a turn | 🚧 |
-| WoW addon | `Vintage` on CurseForge (Weekly layout: pure `Core/`, WoW-facing `Bridge/`); exchanges versioned strings with the website (`libs/bridge-format`) | 📋 |
+| WoW addon | `addon/Vintage` for WoW: Forever, to ship on CurseForge (Weekly layout: pure `Core/`, WoW-facing `Bridge/`, FenUI `View/`, kebab-case Executor actions); exchanges versioned strings with the website (`libs/bridge-format`) | 🚧 scaffold built and tested on a fake client: raid window, slash commands, saved session, settings, Mechanic tests. Not yet run in the game; importing, invites, attendance, loot, and export are the next PRs |
 
 ## Repo tooling and gates
 

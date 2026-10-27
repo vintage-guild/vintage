@@ -1,0 +1,23 @@
+package-as: Vintage
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
+
+# Libraries are committed as synced and ship as is: no externals (see Libs/libs.json).
+ignore:
+  - .luacheckrc
+  - .stylua.toml
+  - .release
+  - AGENTS.md
+  - Tests
+  - Tools
+  - Dev
+  - Libs/libs.json
+  - Libs/FenCore/AGENTS.md
+  - Libs/FenCore/Docs
+  - Libs/FenCore/PLAN
+  - Libs/FenUI/AGENTS.md
+  - Libs/FenUI/CONTRIBUTING.md
+  - Libs/FenUI/Docs
+  - Libs/FenUI/IMPROVEMENTS.md

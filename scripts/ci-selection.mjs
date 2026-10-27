@@ -13,7 +13,8 @@ const TS =
   /^(apps|modules|packages|libs|vendor)\/|^scripts\/.*\.mjs$|^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|turbo\.json|tsconfig\.base\.json|biome\.json|vitest\.config\.ts)$/;
 const CONTRACT =
   /^(modules\/[^/]+\/src\/(commands|contract)|packages\/guild-kit\/|apps\/api\/src\/registry|commands\.manifest\.json$|scripts\/check-contract-break\.mjs$)/;
-const ADDON = /^(addon\/|libs\/bridge-format\/)/;
+// The addon ships a copy of the generated FenUI theme; validate.py checks the copy is current.
+const ADDON = /^(addon\/|libs\/bridge-format\/|libs\/design-tokens\/generated\/lua\/)/;
 const BOTCORE = /^(tooling\/botcore\/|botcore\.toml$)/;
 const WORKFLOW = /^(\.github\/|scripts\/)/;
 

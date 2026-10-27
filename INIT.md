@@ -33,6 +33,7 @@ Start from the command, not the UI. Business logic belongs in module commands an
 | `packages/` | Platform glue (`guild-kit`, `testing`, `config`, `ui-kit` web components, `agent-runtime`, `decisions`) |
 | `modules/` | Features with their own data (`identity`, `raids`, `coordinator`, `polls`, `progress`, `site`, `agent`, `applications`, `insights`) |
 | `apps/` | Composition and transport (`api` on Convex, `gateway` on Vercel, `web` the website) |
+| `addon/Vintage/` | The WoW: Forever addon (Lua 5.1; its own validator and busted specs, [AGENTS.md](addon/Vintage/AGENTS.md)) |
 | `vendor/` | Built FAST-AF packages, pinned; never edit ([VENDORED.md](vendor/VENDORED.md)) |
 | `tooling/botcore/` | Repo commands for humans, CI, and agents |
 | `scripts/` | Gate scripts CI and `validate:*` run |

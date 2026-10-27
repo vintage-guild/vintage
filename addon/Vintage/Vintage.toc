@@ -1,0 +1,42 @@
+## Interface: 16001
+## Title: Vintage
+## Notes: Forms the raid from the guild's import string, records attendance and loot, and shows loot priority.
+## Author: Bloodfen
+## Version: 0.1.0
+## IconTexture: Interface\Icons\INV_Misc_Head_Dragon_01
+## X-Website: https://vintageguild.gg
+## X-License: PolyForm-Noncommercial-1.0.0
+## SavedVariables: VintageDB
+## OptionalDeps: !Mechanic, WTFix
+## X-WTFix-Managed: 1
+
+embeds.xml
+Locales\enUS.lua
+
+# Core: pure Lua, no WoW API (busted and Mechanic sandbox testable)
+Core\init.lua
+Core\Session.lua
+Core\Migrations.lua
+Core\Actions\session.lua
+
+# Bridge: the only layer that calls WoW APIs
+Bridge\Secrets.lua
+Bridge\Context.lua
+Bridge\Events.lua
+Bridge\Executor.lua
+
+# Theme generated from libs/design-tokens (pnpm tokens:build)
+Theme\VintageTokens.lua
+
+# Addon lifecycle, saved data, settings
+Vintage.lua
+Config.lua
+Settings.lua
+
+# View: FenUI frames that reach Core only through the Executor
+View\Theme.lua
+View\RaidWindow.lua
+View\MinimapButton.lua
+
+# Mechanic integration (optional)
+Mechanic.lua

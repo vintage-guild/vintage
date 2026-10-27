@@ -196,12 +196,12 @@ One addon named **Vintage**, distributed on **CurseForge** so guild members inst
 
 | Convention (from Weekly) | Applied to Vintage |
 |---|---|
-| `## Interface: 120100, 16001` in the TOC | Same Retail + Forever interface line; Forever is the target |
+| `## Interface: 120100, 16001` in the TOC | `## Interface: 16001` alone: Forever is the only target (decided 2026-10-27) |
 | **Core/** = pure Lua (`Actions/`, `Schemas/`), sandbox-testable | Raid builder logic, roster/groups solver, bridge-format codec, loot candidate display logic |
-| **Bridge/** = WoW API adapter (`Context.lua` builds inputs, `Executor.lua` routes named actions to Core) | Action names mirror service commands: `raid.import`, `raid.invite`, `raid.arrange`, `loot.capture`, `raid.export` |
+| **Bridge/** = WoW API adapter (`Context.lua` builds inputs, `Executor.lua` routes named actions to Core) | Action names are kebab-case and mirror service commands: `raid-import`, `raid-invite`, `raid-arrange`, `loot-capture`, `raid-export` (decided 2026-10-27) |
 | `FenCoreCompat.lua`, `MechanicIntegration.lua` (optional MechanicLib registration) | Same; Mechanic dashboard, tests, perf blocks |
-| `Libs/libs.json` (Mechanic library manifest) + `embeds.xml` | Libraries managed by Mechanic, not git subtrees |
-| `.pkgmeta` with `package-as`, `ignore`, and CurseForge `externals` | `package-as: Vintage`; dev-only folders ignored |
+| `Libs/libs.json` (Mechanic library manifest) + `embeds.xml` | Libraries synced by Mechanic from `_dev_/Libs`, committed, and shipped as is; `Tools/validate.py` pins their versions (decided 2026-10-27) |
+| `.pkgmeta` with `package-as`, `ignore`, and CurseForge `externals` | `package-as: Vintage`; dev-only folders and library docs ignored; no `externals`, since the libraries are committed |
 | `Tools/validate.py` + `Tools/toolchain.json` (Lua 5.1, busted, luacheck) and a `quality.yml` workflow | Same validator, invoked from CI and from the botcore `addon.test` command |
 | `Tests/` busted specs, `Locales/`, `Dev/` excluded from the package | Same |
 
@@ -212,7 +212,7 @@ One addon named **Vintage**, distributed on **CurseForge** so guild members inst
 - Detect Forever with `WOW_PROJECT_ID == WOW_PROJECT_CAMELOT` (18) or the interface range, not by assuming Classic. Optional TOC gating: `## AllowLoadGameType: forever` (put it first).
 - Midnight's secret-value restrictions are active (e.g. unit health is a secret value); trial accounts cannot send addon messages. Neither affects MVP, which uses paste strings rather than addon comms, and raid roster/loot APIs rather than unit stats.
 
-Local development: link `addon/Vintage` into `Interface/AddOns/Vintage` so Mechanic and `/reload` work against the monorepo checkout.
+Local development: `_dev_/Vintage` is a junction to the monorepo's `addon/Vintage`, so Mechanic finds it like the sibling addons; Mechanic's `addon.sync` links it into `_forever_/Interface/AddOns/Vintage` so `/reload` runs the checkout. The scaffold landed 2026-10-27 ([plan](docs/features/active/vintage-addon/vintage-addon.plan.md)).
 
 Release: version in `Vintage.toc`, `X-Curse-Project-ID` in the TOC, tag `addon-vX.Y.Z` → `BigWigsMods/packager@v2` with `-t addon/Vintage` (its top-level-directory option, so packaging from the monorepo subdirectory is supported) uploads to CurseForge with the `CF_API_TOKEN` secret, optionally Wago.
 
@@ -675,7 +675,7 @@ AFD, botcore, Mechanic, FenCore, FenUI, MechanicLib, Violet, FAST-AF, and the AF
 | Violet | Lua/FenUI exporter; CLI export from in-repo files without the API server (§3.8, Q14) | Filed: [lushly-dev/violet#30](https://github.com/lushly-dev/violet/issues/30) |
 | FAST-AF | Publish `element` and `violet-elements` to npm (§3.9). Vendored in `vendor/` meanwhile | To file |
 | FAST-AF | Ultraviolet stack naming (Ultra vs. Violet) and the broken VISION link | Filed: [lushly-dev/fast-af#165](https://github.com/lushly-dev/fast-af/issues/165) |
-| FenUI | External theme table that overrides semantic tokens (Q13) | Not needed: `FenUI:RegisterTheme` exists; confirm in game in Phase 2 |
+| FenUI | Per-frame theme colors: `RegisterTheme` exists, but token colors apply only through `SetGlobalTheme`, which restyles every FenUI addon (Q13). Also, every embedded copy resets `FenUI.Themes` and `FenUI.Tokens` when it loads, wiping themes other addons registered | To file. Vintage registers its themes at login, re-checks before opening a window, and never switches the global theme |
 | Mechanic | Sandbox API stubs for Forever (Mainline family plus the 1.60.1 removals); release commands passing the packager's `-t` option for a monorepo subdirectory (§3.6) | To check in Phase 1–2 |
 
 ---
@@ -722,7 +722,7 @@ Phase 0 has about ten days and one maintainer, so it is cut to the minimum that 
 - [ ] Hosted agent v0 (§3.10): `/ask` in Discord + site chat, read commands + own signups, spend caps, `agent.pause`. The runtime, the `agent` module, caps, the ledger, and confirmations are built and checked live on the local backend (#129); Discord `/random ask` with Confirm buttons and the Decisions router are built and tested (#18, #133); site chat is left
 - [ ] First reskin pass once the GM answers Q12: guild colors, class/quality/role/status tokens, display font. Started with the home page (2026-10-25): plum, verdigris, and rose tokens, Bitter display, Plex body ([home page plan](docs/features/active/home-page/home-page.plan.md))
 - [ ] Triage + fleet loops live (`do-triage`, `do-run-fleet`); `vintage-discord` skill
-- [ ] **Addon spike at launch (Nov 4–6):** scaffold `addon/Vintage` from the Weekly layout; on the live Forever client confirm `C_PartyInfo.InviteUnit`, `SetRaidSubgroup`, `LOOT_OPENED`/`CHAT_MSG_LOOT`, and the `GiveMasterLoot` handout (Q6, Q7); check Mechanic sandbox stubs against the 1.60.1 changes
+- [ ] **Addon spike at launch (Nov 4–6):** scaffold `addon/Vintage` from the Weekly layout; on the live Forever client confirm `C_PartyInfo.InviteUnit`, `SetRaidSubgroup`, `LOOT_OPENED`/`CHAT_MSG_LOOT`, and the `GiveMasterLoot` handout (Q6, Q7); check Mechanic sandbox stubs against the 1.60.1 changes. The scaffold is done (2026-10-27, tested on a fake client); the live checks remain
 - [ ] Dogfood the coordinator on dungeon/attunement runs
 
 **Done when:** a week of raid nights is posted, reminded, and locked without an officer touching it, and officers receive a correct comp-gap digest.
@@ -779,5 +779,5 @@ Phase 0 has about ten days and one maintainer, so it is cut to the minimum that 
 | 10 | Hosting budget: Vercel Pro seat (~$20/mo) vs. a public repo; Convex Starter limits and preview availability; OpenAI spend cap and who pays. The caps exist (`agent-config-set`: 20 questions per member per day, 1,000 per guild per month, 20,000 Decisions calls per month by default); who pays is open | GM + Bloodfen | First deploy, Phase 1 agent |
 | 11 | Website domain | GM | Phase 0 deploy |
 | 12 | Guild colors, crest/logo, and how "WoW" the site should feel (subtle vs. full parchment-and-gold) | GM | Phase 1 reskin |
-| 13 | Does FenUI accept an external theme table that overrides its semantic tokens, or does that need an upstream hook? | Bloodfen | Phase 2 addon theme |
+| 13 | ~~Does FenUI accept an external theme table that overrides its semantic tokens, or does that need an upstream hook?~~ **Answered** (2026-10-27): it accepts the table (`RegisterTheme`), but applies colors only globally; per-window colors need an upstream hook (§7.5) | Bloodfen | Vintage colors in the addon window |
 | 14 | Can the Violet CLI export from in-repo node definitions in CI without a running Violet server? | Bloodfen, spike | Phase 0 design tokens |

@@ -20,6 +20,7 @@
     "gateway": { "paths": ["apps/gateway/"], "owners": ["@Falkicon"] },
     "web": { "paths": ["apps/web/"], "owners": ["@Falkicon"] },
     "libs": { "paths": ["libs/"], "owners": ["@Falkicon"] },
+    "addon": { "paths": ["addon/"], "owners": ["@Falkicon"] },
     "vendor": { "paths": ["vendor/"], "owners": ["@Falkicon"] },
     "repo": {
       "paths": [".github/", "scripts/", "tooling/", "AGENTS.md", "INIT.md", "PLAN.md"],

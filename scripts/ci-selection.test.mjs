@@ -40,6 +40,26 @@ test('bridge-format change owes ts and addon', () => {
   assert.equal(s.addon, true);
 });
 
+test('addon change owes the addon lane only', () => {
+  const s = selectCi({ eventName: 'pull_request', paths: ['addon/Vintage/Core/Session.lua'] });
+  assert.equal(s.addon, true);
+  assert.equal(s.ts, false);
+});
+
+test('a FenUI theme change owes ts and addon, which ships a copy of it', () => {
+  const s = selectCi({
+    eventName: 'pull_request',
+    paths: ['libs/design-tokens/generated/lua/VintageTokens.lua'],
+  });
+  assert.equal(s.ts, true);
+  assert.equal(s.addon, true);
+  const css = selectCi({
+    eventName: 'pull_request',
+    paths: ['libs/design-tokens/generated/css/vintage-dark.css'],
+  });
+  assert.equal(css.addon, false);
+});
+
 test('workflow change owes workflow contracts', () => {
   const s = selectCi({ eventName: 'pull_request', paths: ['.github/workflows/ci.yml'] });
   assert.equal(s.workflowContracts, true);

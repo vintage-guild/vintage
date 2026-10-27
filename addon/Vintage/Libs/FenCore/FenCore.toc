@@ -1,0 +1,11 @@
+## Interface: 120001
+## Title: FenCore
+## Notes: Foundation library for WoW addon development
+## Author: Falkicon
+## Version: 1.0.0
+## IconTexture: Interface\Icons\INV_Gizmo_GoblinBoomBox_01
+## X-Category: Development Tools
+## X-License: GPL-3.0
+
+# Core
+Core\FenCore.xml

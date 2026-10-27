@@ -66,6 +66,13 @@ describe('the /mcp challenge', () => {
     );
   });
 
+  it('puts only a known refusal in the header, never text that could add parameters', () => {
+    const smuggled = 'x", error="insufficient_scope' as unknown as 'expired';
+    const header = mcpChallenge(ENV, smuggled).headers.get('www-authenticate') ?? '';
+    expect(header).not.toContain('insufficient_scope');
+    expect(header).toContain('error_description="unknown"');
+  });
+
   it('says invalid_token for an expired or revoked token', async () => {
     const res = mcpChallenge(ENV, 'expired');
     expect(res.headers.get('www-authenticate')).toContain('error="invalid_token"');

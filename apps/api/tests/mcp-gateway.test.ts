@@ -170,6 +170,27 @@ describe('tools and calls on the real registry', () => {
     }
   });
 
+  it('never lists a system-only command, even to an officer whose tier would allow it', async () => {
+    const g = await guild();
+    const officer: Caller = { ...g.raider, tier: 'officer' };
+    const result = toolsFor({ caller: officer }, g.visible);
+    if (!('tools' in result)) throw new Error('expected tools');
+    const names = (result.tools as { name: string }[]).map((t) => t.name);
+    expect(names).toContain('guild-roles-set');
+    // member-sync is officer-tier but system-only: only the system caller (role sync) runs it.
+    expect(names).not.toContain('member-sync');
+    expect(
+      await callFor(
+        { caller: officer },
+        {
+          name: 'member-sync',
+          input: { discordId: 'd9', displayName: 'X', inServer: true, roleIds: [] },
+        },
+        g.execute,
+      ),
+    ).toMatchObject({ result: { success: false, error: { code: 'COMMAND_NOT_FOUND' } } });
+  });
+
   it('a refused token lists nothing and runs nothing', async () => {
     const g = await guild();
     expect(toolsFor({ refused: 'expired' }, g.visible)).toEqual({ refused: 'expired' });

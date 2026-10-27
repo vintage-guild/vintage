@@ -72,10 +72,28 @@ export function metadataResponse(request: Request, env: McpEnv): Response {
 }
 
 /**
+ * Why Convex refused a token (apps/api src/mcp-caller.ts `McpTokenRefusal`). Only these go into
+ * the WWW-Authenticate header, so nothing from a response body can add header parameters.
+ */
+export const TOKEN_REFUSALS = [
+  'missing',
+  'unknown',
+  'expired',
+  'client',
+  'scope',
+  'no-user',
+] as const;
+export type TokenRefusal = (typeof TOKEN_REFUSALS)[number];
+
+export const isTokenRefusal = (value: unknown): value is TokenRefusal =>
+  (TOKEN_REFUSALS as readonly unknown[]).includes(value);
+
+/**
  * The 401 /mcp sends without a usable token (RFC 6750 §3, RFC 9728 §5.1). With `invalid` (an
  * expired, revoked, or unknown token) it says so, so the client signs in again.
  */
-export function mcpChallenge(env: McpEnv, invalid?: string): Response {
+export function mcpChallenge(env: McpEnv, invalid?: TokenRefusal): Response {
+  if (invalid !== undefined && !isTokenRefusal(invalid)) invalid = 'unknown';
   const params = [
     `resource_metadata="${metadataUrlOf(env)}"`,
     `scope="${MCP_SCOPES.join(' ')}"`,

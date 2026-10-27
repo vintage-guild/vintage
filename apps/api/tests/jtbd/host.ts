@@ -5,6 +5,7 @@ import { recordToolCall, renderAgentReply } from '@vintage/agent/commands';
 import { type AgentDelivery, isAgentCommand, toConfirmationView } from '@vintage/agent/contract';
 import { createMemoryAgentStore } from '@vintage/agent/testing';
 import { createRegistryTools } from '@vintage/agent-runtime';
+import { createMemoryApplicationsStore } from '@vintage/applications/testing';
 import { runTick } from '@vintage/coordinator/commands';
 import { createFakeDiscord, createMemoryCoordinatorStore } from '@vintage/coordinator/testing';
 import type { DecisionsPort } from '@vintage/decisions';
@@ -27,9 +28,11 @@ import {
 import { createMemoryProgressStore } from '@vintage/progress/testing';
 import type { Signup } from '@vintage/raids/contract';
 import { createMemoryRaidsStore, createRecordingEventSink } from '@vintage/raids/testing';
+import { STARTER_RECRUITING } from '@vintage/site/contract';
 import { createMemorySiteStore } from '@vintage/site/testing';
 import { fixedClock, testRegistry } from '@vintage/testing';
 import { handleAgentInteraction } from '../../src/discord-agent';
+import { handleApplicationInteraction } from '../../src/discord-applications';
 import { handlePollInteraction } from '../../src/discord-polls';
 import { handleRaidInteraction } from '../../src/discord-raids';
 import { handleSignupInteraction } from '../../src/discord-signups';
@@ -79,6 +82,12 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
   const pollEvents = createPollEventSink();
   const tickSource = createTickSource({ raids, identity, coordinator });
   const ticksRequested: string[] = [];
+  const siteStore = createMemorySiteStore();
+  /** Rewording for the weekly assessment; null keeps the facts (like a deployment with no key). */
+  let wording: string | null = null;
+  const applicationsStore = createMemoryApplicationsStore();
+  /** Application effects the commands scheduled (label and post, accept, reply, refresh). */
+  const applicationEffects: { effect: string; id: string }[] = [];
   /** Questions agent-ask queued, with where the answer goes (as the Convex action receives them). */
   const queued: { runId: string; delivery: AgentDelivery | undefined }[] = [];
   let pendingDelivery: AgentDelivery | undefined;
@@ -114,7 +123,14 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
       get: (g, id) => polls.getPoll(g, id),
     },
     progress: createMemoryProgressStore(),
-    site: createMemorySiteStore(),
+    site: siteStore,
+    applications: applicationsStore,
+    applicationEffects: {
+      submitted: async (_g, id) => void applicationEffects.push({ effect: 'submitted', id }),
+      accepted: async (_g, id) => void applicationEffects.push({ effect: 'accepted', id }),
+      replied: async (_g, id) => void applicationEffects.push({ effect: 'replied', id }),
+      changed: async (_g, id) => void applicationEffects.push({ effect: 'changed', id }),
+    },
     agent: createMemoryAgentStore(),
     // The turn itself needs OpenAI; agentUi.answer stands in for it (it calls the same tools).
     agentQueue: {
@@ -187,6 +203,10 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
         discord,
         polls: { get: (g, id) => polls.getPoll(g, id) },
         decisions,
+        recruiting: {
+          needs: async (g) => (await siteStore.getRecruiting(g))?.needs ?? STARTER_RECRUITING.needs,
+        },
+        wording: { write: async () => wording },
       },
       GUILD,
       clock.now(),
@@ -478,6 +498,75 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     },
   };
 
+  function applicationInteract(discordId: string, interaction: Partial<Interaction>) {
+    return handleApplicationInteraction(
+      {
+        id: 'i',
+        application_id: 'app',
+        token: 'token',
+        type: InteractionType.MESSAGE_COMPONENT,
+        guild_id: DISCORD_GUILD,
+        channel_id: POLL_CHANNEL,
+        member: {
+          user: { id: discordId, username: discordId, global_name: `${discordId}-name` },
+          roles: [],
+        },
+        ...interaction,
+      } as Interaction,
+      {
+        discordGuildId: DISCORD_GUILD,
+        guildId: GUILD,
+        siteUrl: 'https://vintageguild.gg',
+        memberByDiscordId: (id) => identity.getMemberByDiscordId(GUILD, id),
+        run: (caller, name, input, confirmToken) =>
+          registry.execute(
+            { name, input, caller, ...(confirmToken ? { confirmToken } : {}) },
+            deps,
+          ),
+      },
+    );
+  }
+
+  const applicationUi = {
+    /** /random apply, then the modal, as one Discord user. */
+    apply: async (
+      discordId: string,
+      form: { character: string; class: string; spec: string; role: string },
+      answers: { about: string; experience: string; availability: string },
+    ) => {
+      const opened = (await applicationInteract(discordId, {
+        type: InteractionType.APPLICATION_COMMAND,
+        data: {
+          name: 'random',
+          options: [
+            {
+              name: 'apply',
+              type: 1,
+              options: Object.entries(form).map(([name, value]) => ({ name, type: 3, value })),
+            },
+          ],
+        },
+      } as Partial<Interaction>)) as { data: { custom_id: string } };
+      return applicationInteract(discordId, {
+        type: InteractionType.MODAL_SUBMIT,
+        data: {
+          custom_id: opened.data.custom_id,
+          components: Object.entries(answers).map(([id, value]) => ({
+            type: 1,
+            components: [{ type: 4, custom_id: id, value }],
+          })),
+        },
+      } as Partial<Interaction>);
+    },
+    click: (discordId: string, customId: string) =>
+      applicationInteract(discordId, {
+        data: { custom_id: customId, component_type: 2 },
+      } as Partial<Interaction>),
+    setWording: (text: string | null) => {
+      wording = text;
+    },
+  };
+
   const pollUi = {
     create: (discordId: string, options: Record<string, string | number | boolean>) =>
       pollInteract(discordId, {
@@ -517,6 +606,8 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
 
   return {
     agentUi,
+    applicationUi,
+    applicationEffects,
     discordUi,
     raidUi,
     pollUi,

@@ -17,7 +17,7 @@ Job ids (`J01`…) are shared: the doc, the test name, and the live run all use 
 | [Raid night](raid-night.md) | J01–J15, J24, J28 | ✅ `raid-night.jtbd.test.ts` | ✅ checklist |
 | [Progression](progression.md) | J16 | ✅ `progression.jtbd.test.ts` | ✅ checklist |
 | [Polls](polls.md) | J17, J18, J22 | ✅ `polls.jtbd.test.ts` | ✅ checklist (J17 partly run live on 2026-10-26) |
-| [Recruiting and the public site](recruiting.md) | J21, J23 | ✅ `recruiting.jtbd.test.ts` | ✅ checklist |
+| [Recruiting and the public site](recruiting.md) | J21, J23, J28, J29 | ✅ `recruiting.jtbd.test.ts` | ✅ checklist |
 | [Guild agent](agent.md) | J25–J27 | ✅ `agent.jtbd.test.ts` (the OpenAI turn stood in for) | ✅ checklist, not yet run |
 
 ## Rules

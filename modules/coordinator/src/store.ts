@@ -4,6 +4,7 @@ import { type Caller, type CommandResult, commandsFor } from '@vintage/guild-kit
 import type { GuildRank } from '@vintage/identity/contract';
 import type { Poll } from '@vintage/polls/contract';
 import type { RaidEvent, RaidSize, ScheduleTimings, Signup } from '@vintage/raids/contract';
+import type { ClassNeed } from '@vintage/site/contract';
 import type {
   ActionStatus,
   CoordinatorAction,
@@ -163,6 +164,10 @@ export interface TickPorts {
   polls: Pick<CoordinatorPolls, 'get'>;
   /** Labels signup notes for the digest (#132). Absent or null: notes stay raw. */
   decisions?: DecisionsPort | null;
+  /** The site's recruiting needs, for the weekly assessment (#130). Absent: none listed. */
+  recruiting?: { needs(guildId: string): Promise<ClassNeed[]> };
+  /** Rewords the assessment's facts (AI); null or a throw keeps the facts as written. */
+  wording?: { write(instructions: string, facts: string): Promise<string | null> };
 }
 
 export const command = commandsFor<CoordinatorDeps>();

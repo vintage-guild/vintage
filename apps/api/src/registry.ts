@@ -2,6 +2,7 @@
 // Convex functions, /mcp, Discord, the CLI, the hosted agent, and the command manifest.
 
 import { type AgentDeps, agentCommands } from '@vintage/agent/commands';
+import { type ApplicationsDeps, applicationsCommands } from '@vintage/applications/commands';
 import { type CoordinatorDeps, coordinatorCommands } from '@vintage/coordinator/commands';
 import type { AnyGuildCommand } from '@vintage/guild-kit';
 import { type IdentityDeps, identityCommands } from '@vintage/identity/commands';
@@ -17,7 +18,8 @@ export type VintageDeps = IdentityDeps &
   PollsDeps &
   ProgressDeps &
   SiteDeps &
-  AgentDeps;
+  AgentDeps &
+  ApplicationsDeps;
 
 export const commands: readonly AnyGuildCommand<VintageDeps>[] = [
   ...identityCommands,
@@ -27,4 +29,5 @@ export const commands: readonly AnyGuildCommand<VintageDeps>[] = [
   ...progressCommands,
   ...siteCommands,
   ...agentCommands,
+  ...applicationsCommands,
 ];

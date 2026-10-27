@@ -1,5 +1,6 @@
 import betterAuth from '@convex-dev/better-auth/convex.config';
 import agent from '@vintage/agent/convex.config';
+import applications from '@vintage/applications/convex.config';
 import coordinator from '@vintage/coordinator/convex.config';
 import identity from '@vintage/identity/convex.config';
 import polls from '@vintage/polls/convex.config';
@@ -17,5 +18,6 @@ app.use(polls);
 app.use(progress);
 app.use(site);
 app.use(agent);
+app.use(applications);
 
 export default app;

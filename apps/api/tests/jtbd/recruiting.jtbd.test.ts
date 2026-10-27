@@ -8,10 +8,99 @@ import {
   STARTER_RECRUITING,
 } from '@vintage/site/contract';
 import { describe, expect, it } from 'vitest';
-import { createHost, ROLES } from './host';
+import { createHost, DAY, OPS_CHANNEL, ROLES, SIGNUP_CHANNEL } from './host';
 
 /** Mon 26 Oct 2026, 2 PM New York: before launch, while the guild is recruiting. */
 const NOW = Date.UTC(2026, 9, 26, 18);
+
+describe('JTBD: applications and the weekly check', () => {
+  const GUEST = '500000000000000050';
+  const answers = {
+    about: 'Healer since vanilla, calm on voice.',
+    experience: 'Cleared MC and BWL as main heals.',
+    availability: 'Tue and Thu evenings',
+  };
+
+  it('J28 · a player applies from Discord, an officer replies and accepts', async () => {
+    const host = createHost(NOW);
+    const ana = await host.discordMember('500000000000000001', 'Ana', [ROLES.officer]);
+    const rook = await host.discordMember('500000000000000002', 'Rook', [ROLES.raidLeader]);
+
+    // Not in the guild yet: Thrall applies anyway.
+    const sent = await host.applicationUi.apply(
+      GUEST,
+      { character: 'Thrall', class: 'shaman', spec: 'restoration', role: 'raider' },
+      answers,
+    );
+    expect(JSON.stringify(sent)).toMatch(/Your application is with the officers/);
+    const [application] = await host.ok<{ id: string; status: string; applicantName: string }[]>(
+      ana,
+      'application-list',
+    );
+    expect(application).toMatchObject({ status: 'new', applicantName: `${GUEST}-name` });
+    expect(host.applicationEffects).toEqual([{ effect: 'submitted', id: application!.id }]);
+
+    // A second application while this one is open is refused with the reason.
+    expect(
+      JSON.stringify(
+        await host.applicationUi.apply(
+          GUEST,
+          { character: 'Thrall', class: 'shaman', spec: 'restoration', role: 'raider' },
+          answers,
+        ),
+      ),
+    ).toMatch(/still with the officers/);
+
+    // Only officers answer; Ana accepts. The recruit role and onboarding DM are scheduled.
+    expect(
+      JSON.stringify(await host.applicationUi.click(rook.discordId!, `app:ok:${application!.id}`)),
+    ).toMatch(/Only officers answer applications/);
+    await host.applicationUi.click(ana.discordId!, `app:ok:${application!.id}`);
+    expect(host.applicationEffects.map((e) => e.effect)).toEqual([
+      'submitted',
+      'accepted',
+      'changed',
+    ]);
+    const visitor = await host.as(GUEST);
+    expect(await host.ok<{ status: string }>(visitor, 'application-get')).toMatchObject({
+      status: 'accepted',
+    });
+  });
+
+  it('J29 · officers get one weekly roster check, and a click raises a class on the site', async () => {
+    const host = createHost(NOW);
+    const ana = await host.discordMember('500000000000000001', 'Ana', [ROLES.officer]);
+    const rook = await host.discordMember('500000000000000002', 'Rook', [ROLES.raidLeader]);
+    await host.configureCoordinator({
+      signupChannelId: SIGNUP_CHANNEL,
+      opsChannelId: OPS_CHANNEL,
+      weeklyAssessment: true,
+    });
+    await host.ok(rook, 'raid-create', {
+      name: 'Molten Core',
+      instance: 'Molten Core',
+      size: 20,
+      startsAt: NOW + 3 * DAY,
+    });
+    await host.tick();
+    await host.tick();
+    const checks = host
+      .sentTo(OPS_CHANNEL)
+      .filter((m) => m.message.content?.includes('Weekly roster check'));
+    expect(checks).toHaveLength(1);
+    const buttons = JSON.stringify(checks[0]?.message.components ?? []);
+    // The starter band has priests and shamans at high already; druids (medium) can tank or heal.
+    expect(buttons).toMatch(/recruit:hi:druid/);
+    expect(buttons).not.toMatch(/recruit:hi:priest/);
+
+    expect(
+      JSON.stringify(await host.applicationUi.click(rook.discordId!, 'recruit:hi:druid')),
+    ).toMatch(/Only officers change recruiting needs/);
+    await host.applicationUi.click(ana.discordId!, 'recruit:hi:druid');
+    const band = await host.ok<Recruiting>(ana, 'recruiting-get');
+    expect(band.needs.find((n) => n.wowClass === 'druid')?.need).toBe('high');
+  });
+});
 
 describe('JTBD: recruiting', () => {
   it('J21 · an officer edits the open roles and the public band changes without a deploy', async () => {

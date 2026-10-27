@@ -24,6 +24,8 @@ export const configFields = {
   opsChannelId: v.union(v.string(), v.null()),
   expectedRanks: v.array(guildRank),
   dmReminders: v.boolean(),
+  /** Optional so rows saved before #130 still load; read as false (officers turn it on). */
+  weeklyAssessment: v.optional(v.boolean()),
   paused: v.boolean(),
   updatedAt: v.number(),
 };

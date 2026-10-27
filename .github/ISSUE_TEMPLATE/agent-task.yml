@@ -29,5 +29,5 @@ body:
     id: area
     attributes:
       label: Area
-      options: [identity, raids, coordinator, polls, progress, loot, wishlist, site, agent, guild-kit, api, web, addon, repo]
+      options: [identity, raids, coordinator, polls, progress, loot, wishlist, site, agent, applications, guild-kit, api, web, addon, repo]
     validations: { required: true }

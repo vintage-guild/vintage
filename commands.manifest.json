@@ -217,6 +217,246 @@
       }
     },
     {
+      "name": "application-config-get",
+      "description": "Where new applications are posted, and the onboarding note accepted applicants get.",
+      "tier": "officer",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "application-config-set",
+      "description": "Set the recruitment channel new applications are posted to (a Discord channel id, or null to stop posting) and the onboarding note (`{site}` becomes the website address). The channel must be visible to officers only: posts carry each applicant’s answers and labels.",
+      "tier": "officer",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "channelId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{17,20}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "onboarding": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1500
+          }
+        }
+      }
+    },
+    {
+      "name": "application-decline",
+      "description": "Decline an application, optionally with a reply the applicant gets in a DM. Shows the application first; confirm to decline.",
+      "tier": "officer",
+      "mutation": true,
+      "destructive": true,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "applicationId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reply": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1500
+          }
+        },
+        "required": [
+          "applicationId"
+        ]
+      }
+    },
+    {
+      "name": "application-get",
+      "description": "Your latest application and where it stands (no id), or one application by id. Officers see the whole application with its labels; applicants see their own status and the reply.",
+      "tier": "public",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "applicationId": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "application-list",
+      "description": "Applications, newest first, with their labels (what the text reads as, whether it is complete, fit to the open roles). Filter by status.",
+      "tier": "officer",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "statuses": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "new",
+                "in-review",
+                "accepted",
+                "declined",
+                "withdrawn"
+              ]
+            }
+          },
+          "limit": {
+            "default": 25,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        }
+      }
+    },
+    {
+      "name": "application-review",
+      "description": "Answer an application: move it to in-review or accept it, optionally with a reply the applicant gets in a DM. Accepting sends them the onboarding note and asks an officer, in the recruitment channel, to give them the recruit role in Discord.",
+      "tier": "officer",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "applicationId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "in-review",
+              "accepted"
+            ]
+          },
+          "reply": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1500
+          }
+        },
+        "required": [
+          "applicationId",
+          "status"
+        ]
+      }
+    },
+    {
+      "name": "application-submit",
+      "description": "Apply to raid with Vintage as a raider or flex raider: your character, what you play, a few words about you, your raiding experience, and when you can raid. Needs a Discord account (apply from Discord, or sign in with Discord on the site). Officers answer in Discord.",
+      "tier": "public",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "characterName": {
+            "type": "string",
+            "pattern": "^\\p{L}{2,12}( \\p{L}{1,12})?$"
+          },
+          "wowClass": {
+            "type": "string",
+            "enum": [
+              "warrior",
+              "paladin",
+              "hunter",
+              "rogue",
+              "priest",
+              "shaman",
+              "mage",
+              "warlock",
+              "druid"
+            ]
+          },
+          "spec": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "raider",
+              "flex-raider"
+            ]
+          },
+          "about": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "experience": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "availability": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 400
+          },
+          "applicantName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        },
+        "required": [
+          "characterName",
+          "wowClass",
+          "spec",
+          "role",
+          "about",
+          "experience",
+          "availability"
+        ]
+      }
+    },
+    {
+      "name": "application-withdraw",
+      "description": "Take back your open application.",
+      "tier": "public",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "applicationId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "applicationId"
+        ]
+      }
+    },
+    {
       "name": "character-add",
       "description": "Register one of your characters (main or alt).",
       "tier": "member",
@@ -350,7 +590,7 @@
     },
     {
       "name": "coordinator-config-set",
-      "description": "Set where the coordinator posts (signup and officer channels), whose answers it chases (expectedRanks), and whether it DMs non-responders.",
+      "description": "Set where the coordinator posts (signup and officer channels), whose answers it chases (expectedRanks), whether it DMs non-responders, and whether it posts the weekly roster and recruitment check (weeklyAssessment).",
       "tier": "officer",
       "mutation": true,
       "destructive": false,
@@ -397,6 +637,9 @@
             }
           },
           "dmReminders": {
+            "type": "boolean"
+          },
+          "weeklyAssessment": {
             "type": "boolean"
           }
         }

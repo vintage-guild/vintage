@@ -68,6 +68,13 @@ and posts the final roster and addon import string. Maturity: **core**.
   role with late people marked and everyone's reason (the signup `note`), the queue when the raid
   is full, tentative and bench with reasons, and comp gaps. The digest lists late, tentative, and
   bench reasons too. (Ideas from Raid-Helper: docs/research/raid-helper.md.)
+- **Weekly assessment (#130).** Off until `coordinator-config-set weeklyAssessment:true`. Then the
+  first tick after Monday 16:00 UTC (`assessmentRule`, claimed per week) posts **Weekly roster
+  check** to the ops channel: role gaps in the next three raids, the site's open needs (the
+  starter needs until saved), and one `recruit:hi:<class>` button per class that could fill a
+  tank or healer gap and isn't already high. Suggestions are code; the `wording` port may reword
+  the facts (Terra at low effort, a `wording` run in the agent ledger) and falls back to them.
+  The button runs `recruiting-set` as the clicking officer (`apps/api/src/discord-applications.ts`).
 - **Note triage (#132).** Before the digest goes out, one Decisions request labels every note on
   the raid (`domain/notes.ts`): its kind, and whether it asks an officer for something. Notes
   that do lead the digest under **Needs an officer**; offers to swap get their own line; every

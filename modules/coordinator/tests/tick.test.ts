@@ -404,6 +404,34 @@ describe('runTick', () => {
     expect(digest.message.content).toMatch(/Late \(1\): Bram \(after work\)/);
   });
 
+  it('posts the weekly roster check once a week when turned on, worded or not', async () => {
+    const assessments = () =>
+      discord.sent.filter(
+        (m) => m.to === OPS && m.message.content?.includes('Weekly roster check'),
+      );
+    // START - 100h is Saturday 7 Nov: this week's slot (Mon 2 Nov 16:00 UTC) has passed.
+    await tick(START - 100 * HOUR);
+    expect(assessments()).toEqual([]); // off by default
+    await store.setConfig(G, { weeklyAssessment: true }, 0);
+    ports.recruiting = {
+      needs: async () => [{ wowClass: 'priest', specs: 'holy', need: 'medium' }],
+    };
+    ports.wording = { write: async () => null };
+    await tick(START - 99 * HOUR);
+    await tick(START - 98 * HOUR);
+    expect(assessments()).toHaveLength(1);
+    expect(assessments()[0]?.message.content).toMatch(/Recruiting now: Priest \(holy\) medium/);
+    const ids = JSON.stringify(assessments()[0]?.message.components ?? []);
+    expect(ids).toContain('recruit:hi:priest');
+    // A new week, worded this time.
+    ports.wording = { write: async () => 'Healers are thin.' };
+    signups = [];
+    event = { ...event, startsAt: START + 7 * 24 * HOUR };
+    await tick(START + 5 * 24 * HOUR);
+    expect(assessments()).toHaveLength(2);
+    expect(assessments()[1]?.message.content).toBe('**Weekly roster check**\nHealers are thin.');
+  });
+
   it('prints notes raw, as before, when labeling fails', async () => {
     signups = [signup('aeryn'), signup('bram', { status: 'late', note: 'after work' })];
     const fake = createFakeDecisions();

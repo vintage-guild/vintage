@@ -36,7 +36,8 @@ commands). Everything runs serverless: no always-on gateway process.
 - **Least privilege for the bot.** It's invited with View Channels, Send Messages, Embed Links,
   Read Message History, Add Reactions, and Mention Everyone (permissions integer `216128`). Add a
   permission only when a feature needs it, and say which in the PR. Never request Administrator
-  or Manage Roles.
+  or Manage Roles. Applications (#135) keep to this: accepting an applicant asks an officer to set
+  the recruit role rather than the bot setting it.
 - **Bootstrap the role map as the system caller.** The first `guild-roles-set` runs through
   `commands:runAsSystem` (internal; needs deployment access), preview then confirm. SETUP.md
   "First role map" has the steps.

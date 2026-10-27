@@ -6,10 +6,12 @@
 // Environment (Convex, never the repo): BETTER_AUTH_SECRET, DISCORD_CLIENT_ID,
 // DISCORD_CLIENT_SECRET, SITE_URL (the website origin), and optionally VINTAGE_TRUSTED_ORIGINS
 // (more origins, comma-separated). Discord's redirect URI is <CONVEX_SITE_URL>/api/auth/callback/discord.
+// A hosted deployment missing any of them refuses sign-in instead of falling back (src/auth-env.ts).
 import { type AuthFunctions, createClient, type GenericCtx } from '@convex-dev/better-auth';
 import { convex, crossDomain } from '@convex-dev/better-auth/plugins';
 import { betterAuth } from 'better-auth';
 import { v } from 'convex/values';
+import { authEnv, authOrigins } from '../src/auth-env';
 import { fetchGuildMember } from '../src/discord-directory';
 import { type SignInSync, syncOnSignIn } from '../src/sign-in';
 import { DISCORD_ID_CLAIM } from '../src/web-caller';
@@ -18,16 +20,8 @@ import type { DataModel } from './_generated/dataModel';
 import { internalAction, type MutationCtx } from './_generated/server';
 import authConfig from './auth.config';
 
-const siteUrl = () => process.env.SITE_URL ?? 'http://localhost:5173';
-
 /** The website origins allowed to sign in: SITE_URL plus VINTAGE_TRUSTED_ORIGINS. */
-export const siteOrigins = () => [
-  siteUrl(),
-  ...(process.env.VINTAGE_TRUSTED_ORIGINS ?? '')
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean),
-];
+export const siteOrigins = () => authOrigins(process.env);
 
 /** A Discord account was linked or signed in again: sync the member right away. */
 async function afterSignIn(ctx: MutationCtx, account: { providerId: string; accountId: string }) {
@@ -62,16 +56,17 @@ async function discordIdOfUser(ctx: GenericCtx<DataModel>, userId: string) {
   return (account as { accountId?: string } | null)?.accountId ?? null;
 }
 
-export const createAuth = (ctx: GenericCtx<DataModel>) =>
-  betterAuth({
+export const createAuth = (ctx: GenericCtx<DataModel>) => {
+  const env = authEnv(process.env);
+  return betterAuth({
     baseURL: process.env.CONVEX_SITE_URL,
-    secret: process.env.BETTER_AUTH_SECRET,
-    trustedOrigins: siteOrigins(),
+    secret: env.secret,
+    trustedOrigins: env.origins,
     database: authComponent.adapter(ctx),
     socialProviders: {
       discord: {
-        clientId: process.env.DISCORD_CLIENT_ID ?? '',
-        clientSecret: process.env.DISCORD_CLIENT_SECRET ?? '',
+        clientId: env.discordClientId,
+        clientSecret: env.discordClientSecret,
         // Only `identify`: roles come from the bot, and Vintage has no use for email. Better Auth
         // requires one, so each user gets a placeholder that can't receive mail.
         disableDefaultScope: true,
@@ -83,7 +78,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) =>
       },
     },
     plugins: [
-      crossDomain({ siteUrl: siteUrl() }),
+      crossDomain({ siteUrl: env.siteUrl }),
       convex({
         authConfig,
         jwt: {
@@ -94,6 +89,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) =>
       }),
     ],
   });
+};
 
 /** Read the member from Discord with the bot and run `member-sync` (src/sign-in.ts). */
 export const syncSignIn = internalAction({

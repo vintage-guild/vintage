@@ -34,11 +34,13 @@
 [project board](https://github.com/orgs/vintage-guild/projects/1) and the
 [MVP epic](https://github.com/vintage-guild/vintage/issues/2).
 
-Working today: the command layer (`guild-kit`); the `identity` module on Convex with guild
-ranks, the role → rank map, and a role-sync cron; the Discord toolkit and interactions endpoint
-(built, not deployed yet); design tokens with dark and parchment themes; the repo gates, CI, and
-agent setup. Next: inviting the bot (Random) to the Vintage server, Discord sign-in, a hosted Convex backend, `/mcp`,
-and the website shell.
+Working today: the website at https://vintageguild.gg with Discord sign-in; a hosted Convex
+backend running the command layer (`guild-kit`) and nine modules (identity, raids, coordinator,
+polls, progress, site, agent, applications, insights) with role-sync, coordinator, and poll
+crons; the Discord bot (Random) live in the test server with signups, polls, and `/random ask`;
+design tokens with dark and parchment themes; the repo gates, CI, and agent setup. Next: inviting
+Random to the Vintage server, `/mcp`, the addon, and loot. What's built, tested, and deployed per
+package is in [docs/architecture.md](docs/architecture.md).
 
 ## Documentation
 

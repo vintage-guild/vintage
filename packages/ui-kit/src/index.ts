@@ -7,6 +7,12 @@ export {
   setCommandClient,
 } from './client';
 export {
+  type ApplicationsDeskRow,
+  labelsText,
+  VintageApplicationsDesk,
+} from './elements/applications-desk';
+export { type OwnApplication, VintageApplyForm } from './elements/apply-form';
+export {
   type LedgerArt,
   type LedgerBoss,
   type LedgerKill,

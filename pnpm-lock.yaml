@@ -178,6 +178,9 @@ importers:
       '@microsoft/fast-router':
         specifier: workspace:*
         version: link:../../vendor/fast-router
+      '@vintage/applications':
+        specifier: workspace:*
+        version: link:../../modules/applications
       '@vintage/coordinator':
         specifier: workspace:*
         version: link:../../modules/coordinator

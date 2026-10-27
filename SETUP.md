@@ -148,6 +148,12 @@ messages with `DISCORD_BOT_TOKEN` (no new permissions). After changing `apps/gat
 register the commands again (`pnpm --filter @vintage/gateway register-commands`). Optional:
 set `VINTAGE_SITE_URL` in the Convex env so ranked polls link to the website (once #63 adds the page).
 
+### Raids from Discord
+
+`/random raid create` and `/random raid pick-night` (Raid Leader and up) run `raid-create` and
+`raid-night-poll` through the same path. Times are typed in the guild's clock. No new bot
+permissions; re-register the commands after deploying.
+
 ### Website sign-in (Discord)
 
 Members sign in to the website with Discord only (#7). Better Auth runs inside Convex

@@ -125,3 +125,14 @@ without leaving Discord.
 - [ ] **Roster** shows the full list privately (everyone, by role, with places in line).
 - [ ] A Member (below Recruit), someone the bot doesn't know, or a click from another server gets
   a private refusal that says what to do.
+
+### J28 · Make a raid from Discord
+**When** a run comes together in chat, **I (raid leader) want** to make the raid with a slash
+command, **so I can** open signups without going to the site.
+- [ ] Rook runs `/random raid create` with a start like `2026-11-03 8pm`; the private reply shows
+  the time as a Discord timestamp, and the signup card goes up within seconds (no wait for the tick).
+- [ ] The time is read in the guild's clock (the zone the site's calendar uses: the first active
+  schedule's, else the first schedule's, else New York).
+- [ ] `/random raid pick-night` with two times opens a raid-night vote in the signup channel (J18).
+- [ ] A raider gets a private "needs the Raid Leader rank"; an unreadable or impossible time says
+  how to write one.

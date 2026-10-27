@@ -34,6 +34,7 @@ import { fixedClock, testRegistry } from '@vintage/testing';
 import { handleAgentInteraction } from '../../src/discord-agent';
 import { handleApplicationInteraction } from '../../src/discord-applications';
 import { handlePollInteraction } from '../../src/discord-polls';
+import { handleRaidInteraction } from '../../src/discord-raids';
 import { handleSignupInteraction } from '../../src/discord-signups';
 import { commands, type VintageDeps } from '../../src/registry';
 import { createTickSource } from '../../src/tick-source';
@@ -387,6 +388,54 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     });
   }
 
+  /** `/random raid create` and `/random raid pick-night`, run through src/discord-raids.ts. */
+  const raidUi = {
+    slash: (
+      discordId: string,
+      sub: 'create' | 'pick-night',
+      options: Record<string, string | number>,
+    ) =>
+      handleRaidInteraction(
+        {
+          id: 'i',
+          application_id: 'app',
+          token: 'token',
+          type: InteractionType.APPLICATION_COMMAND,
+          guild_id: DISCORD_GUILD,
+          channel_id: SIGNUP_CHANNEL,
+          member: { user: { id: discordId, username: discordId }, roles: [] },
+          data: {
+            name: 'random',
+            options: [
+              {
+                name: 'raid',
+                type: 2,
+                options: [
+                  {
+                    name: sub,
+                    type: 1,
+                    options: Object.entries(options).map(([name, value]) => ({
+                      name,
+                      value,
+                      type: typeof value === 'number' ? 4 : 3,
+                    })),
+                  },
+                ],
+              },
+            ],
+          },
+        },
+        {
+          discordGuildId: DISCORD_GUILD,
+          guildId: GUILD,
+          memberByDiscordId,
+          run: (caller, name, input) => registry.execute({ name, input, caller }, deps),
+          afterChange: () => deps.scheduler.runTickNow(GUILD),
+          now: clock.now,
+        },
+      ),
+  };
+
   const agentUi = {
     ask: (discordId: string, question: string) =>
       agentInteract(discordId, {
@@ -560,6 +609,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     applicationUi,
     applicationEffects,
     discordUi,
+    raidUi,
     pollUi,
     clock,
     deps,

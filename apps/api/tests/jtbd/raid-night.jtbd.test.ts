@@ -455,6 +455,54 @@ describe('JTBD: raid night', () => {
     );
   });
 
+  it('J28 · a raid leader makes a raid from Discord, and its signup card goes up', async () => {
+    const { wed } = await scheduleRaidNights(g);
+    const ui = g.host.raidUi;
+    const content = (r: unknown) => (r as { data?: { content?: string } }).data?.content ?? '';
+    const before = g.host.sentTo(SIGNUP_CHANNEL).length;
+    const ticks = g.host.ticksRequested.length;
+
+    // Rook types the time in the guild's clock; the reply echoes it back as a Discord timestamp.
+    const tue8pm = Date.UTC(2026, 10, 4, 1); // Tue 3 Nov 2026, 20:00 New York (EST)
+    const made = await ui.slash(g.rook.discordId!, 'create', {
+      name: 'Onyxia run',
+      instance: "Onyxia's Lair",
+      size: 40,
+      start: '2026-11-03 8pm',
+    });
+    expect(content(made)).toContain(`<t:${tue8pm / 1000}:F>`);
+    expect(g.host.ticksRequested.length).toBeGreaterThan(ticks);
+
+    // The next tick posts its signup card beside the scheduled nights.
+    await g.host.tick();
+    const raids = await g.host.ok<{ event: RaidEvent }[]>(g.aeryn, 'raid-list', {});
+    const onyxia = raids.find((r) => r.event.name === 'Onyxia run')!.event;
+    expect(onyxia).toMatchObject({ startsAt: tue8pm, size: 40, durationMinutes: 180 });
+    expect(onyxia.id).not.toBe(wed.id);
+    expect(
+      g.host
+        .sentTo(SIGNUP_CHANNEL)
+        .slice(before)
+        .some((m) => messageText(m.message).includes('Onyxia run')),
+    ).toBe(true);
+
+    // A raider can't; a time it can't read says how to write one.
+    const raider = await ui.slash(g.aeryn.discordId!, 'create', {
+      name: 'Sneaky',
+      instance: "Onyxia's Lair",
+      size: 40,
+      start: '2026-11-03 20:00',
+    });
+    expect(content(raider)).toMatch(/needs the Raid Leader rank/);
+    const unclear = await ui.slash(g.rook.discordId!, 'create', {
+      name: 'Later',
+      instance: "Onyxia's Lair",
+      size: 40,
+      start: 'next tuesday',
+    });
+    expect(content(unclear)).toMatch(/couldn't read “next tuesday”/);
+  });
+
   it('J24 · a raid leader keeps the calendar right from the quarters: one-offs, moves, pauses, done', async () => {
     const { wed } = await scheduleRaidNights(g);
     const schedules = await g.host.ok<{ id: string }[]>(g.rook, 'schedule-list', {});

@@ -1,6 +1,6 @@
 // Discord interactions, run inside Convex (#10). The gateway verifies Discord's signature and
-// forwards component and modal interactions, and `/random poll`, to the HTTP route in http.ts,
-// which calls `interaction` here. The flows live in src/discord-signups.ts and src/discord-polls.ts.
+// forwards component and modal interactions, `/random poll`, and `/random raid` to the HTTP route
+// in http.ts, which calls `interaction` here. The flows live in src/discord-*.ts.
 import type { Interaction } from '@vintage/discord-kit';
 import type { Caller, CommandResult } from '@vintage/guild-kit';
 import type { Signup } from '@vintage/raids/contract';
@@ -8,6 +8,7 @@ import { v } from 'convex/values';
 import { handleAgentInteraction } from '../src/discord-agent';
 import { handleApplicationInteraction } from '../src/discord-applications';
 import { handlePollInteraction } from '../src/discord-polls';
+import { handleRaidInteraction } from '../src/discord-raids';
 import { handleSignupInteraction } from '../src/discord-signups';
 import { internal } from './_generated/api';
 import { internalMutation } from './_generated/server';
@@ -58,6 +59,16 @@ export const interaction = internalMutation({
       afterChange: () => coordinatorScheduler(ctx).runTickNow(GUILD_ID),
     });
     if (signup) return signup;
+
+    const raid = await handleRaidInteraction(incoming, {
+      discordGuildId,
+      guildId: GUILD_ID,
+      memberByDiscordId,
+      run: (caller, name, input) => runCommandAs(ctx, caller, name, input),
+      afterChange: () => coordinatorScheduler(ctx).runTickNow(GUILD_ID),
+      now: () => Date.now(),
+    });
+    if (raid) return raid;
 
     const poll = await handlePollInteraction(incoming, {
       discordGuildId,

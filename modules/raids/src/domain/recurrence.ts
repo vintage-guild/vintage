@@ -18,7 +18,7 @@ export function isValidTimeZone(timeZone: string): boolean {
   }
 }
 
-interface WallClock {
+export interface WallClock {
   year: number;
   month: number;
   day: number;

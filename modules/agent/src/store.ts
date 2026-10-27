@@ -10,6 +10,8 @@ import type {
 
 export interface RunFilter {
   memberId?: string;
+  /** One conversation (`threadKeyOf`). */
+  threadKey?: string;
   kind?: RunKind;
   statuses?: RunStatus[];
   /** createdAt at or after. */

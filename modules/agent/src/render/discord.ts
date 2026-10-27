@@ -33,6 +33,13 @@ export interface ReplyView {
 
 /** The deferred reply, edited once the run ends. */
 export function renderAgentReply(view: ReplyView): MessageData {
+  if (view.status === 'cancelled') {
+    return {
+      content: 'Stopped before it answered.',
+      components: [],
+      allowed_mentions: { parse: [] },
+    };
+  }
   if (view.status !== 'answered') {
     return {
       content: `I couldn't answer that. ${view.error ?? 'Please try again in a minute.'}`,

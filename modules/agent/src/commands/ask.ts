@@ -1,10 +1,21 @@
 import { error, success, tierAllows } from '@vintage/guild-kit';
 import { z } from 'zod';
-import { type AgentRun, threadKeyOf, toConfirmationView } from '../contract';
+import { type AgentRun, CONTEXT_KINDS, threadKeyOf, toConfirmationView } from '../contract';
 import { BUSY_WINDOW_MS, dayStart, monthStart, refuseAsk } from '../domain/limits';
 import { command } from '../store';
 
 export const QUESTION_MAX = 2000;
+
+const pageContext = z.object({
+  page: z.string().trim().min(1).max(80),
+  selection: z
+    .object({
+      kind: z.enum(CONTEXT_KINDS),
+      id: z.string().trim().min(1).max(100),
+      label: z.string().trim().min(1).max(120),
+    })
+    .optional(),
+});
 
 export const agentAsk = command({
   name: 'agent-ask',
@@ -12,12 +23,14 @@ export const agentAsk = command({
     'Ask the guild agent a question in plain words ("am I on the roster Thursday?", "who has not ' +
     'answered?"). It answers with the commands you can run; anything that would change data comes ' +
     'back as a confirmation you press. Answers arrive a few seconds later: read them with ' +
-    'agent-run-get. Pass `thread` (a channel or chat id) to keep follow-ups in one conversation.',
+    'agent-run-get. Pass `thread` (a channel or chat id) to keep follow-ups in one conversation, ' +
+    'and `context` (the page and what is selected on it) so "this raid" means the one in view.',
   tier: 'member',
   mutation: true,
   input: z.object({
     question: z.string().trim().min(1).max(QUESTION_MAX),
     thread: z.string().trim().min(1).max(100).optional(),
+    context: pageContext.optional(),
   }),
   handler: async (input, { caller, guildId, deps, now }) => {
     if (!caller.memberId) {
@@ -65,6 +78,10 @@ export const agentAsk = command({
       toolCalls: [],
       confirmationIds: [],
       inputTokens: null,
+      context: input.context ?? null,
+      notes: [],
+      draft: null,
+      cancelRequested: false,
       createdAt: at,
       finishedAt: null,
     });
@@ -107,22 +124,71 @@ export const agentRunGet = command({
 export const agentRuns = command({
   name: 'agent-runs',
   description:
-    'The agent ledger, newest first: questions, wording jobs, and Decisions calls, with the commands each ran. Members see their own; officers see everyone and can filter by member or kind.',
+    "The agent ledger, newest first: questions, wording jobs, and Decisions calls, with the commands each ran. Members see their own; officers see everyone and can filter by member or kind. Pass `thread` for one conversation on this surface (your own, or a member's with memberId).",
   tier: 'member',
   input: z.object({
     memberId: z.string().min(1).optional(),
     kind: z.enum(['ask', 'wording', 'decision']).optional(),
+    thread: z.string().trim().min(1).max(100).optional(),
     limit: z.number().int().min(1).max(50).default(20),
   }),
   handler: async (input, { caller, guildId, deps }) => {
     const officer = tierAllows(caller.tier, 'officer');
-    const memberId = officer ? input.memberId : caller.memberId;
-    if (!officer && !memberId) return success([]);
+    // A conversation belongs to one member: the caller's own, unless an officer names another.
+    const memberId = officer
+      ? (input.memberId ?? (input.thread ? caller.memberId : undefined))
+      : caller.memberId;
+    if (!memberId && (!officer || input.thread)) return success([]);
     const runs = await deps.agent.listRuns(guildId, {
       ...(memberId ? { memberId } : {}),
+      ...(input.thread && memberId
+        ? { threadKey: threadKeyOf(caller.surface, input.thread, memberId) }
+        : {}),
       ...(input.kind ? { kind: input.kind } : {}),
       limit: input.limit,
     });
     return success(runs.map(runView));
+  },
+});
+
+export const agentCancel = command({
+  name: 'agent-cancel',
+  description:
+    "Stop a question the agent is still working on. A queued question never runs; a running one stops at its next step and keeps what it prepared so far. Your own questions; officers can stop anyone's.",
+  tier: 'member',
+  mutation: true,
+  input: z.object({ runId: z.string().min(1) }),
+  handler: async ({ runId }, { caller, guildId, deps, now }) => {
+    const run = await deps.agent.getRun(guildId, runId);
+    const mine = run?.memberId && run.memberId === caller.memberId;
+    if (run?.kind !== 'ask' || !(mine || tierAllows(caller.tier, 'officer'))) {
+      return error('RUN_NOT_FOUND', `No agent question ${runId}`, {
+        suggestion: 'Use the runId agent-ask returned',
+        retryable: false,
+      });
+    }
+    if (run.status === 'queued') {
+      await deps.agent.updateRun(guildId, runId, {
+        status: 'cancelled',
+        error: 'Stopped',
+        finishedAt: now(),
+      });
+      return success({ runId, status: 'cancelled' as const }, { reasoning: 'It had not started' });
+    }
+    if (run.status === 'running') {
+      await deps.agent.updateRun(guildId, runId, { cancelRequested: true });
+      return success(
+        { runId, status: 'stopping' as const },
+        { reasoning: 'It stops at its next step; read it with agent-run-get' },
+      );
+    }
+    return error(
+      'RUN_FINISHED',
+      `This question already ${run.status === 'answered' ? 'has its answer' : 'ended'}`,
+      {
+        suggestion: 'Ask again if you need something else',
+        retryable: false,
+      },
+    );
   },
 });

@@ -47,7 +47,8 @@ export function defaultAgentConfig(guildId: string): AgentConfig {
 export const RUN_KINDS = ['ask', 'wording', 'decision'] as const;
 export type RunKind = (typeof RUN_KINDS)[number];
 
-export const RUN_STATUSES = ['queued', 'running', 'answered', 'failed'] as const;
+/** `cancelled`: stopped by the member (agent-cancel) before it answered. */
+export const RUN_STATUSES = ['queued', 'running', 'answered', 'failed', 'cancelled'] as const;
 export type RunStatus = (typeof RUN_STATUSES)[number];
 
 export interface AgentToolCall {
@@ -56,6 +57,23 @@ export interface AgentToolCall {
   /** The guild command it ran or prepared, when there was one. */
   command: string | null;
   success: boolean;
+  /** The command and its input in one readable line, ids left out (`summarize`); null otherwise. */
+  summary: string | null;
+  /** What went wrong, when it failed. */
+  error: string | null;
+  /** When the turn loop first saw the call, and when its result was recorded (ms). */
+  startedAt: number | null;
+  finishedAt: number | null;
+}
+
+/** What the asker was looking at: a page, and the thing selected on it. */
+export const CONTEXT_KINDS = ['raid', 'application', 'poll', 'member', 'character', 'run'] as const;
+export type ContextKind = (typeof CONTEXT_KINDS)[number];
+
+export interface PageContext {
+  /** Where the question was asked: "Officers' quarters · Tonight". */
+  page: string;
+  selection?: { kind: ContextKind; id: string; label: string };
 }
 
 /** One entry in the ledger: who asked what, which commands ran, and how it ended (PLAN §3.11). */
@@ -79,6 +97,14 @@ export interface AgentRun {
   sessionId: string | null;
   toolCalls: AgentToolCall[];
   confirmationIds: string[];
+  /** Asks only: what the member was looking at when they asked. */
+  context: PageContext | null;
+  /** The agent's progress notes so far (`commentary` messages), in order. */
+  notes: string[];
+  /** The answer while it is being written; null before it starts and once the run ends. */
+  draft: string | null;
+  /** Set by agent-cancel on a running ask; the turn stops at its next poll. */
+  cancelRequested: boolean;
   /** Input tokens when the API reports them (Decisions does; the Agents API returns null). */
   inputTokens: number | null;
   createdAt: number;
@@ -140,6 +166,7 @@ export const AGENT_COMMANDS = [
   'agent-runs',
   'agent-confirm',
   'agent-decline',
+  'agent-cancel',
   'agent-status',
   'agent-pause',
   'agent-resume',

@@ -1,7 +1,7 @@
 import type { Caller, CommandResult } from '@vintage/guild-kit';
 import { fixedClock, makeCaller, testRegistry } from '@vintage/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { agentCommands } from '../src/commands';
+import { agentCommands, PROGRESS_LIMITS, recordProgress } from '../src/commands';
 import { CONFIRM_WINDOW_MS, defaultAgentConfig, threadKeyOf } from '../src/contract';
 import { askInput } from '../src/domain/instructions';
 import { dayStart, monthStart, refuseAsk } from '../src/domain/limits';
@@ -240,5 +240,95 @@ describe('domain', () => {
     expect(input).toContain(`unix ${NOW / 1000}`);
     expect(input).toContain('Member: Kol');
     expect(input.endsWith('when is raid?')).toBe(true);
+  });
+});
+
+describe('the side panel (#167)', () => {
+  const web = makeCaller('officer', {
+    memberId: 'member-web',
+    discordId: 'discord-web',
+    surface: 'web',
+  });
+  const context = {
+    page: "Officers' quarters · Tonight",
+    selection: { kind: 'raid' as const, id: 'raid-7', label: 'Molten Core, Thu 8pm' },
+  };
+
+  it('keeps the page context on the run and puts it in the agent input', async () => {
+    const { runId } = data<{ runId: string }>(
+      await run('agent-ask', { question: 'bench the late ones', thread: 'tab-1', context }, web),
+    );
+    expect(harness.deps.agent.runs.get(runId)?.context).toEqual(context);
+    const input = askInput('bench the late ones', {
+      surface: 'web',
+      now: NOW,
+      memberName: 'Ana',
+      page: context,
+    });
+    expect(input).toContain(`Page: "Officers' quarters · Tonight"`);
+    expect(input).toContain('Selected raid: "Molten Core, Thu 8pm" (id raid-7)');
+    expect(code(await run('agent-ask', { question: 'x', context: { page: '' } }, web))).toBe(
+      'VALIDATION_ERROR',
+    );
+  });
+
+  it('lists one conversation by thread, and only the asker\u2019s', async () => {
+    const a = data<{ runId: string }>(
+      await run('agent-ask', { question: 'one', thread: 'tab-1' }, web),
+    );
+    await finish(a.runId);
+    clock.advance(1000);
+    await run('agent-ask', { question: 'elsewhere', thread: 'tab-2' }, web);
+    const thread = data<{ prompt: string }[]>(await run('agent-runs', { thread: 'tab-1' }, web));
+    expect(thread.map((r) => r.prompt)).toEqual(['one']);
+    // Another member asking for that thread sees their own (none), not the officer's.
+    expect(data<unknown[]>(await run('agent-runs', { thread: 'tab-1' }, other))).toEqual([]);
+  });
+
+  it('stops a queued question before it runs, and a running one at its next step', async () => {
+    const queued = data<{ runId: string }>(await run('agent-ask', { question: 'one' }, raider));
+    expect(data(await run('agent-cancel', { runId: queued.runId }, raider))).toEqual({
+      runId: queued.runId,
+      status: 'cancelled',
+    });
+    expect(harness.deps.agent.runs.get(queued.runId)).toMatchObject({
+      status: 'cancelled',
+      error: 'Stopped',
+    });
+
+    const running = data<{ runId: string }>(await run('agent-ask', { question: 'two' }, raider));
+    await harness.deps.agent.updateRun(raider.guildId, running.runId, { status: 'running' });
+    expect(code(await run('agent-cancel', { runId: running.runId }, other))).toBe('RUN_NOT_FOUND');
+    expect(data(await run('agent-cancel', { runId: running.runId }, officer))).toMatchObject({
+      status: 'stopping',
+    });
+    expect(harness.deps.agent.runs.get(running.runId)).toMatchObject({
+      status: 'running',
+      cancelRequested: true,
+    });
+
+    await finish(running.runId);
+    expect(code(await run('agent-cancel', { runId: running.runId }, raider))).toBe('RUN_FINISHED');
+  });
+
+  it('writes progress only while the run is running, bounded', async () => {
+    const { runId } = data<{ runId: string }>(await run('agent-ask', { question: 'q' }, raider));
+    const store = harness.deps.agent;
+    expect(await recordProgress(store, raider.guildId, runId, { notes: ['x'], draft: null })).toBe(
+      false,
+    );
+    await store.updateRun(raider.guildId, runId, { status: 'running' });
+    const notes = Array.from({ length: 20 }, (_, i) => `note ${i} ${'.'.repeat(600)}`);
+    expect(await recordProgress(store, raider.guildId, runId, { notes, draft: 'Aer' })).toBe(true);
+    const saved = store.runs.get(runId);
+    expect(saved?.notes).toHaveLength(PROGRESS_LIMITS.notes);
+    expect(saved?.notes[0]?.startsWith('note 8 ')).toBe(true);
+    expect(saved?.notes[0]?.length).toBe(PROGRESS_LIMITS.noteChars);
+    expect(saved?.draft).toBe('Aer');
+    await finish(runId);
+    expect(await recordProgress(store, raider.guildId, runId, { notes: [], draft: 'late' })).toBe(
+      false,
+    );
+    expect(store.runs.get(runId)?.draft).toBe('Aer');
   });
 });

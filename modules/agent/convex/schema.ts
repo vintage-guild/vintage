@@ -14,6 +14,7 @@ export const runStatus = v.union(
   v.literal('running'),
   v.literal('answered'),
   v.literal('failed'),
+  v.literal('cancelled'),
 );
 export const confirmationStatus = v.union(
   v.literal('pending'),
@@ -35,10 +36,29 @@ export const configFields = {
   updatedBy: v.union(v.string(), v.null()),
 };
 
+// The fields after `success` came with the side panel (#167); older rows don't have them, and
+// `runs.ts` reads a missing one as null.
 export const toolCall = v.object({
   name: v.string(),
   command: v.union(v.string(), v.null()),
   success: v.boolean(),
+  summary: v.optional(v.union(v.string(), v.null())),
+  error: v.optional(v.union(v.string(), v.null())),
+  startedAt: v.optional(v.union(v.number(), v.null())),
+  finishedAt: v.optional(v.union(v.number(), v.null())),
+});
+
+export const contextKind = v.union(
+  v.literal('raid'),
+  v.literal('application'),
+  v.literal('poll'),
+  v.literal('member'),
+  v.literal('character'),
+  v.literal('run'),
+);
+export const pageContext = v.object({
+  page: v.string(),
+  selection: v.optional(v.object({ kind: contextKind, id: v.string(), label: v.string() })),
 });
 
 export const runFields = {
@@ -59,6 +79,11 @@ export const runFields = {
   inputTokens: v.union(v.number(), v.null()),
   createdAt: v.number(),
   finishedAt: v.union(v.number(), v.null()),
+  // Optional for rows written before #167; `runs.ts` fills the defaults.
+  context: v.optional(v.union(pageContext, v.null())),
+  notes: v.optional(v.array(v.string())),
+  draft: v.optional(v.union(v.string(), v.null())),
+  cancelRequested: v.optional(v.boolean()),
 };
 
 export const sessionFields = {
@@ -103,7 +128,8 @@ export default defineSchema({
   runs: defineTable(runFields)
     .index('by_guild_created', ['guildId', 'createdAt'])
     .index('by_guild_member_created', ['guildId', 'memberId', 'createdAt'])
-    .index('by_guild_kind_created', ['guildId', 'kind', 'createdAt']),
+    .index('by_guild_kind_created', ['guildId', 'kind', 'createdAt'])
+    .index('by_guild_thread_created', ['guildId', 'threadKey', 'createdAt']),
   sessions: defineTable(sessionFields)
     .index('by_guild_thread', ['guildId', 'threadKey'])
     .index('by_guild_last_used', ['guildId', 'lastUsedAt']),

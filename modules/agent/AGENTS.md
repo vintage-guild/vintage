@@ -10,13 +10,14 @@ member to confirm. This module owns the agent's data and commands; the runtime l
 
 | Path | Holds |
 |---|---|
-| `src/contract.ts` | `AgentConfig` and defaults, `AgentRun` (the ledger), `AgentConfirmation`, `AgentSessionRecord`, windows (`CONFIRM_WINDOW_MS`, `SESSION_REUSE_MS`), `isAgentCommand`, `threadKeyOf` |
+| `src/contract.ts` | `AgentConfig` and defaults, `AgentRun` (the ledger, with `context`, `notes`, `draft`, `cancelRequested`), `AgentToolCall` (with summary, error, and times), `PageContext`, `AgentConfirmation`, `AgentSessionRecord`, windows (`CONFIRM_WINDOW_MS`, `SESSION_REUSE_MS`), `isAgentCommand`, `threadKeyOf` |
 | `src/store.ts` | `AgentStore` port, `AgentQueue` (schedules a run), `AgentCommandRunner` (runs a confirmed command), `AgentDeps`, `command` |
 | `src/domain/limits.ts` | Pure: UTC day and month starts, `refuseAsk` (pause, busy, daily and monthly caps) |
 | `src/domain/router.ts` | The `/ask` router (#133): one Decisions question, `ROUTE_THRESHOLD` from `tests/fixtures/questions.json` |
 | `src/render/discord.ts` | The private Discord reply: the answer, one Confirm/Drop row per prepared change (`agent:ok:<id>`, `agent:no:<id>`), the click's outcome |
-| `src/domain/instructions.ts` | `ASK_INSTRUCTIONS` (the agent's standing rules) and `askInput` (surface, time, member, question) |
-| `src/commands/` | `agent-ask`, `agent-run-get`, `agent-runs` (member); `agent-confirm`, `agent-decline` (member, own changes only); `agent-status`, `agent-pause`, `agent-resume`, `agent-config-set` (officer) |
+| `src/domain/instructions.ts` | `ASK_INSTRUCTIONS` (the agent's standing rules) and `askInput` (surface, time, member, page context, question) |
+| `src/domain/progress.ts` | `recordProgress`: a running run's notes and draft, bounded (`PROGRESS_LIMITS`) |
+| `src/commands/` | `agent-ask`, `agent-run-get`, `agent-runs`, `agent-cancel` (member); `agent-confirm`, `agent-decline` (member, own changes only); `agent-status`, `agent-pause`, `agent-resume`, `agent-config-set` (officer) |
 | `src/testing.ts` | Memory store and deps (a recording queue and runner) |
 | `convex/` | The `agent` component: `config`, `runs`, `sessions`, `confirmations`, `toolResults` |
 
@@ -55,6 +56,19 @@ member to confirm. This module owns the agent's data and commands; the runtime l
 - **Discord replies are private.** `/random ask` defers an ephemeral reply; the action edits it
   with the answer through the interaction token (passed to the scheduled run, never stored,
   valid 15 minutes). A missed delivery leaves the answer in the ledger.
+- **Page context is a fact, not an instruction.** `agent-ask` takes an optional `context` (the
+  page, and the raid, application, poll, member, character, or run selected on it). It is stored
+  on the run and reaches the agent as header lines with the labels quoted, next to surface and
+  time.
+- **Progress is written while a run runs, never after.** The action follows the Agents API event
+  stream and `recordProgress` writes the run's `notes` (commentary) and `draft` (the answer
+  so far), throttled and bounded; a run that already ended is left alone. `finish` clears the
+  draft. A dropped stream loses only progress: tool calls and the answer come from polling.
+- **Tool rows are recorded as they happen.** Each `afd-call` adds its command, a readable
+  `summary` (ids left out), its error, and when the loop first saw it and when it finished.
+- **Stop is the asker's.** `agent-cancel` cancels a queued run outright and flags a running one;
+  the action checks the flag on every poll, cancels the turn upstream, and ends the run
+  `cancelled`. Its session is dropped like a failed one's. Officers can stop anyone's question.
 - **Everything is in the ledger.** Every question, wording job, and Decisions call is a run
   with its tool calls and confirmations (`agent-runs`). Prompts are visible to officers.
 - **`guildId` on every row**, read through guild-scoped indexes.

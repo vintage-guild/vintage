@@ -1,3 +1,4 @@
+export { readAgentEvents, splitSse, toAgentEvent } from './events';
 export {
   AgentsApiError,
   createOpenAIAgents,
@@ -19,15 +20,18 @@ export {
 } from './tools';
 export {
   isTransient,
+  progressOf,
   publicTurnError,
   runTurn,
   type ToolExecution,
   type TurnOptions,
   type TurnOutcome,
+  type TurnProgress,
   type TurnToolCall,
 } from './turn';
 export type {
   AgentEffort,
+  AgentEvent,
   AgentRuntime,
   AgentToolDefinition,
   FunctionCall,

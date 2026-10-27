@@ -59,6 +59,16 @@ describe('renderServerEvent', () => {
     expect(data.description).toContain('40-player raid: Molten Core.');
   });
 
+  it('an open "other" event with no instance reads cleanly', () => {
+    const data = renderServerEvent(
+      asTick(raid('r1', { kind: 'other', size: null, name: 'Westfall levelling', instance: '' })),
+      null,
+    );
+    expect(data.name).toBe('Event · Westfall levelling');
+    expect(data.description).toMatch(/^Open event\.\n/);
+    expect(data.entity_metadata.location).toBe('Event');
+  });
+
   it('names the kind for dungeons, battlegrounds, and other events', () => {
     const cases = [
       ['dungeon', 5, 'Dungeon · MC nights', '5-player dungeon'],

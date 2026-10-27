@@ -26,6 +26,11 @@ directly. Maturity: **core**.
   `other`. Raid buffs count as gaps only for raids (`eventTemplate`). The rules live in
   `@vintage/comp-solver` (`kinds.ts`) so the card and the site share them; the contract
   re-exports them.
+- **`other` is the catch-all** (a levelling group anyone can join): `size` and `instance` are
+  optional. No size (`null`) means open: no cap, so `queuePositions` queues nobody, and
+  `comp-suggest` plays everyone going (`compSize`). No instance is stored as `''`. Zod is the
+  source of truth on create (`kindRules` in `commands/shared.ts`: every other kind needs both);
+  `schedule-update` checks the merged schedule (`SIZE_NOT_ALLOWED`, `INSTANCE_REQUIRED`).
 - **Times are UTC epoch ms**, computed from the schedule's local time and zone. Never store
   local times on events; Discord and the website render them per viewer.
 - **Materializing is idempotent.** `schedule-materialize` skips any occurrence that already has

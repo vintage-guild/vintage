@@ -98,36 +98,38 @@ const POLL_GROUP = {
   ],
 };
 
-/** The options both event subcommands require, in Discord's order (required first). */
+/** The option both event subcommands require; the start time(s) follow it. */
 const EVENT_BASICS = [
   {
     type: T.STRING,
     name: 'name',
-    description: 'The event’s name, e.g. Onyxia run or Cathedral run',
+    description: 'The event’s name, e.g. Onyxia run or Westfall levelling',
     required: true,
     max_length: 60,
-  },
-  {
-    type: T.STRING,
-    name: 'instance',
-    description: 'Where, e.g. Onyxia’s Lair or Scarlet Monastery',
-    required: true,
-    max_length: 60,
-  },
-  {
-    // Not a fixed choice any more: the command checks it per kind (raid 10/20/40, dungeon 5,
-    // battleground 10/15/40, other 1–40) and says which sizes fit.
-    type: T.INTEGER,
-    name: 'size',
-    description: 'Players: raid 10/20/40, dungeon 5, battleground 10/15/40, other 1–40',
-    required: true,
-    min_value: 1,
-    max_value: 40,
   },
 ];
 
-/** The optional options both event subcommands share: what kind, and the role counts. */
+/**
+ * The optional options both event subcommands share. Instance and size are optional here only
+ * because kind `other` may leave them out (an open levelling group): raid-create and
+ * raid-night-poll still require them for the other kinds, and the reply says so.
+ */
 const EVENT_EXTRAS = [
+  {
+    type: T.STRING,
+    name: 'instance',
+    description: 'Where, e.g. Onyxia’s Lair (needed except for kind other: Westfall, levels 10–20)',
+    max_length: 60,
+  },
+  {
+    // Not a fixed choice: the command checks it per kind (raid 10/20/40, dungeon 5,
+    // battleground 10/15/40, other 1–40 or none for open) and says which sizes fit.
+    type: T.INTEGER,
+    name: 'size',
+    description: 'Players: raid 10/20/40, dungeon 5, BG 10/15/40; other 1–40, or none for open',
+    min_value: 1,
+    max_value: 40,
+  },
   {
     type: T.STRING,
     name: 'kind',

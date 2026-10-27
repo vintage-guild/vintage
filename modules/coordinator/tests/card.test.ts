@@ -188,6 +188,24 @@ describe('event kinds on the card', () => {
     expect(card.fields!.some((f) => f.name.includes('Tanks'))).toBe(false);
   });
 
+  it('an open "other" event with no instance shows just its name and a bare count', () => {
+    const tick = tickFor({ kind: 'other', size: null, name: 'Westfall levelling', instance: '' }, [
+      signup(1, 'warrior', 'protection', 'tank'),
+      signup(2, 'mage', 'frost', 'ranged'),
+      signup(3, 'rogue', 'combat', 'melee'),
+    ]);
+    const message = renderSignupPost(tick, []);
+    const card = message.embeds![0] as Embed;
+    expect(card.title).toBe('Event · Westfall levelling');
+    expect(card.description).toContain('open event');
+    expect(card.fields![0]!.name).toBe('Going 3');
+    // No cap: nobody short, nothing missing.
+    expect(messageText(message)).toContain('**Comp** no gaps');
+    expect(messageText(message)).not.toMatch(/null|undefined/);
+    const final = renderFinalRoster(tick, []).embeds![0] as Embed;
+    expect(final.description).toMatch(/Signups locked · 3$/);
+  });
+
   it('an "other" event with role targets keeps the columns', () => {
     const tick = tickFor({ kind: 'other', size: 8, roleTargets: { tank: 1, healer: 2, dps: 5 } }, [
       signup(1, 'warrior', 'protection', 'tank'),

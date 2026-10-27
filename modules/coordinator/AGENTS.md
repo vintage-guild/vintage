@@ -80,6 +80,10 @@ and posts the final roster and addon import string. Maturity: **core**.
 - **No role targets, no role columns.** An event whose targets are all zero (kind `other` with
   no roleTargets) shows one "Going N/size" column instead of three "0/0" ones. Set any count
   and the columns come back.
+- **Open `other` events** (no size) drop the "/size" everywhere (`countOf`: "Going 6", "Signups
+  locked · 6", the digest's "6 confirmed"), say "open event" in the subtext, and solve the comp
+  with everyone going (`compSize`), so there's no size gap. With no instance the title is just
+  "Event · Westfall levelling" (`cardTitle`) and the server event reads "Open event."
 - **Raid nights carry the kind.** `raid-night-poll` takes `kind` and `roleTargets`, checks them
   like `raid-create`, stores them on the night (optional fields; old nights read as `raid` and
   null), and `createForRaidNight` passes them to `raid-create`.

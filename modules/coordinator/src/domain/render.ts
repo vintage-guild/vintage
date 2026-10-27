@@ -3,9 +3,9 @@
 import { encodeBridge } from '@vintage/bridge-format';
 import { type CompResult, compRoleOf, solveComp } from '@vintage/comp-solver';
 import { discordTimestamp, type MessageData, TimestampStyle } from '@vintage/discord-kit';
-import { eventTemplate, RANK_PRIORITY, type Signup } from '@vintage/raids/contract';
+import { compSize, eventTemplate, RANK_PRIORITY, type Signup } from '@vintage/raids/contract';
 import type { TickEvent, TickMember } from '../store';
-import { eventTitle, noun } from './kind-words';
+import { countOf, eventTitle, noun } from './kind-words';
 import type { NoteInput, NoteLabel } from './notes';
 
 /** Discord's message content limit. */
@@ -34,7 +34,8 @@ export function roleCounters(signups: Signup[]): string {
 export function compFor(tick: TickEvent, members: TickMember[]): CompResult {
   const rank = new Map(members.map((m) => [m.memberId, m.rank]));
   return solveComp({
-    raidSize: tick.event.size,
+    // An open event (no size) plays everyone going; nobody sits for size.
+    raidSize: compSize(tick.event, tick.signups.filter((s) => s.status !== 'declined').length),
     // The kind's targets, and raid buffs only for raids.
     template: eventTemplate(tick.event),
     signups: tick.signups.map((s) => {
@@ -150,7 +151,7 @@ export function renderDigest(
   return {
     content: [
       `**${eventTitle(tick.event)}** ${when(tick.event.startsAt)}`,
-      `${comp.counts.confirmed}/${tick.event.size} confirmed · ${roleCounters(tick.signups)}` +
+      `${countOf(comp.counts.confirmed, tick.event)} confirmed · ${roleCounters(tick.signups)}` +
         `${queued ? ` · ${queued} queued` : ''}`,
       gapLine(comp),
       listed('**Needs an officer**', flagged),

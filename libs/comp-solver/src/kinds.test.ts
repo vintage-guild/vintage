@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
 import { defaultTemplate } from './catalog';
 import {
   AKind,
+  compSize,
   defaultRoleTargets,
   EVENT_KINDS,
   eventTemplate,
   KIND_SIZES,
+  kindRules,
   sizeFits,
+  sizeLabel,
   sizesText,
 } from './kinds';
 import { solveComp } from './solve';
@@ -67,5 +71,48 @@ describe('event kinds', () => {
     expect(result.selected).toHaveLength(5);
     expect(result.bench).toHaveLength(1);
     expect(result.gaps).toEqual([]);
+  });
+
+  it('lets only an "other" event be open, and solves an open one with everyone going', () => {
+    expect(sizeFits('other', null)).toBe(true);
+    expect(sizeFits('raid', null)).toBe(false);
+    expect(sizeFits('dungeon', null)).toBe(false);
+    expect(sizeLabel('other', null)).toBe('open event');
+    expect(sizeLabel('dungeon', 5)).toBe('5-player dungeon');
+    const open = { kind: 'other' as const, size: null, roleTargets: null };
+    expect(compSize(open, 7)).toBe(7);
+    expect(compSize(open, 0)).toBe(0);
+    // Targets above the people going: solve at the targets, so the role gaps show.
+    const tuned = { ...open, roleTargets: { tank: 1, healer: 1, dps: 3 } };
+    expect(compSize(tuned, 2)).toBe(5);
+    const result = solveComp({
+      raidSize: compSize(tuned, 0),
+      template: eventTemplate(tuned),
+      signups: [],
+    });
+    expect(result.gaps.map((g) => g.reason)).toEqual([
+      'need 1 tank',
+      'need 1 healer',
+      'need 3 dps',
+    ]);
+    // A sized event keeps its size whoever turns up.
+    expect(compSize({ kind: 'dungeon', size: 5, roleTargets: null }, 9)).toBe(5);
+  });
+
+  it('kindRules asks every kind but other for a size and an instance', () => {
+    const schema = z
+      .object({
+        kind: z.enum(EVENT_KINDS),
+        size: z.number().nullable(),
+        instance: z.string(),
+      })
+      .superRefine(kindRules);
+    const paths = (input: unknown) => {
+      const parsed = schema.safeParse(input);
+      return parsed.success ? [] : parsed.error.issues.map((i) => i.path.join('.'));
+    };
+    expect(paths({ kind: 'other', size: null, instance: '' })).toEqual([]);
+    expect(paths({ kind: 'raid', size: null, instance: '' })).toEqual(['size', 'instance']);
+    expect(paths({ kind: 'dungeon', size: 5, instance: 'SM' })).toEqual([]);
   });
 });

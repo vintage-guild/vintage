@@ -229,6 +229,17 @@ describe('vintage-tonight, data arriving late', () => {
   });
 });
 
+describe('vintage-tonight, an open event', () => {
+  it('counts without a cap and offers all eight groups', async () => {
+    const el = await tonight();
+    el.raid = { ...el.raid!, size: null };
+    await settle();
+    expect(el.countsLine).toMatch(/^\d+ going/);
+    expect(el.countsLine).not.toMatch(/null|\//);
+    expect(el.groupNumbers).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+  });
+});
+
 describe('vintage-tonight while loading', () => {
   it('says it is loading instead of "no raid" and "no gaps"', async () => {
     const el = await mount<VintageTonight>('<vintage-tonight loading></vintage-tonight>');

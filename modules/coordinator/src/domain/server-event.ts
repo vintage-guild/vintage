@@ -42,13 +42,17 @@ export function signupLink(
 export function renderServerEvent(tick: TickEvent, link: string | null): ScheduledEventData {
   const { event } = tick;
   const where = link ? `Sign up: ${link}` : `Sign up on the ${noun(event)} card in Discord.`;
+  // "5-player dungeon: Scarlet Monastery.", or "Open event: Westfall." with no size; an `other`
+  // event may name no instance at all.
+  const what = event.size === null ? `Open ${noun(event)}` : `${event.size}-player ${noun(event)}`;
   const description = [
-    `${event.size}-player ${noun(event)}: ${event.instance}.`,
+    event.instance ? `${what}: ${event.instance}.` : `${what}.`,
     where,
     '"Interested" here is not a signup.',
   ].join('\n');
+  const name = event.name.trim() || event.instance || KIND_LABELS[kindOf(event)];
   return {
-    name: clip(eventTitle({ ...event, name: event.name.trim() || event.instance }), MAX_NAME),
+    name: clip(eventTitle({ ...event, name }), MAX_NAME),
     scheduled_start_time: new Date(event.startsAt).toISOString(),
     scheduled_end_time: new Date(event.startsAt + event.durationMinutes * MINUTE).toISOString(),
     description: clip(description, MAX_DESCRIPTION),

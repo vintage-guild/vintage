@@ -100,6 +100,19 @@ describe('raid-night-poll', () => {
     expect(code(await ask({ kind: 'battleground', size: 15 }))).toBe('OK');
   });
 
+  it('lets an "other" night leave out the size and instance, and no other kind', async () => {
+    expect(code(await ask({ kind: 'other', size: undefined, instance: undefined }))).toBe('OK');
+    expect([...deps.coordinator.raidNights.values()].at(-1)).toMatchObject({
+      kind: 'other',
+      size: null,
+      instance: '',
+    });
+    expect(code(await ask({ size: undefined }))).toBe('VALIDATION_ERROR');
+    expect(code(await ask({ kind: 'dungeon', size: 5, instance: undefined }))).toBe(
+      'VALIDATION_ERROR',
+    );
+  });
+
   it('refuses times before the poll closes, a past close, and one distinct time', async () => {
     expect(code(await ask({ closesAt: TUE + HOUR }))).toBe('INVALID_TIME');
     expect(code(await ask({ closesAt: NOW - 1 }))).toBe('INVALID_TIME');

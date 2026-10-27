@@ -163,7 +163,7 @@ export interface CoordinatorRaids {
       name: string;
       instance: string;
       kind: EventKind;
-      size: number;
+      size: number | null;
       roleTargets: RoleTargets | null;
       startsAt: number;
       durationMinutes: number;

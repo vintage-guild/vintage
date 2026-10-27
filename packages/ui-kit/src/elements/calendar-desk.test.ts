@@ -382,7 +382,7 @@ describe('vintage-schedule-form', () => {
     f.setKind('other');
     f.setSize(41);
     submit(f);
-    expect(f.problem).toBe('An event is 1 to 40 players.');
+    expect(f.problem).toBe('An event is 1 to 40 players, or leave the size empty for an open one.');
     expect(submitted).not.toHaveBeenCalled();
   });
 
@@ -455,6 +455,36 @@ describe('vintage-raid-form', () => {
     });
   });
 
+  it('adds an open "other" event with no size or instance', async () => {
+    const el = await desk();
+    el.openRaid(null);
+    await settle();
+    const f = $<VintageRaidForm>(el, 'vintage-raid-form');
+    const submitted = vi.fn();
+    f.addEventListener('form-submit', (e) => submitted((e as CustomEvent).detail));
+    f.setKind('other');
+    await settle();
+    expect(text(f.shadowRoot?.querySelector('label[for="instance"]') as Element)).toBe(
+      'Where or what (optional)',
+    );
+    const size = f.shadowRoot?.querySelector<HTMLInputElement>('#size');
+    expect(size?.type).toBe('number');
+    size!.value = '';
+    size!.dispatchEvent(new Event('input'));
+    expect(f.size).toBeNull();
+    Object.assign(f, { name: 'Westfall levelling', date: '2026-11-04', time: '20:00' });
+    f.shadowRoot?.querySelector('form')?.requestSubmit();
+    expect(submitted).toHaveBeenCalledWith({
+      command: 'raid-create',
+      input: expect.objectContaining({
+        kind: 'other',
+        instance: '',
+        size: null,
+        roleTargets: null,
+      }),
+    });
+  });
+
   it('shows the kind on the agenda for everything but raids', async () => {
     const el = await desk({
       raids: [
@@ -472,6 +502,19 @@ describe('vintage-raid-form', () => {
     expect(page).toContain("40-player Onyxia's Lair");
     expect(page).not.toContain('Raid · 40-player');
     expect(page).toContain('Dungeon · 5-player Scarlet Monastery');
+  });
+
+  it('shows an open event without a size, and its count without a cap', async () => {
+    const open = raid({ id: 'r3', kind: 'other', size: null, instance: '', scheduleId: null });
+    const el = await desk({ raids: [open] });
+    const page = text(el.shadowRoot as unknown as Element);
+    expect(page).toContain('Event · Open');
+    expect(page).toContain('13 going');
+    expect(page).not.toMatch(/null|of 40/);
+    const { describeWhat } = await import('./calendar-shared');
+    expect(describeWhat({ kind: 'other', size: null, instance: 'Westfall' })).toBe(
+      'Event · Open · Westfall',
+    );
   });
 });
 

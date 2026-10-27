@@ -1,6 +1,6 @@
 import { error, success } from '@vintage/guild-kit';
 import { z } from 'zod';
-import type { RaidEvent, Signup } from '../contract';
+import { kindNoun, MAX_EVENT_SIZE, type RaidEvent, type Signup } from '../contract';
 import { command, type RaidsDeps } from '../store';
 import { syncQueue } from './queue';
 import { eventNotFound, isLive, raidClosed, signupNotFound } from './shared';
@@ -81,8 +81,8 @@ export const rosterBench = command({
   },
 });
 
-/** Groups available for a size: 8 for 40, 4 for 20, 3 for 15, 2 for 10, 1 for a dungeon. */
-const groupCount = (event: RaidEvent) => Math.ceil(event.size / GROUP_SIZE);
+/** Groups for a size: 8 for 40, 4 for 20, 3 for 15, 2 for 10, 1 for a dungeon; 8 when open. */
+const groupCount = (event: RaidEvent) => Math.ceil((event.size ?? MAX_EVENT_SIZE) / GROUP_SIZE);
 
 export const rosterMove = command({
   name: 'roster-move',
@@ -98,7 +98,7 @@ export const rosterMove = command({
     if (group > groupCount(event)) {
       return error(
         'GROUP_OUT_OF_RANGE',
-        `A ${event.size}-person raid has ${groupCount(event)} groups`,
+        `${event.size === null ? 'An open event' : `A ${event.size}-person ${kindNoun(event.kind)}`} has ${groupCount(event)} groups`,
         {
           suggestion: `Pick a group from 1 to ${groupCount(event)}`,
           retryable: false,

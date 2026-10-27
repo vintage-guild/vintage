@@ -158,3 +158,13 @@ dungeon's comp, **so I can** fill five spots without a raid's rules getting in t
 - [ ] **Missing** lists only roles (1 healer · 3 dps): no Mark of the Wild, Fortitude, or
   Intellect line, since buffs only count for raids.
 - [ ] The sixth person to answer is queued, and the card shows **5** going and **1** queued.
+
+### J32 · Open a levelling group anyone can join
+**When** people want to level together, **I (raid leader) want** a signup with no size and no
+instance, **so I can** take everyone who turns up without a cap or a queue.
+- [ ] Rook runs `/random event create` with just a name, a start, and `kind: other`; the reply
+  says "(open event)" and "looking for any roles".
+- [ ] The card is titled "Event · Westfall levelling" (no instance) and lists everyone in one
+  "Going N" column with no "/size", no role columns, and **Comp** no gaps.
+- [ ] Six people answer and none is queued.
+- [ ] A raid made without a size or an instance is refused with what it needs.

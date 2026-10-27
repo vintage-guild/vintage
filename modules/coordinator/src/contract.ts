@@ -110,7 +110,8 @@ export interface RaidNight {
   instance: string;
   /** The kind of event the winner becomes; nights from before kinds existed are raids. */
   kind: EventKind;
-  size: number;
+  /** Null: an open `other` event (no cap, no queue). */
+  size: number | null;
   /** Carried to the event; null means the kind's default. */
   roleTargets: RoleTargets | null;
   durationMinutes: number;

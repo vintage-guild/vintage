@@ -10,8 +10,9 @@ You review addon changes as a **fresh-context reviewer**, without editing files.
 ## First line of every report
 
 `EXECUTION: available` or `EXECUTION: unavailable`, for this invocation, then whether you ran the
-bridge-format tests (`pnpm exec vitest run libs/bridge-format`) and, once `addon/` exists,
-`addon/Vintage/Tools/validate.py` (the addon is not scaffolded yet, PLAN §8). Mark each
+bridge-format tests (`pnpm exec vitest run libs/bridge-format`) and
+`python addon/Vintage/Tools/validate.py --lua lua5.1` (`--static` when the machine has no Lua 5.1;
+say which). Mark each
 finding's evidence `[executed]` or `[traced]`. Never refuse for lack of a runner.
 
 ## Protocol
@@ -27,12 +28,18 @@ finding's evidence `[executed]` or `[traced]`. Never refuse for lack of a runner
 - **Forever API:** Forever (1.60.x, Camelot) is the Mainline API family, not Classic Era. Use
   namespaced APIs (`C_Item.GetItemInfo`, `C_PartyInfo.InviteUnit`, `C_AddOns.*`); detect the
   client with `WOW_PROJECT_ID == WOW_PROJECT_CAMELOT`. Flag legacy globals reported missing.
-- **Layering (Weekly pattern):** `Core/` is pure Lua with no WoW API calls; only `Bridge/`
-  touches the game. Action names match service command names.
+- **Layering (Weekly pattern):** `Core/` is pure Lua with no WoW API calls or `LibStub`; only
+  `Bridge/` touches the game, and every game field passes `Secrets.Public`. `View/` reaches Core only
+  through `ns.Executor:Execute`. Executor actions are kebab-case `<noun>-<verb>` and mirror service
+  command names; destructive ones refuse without `confirm = true`.
+- **Saved data:** a new or reshaped `VintageDB` field has a migration step in `Core/Migrations.lua`;
+  `schemaVersion` never appears in AceDB defaults.
 - **Secret values:** no arithmetic or comparison on values Midnight-era rules make secret.
 - **Bridge format:** any change to the import/export schema bumps its version and updates the
   shared golden fixtures on both the Lua and TS sides (`pnpm fixtures:bridge`).
-- **Libraries:** `Libs/` comes from Mechanic's `libs.json`; never edit a library in place.
+- **Libraries:** `Libs/` comes from Mechanic's `libs.json`; never edit a library in place. A
+  changed library updates `PINNED_LIBRARIES` in `Tools/validate.py`; Ace3 comes from upstream, never
+  a modified working copy. `Theme/VintageTokens.lua` changes only through `pnpm tokens:build`.
 
 ## Output
 

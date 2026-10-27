@@ -12,6 +12,8 @@ The same commands run locally and in CI (PLAN §7.2).
 | `pnpm check:lockfile` | `pnpm-lock.yaml` pins no tarballs to a private registry mirror (`scripts/check-lockfile.mjs`) | Any lockfile change |
 | `pnpm check:conflict-markers` | no tracked file outside `vendor/` holds a merge-conflict marker line (`scripts/check-conflict-markers.mjs`); CI runs it in the always-on `select` job | After resolving any merge |
 | `pnpm check:vendor` | `vendor/` pin matches VENDORED.md, LICENSE per package, no tests or maps (`scripts/check-vendor.mjs`) | Any `vendor/` change |
+| `python addon/Vintage/Tools/validate.py --lua lua5.1` | the addon gate, CI's `addon` lane: Lua tool versions, validator tests, locale keys, TOC/XML manifest, `.pkgmeta`, library pins, theme freshness, CHANGELOG version, luacheck, busted | Any `addon/`, `libs/bridge-format/`, or generated FenUI theme change. Needs Lua 5.1, busted, and luacheck (`addon/Vintage/Tools/install_lua_tools.py`); without them, `--static` runs only the Python stages |
+| `pnpm tokens:build --check` | `libs/design-tokens/generated/` and the addon's copy of the FenUI theme are current | Any token node change; fix with `pnpm tokens:build` |
 
 ## Hooks (lefthook)
 

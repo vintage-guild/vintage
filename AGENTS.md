@@ -60,6 +60,7 @@ lives in skills and module `AGENTS.md` files.
 | `vintage-review` | Reviewing a diff: the self-review before every PR, or someone else's PR |
 | `vintage-maintain-docs` | Finishing any PR that changes behavior, structure, or setup |
 | `vintage-jtbd` | A feature changes what a member can do; validating end to end; a live run |
+| `vintage-addon` | The WoW addon (`addon/Vintage`): Lua, its specs and validator, libraries, the FenUI theme |
 
 ## Commits and attribution
 
@@ -90,3 +91,6 @@ than no check.
 | 2026-10-25 | FAST-AF is vendored as built output in `vendor/`, pinned to a commit, until it's on npm. Never edit it ([VENDORED.md](vendor/VENDORED.md)). |
 | 2026-10-26 | Dungeons, battlegrounds and other events are raids-module events with a `kind`, not a separate system; Discord calls them `/random event` (#151). |
 | 2026-10-26 | `apps/api` may import `@vintage/gateway/commands` (pure slash definitions, discord-kit only) so help pages are built from what Discord registers; no other app-to-app imports. |
+| 2026-10-27 | The addon targets WoW: Forever only (`## Interface: 16001`) and lives in `addon/Vintage`; `_dev_/Vintage` is a junction to it for Mechanic. |
+| 2026-10-27 | Addon libraries are committed as synced from `_dev_/Libs` and shipped as is (no `.pkgmeta` externals); `addon/Vintage/Tools/validate.py` pins their versions. |
+| 2026-10-27 | Addon actions are kebab-case and mirror the service commands (`session-get`, `raid-import`), not PLAN §3.6's dotted names. |

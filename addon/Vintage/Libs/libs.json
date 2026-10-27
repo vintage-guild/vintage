@@ -1,0 +1,27 @@
+{
+  "$schema": "https://mechanic.dev/schemas/libs.json",
+  "description": "Vintage addon libraries. The synced copies are committed and shipped as is (no .pkgmeta externals); Tools/validate.py pins their versions.",
+  "mode": "include",
+  "libraries": {
+    "LibStub": "latest",
+    "CallbackHandler-1.0": { "version": "latest", "source": "Libs/Ace3/CallbackHandler-1.0" },
+    "AceAddon-3.0": { "version": "latest", "source": "Libs/Ace3/AceAddon-3.0" },
+    "AceConsole-3.0": { "version": "latest", "source": "Libs/Ace3/AceConsole-3.0" },
+    "AceDB-3.0": { "version": "latest", "source": "Libs/Ace3/AceDB-3.0" },
+    "AceDBOptions-3.0": { "version": "latest", "source": "Libs/Ace3/AceDBOptions-3.0" },
+    "AceEvent-3.0": { "version": "latest", "source": "Libs/Ace3/AceEvent-3.0" },
+    "AceGUI-3.0": { "version": "latest", "source": "Libs/Ace3/AceGUI-3.0" },
+    "AceConfig-3.0": { "version": "latest", "source": "Libs/Ace3/AceConfig-3.0" },
+    "AceLocale-3.0": { "version": "latest", "source": "Libs/Ace3/AceLocale-3.0" },
+    "LibDataBroker-1.1": "latest",
+    "LibDBIcon-1.0": "latest",
+    "FenCore": "latest",
+    "FenUI": "latest"
+  },
+  "notes": {
+    "Ace3": "Copied from the committed upstream Ace3 (git HEAD), not a working copy: a locally modified Ace library would override every other addon's copy through LibStub.",
+    "FenCore": "Pure logic domains (ActionResult, Secrets)",
+    "FenUI": "UI widgets and design tokens; the Vintage themes come from Theme/VintageTokens.lua",
+    "LibDeflate, LibSerialize": "Arrive with the bridge codec (PR2, issue #23)"
+  }
+}

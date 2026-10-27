@@ -122,15 +122,12 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
-      - name: Addon not scaffolded yet
+      - name: Install Lua 5.1, busted, and luacheck
         run: |
-          if [ -f addon/Vintage/Tools/validate.py ]; then
-            sudo apt-get update && sudo apt-get install --yes lua5.1 luarocks
-            python3 addon/Vintage/Tools/install_lua_tools.py
-            python3 addon/Vintage/Tools/validate.py --lua lua5.1
-          else
-            echo "addon/Vintage is scaffolded in Phase 1 (PLAN §8); nothing to validate yet."
-          fi
+          sudo apt-get update && sudo apt-get install --yes lua5.1 luarocks
+          sudo python3 addon/Vintage/Tools/install_lua_tools.py
+      - name: Validate the addon
+        run: python3 addon/Vintage/Tools/validate.py --lua lua5.1
 
   botcore:
     needs: select

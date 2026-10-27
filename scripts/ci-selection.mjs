@@ -16,7 +16,8 @@ const TS =
 // (wow-data's classSchema, raids' groupSizeSchema), so a change there can break the manifest.
 const CONTRACT =
   /^(modules\/[^/]+\/src\/|libs\/[^/]+\/src\/|packages\/guild-kit\/|apps\/api\/src\/registry|commands\.manifest\.json$|scripts\/check-contract-break\.mjs$)/;
-const ADDON = /^(addon\/|libs\/bridge-format\/)/;
+// The addon ships a copy of the generated FenUI theme; validate.py checks the copy is current.
+const ADDON = /^(addon\/|libs\/bridge-format\/|libs\/design-tokens\/generated\/lua\/)/;
 const BOTCORE = /^(tooling\/botcore\/|botcore\.toml$)/;
 const WORKFLOW = /^(\.github\/|scripts\/)/;
 

@@ -9,6 +9,7 @@ const full = process.argv.includes('--full');
 const steps = [
   // CI installs with --frozen-lockfile; catch a stale lockfile before it does.
   ['lockfile', 'pnpm install --frozen-lockfile --lockfile-only --silent'],
+  ['conflict markers', 'pnpm check:conflict-markers'],
   ['lint', 'pnpm lint'],
   ['boundaries', 'pnpm check:boundaries'],
   ['agent docs', 'pnpm check:agent-docs'],

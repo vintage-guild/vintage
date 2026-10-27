@@ -50,6 +50,9 @@ jobs:
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
         run: node scripts/check-dco.mjs --base "$BASE" --head "$HEAD"
+      # Here, not in the ts lane: docs-only PRs skip ts, and .md/.json/.yml are where markers hide.
+      - name: No merge-conflict markers in tracked files
+        run: node scripts/check-conflict-markers.mjs
       - id: selection
         env:
           EVENT: ${{ github.event_name }}

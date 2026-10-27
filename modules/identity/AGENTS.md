@@ -19,6 +19,8 @@ Members, characters, and Discord roles → guild rank → permission tier (PLAN 
 
 - `member-sync` is the only writer of `rank` and `tier`. Hosts call it at sign-in and from the role-sync
   cron through `commands:syncMember(s)` (system caller). Never set them anywhere else.
+  It is `systemOnly`: its role ids are trusted, so no surface but the system caller may run it,
+  not even an officer (who could otherwise promote any Discord id).
 - `member-sync` also writes `rankSince`: the sync time when the rank changes or the member is
   first seen, otherwise the stored value. Rows from before 2026-10-27 have none and read as null
   ("before tracking began") until their rank changes; never backfill it with a guessed date. A

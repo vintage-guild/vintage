@@ -120,7 +120,8 @@ sequenceDiagram
 ```
 
 Unknown commands and commands above the caller's tier get the same `COMMAND_NOT_FOUND`
-answer, so surfaces never reveal what a caller can't run.
+answer, so surfaces never reveal what a caller can't run. So do `systemOnly` commands
+(`member-sync`) for every caller but the system one, whatever its tier.
 
 ## Layers and boundaries
 

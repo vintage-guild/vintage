@@ -1195,10 +1195,11 @@
     },
     {
       "name": "member-sync",
-      "description": "Sync one member's guild rank and tier from their Discord server membership and roles.",
+      "description": "Sync one member's guild rank and tier from their Discord server membership and roles. System only: runs at sign-in and from the role-sync cron.",
       "tier": "officer",
       "mutation": true,
       "destructive": false,
+      "systemOnly": true,
       "input": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",

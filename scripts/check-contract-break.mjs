@@ -1,32 +1,36 @@
 #!/usr/bin/env node
 // Compares commands.manifest.json against the base branch (PLAN §3.3). A removed command, a
-// raised tier, or a newly required input field breaks callers (agents, CLI scripts, the addon),
-// so it needs the `breaking-contract` label on the PR.
+// raised tier, a newly required input field, a new confirmation step, or a command that became
+// system-only breaks callers (agents, CLI scripts, the addon), so it needs the
+// `breaking-contract` label on the PR.
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
-export function findBreaks(before, after) {
-  // Keep in step with packages/guild-kit/src/tiers.ts.
-  const TIERS = ['public', 'member', 'recruit', 'raider', 'leader', 'officer'];
-  const next = new Map(after.commands.map((c) => [c.name, c]));
+// Keep in step with packages/guild-kit/src/tiers.ts.
+const TIERS = ['public', 'member', 'recruit', 'raider', 'leader', 'officer'];
+
+/** How one command that still exists breaks its callers, if it does. */
+function breaksOf(old, now) {
   const breaks = [];
-  for (const old of before.commands) {
-    const now = next.get(old.name);
-    if (!now) {
-      breaks.push(`${old.name}: removed`);
-      continue;
-    }
-    if (TIERS.indexOf(now.tier) > TIERS.indexOf(old.tier)) {
-      breaks.push(`${old.name}: tier raised ${old.tier} → ${now.tier}`);
-    }
-    const oldRequired = new Set(old.input?.required ?? []);
-    for (const field of now.input?.required ?? []) {
-      if (!oldRequired.has(field))
-        breaks.push(`${old.name}: input field "${field}" is now required`);
-    }
-    if (!old.destructive && now.destructive) breaks.push(`${old.name}: now requires confirmation`);
+  if (TIERS.indexOf(now.tier) > TIERS.indexOf(old.tier)) {
+    breaks.push(`tier raised ${old.tier} → ${now.tier}`);
   }
+  const oldRequired = new Set(old.input?.required ?? []);
+  for (const field of now.input?.required ?? []) {
+    if (!oldRequired.has(field)) breaks.push(`input field "${field}" is now required`);
+  }
+  if (!old.destructive && now.destructive) breaks.push('now requires confirmation');
+  if (!old.systemOnly && now.systemOnly) breaks.push('now system-only');
   return breaks;
+}
+
+export function findBreaks(before, after) {
+  const next = new Map(after.commands.map((c) => [c.name, c]));
+  return before.commands.flatMap((old) => {
+    const now = next.get(old.name);
+    if (!now) return [`${old.name}: removed`];
+    return breaksOf(old, now).map((b) => `${old.name}: ${b}`);
+  });
 }
 
 function arg(name) {

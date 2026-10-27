@@ -126,4 +126,12 @@ test('contract: removal, raised tier, new required field, new confirmation all b
     findBreaks({ commands: [cmd()] }, { commands: [cmd({ destructive: true })] })[0],
     /confirmation/,
   );
+  assert.match(
+    findBreaks({ commands: [cmd()] }, { commands: [cmd({ systemOnly: true })] })[0],
+    /now system-only/,
+  );
+  assert.deepEqual(
+    findBreaks({ commands: [cmd({ systemOnly: true })] }, { commands: [cmd()] }),
+    [],
+  );
 });

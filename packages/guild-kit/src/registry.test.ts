@@ -109,6 +109,57 @@ describe('createGuildRegistry', () => {
     expect(expired).toMatchObject({ error: { message: expect.stringContaining('expired') } });
   });
 
+  describe('system-only commands', () => {
+    const synced: string[] = [];
+    const sync = defineGuildCommand({
+      name: 'thing-sync',
+      description: 'Sync a thing from an external source',
+      tier: 'officer',
+      mutation: true,
+      systemOnly: true,
+      input: z.object({ id: z.string() }),
+      handler: async ({ id }) => {
+        synced.push(id);
+        return success({ id });
+      },
+    });
+    const reg = createGuildRegistry({ commands: [...commands, sync], confirmSecret: 's' });
+    const system: Caller = { surface: 'system', guildId: 'g1', tier: 'officer' };
+
+    it('runs for the system caller only, and looks unknown to every other surface', async () => {
+      synced.length = 0;
+      for (const surface of ['web', 'mcp', 'discord', 'agent', 'cli'] as const) {
+        const result = await reg.execute(
+          { name: 'thing-sync', input: { id: surface }, caller: { ...officer, surface } },
+          {},
+        );
+        expect(result, surface).toMatchObject({
+          success: false,
+          error: { code: 'COMMAND_NOT_FOUND' },
+        });
+      }
+      expect(synced).toEqual([]);
+      const ok = await reg.execute({ name: 'thing-sync', input: { id: 'x' }, caller: system }, {});
+      expect(ok).toMatchObject({ success: true, data: { id: 'x' } });
+      expect(synced).toEqual(['x']);
+    });
+
+    it('is hidden from discovery for anyone but the system caller', () => {
+      expect(reg.visibleTo(officer).map((c) => c.name)).not.toContain('thing-sync');
+      expect(reg.visibleTo(system).map((c) => c.name)).toContain('thing-sync');
+    });
+
+    it('is marked in the manifest; ordinary commands are not', () => {
+      const manifest = toManifest([...commands, sync]);
+      expect(manifest.commands.find((c) => c.name === 'thing-sync')).toMatchObject({
+        systemOnly: true,
+      });
+      expect(manifest.commands.find((c) => c.name === 'thing-list')).not.toHaveProperty(
+        'systemOnly',
+      );
+    });
+  });
+
   it('rejects duplicate names and non-kebab names', () => {
     expect(() =>
       createGuildRegistry({ commands: [commands[0]!, commands[0]!], confirmSecret: 's' }),

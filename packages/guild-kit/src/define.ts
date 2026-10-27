@@ -26,6 +26,12 @@ export interface GuildCommandOptions<Input extends z.ZodType, Output, Deps> {
   mutation?: boolean;
   /** Needs the dryRun → confirmToken flow before it runs for real (PLAN §3.7). */
   destructive?: boolean;
+  /**
+   * Only the system caller (crons, sign-in, other server code) may run it. Every other surface
+   * gets COMMAND_NOT_FOUND whatever its tier, and discovery hides it. For commands whose input
+   * is trusted data from elsewhere (Discord roles), so no member can supply it.
+   */
+  systemOnly?: boolean;
   input: Input;
   output?: z.ZodType<Output>;
   handler: (input: z.infer<Input>, ctx: GuildContext<Deps>) => Promise<CommandResult<Output>>;
@@ -35,6 +41,7 @@ export interface GuildCommand<Input extends z.ZodType = z.ZodType, Output = unkn
   extends GuildCommandOptions<Input, Output, Deps> {
   mutation: boolean;
   destructive: boolean;
+  systemOnly: boolean;
 }
 
 /**
@@ -55,7 +62,12 @@ export function defineGuildCommand<Input extends z.ZodType, Output, Deps>(
     throw new Error(`Command name "${options.name}" must be kebab-case <noun>-<verb>`);
   }
   const destructive = options.destructive ?? false;
-  return { ...options, destructive, mutation: options.mutation ?? destructive };
+  return {
+    ...options,
+    destructive,
+    mutation: options.mutation ?? destructive,
+    systemOnly: options.systemOnly ?? false,
+  };
 }
 
 /**

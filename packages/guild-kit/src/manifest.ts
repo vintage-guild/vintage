@@ -7,6 +7,8 @@ export interface ManifestEntry {
   tier: string;
   mutation: boolean;
   destructive: boolean;
+  /** Present (true) only for commands just the system caller may run. */
+  systemOnly?: true;
   input: unknown;
   output?: unknown;
 }
@@ -31,6 +33,7 @@ export function toManifest(commands: readonly AnyGuildCommand[]): CommandManifes
         tier: c.tier,
         mutation: c.mutation,
         destructive: c.destructive,
+        ...(c.systemOnly ? { systemOnly: true as const } : {}),
         input: z.toJSONSchema(c.input, { io: 'input' }),
         ...(c.output ? { output: z.toJSONSchema(c.output, { io: 'output' }) } : {}),
       })),

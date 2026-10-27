@@ -43,6 +43,13 @@ the preview plus a 5-minute `confirmToken` bound to command, exact input, and ca
 handler must not change anything when `dryRun` is true. Test with `previewAndConfirm` from
 `@vintage/testing`.
 
+## System-only commands
+
+Set `systemOnly: true` when the input is trusted data the host read itself (Discord roles for
+`member-sync`), so no member may supply it. Only `surface: 'system'` callers (crons, sign-in,
+`commands:runAsSystem`) can run it; everyone else gets `COMMAND_NOT_FOUND` and discovery hides
+it. The manifest marks it, and making an existing command system-only needs `breaking-contract`.
+
 ## Rank vs. tier
 
 `tier` (public < member < recruit < raider < leader < officer) is what a command checks. A

@@ -3,7 +3,16 @@
 // officer points the coordinator at a channel and runs a tick, and a raid leader opens a poll.
 import type { Member } from '@vintage/identity/contract';
 import type { Poll } from '@vintage/polls/contract';
-import { CHANNELS, type FixtureMember, MEMBERS, MORE_POLLS, POLL, RAIDS, ROLE_IDS } from './data';
+import {
+  APPLICANTS,
+  CHANNELS,
+  type FixtureMember,
+  MEMBERS,
+  MORE_POLLS,
+  POLL,
+  RAIDS,
+  ROLE_IDS,
+} from './data';
 import type { FixtureHost } from './host';
 
 const discordIdOf = (m: FixtureMember) =>
@@ -108,6 +117,17 @@ export async function seedFixtures(host: FixtureHost): Promise<void> {
   }
 
   await seedMorePolls(host, memberNamed);
+
+  // Open applications for the quarters' desk, each from the applicant's own Discord account.
+  for (const { discordId, ...application } of APPLICANTS) {
+    await must(
+      host.run(
+        { surface: 'web', guildId: host.guildId, tier: 'public', discordId },
+        'application-submit',
+        application,
+      ),
+    );
+  }
 
   // The raid nights the calendar's "Raid nights are…" line reads. Made after the tick, so the
   // raids seeded above stay the whole calendar.

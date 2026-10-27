@@ -26,8 +26,9 @@ double-apply a change.
 and a `CommandResult`; failures carry a suggestion. Names are kebab `<noun>-<verb>`.
 `destructive: true` commands change nothing during `dryRun`. `commands.manifest.json`
 regenerated (`pnpm manifest:write`); `breaking-contract` label when `scripts/check-contract-break.mjs`
-would report a removed command, a raised tier, a newly required input, or a command that now
-requires confirmation (became `destructive`). Unknown and forbidden commands answer identically.
+would report a removed command, a raised tier, a newly required input, a command that now
+requires confirmation (became `destructive`), or one that became `systemOnly`. Unknown and
+forbidden commands answer identically, on every surface (`commands.read` included).
 
 **Data and boundaries.** `guildId` on every record and every query, scoped by the caller's guild.
 A module reaches another only through its `/contract` export, never its internals or tables.

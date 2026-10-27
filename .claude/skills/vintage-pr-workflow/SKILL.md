@@ -42,8 +42,8 @@ are hypotheses: reproduce each before acting on it.
 - **Body:** What / Why / How / Testing / Review, `Part of #N` or `Closes #N`, and say what you
   could not verify. Agent-written PRs end with the Claude Code line.
 - **Labels:** `area:<module>`; `breaking-contract` when `scripts/check-contract-break.mjs` reports
-  a removed command, a raised tier, a newly required input, or a command that now requires
-  confirmation (the `contract` lane fails without it).
+  a removed command, a raised tier, a newly required input, a command that now requires
+  confirmation, or one that became `systemOnly` (the `contract` lane fails without it).
 - **Docs in the same PR:** see the `vintage-maintain-docs` skill.
 
 ## CI

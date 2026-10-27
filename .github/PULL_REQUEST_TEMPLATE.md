@@ -29,5 +29,5 @@
 - [ ] Self-review done and recorded above (`vintage-review` skill)
 - [ ] Feature doc in `docs/features/` updated in this PR
 - [ ] `commands.manifest.json` regenerated if a command changed (`pnpm manifest:write`)
-- [ ] `breaking-contract` label added if a command was removed, a tier raised, a required input added, or a command made destructive
+- [ ] `breaking-contract` label added if a command was removed, a tier raised, a required input added, or a command made destructive or system-only
 - [ ] Upstream issues linked for any workaround (AFD, botcore, Mechanic, FenUI/FenCore, Violet, FAST-AF)

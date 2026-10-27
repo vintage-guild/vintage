@@ -28,8 +28,9 @@ commands). Everything runs serverless: no always-on gateway process.
   component updates) and finishes through the interaction token (valid 15 minutes).
 - **Commands, not logic, in the endpoint.** Interactions translate to guild-kit commands through
   the registry; the endpoint never holds business rules. `/random ping` answers locally; buttons,
-  modals, and the subcommand groups in `FORWARDED_GROUPS` (`/random poll`) go to Convex, where
-  `src/discord-signups.ts` and `src/discord-polls.ts` run them. Re-register after changing commands.
+  modals, and the subcommand groups in `FORWARDED_GROUPS` (`/random poll`, `/random raid`, `/random ask`) go to
+  Convex, where `src/discord-signups.ts`, `discord-polls.ts`, `discord-raids.ts`, and
+  `discord-agent.ts` run them (shared helpers in `discord-common.ts`). Re-register after changing commands.
 - **Least privilege for the bot.** It's invited with View Channels, Send Messages, Embed Links,
   Read Message History, Add Reactions, and Mention Everyone (permissions integer `216128`). Add a
   permission only when a feature needs it, and say which in the PR. Never request Administrator

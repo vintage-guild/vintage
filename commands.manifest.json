@@ -1137,7 +1137,7 @@
     },
     {
       "name": "member-list",
-      "description": "Guild members with their rank, tier, and main character. Discord-only friends are not listed.",
+      "description": "Guild members with their rank, tier, main character, when they got that rank (null when it changed before that was recorded), and when Discord last synced them. Discord-only friends are not listed.",
       "tier": "recruit",
       "mutation": false,
       "destructive": false,

@@ -27,6 +27,7 @@ const member = (id: string, tier: Tier): Member => ({
   tier,
   prefs: { dmOptOut: false },
   syncedAt: 0,
+  rankSince: null,
 });
 const MEMBERS = [member('vex', 'officer'), member('rook', 'leader'), member('pip', 'member')];
 

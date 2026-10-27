@@ -101,6 +101,62 @@ const ASK = {
   ],
 };
 
+/** `/random apply`: the short answers here, the long ones in a modal (#135). */
+const APPLY = {
+  type: T.SUB_COMMAND,
+  name: 'apply',
+  description: 'Apply to raid with Vintage',
+  options: [
+    {
+      type: T.STRING,
+      name: 'character',
+      description: 'Your character name',
+      required: true,
+      max_length: 12,
+    },
+    {
+      type: T.STRING,
+      name: 'class',
+      description: 'Your class',
+      required: true,
+      choices: [
+        'warrior',
+        'paladin',
+        'hunter',
+        'rogue',
+        'priest',
+        'shaman',
+        'mage',
+        'warlock',
+        'druid',
+      ].map((c) => ({ name: c.charAt(0).toUpperCase() + c.slice(1), value: c })),
+    },
+    {
+      type: T.STRING,
+      name: 'spec',
+      description: 'Your spec, e.g. restoration',
+      required: true,
+      max_length: 40,
+    },
+    {
+      type: T.STRING,
+      name: 'role',
+      description: 'Core raider, or flex when there is room',
+      choices: [
+        { name: 'Raider', value: 'raider' },
+        { name: 'Flex raider', value: 'flex-raider' },
+      ],
+    },
+  ],
+};
+
+/** `/random recruiting`: the open needs; leaders and officers post it to the channel. */
+const RECRUITING = {
+  type: T.SUB_COMMAND,
+  name: 'recruiting',
+  description: 'Show who Vintage is recruiting',
+};
+
 export const RANDOM_COMMAND = {
   name: 'random',
   description: 'Vintage guild tools',
@@ -113,10 +169,17 @@ export const RANDOM_COMMAND = {
     },
     POLL_GROUP,
     ASK,
+    APPLY,
+    RECRUITING,
   ],
 } satisfies ApplicationCommand;
 
 /** Subcommands and groups whose work runs in Convex; the gateway forwards them. */
-export const FORWARDED_GROUPS: ReadonlySet<string> = new Set([POLL_GROUP.name, ASK.name]);
+export const FORWARDED_GROUPS: ReadonlySet<string> = new Set([
+  POLL_GROUP.name,
+  ASK.name,
+  APPLY.name,
+  RECRUITING.name,
+]);
 
 export const COMMANDS: readonly ApplicationCommand[] = [RANDOM_COMMAND];

@@ -94,6 +94,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             opsChannelId: string | null;
             paused: boolean;
             signupChannelId: string | null;
+            weeklyAssessment?: boolean;
           };
           guildId: string;
           updatedAt: number;

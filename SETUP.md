@@ -65,7 +65,9 @@ npx convex run commands:read '{"name":"member-list","input":{}}'
 
 The hosted agent and the Decisions API need an OpenAI key in the Convex environment
 (`npx convex env set OPENAI_API_KEY …`); without it `agent-ask` runs fail with a clear error and
-Decisions consumers keep their non-AI behavior. To ask as a member from the CLI, pass an identity
+Decisions consumers keep their non-AI behavior. Applications post to the channel officers set
+with `application-config-set channelId`; the weekly roster check is off until
+`coordinator-config-set weeklyAssessment:true`. To ask as a member from the CLI, pass an identity
 with their Discord id:
 
 ```bash

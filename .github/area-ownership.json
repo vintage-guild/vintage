@@ -13,6 +13,7 @@
       "paths": ["modules/agent/", "packages/agent-runtime/", "packages/decisions/"],
       "owners": ["@Falkicon"]
     },
+    "applications": { "paths": ["modules/applications/"], "owners": ["@Falkicon"] },
     "ui-kit": { "paths": ["packages/ui-kit/"], "owners": ["@Falkicon"] },
     "api": { "paths": ["apps/api/"], "owners": ["@Falkicon"] },
     "gateway": { "paths": ["apps/gateway/"], "owners": ["@Falkicon"] },

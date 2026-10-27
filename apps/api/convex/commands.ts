@@ -14,6 +14,7 @@ import { discordIdOf, webCaller } from '../src/web-caller';
 import { internalMutation, mutation, query } from './_generated/server';
 import {
   agentDeps,
+  applicationsDeps,
   coordinatorDeps,
   identityDeps,
   identityStore,
@@ -48,6 +49,7 @@ export const deps = (ctx: Ctx, options: { agentDelivery?: AgentDelivery } = {}):
       runAs(ctx, caller, { name, input, ...(confirmToken ? { confirmToken } : {}) }),
     options.agentDelivery,
   ),
+  ...applicationsDeps(ctx),
 });
 
 /** The website caller: the signed-in member from the token's Discord id (convex/auth.ts), else public. */

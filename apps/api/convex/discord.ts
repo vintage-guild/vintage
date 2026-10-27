@@ -6,6 +6,7 @@ import type { Caller, CommandResult } from '@vintage/guild-kit';
 import type { Signup } from '@vintage/raids/contract';
 import { v } from 'convex/values';
 import { handleAgentInteraction } from '../src/discord-agent';
+import { handleApplicationInteraction } from '../src/discord-applications';
 import { handlePollInteraction } from '../src/discord-polls';
 import { handleSignupInteraction } from '../src/discord-signups';
 import { internal } from './_generated/api';
@@ -31,6 +32,16 @@ export const interaction = internalMutation({
       run: (caller, name, input) => runCommandAs(ctx, caller, name, input),
     });
     if (agent) return agent;
+
+    const application = await handleApplicationInteraction(incoming, {
+      discordGuildId,
+      guildId: GUILD_ID,
+      siteUrl: process.env.VINTAGE_SITE_URL ?? null,
+      memberByDiscordId,
+      run: (caller, name, input, confirmToken) =>
+        runCommandAs(ctx, caller, name, input, confirmToken),
+    });
+    if (application) return application;
 
     const raids = raidsStore(ctx);
     const signup = await handleSignupInteraction(incoming, {

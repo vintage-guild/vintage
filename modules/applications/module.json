@@ -1,0 +1,7 @@
+{
+  "name": "applications",
+  "maturity": "official",
+  "owners": ["@Falkicon"],
+  "dependsOn": [],
+  "description": "Guild applications (epic #126): raiders and flex raiders apply from Discord or the site; Decisions labels them; officers accept, reply, or decline; accepted applicants get the recruit role and an onboarding note."
+}

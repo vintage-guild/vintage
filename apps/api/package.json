@@ -20,6 +20,7 @@
     "@convex-dev/better-auth": "0.12.5",
     "@vintage/agent": "workspace:*",
     "@vintage/agent-runtime": "workspace:*",
+    "@vintage/applications": "workspace:*",
     "@vintage/coordinator": "workspace:*",
     "@vintage/decisions": "workspace:*",
     "@vintage/discord-kit": "workspace:*",

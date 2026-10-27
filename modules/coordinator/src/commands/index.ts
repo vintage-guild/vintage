@@ -1,3 +1,16 @@
+export {
+  type Assessment,
+  assessmentFacts,
+  assessmentRule,
+  assessmentSlot,
+  buildAssessment,
+  parseRaiseNeedCustomId,
+  ROLE_CLASSES,
+  raiseNeedCustomId,
+  renderAssessment,
+  WORDING_INSTRUCTIONS,
+} from '../domain/assessment';
+
 import { error, success } from '@vintage/guild-kit';
 import { GUILD_RANKS } from '@vintage/identity/contract';
 import { z } from 'zod';
@@ -116,7 +129,8 @@ export const coordinatorConfigSet = command({
   name: 'coordinator-config-set',
   description:
     'Set where the coordinator posts (signup and officer channels), whose answers it chases ' +
-    '(expectedRanks), and whether it DMs non-responders.',
+    '(expectedRanks), whether it DMs non-responders, and whether it posts the weekly roster ' +
+    'and recruitment check (weeklyAssessment).',
   tier: 'officer',
   mutation: true,
   input: z.object({
@@ -124,6 +138,7 @@ export const coordinatorConfigSet = command({
     opsChannelId: snowflake.nullable().optional(),
     expectedRanks: z.array(z.enum(GUILD_RANKS)).min(1).optional(),
     dmReminders: z.boolean().optional(),
+    weeklyAssessment: z.boolean().optional(),
   }),
   handler: async (input, { guildId, deps, now }) => {
     const patch = Object.fromEntries(Object.entries(input).filter(([, v]) => v !== undefined));

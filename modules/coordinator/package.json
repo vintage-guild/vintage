@@ -25,6 +25,7 @@
     "@vintage/identity": "workspace:*",
     "@vintage/polls": "workspace:*",
     "@vintage/raids": "workspace:*",
+    "@vintage/site": "workspace:*",
     "@vintage/wow-data": "workspace:*",
     "convex": "catalog:",
     "zod": "catalog:"

@@ -14,6 +14,8 @@ export interface CoordinatorConfig {
   expectedRanks: GuildRank[];
   /** DM non-responders at the last reminder. Members can still opt out in their prefs. */
   dmReminders: boolean;
+  /** Post the weekly roster and recruitment check to the ops channel (Mondays from 16:00 UTC). Off until an officer turns it on. */
+  weeklyAssessment: boolean;
   /** Paused: ticks do nothing until resumed. */
   paused: boolean;
   updatedAt: number;
@@ -33,6 +35,7 @@ export function defaultConfig(guildId: string): CoordinatorConfig {
     opsChannelId: null,
     expectedRanks: [...DEFAULT_EXPECTED_RANKS],
     dmReminders: true,
+    weeklyAssessment: false,
     paused: false,
     updatedAt: 0,
   };

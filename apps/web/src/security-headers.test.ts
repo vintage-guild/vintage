@@ -1,12 +1,14 @@
-// @vitest-environment node
 import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-// connect.ts pulls in the elements (which need a DOM), so read the constant from its source.
-const PROD_CONVEX_URL =
-  /PROD_CONVEX_URL = '([^']+)'/.exec(
-    readFileSync(new URL('./connect.ts', import.meta.url), 'utf8'),
-  )?.[1] ?? '';
+// By path: happy-dom (this file parses index.html with its DOMParser) replaces the global URL.
+const here = dirname(fileURLToPath(import.meta.url));
+const read = (path: string) => readFileSync(join(here, path), 'utf8');
+
+// connect.ts pulls in the elements and Better Auth, so read the constant from its source.
+const PROD_CONVEX_URL = /PROD_CONVEX_URL = '([^']+)'/.exec(read('./connect.ts'))?.[1] ?? '';
 
 // The session token lives in localStorage (@vintage/web-session), so a script injected into the
 // page could take it. The Content-Security-Policy in vercel.json only lets our own scripts run
@@ -15,10 +17,10 @@ interface HeaderRule {
   source: string;
   headers: { key: string; value: string }[];
 }
-const vercel = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8')) as {
+const vercel = JSON.parse(read('../vercel.json')) as {
   headers: HeaderRule[];
 };
-const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+const html = read('../index.html');
 
 const everyPage = vercel.headers.find((r) => r.source === '/(.*)');
 const header = (key: string) => everyPage?.headers.find((h) => h.key === key)?.value;
@@ -71,10 +73,17 @@ describe('security headers', () => {
     );
   });
 
-  it('index.html has no inline script, which script-src would block', () => {
-    const scripts = [...html.matchAll(/<script\b([^>]*)>/g)].map((m) => m[1] ?? '');
+  it('index.html has no inline script or event handler, which script-src would block', () => {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const scripts = [...doc.querySelectorAll('script')];
     expect(scripts.length).toBeGreaterThan(0);
-    for (const attrs of scripts) expect(attrs).toMatch(/\bsrc=/);
-    expect(html).not.toMatch(/\son[a-z]+=/i);
+    for (const script of scripts) {
+      expect(script.getAttribute('src'), script.outerHTML).toBeTruthy();
+      expect(script.textContent?.trim(), script.outerHTML).toBe('');
+    }
+    const handlers = [...doc.querySelectorAll('*')].flatMap((el) =>
+      el.getAttributeNames().filter((name) => name.startsWith('on')),
+    );
+    expect(handlers).toEqual([]);
   });
 });

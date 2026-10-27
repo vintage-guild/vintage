@@ -5,6 +5,7 @@ import { recordToolCall, renderAgentReply } from '@vintage/agent/commands';
 import { type AgentDelivery, isAgentCommand, toConfirmationView } from '@vintage/agent/contract';
 import { createMemoryAgentStore } from '@vintage/agent/testing';
 import { createRegistryTools } from '@vintage/agent-runtime';
+import { renderOnboardingDm } from '@vintage/applications/commands';
 import { createMemoryApplicationsStore } from '@vintage/applications/testing';
 import { runTick } from '@vintage/coordinator/commands';
 import { createFakeDiscord, createMemoryCoordinatorStore } from '@vintage/coordinator/testing';
@@ -39,6 +40,7 @@ import { handleEventInteraction } from '../../src/discord-events';
 import { handleHelpInteraction } from '../../src/discord-help';
 import { handlePollInteraction } from '../../src/discord-polls';
 import { handleSignupInteraction } from '../../src/discord-signups';
+import { onboardAfterSync, onboardIfPromoted } from '../../src/onboarding';
 import { commands, type VintageDeps } from '../../src/registry';
 import { createTickSource } from '../../src/tick-source';
 
@@ -60,6 +62,7 @@ export const DISCORD_GUILD = '600000000000000001';
 export const SIGNUP_CHANNEL = '400000000000000001';
 export const OPS_CHANNEL = '400000000000000002';
 export const POLL_CHANNEL = '400000000000000003';
+export const SITE_URL = 'https://vintageguild.gg';
 
 export const HOUR = 60 * 60 * 1000;
 export const DAY = 24 * HOUR;
@@ -91,7 +94,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
   const applicationsStore = createMemoryApplicationsStore();
   /** Runs whose insights an officer sent (the DMs themselves need Discord). */
   const insightsSent: string[] = [];
-  /** Application effects the commands scheduled (label and post, accept, reply, refresh). */
+  /** Application effects the commands scheduled (label and post, accept, onboard, reply, refresh). */
   const applicationEffects: { effect: string; id: string }[] = [];
   /** Questions agent-ask queued, with where the answer goes (as the Convex action receives them). */
   const queued: { runId: string; delivery: AgentDelivery | undefined }[] = [];
@@ -144,9 +147,27 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     applications: applicationsStore,
     applicationEffects: {
       submitted: async (_g, id) => void applicationEffects.push({ effect: 'submitted', id }),
-      accepted: async (_g, id) => void applicationEffects.push({ effect: 'accepted', id }),
+      // Like convex/applications.ts: onboard at once if they already hold the role.
+      accepted: async (_g, id) => {
+        applicationEffects.push({ effect: 'accepted', id });
+        const app = await applicationsStore.get(GUILD, id);
+        const member = app ? await identity.getMemberByDiscordId(GUILD, app.discordId) : null;
+        await onboardIfPromoted(member, (name, input) => run(system, name, input));
+      },
+      // Like sendOnboarding: the guild's note, DMed through the (fake) bot.
+      onboard: async (_g, id) => {
+        applicationEffects.push({ effect: 'onboard', id });
+        const app = await applicationsStore.get(GUILD, id);
+        const config = await applicationsStore.getConfig(GUILD);
+        if (app) await discord.dm(app.discordId, renderOnboardingDm(config.onboarding, SITE_URL));
+      },
       replied: async (_g, id) => void applicationEffects.push({ effect: 'replied', id }),
       changed: async (_g, id) => void applicationEffects.push({ effect: 'changed', id }),
+    },
+    applicationRoles: {
+      recruitRoleId: async (g) =>
+        Object.entries(await identity.getRoleRankMap(g)).find(([, r]) => r === 'recruit')?.[0] ??
+        null,
     },
     agent: createMemoryAgentStore(),
     // The turn itself needs OpenAI; agentUi.answer stands in for it (it calls the same tools).
@@ -188,9 +209,15 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     return result.data as T;
   }
 
-  /** A Discord user joins (or changes roles); member-sync runs as the role-sync cron would. */
+  /**
+   * A Discord user joins (or changes roles); member-sync runs as the role-sync cron would, then
+   * onboarding if that promoted an accepted applicant (convex/commands.ts).
+   */
   async function discordMember(discordId: string, displayName: string, roleIds: string[]) {
-    await ok(system, 'member-sync', { discordId, displayName, inServer: true, roleIds });
+    const input = { discordId, displayName, inServer: true, roleIds };
+    const synced = await run(system, 'member-sync', input);
+    if (!synced.success) throw new Error(`member-sync failed: ${JSON.stringify(synced.error)}`);
+    await onboardAfterSync(synced, (name, onboardInput) => run(system, name, onboardInput));
     return as(discordId);
   }
 
@@ -573,7 +600,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
       {
         discordGuildId: DISCORD_GUILD,
         guildId: GUILD,
-        siteUrl: 'https://vintageguild.gg',
+        siteUrl: SITE_URL,
         memberByDiscordId: (id) => identity.getMemberByDiscordId(GUILD, id),
         run: (caller, name, input, confirmToken) =>
           registry.execute(
@@ -617,9 +644,42 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
         },
       } as Partial<Interaction>);
     },
+    /** `/random recruiting`: the recruiting post (public for leaders, private for others). */
+    recruiting: (discordId: string) =>
+      applicationInteract(discordId, {
+        type: InteractionType.APPLICATION_COMMAND,
+        data: { name: 'random', options: [{ name: 'recruiting', type: 1 }] },
+      } as Partial<Interaction>),
+    /** Click an Apply button on the recruiting post, then fill the whole form in its modal. */
+    applyFromPost: async (discordId: string, buttonId: string, fields: Record<string, string>) => {
+      const opened = (await applicationUi.click(discordId, buttonId)) as {
+        type: number;
+        data: { custom_id: string };
+      };
+      if (opened.type !== 9) return opened;
+      return applicationInteract(discordId, {
+        type: InteractionType.MODAL_SUBMIT,
+        data: {
+          custom_id: opened.data.custom_id,
+          components: Object.entries(fields).map(([id, value]) => ({
+            type: 1,
+            components: [{ type: 4, custom_id: id, value }],
+          })),
+        },
+      } as Partial<Interaction>);
+    },
     click: (discordId: string, customId: string) =>
       applicationInteract(discordId, {
         data: { custom_id: customId, component_type: 2 },
+      } as Partial<Interaction>),
+    /** Submit the Ask more modal on a review post. */
+    askMore: (discordId: string, customId: string, text: string) =>
+      applicationInteract(discordId, {
+        type: InteractionType.MODAL_SUBMIT,
+        data: {
+          custom_id: customId,
+          components: [{ type: 1, components: [{ type: 4, custom_id: 'reply', value: text }] }],
+        },
       } as Partial<Interaction>),
     setWording: (text: string | null) => {
       wording = text;

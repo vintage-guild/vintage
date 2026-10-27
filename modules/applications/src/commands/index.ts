@@ -1,4 +1,5 @@
 import { applicationGet, applicationSubmit, applicationWithdraw } from './apply';
+import { applicationOnboard } from './onboard';
 import {
   applicationConfigGet,
   applicationConfigSet,
@@ -20,21 +21,29 @@ export {
   type ApplyForm,
   applicationCustomId,
   applyFormCustomId,
+  applyFullModal,
   applyModal,
+  applyStartCustomId,
   labelsLine,
   type NeedLineView,
   type ParsedApplicationId,
   parseApplicationCustomId,
+  parseClassSpec,
   REPLY_FIELD,
+  type ReviewAction,
+  renderAcceptReply,
   renderApplicantDm,
   renderApplicationPost,
   renderDeclinePreview,
+  renderOnboardingDm,
   renderRecruitingPost,
   replyModal,
+  START_FIELDS,
 } from '../render/discord';
 export type {
   ApplicationEffects,
   ApplicationFilter,
+  ApplicationRoles,
   ApplicationsDeps,
   ApplicationsStore,
 } from '../store';
@@ -48,6 +57,7 @@ export const applicationsCommands = [
   applicationList,
   applicationReview,
   applicationDecline,
+  applicationOnboard,
   applicationConfigGet,
   applicationConfigSet,
 ] as const;

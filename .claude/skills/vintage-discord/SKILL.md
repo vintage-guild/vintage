@@ -47,8 +47,9 @@ commands). Everything runs serverless: no always-on gateway process.
   needed only for the coordinator's server events (`serverEvents`, off by default); it lets the
   bot make and edit its own events, nothing else. Granting it is a human step in the server's role
   settings or a re-invite; agents never change Portal or server settings.
-  or Manage Roles. Applications (#135) keep to this: accepting an applicant asks an officer to set
-  the recruit role rather than the bot setting it.
+  Applications (#135) keep to this (decided 2026-10-27): Accept tells the officer privately which
+  role to give (the one mapped to recruit), role sync promotes the member, and only then does the
+  bot send the onboarding DM.
 - **Bootstrap the role map as the system caller.** The first `guild-roles-set` runs through
   `commands:runAsSystem` (internal; needs deployment access), preview then confirm. SETUP.md
   "First role map" has the steps.

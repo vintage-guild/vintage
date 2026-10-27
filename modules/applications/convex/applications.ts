@@ -6,8 +6,10 @@ import { mutation, query } from './_generated/server';
 import { applicationFields, configFields, labels, status } from './schema';
 
 const toApplication = (doc: Doc<'applications'>) => {
-  const { _id, _creationTime, ...rest } = doc;
-  return { id: _id as string, ...rest };
+  const { _id, _creationTime, onboardedAt, ...rest } = doc;
+  // Applications accepted before #135 got the onboarding DM at accept time: count them as onboarded.
+  const legacy = onboardedAt === undefined && doc.status === 'accepted' ? doc.reviewedAt : null;
+  return { id: _id as string, ...rest, onboardedAt: onboardedAt ?? legacy };
 };
 
 export const insert = mutation({
@@ -37,6 +39,7 @@ export const update = mutation({
       reviewedAt: v.optional(v.union(v.number(), v.null())),
       postChannelId: v.optional(v.union(v.string(), v.null())),
       postMessageId: v.optional(v.union(v.string(), v.null())),
+      onboardedAt: v.optional(v.union(v.number(), v.null())),
       updatedAt: v.optional(v.number()),
     }),
   },

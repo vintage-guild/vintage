@@ -3,14 +3,18 @@ import type { Caller, CommandResult } from '@vintage/guild-kit';
 import { fixedClock, makeCaller, previewAndConfirm, testRegistry } from '@vintage/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { applicationsCommands } from '../src/commands';
-import type { Application } from '../src/contract';
+import type { AcceptedApplication, Application } from '../src/contract';
 import { labelApplication, labelRequest, readLabels } from '../src/domain/labels';
 import {
   applicationCustomId,
   applyFormCustomId,
+  applyStartCustomId,
   labelsLine,
   parseApplicationCustomId,
+  parseClassSpec,
+  renderAcceptReply,
   renderApplicationPost,
+  renderOnboardingDm,
   renderRecruitingPost,
 } from '../src/render/discord';
 import type { ApplicationsDeps } from '../src/store';
@@ -117,10 +121,10 @@ describe('reading applications', () => {
 });
 
 describe('review and decline', () => {
-  it('accepting with a reply schedules the reply, the role, and the post refresh', async () => {
+  it('accepting with a reply schedules the reply, the post refresh, and onboarding', async () => {
     const { id } = data<{ id: string }>(await run('application-submit', form, guest));
     harness.effects.length = 0;
-    const saved = data<Application>(
+    const saved = data<AcceptedApplication>(
       await run(
         'application-review',
         { applicationId: id, status: 'accepted', reply: 'Welcome!' },
@@ -131,11 +135,27 @@ describe('review and decline', () => {
       status: 'accepted',
       reply: 'Welcome!',
       reviewedBy: officer.memberId,
+      giveRole: { rank: 'recruit', roleId: null },
     });
-    expect(harness.effects.map((e) => e.effect)).toEqual(['replied', 'accepted', 'changed']);
+    expect(harness.effects.map((e) => e.effect)).toEqual(['replied', 'changed', 'accepted']);
     expect(
       code(await run('application-review', { applicationId: id, status: 'in-review' }, officer)),
     ).toBe('APPLICATION_CLOSED');
+  });
+
+  it('names the Discord role mapped to recruit, which an officer gives', async () => {
+    harness = createMemoryApplicationsDeps('300000000000000005');
+    const { id } = data<{ id: string }>(await run('application-submit', form, guest));
+    const result = await run(
+      'application-review',
+      { applicationId: id, status: 'accepted' },
+      officer,
+    );
+    expect(data<AcceptedApplication>(result).giveRole).toEqual({
+      rank: 'recruit',
+      roleId: '300000000000000005',
+    });
+    expect(result.reasoning).toMatch(/Give them the recruit role \(300000000000000005\)/);
   });
 
   it('declines only after a preview, and the applicant sees it', async () => {
@@ -172,6 +192,56 @@ describe('review and decline', () => {
   });
 });
 
+describe('application-onboard', () => {
+  const system = makeCaller('officer', { surface: 'system' });
+  const runOnboard = async (dmOptOut = false) =>
+    data<{ onboarded: boolean; applicationId: string | null }>(
+      await run('application-onboard', { discordId: 'd-kol', dmOptOut }, system),
+    );
+  const accept = async () => {
+    const { id } = data<{ id: string }>(await run('application-submit', form, guest));
+    await run('application-review', { applicationId: id, status: 'accepted' }, officer);
+    harness.effects.length = 0;
+    return id;
+  };
+
+  it('schedules the onboarding DM once for an accepted application', async () => {
+    const id = await accept();
+    expect(await runOnboard()).toEqual({ onboarded: true, applicationId: id });
+    expect(harness.effects).toEqual([{ effect: 'onboard', applicationId: id }]);
+    expect(harness.deps.applications.rows.get(id)?.onboardedAt).toBe(NOW);
+    expect(await runOnboard()).toEqual({ onboarded: false, applicationId: id });
+    expect(harness.effects).toHaveLength(1);
+  });
+
+  it('marks an opted-out member onboarded without a DM, so none goes out later', async () => {
+    const id = await accept();
+    expect(await runOnboard(true)).toEqual({ onboarded: false, applicationId: id });
+    expect(await runOnboard(false)).toEqual({ onboarded: false, applicationId: id });
+    expect(harness.effects).toEqual([]);
+  });
+
+  it('never welcomes someone twice, even after a second accepted application', async () => {
+    await accept();
+    await runOnboard();
+    const second = await accept();
+    expect(await runOnboard()).toEqual({ onboarded: false, applicationId: second });
+    expect(harness.effects).toEqual([]);
+  });
+
+  it('does nothing without an accepted application', async () => {
+    await run('application-submit', form, guest);
+    expect(await runOnboard()).toEqual({ onboarded: false, applicationId: null });
+    expect(harness.effects.map((e) => e.effect)).toEqual(['submitted']);
+  });
+
+  it('is system only', async () => {
+    expect(
+      code(await run('application-onboard', { discordId: 'd-kol', dmOptOut: false }, officer)),
+    ).toBe('COMMAND_NOT_FOUND');
+  });
+});
+
 const sample = (overrides: Partial<Application> = {}): Application => ({
   id: 'app-1',
   guildId: 'g',
@@ -191,6 +261,7 @@ const sample = (overrides: Partial<Application> = {}): Application => ({
   reviewedAt: null,
   postChannelId: null,
   postMessageId: null,
+  onboardedAt: null,
   createdAt: NOW,
   updatedAt: NOW,
   ...overrides,
@@ -266,6 +337,15 @@ describe('Discord rendering', () => {
       action: 'nn',
       applicationId: 'app-9',
     });
+    expect(parseApplicationCustomId(applyStartCustomId('start', 'flex-raider'))).toEqual({
+      action: 'start',
+      role: 'flex-raider',
+    });
+    expect(parseApplicationCustomId(applyStartCustomId('open', 'raider'))).toEqual({
+      action: 'open',
+      role: 'raider',
+    });
+    expect(parseApplicationCustomId('app:start:7')).toBeNull();
     expect(parseApplicationCustomId('poll:v:1')).toBeNull();
     expect(parseApplicationCustomId('app:zz:1')).toBeNull();
   });
@@ -276,10 +356,43 @@ describe('Discord rendering', () => {
     );
     expect(JSON.stringify(open.embeds)).toMatch(/Reads as raider · complete · fit strong/);
     expect(open.components).toHaveLength(1);
+    expect(JSON.stringify(open.components)).toMatch(/"Accept".*"Ask more".*"Decline"/);
     const closed = renderApplicationPost(sample({ status: 'accepted', reply: 'Welcome' }));
     expect(closed.components).toEqual([]);
     expect(JSON.stringify(closed.embeds)).toMatch(/Accepted · application app-1/);
     expect(labelsLine(null)).toMatch(/Not labeled/);
+  });
+
+  it('reads the class out of "spec and class", in either order', () => {
+    expect(parseClassSpec('Restoration Shaman')).toEqual({
+      wowClass: 'shaman',
+      spec: 'Restoration',
+    });
+    expect(parseClassSpec('  warrior   fury prot ')).toEqual({
+      wowClass: 'warrior',
+      spec: 'fury prot',
+    });
+    expect(parseClassSpec('Holy')).toBeNull();
+    expect(parseClassSpec('Priest')).toBeNull();
+  });
+
+  it('tells the accepting officer which role to give, without pinging', () => {
+    const app = sample({ status: 'accepted' });
+    const mapped = renderAcceptReply(app, { rank: 'recruit', roleId: '300000000000000005' });
+    expect(mapped.content).toContain('Give them <@&300000000000000005> in Discord');
+    expect(mapped.allowed_mentions).toEqual({ parse: [] });
+    expect(renderAcceptReply(app, { rank: 'recruit', roleId: null }).content).toMatch(
+      /No Discord role is mapped to recruit yet/,
+    );
+  });
+
+  it('fills the site into the onboarding note', () => {
+    expect(renderOnboardingDm('Sign in at {site}.', 'https://vintageguild.gg/').content).toBe(
+      'Sign in at https://vintageguild.gg.',
+    );
+    expect(renderOnboardingDm('Sign in at {site}.', null).content).toBe(
+      'Sign in at the Vintage website.',
+    );
   });
 });
 
@@ -292,7 +405,13 @@ describe('the recruiting post', () => {
     expect(text('https://vintageguild.gg/')).toContain('https://vintageguild.gg/apply');
     expect(text('https://vintageguild.gg//')).toContain('https://vintageguild.gg/apply');
     expect(text('https://vintageguild.gg')).toContain('https://vintageguild.gg/apply');
-    expect(text('https://vintageguild.gg/')).toContain('/random apply');
+  });
+
+  it('has Apply buttons for raiders and flex raiders', () => {
+    const post = renderRecruitingPost('Two healers.', needs, null);
+    const ids = JSON.stringify(post.components);
+    expect(ids).toContain(applyStartCustomId('start', 'raider'));
+    expect(ids).toContain(applyStartCustomId('start', 'flex-raider'));
   });
 
   it('points only to Discord without a site', () => {

@@ -38,8 +38,10 @@ let deps: Deps;
 let effects: ReturnType<typeof createMemoryApplicationsDeps>['effects'];
 let ports: ApplicationDiscordPorts;
 
+const RECRUIT_ROLE = '300000000000000005';
+
 beforeEach(() => {
-  const apps = createMemoryApplicationsDeps();
+  const apps = createMemoryApplicationsDeps(RECRUIT_ROLE);
   effects = apps.effects;
   deps = { ...apps.deps, ...createMemorySiteDeps() };
   const registry = testRegistry<Deps>(
@@ -170,20 +172,72 @@ describe('/random apply', () => {
   });
 });
 
+describe('Apply buttons on the recruiting post', () => {
+  const fields = {
+    character: 'Kol',
+    'class-spec': 'Restoration Shaman',
+    about: 'Healer since vanilla.',
+    experience: 'MC and BWL.',
+    availability: 'Tue and Thu',
+  };
+
+  it('a button opens the whole form, and its submit applies with that role', async () => {
+    const opened = (await handleApplicationInteraction(
+      component('d-guest', 'app:start:1'),
+      ports,
+    )) as { type: number; data: { custom_id: string; components: unknown[] } };
+    expect(opened.type).toBe(9);
+    expect(opened.data.custom_id).toBe('app:open:1');
+    expect(opened.data.components).toHaveLength(5);
+    const sent = await handleApplicationInteraction(
+      modalSubmit('d-guest', opened.data.custom_id, fields),
+      ports,
+    );
+    expect(content(sent)).toMatch(/Thanks! Your application is with the officers/);
+    expect(only()).toMatchObject({
+      characterName: 'Kol',
+      wowClass: 'shaman',
+      spec: 'Restoration',
+      role: 'flex-raider',
+    });
+  });
+
+  it('asks again for the class when "spec and class" names none', async () => {
+    const sent = await handleApplicationInteraction(
+      modalSubmit('d-guest', 'app:open:0', { ...fields, 'class-spec': 'Resto' }),
+      ports,
+    );
+    expect(content(sent)).toMatch(/Name your class/);
+    expect(deps.applications.rows.size).toBe(0);
+  });
+
+  it('refuses raiders and open applications before the form', async () => {
+    expect(
+      content(await handleApplicationInteraction(component('d-vex', 'app:start:0'), ports)),
+    ).toMatch(/You already raid with Vintage/);
+    await apply();
+    expect(
+      content(await handleApplicationInteraction(component('d-guest', 'app:start:0'), ports)),
+    ).toMatch(/still with the officers/);
+  });
+});
+
 describe('officer buttons', () => {
-  it('Accept reviews as the officer and redraws the post without buttons', async () => {
+  it('Accept reviews as the officer and tells them privately which role to give', async () => {
     await apply();
     const response = await handleApplicationInteraction(
       component('d-vex', `app:ok:${only().id}`),
       ports,
     );
     expect(only()).toMatchObject({ status: 'accepted', reviewedBy: 'vex' });
-    expect(content(response)).toMatch(/"type":7/);
-    expect(content(response)).toMatch(/"components":\[\]/);
-    expect(effects.map((e) => e.effect)).toContain('accepted');
+    expect(content(response)).toMatch(/"type":4/);
+    expect(content(response)).toMatch(/"flags":64/);
+    expect(content(response)).toContain(`Give them <@&${RECRUIT_ROLE}> in Discord`);
+    // The post redraws through the changed effect; onboarding waits for role sync.
+    expect(effects.map((e) => e.effect)).toEqual(['submitted', 'changed', 'accepted']);
   });
 
-  it('Reply opens a modal; its submit records the reply and moves it to review', async () => {
+  it('Ask more opens a modal; its submit records the reply and moves it to review', async () => {
     await apply();
     const opened = await handleApplicationInteraction(
       component('d-vex', `app:re:${only().id}`),
@@ -228,6 +282,8 @@ describe('recruiting', () => {
     expect(content(byLeader)).not.toMatch(/"flags":64/);
     const byMember = await handleApplicationInteraction(slash('d-pip', 'recruiting'), ports);
     expect(content(byMember)).toMatch(/"flags":64/);
+    // The open needs from recruiting-get, and the Apply buttons.
+    expect(content(byLeader)).toMatch(/app:start:0/);
   });
 
   it('the assessment button raises one class to high, officers only', async () => {

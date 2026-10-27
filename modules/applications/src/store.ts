@@ -31,6 +31,7 @@ export interface ApplicationsStore {
         | 'reviewedAt'
         | 'postChannelId'
         | 'postMessageId'
+        | 'onboardedAt'
         | 'updatedAt'
       >
     >,
@@ -46,20 +47,27 @@ export interface ApplicationsStore {
 }
 
 /**
- * What happens outside the transaction after a change (apps/api schedules actions): label and
- * post a new application, send an accepted applicant the onboarding DM (and ask officers to give
- * the recruit role), send the officers' reply, and refresh the review post.
+ * What happens outside the transaction after a change (apps/api schedules them): label and post a
+ * new application; on accept, onboard the applicant at once if role sync already promoted them;
+ * send the onboarding DM; send the officers' reply; and refresh the review post.
  */
 export interface ApplicationEffects {
   submitted(guildId: string, applicationId: string): Promise<void>;
   accepted(guildId: string, applicationId: string): Promise<void>;
+  onboard(guildId: string, applicationId: string): Promise<void>;
   replied(guildId: string, applicationId: string): Promise<void>;
   changed(guildId: string, applicationId: string): Promise<void>;
+}
+
+/** Read from identity's role → rank map by apps/api: which Discord role makes someone a recruit. */
+export interface ApplicationRoles {
+  recruitRoleId(guildId: string): Promise<string | null>;
 }
 
 export interface ApplicationsDeps {
   applications: ApplicationsStore;
   applicationEffects: ApplicationEffects;
+  applicationRoles: ApplicationRoles;
 }
 
 export type { ApplicationLabels };

@@ -1,8 +1,10 @@
 // Applications in Discord (#135). Pure: data in, discord-kit shapes out.
+//   button app:start:<role> on the recruiting post → the full apply modal; modal app:open:<role>
+//                       → application-submit
 //   /random apply character class spec role → the apply modal (the long answers)
 //   modal  app:form:<class>:<role>:<name>:<spec> → application-submit
-//   button app:ok:<id>  → application-review accepted
-//   button app:re:<id>  → the reply modal; modal app:rs:<id> → application-review in-review + reply
+//   button app:ok:<id>  → application-review accepted; the officer is told which role to give
+//   button app:re:<id>  → the Ask more modal; modal app:rs:<id> → application-review in-review + reply
 //   button app:no:<id>  → application-decline preview, with a Confirm button
 //   button app:nn:<id>  → application-decline for real (the click is the confirmation)
 import {
@@ -26,15 +28,22 @@ import {
   type ApplicationLabels,
   type ApplyRole,
   FIT_LEVELS,
+  type GiveRole,
   OPEN_STATUSES,
 } from '../contract';
 
 const PREFIX = 'app';
-export const APPLICATION_ACTIONS = ['form', 'ok', 're', 'rs', 'no', 'nn'] as const;
+export const APPLICATION_ACTIONS = ['form', 'start', 'open', 'ok', 're', 'rs', 'no', 'nn'] as const;
 export type ApplicationAction = (typeof APPLICATION_ACTIONS)[number];
+/** Actions on one application, from the review post (officers). */
+export type ReviewAction = Exclude<ApplicationAction, 'form' | 'start' | 'open'>;
 
-export const applicationCustomId = (action: Exclude<ApplicationAction, 'form'>, id: string) =>
+export const applicationCustomId = (action: ReviewAction, id: string) =>
   `${PREFIX}:${action}:${id}`;
+
+/** The recruiting post's Apply buttons (`start`) and the modal they open (`open`) carry the role. */
+export const applyStartCustomId = (action: 'start' | 'open', role: ApplyRole) =>
+  `${PREFIX}:${action}:${APPLY_ROLES.indexOf(role)}`;
 
 export interface ApplyForm {
   wowClass: WowClass;
@@ -54,7 +63,8 @@ export function applyFormCustomId(form: ApplyForm): string {
 
 export type ParsedApplicationId =
   | { action: 'form'; form: ApplyForm }
-  | { action: Exclude<ApplicationAction, 'form'>; applicationId: string };
+  | { action: 'start' | 'open'; role: ApplyRole }
+  | { action: ReviewAction; applicationId: string };
 
 export function parseApplicationCustomId(customId: string | undefined): ParsedApplicationId | null {
   const parts = (customId ?? '').split(':');
@@ -67,6 +77,10 @@ export function parseApplicationCustomId(customId: string | undefined): ParsedAp
     const spec = parts.slice(5).join(':');
     if (!wowClass || !role || !characterName || !spec) return null;
     return { action, form: { wowClass, role, characterName, spec } };
+  }
+  if (action === 'start' || action === 'open') {
+    const role = APPLY_ROLES[Number(parts[2])];
+    return role && parts.length === 3 ? { action, role } : null;
   }
   if (!APPLICATION_ACTIONS.includes(action) || !parts[2]) return null;
   return { action, applicationId: parts[2] };
@@ -100,12 +114,63 @@ export function applyModal(form: ApplyForm): InteractionResponse {
   );
 }
 
+/** The button-opened modal adds the short answers the slash command would have taken. */
+export const START_FIELDS = { character: 'character', classSpec: 'class-spec' };
+
+/** The whole application in one modal (five inputs, Discord's limit), opened from the recruiting post. */
+export function applyFullModal(role: ApplyRole): InteractionResponse {
+  return modal(
+    applyStartCustomId('open', role),
+    role === 'raider' ? 'Apply to raid with Vintage' : 'Apply as a flex raider',
+    textInput(START_FIELDS.character, 'Your character', {
+      style: TextInputStyle.SHORT,
+      max_length: 12,
+      required: true,
+    }),
+    textInput(START_FIELDS.classSpec, 'Spec and class (e.g. Restoration Shaman)', {
+      style: TextInputStyle.SHORT,
+      max_length: 60,
+      required: true,
+    }),
+    textInput(APPLY_FIELDS.about, 'A few words about you', {
+      style: TextInputStyle.PARAGRAPH,
+      max_length: APPLICATION_LIMITS.about,
+      required: true,
+    }),
+    textInput(APPLY_FIELDS.experience, 'Your raiding experience', {
+      style: TextInputStyle.PARAGRAPH,
+      max_length: APPLICATION_LIMITS.experience,
+      required: true,
+    }),
+    textInput(APPLY_FIELDS.availability, 'Which nights and times you can raid', {
+      style: TextInputStyle.SHORT,
+      max_length: APPLICATION_LIMITS.availability,
+      required: true,
+    }),
+  );
+}
+
+/**
+ * "Restoration Shaman", "shaman resto", "Holy priest": the class is the word that names one, the
+ * spec is the rest. Null when no class is named or nothing is left for the spec.
+ */
+export function parseClassSpec(text: string): { wowClass: WowClass; spec: string } | null {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  const index = words.findIndex((w) => CLASS_NAMES.includes(w.toLowerCase() as WowClass));
+  if (index < 0) return null;
+  const spec = words
+    .filter((_, i) => i !== index)
+    .join(' ')
+    .slice(0, APPLICATION_LIMITS.spec);
+  return spec ? { wowClass: words[index]!.toLowerCase() as WowClass, spec } : null;
+}
+
 export const REPLY_FIELD = 'reply';
 
 export function replyModal(applicationId: string): InteractionResponse {
   return modal(
     applicationCustomId('rs', applicationId),
-    'Reply to the applicant',
+    'Ask the applicant more',
     textInput(REPLY_FIELD, 'They get this in a DM', {
       style: TextInputStyle.PARAGRAPH,
       max_length: APPLICATION_LIMITS.reply,
@@ -163,7 +228,7 @@ export function renderApplicationPost(application: Application): MessageData {
       ? [
           actionRow(
             button(applicationCustomId('ok', application.id), 'Accept', ButtonStyle.SUCCESS),
-            button(applicationCustomId('re', application.id), 'Reply', ButtonStyle.PRIMARY),
+            button(applicationCustomId('re', application.id), 'Ask more', ButtonStyle.PRIMARY),
             button(applicationCustomId('no', application.id), 'Decline', ButtonStyle.DANGER),
           ),
         ]
@@ -185,9 +250,29 @@ export function renderDeclinePreview(application: Application): MessageData {
   };
 }
 
-/** The DM an applicant gets for a reply, a decline, or an acceptance. */
+/** The DM an applicant gets for a reply, a decline, or onboarding. */
 export function renderApplicantDm(text: string): MessageData {
   return { content: truncate(text, 2000), allowed_mentions: { parse: [] } };
+}
+
+/** The onboarding DM: the guild's note with `{site}` replaced by the website's address. */
+export function renderOnboardingDm(onboarding: string, siteUrl: string | null): MessageData {
+  const site = siteUrl ? withoutTrailingSlashes(siteUrl) : 'the Vintage website';
+  return renderApplicantDm(onboarding.replaceAll('{site}', site));
+}
+
+/**
+ * The private reply to the officer who accepted: which Discord role to give. A role mention shows
+ * the role's name without pinging anyone.
+ */
+export function renderAcceptReply(application: Application, giveRole: GiveRole): MessageData {
+  const who = `${application.characterName} (<@${application.discordId}>)`;
+  return {
+    content: giveRole.roleId
+      ? `Accepted ${who}. Give them <@&${giveRole.roleId}> in Discord: role sync promotes them within 15 minutes, and Random DMs them the onboarding note.`
+      : `Accepted ${who}. No Discord role is mapped to recruit yet: map one with \`guild-roles-set\`, then give it to them. Role sync promotes them and Random DMs the onboarding note.`,
+    allowed_mentions: { parse: [] },
+  };
 }
 
 export interface NeedLineView {
@@ -203,7 +288,7 @@ function withoutTrailingSlashes(url: string): string {
   return url.slice(0, end);
 }
 
-/** `/random recruiting`: the open needs, and how to apply. */
+/** `/random recruiting`: the open needs (`recruiting-get`), and buttons that open the application. */
 export function renderRecruitingPost(
   headline: string,
   needs: readonly NeedLineView[],
@@ -226,11 +311,21 @@ export function renderRecruitingPost(
           ...lines,
           '',
           siteUrl
-            ? `Apply with \`/random apply\` here in Discord, or on the site: ${withoutTrailingSlashes(siteUrl)}/apply`
-            : 'Apply with `/random apply` here in Discord.',
+            ? `Apply with the buttons below, or on the site: ${withoutTrailingSlashes(siteUrl)}/apply`
+            : 'Apply with the buttons below.',
         ].join('\n'),
         ...(siteUrl ? { url: siteUrl } : {}),
       }),
+    ],
+    components: [
+      actionRow(
+        button(applyStartCustomId('start', 'raider'), 'Apply as a raider', ButtonStyle.SUCCESS),
+        button(
+          applyStartCustomId('start', 'flex-raider'),
+          'Apply as a flex raider',
+          ButtonStyle.SECONDARY,
+        ),
+      ),
     ],
     allowed_mentions: { parse: [] },
   };

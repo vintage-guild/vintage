@@ -89,6 +89,7 @@ export const applicationSubmit = command({
       reviewedAt: null,
       postChannelId: null,
       postMessageId: null,
+      onboardedAt: null,
       createdAt: at,
       updatedAt: at,
     });

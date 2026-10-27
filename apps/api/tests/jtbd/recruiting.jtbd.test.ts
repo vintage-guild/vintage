@@ -8,7 +8,7 @@ import {
   STARTER_RECRUITING,
 } from '@vintage/site/contract';
 import { describe, expect, it } from 'vitest';
-import { createHost, DAY, OPS_CHANNEL, ROLES, SIGNUP_CHANNEL } from './host';
+import { createHost, DAY, OPS_CHANNEL, ROLES, SIGNUP_CHANNEL, SITE_URL } from './host';
 
 /** Mon 26 Oct 2026, 2 PM New York: before launch, while the guild is recruiting. */
 const NOW = Date.UTC(2026, 9, 26, 18);
@@ -51,15 +51,15 @@ describe('JTBD: applications and the weekly check', () => {
       ),
     ).toMatch(/still with the officers/);
 
-    // Only officers answer; Ana accepts. The recruit role and onboarding DM are scheduled.
+    // Only officers answer; Ana accepts. The post refreshes; onboarding waits for the role.
     expect(
       JSON.stringify(await host.applicationUi.click(rook.discordId!, `app:ok:${application!.id}`)),
     ).toMatch(/Only officers answer applications/);
     await host.applicationUi.click(ana.discordId!, `app:ok:${application!.id}`);
     expect(host.applicationEffects.map((e) => e.effect)).toEqual([
       'submitted',
-      'accepted',
       'changed',
+      'accepted',
     ]);
     const visitor = await host.as(GUEST);
     expect(await host.ok<{ status: string }>(visitor, 'application-get')).toMatchObject({
@@ -99,6 +99,103 @@ describe('JTBD: applications and the weekly check', () => {
     await host.applicationUi.click(ana.discordId!, 'recruit:hi:druid');
     const band = await host.ok<Recruiting>(ana, 'recruiting-get');
     expect(band.needs.find((n) => n.wowClass === 'druid')?.need).toBe('high');
+  });
+});
+
+describe('JTBD: apply, get accepted, get onboarded', () => {
+  const THRALL = '500000000000000060';
+  const JAINA = '500000000000000061';
+  const BREN = '500000000000000062';
+  const form = (character: string, classSpec: string) => ({
+    character,
+    'class-spec': classSpec,
+    about: 'Healer since vanilla, calm on voice.',
+    experience: 'Cleared MC and BWL as main heals.',
+    availability: 'Tue and Thu evenings',
+  });
+  const text = (r: unknown) => JSON.stringify(r);
+
+  it('J34 · a player applies from the recruiting post, is accepted, and is onboarded once', async () => {
+    const host = createHost(NOW);
+    const ana = await host.discordMember('500000000000000001', 'Ana', [ROLES.officer]);
+    const rook = await host.discordMember('500000000000000002', 'Rook', [ROLES.raidLeader]);
+    const dmsTo = (id: string) => host.discord.sent.filter((m) => m.kind === 'dm' && m.to === id);
+
+    // Rook posts the recruiting embed: the open needs from recruiting-get, and Apply buttons.
+    const post = text(await host.applicationUi.recruiting(rook.discordId!));
+    expect(post).toMatch(/Vintage is recruiting/);
+    expect(post).toMatch(new RegExp(STARTER_RECRUITING.headline.slice(0, 20)));
+    expect(post).toMatch(/Apply as a raider/);
+
+    // Thrall is in the server with no roles. He applies with the button and the form.
+    await host.discordMember(THRALL, 'Thrall', []);
+    const sent = await host.applicationUi.applyFromPost(
+      THRALL,
+      'app:start:0',
+      form('Thrall', 'Restoration Shaman'),
+    );
+    expect(text(sent)).toMatch(/Your application is with the officers/);
+
+    // Ana reviews it in the quarters (the same commands): list, detail, then asks for more.
+    const [listed] = await host.ok<{ id: string; status: string }[]>(ana, 'application-list');
+    const id = listed!.id;
+    expect(await host.ok(ana, 'application-get', { applicationId: id })).toMatchObject({
+      characterName: 'Thrall',
+      wowClass: 'shaman',
+      role: 'raider',
+    });
+    await host.applicationUi.askMore(ana.discordId!, `app:rs:${id}`, 'Can you do Sundays?');
+    const thrall = await host.as(THRALL);
+    expect(await host.ok(thrall, 'application-get')).toMatchObject({
+      status: 'in-review',
+      reply: 'Can you do Sundays?',
+    });
+
+    // Ana accepts in Discord: privately told which role to give. No DM yet: no role yet.
+    const accepted = text(await host.applicationUi.click(ana.discordId!, `app:ok:${id}`));
+    expect(accepted).toContain(`Give them <@&${ROLES.recruit}> in Discord`);
+    expect(accepted).toMatch(/"flags":64/);
+    await host.discordMember(THRALL, 'Thrall', []);
+    expect(dmsTo(THRALL)).toEqual([]);
+
+    // An officer gives the recruit role; role sync promotes Thrall, and Random DMs him once.
+    await host.discordMember(THRALL, 'Thrall', [ROLES.recruit]);
+    expect(await host.ok(await host.as(THRALL), 'member-me')).toMatchObject({
+      member: { rank: 'recruit' },
+    });
+    expect(dmsTo(THRALL)).toHaveLength(1);
+    expect(text(dmsTo(THRALL)[0]!.message)).toContain(SITE_URL);
+    await host.discordMember(THRALL, 'Thrall', [ROLES.raider]);
+    expect(dmsTo(THRALL)).toHaveLength(1);
+  });
+
+  it('J34 · the role given before Accept still onboards; the DM opt-out is honored', async () => {
+    const host = createHost(NOW);
+    const ana = await host.discordMember('500000000000000001', 'Ana', [ROLES.officer]);
+    const dmsTo = (id: string) => host.discord.sent.filter((m) => m.kind === 'dm' && m.to === id);
+    const accept = async (discordId: string) => {
+      const [latest] = await host.ok<{ id: string; discordId: string }[]>(ana, 'application-list');
+      expect(latest!.discordId).toBe(discordId);
+      return host.ok(ana, 'application-review', { applicationId: latest!.id, status: 'accepted' });
+    };
+
+    // Jaina gets the recruit role before anyone presses Accept: Accept onboards her at once.
+    await host.applicationUi.applyFromPost(JAINA, 'app:start:0', form('Jaina', 'Frost Mage'));
+    await host.discordMember(JAINA, 'Jaina', [ROLES.recruit]);
+    expect(dmsTo(JAINA)).toEqual([]);
+    expect(await accept(JAINA)).toMatchObject({ giveRole: { roleId: ROLES.recruit } });
+    expect(dmsTo(JAINA)).toHaveLength(1);
+
+    // Bren, a social member, turned DMs off: promoted after Accept, no DM, and none later.
+    const bren = await host.discordMember(BREN, 'Bren', [ROLES.member]);
+    await host.ok(bren, 'member-prefs-set', { dmOptOut: true });
+    await host.applicationUi.applyFromPost(BREN, 'app:start:1', form('Bren', 'Fury Warrior'));
+    await accept(BREN);
+    await host.discordMember(BREN, 'Bren', [ROLES.recruit]);
+    await host.ok(await host.as(BREN), 'member-prefs-set', { dmOptOut: false });
+    await host.discordMember(BREN, 'Bren', [ROLES.member]);
+    await host.discordMember(BREN, 'Bren', [ROLES.recruit]);
+    expect(dmsTo(BREN)).toEqual([]);
   });
 });
 

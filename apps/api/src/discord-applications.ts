@@ -1,26 +1,35 @@
 // Applications and recruiting in Discord (#135). Pure over ports, so Convex (convex/discord.ts)
 // and tests run the same flow:
-//   /random apply character class spec role → the apply modal (anyone in the server may apply)
+//   button app:start:<role>      → the full apply modal, from the recruiting post (anyone may apply)
+//   modal  app:open:<role>       → application-submit as the applicant
+//   /random apply character class spec role → the apply modal (the long answers only)
 //   modal  app:form:…            → application-submit as the applicant
-//   button app:ok:<id>           → application-review accepted (officers)
-//   button app:re:<id>           → the reply modal (officers); modal app:rs:<id> → in-review + reply
+//   button app:ok:<id>           → application-review accepted (officers); a private reply names
+//                                  the Discord role to give (the bot never sets roles)
+//   button app:re:<id>           → the Ask more modal (officers); modal app:rs:<id> → in-review + reply
 //   button app:no:<id>           → application-decline preview with a Confirm button (officers)
 //   button app:nn:<id>           → application-decline for real (the click is the confirmation)
-//   /random recruiting           → the open needs; leaders and officers post it to the channel
+//   /random recruiting           → the open needs with Apply buttons; leaders and officers post it
 //   button recruit:hi:<class>    → recruiting-set that class to high (the weekly assessment)
 // Commands decide everything; this file only translates.
 
 import {
   APPLY_FIELDS,
+  type ApplyForm,
+  applyFullModal,
   applyModal,
   parseApplicationCustomId,
+  parseClassSpec,
   REPLY_FIELD,
+  renderAcceptReply,
   renderApplicationPost,
   renderDeclinePreview,
   renderRecruitingPost,
   replyModal,
+  START_FIELDS,
 } from '@vintage/applications/commands';
 import {
+  type AcceptedApplication,
   type Application,
   type ApplicationStatus,
   OPEN_STATUSES,
@@ -106,12 +115,11 @@ function options(interaction: Interaction): Record<string, string> {
   return values;
 }
 
-async function startApply(
-  interaction: Interaction,
+/** Why this caller can't apply now, before any form opens; null when they can. */
+async function applyRefusal(
   ports: ApplicationDiscordPorts,
   caller: Caller,
-): Promise<InteractionResponse> {
-  // Refuse before the form, so nobody types three answers only to be turned away.
+): Promise<InteractionResponse | null> {
   if (tierAllows(caller.tier, 'raider')) {
     return ephemeral(
       'You already raid with Vintage. Ask an officer if you want to change your rank.',
@@ -124,6 +132,17 @@ async function startApply(
   if (status && OPEN_STATUSES.includes(status)) {
     return ephemeral('Your application is still with the officers; they answer here in Discord.');
   }
+  return null;
+}
+
+async function startApply(
+  interaction: Interaction,
+  ports: ApplicationDiscordPorts,
+  caller: Caller,
+): Promise<InteractionResponse> {
+  // Refuse before the form, so nobody types three answers only to be turned away.
+  const refused = await applyRefusal(ports, caller);
+  if (refused) return refused;
   const o = options(interaction);
   const wowClass = CLASS_NAMES.find((c) => c === o.class);
   const role = o.role === 'flex-raider' ? 'flex-raider' : 'raider';
@@ -173,13 +192,40 @@ async function raiseNeed(
     : refusal(result);
 }
 
+async function submit(
+  interaction: Interaction,
+  ports: ApplicationDiscordPorts,
+  who: { caller: Caller; name: string },
+  form: ApplyForm,
+): Promise<InteractionResponse> {
+  const values = modalValues(interaction);
+  const result = await ports.run(who.caller, 'application-submit', {
+    ...form,
+    about: values[APPLY_FIELDS.about],
+    experience: values[APPLY_FIELDS.experience],
+    availability: values[APPLY_FIELDS.availability],
+    applicantName: who.name,
+  });
+  return result.success
+    ? ephemeral('Thanks! Your application is with the officers; they answer here in Discord.')
+    : refusal(result);
+}
+
+/** The modal opened from the recruiting post: the short answers come from its first two inputs. */
+function formFromModal(interaction: Interaction, role: ApplyForm['role']): ApplyForm | null {
+  const values = modalValues(interaction);
+  const classSpec = parseClassSpec(values[START_FIELDS.classSpec] ?? '');
+  const characterName = values[START_FIELDS.character]?.trim();
+  return classSpec && characterName ? { ...classSpec, role, characterName } : null;
+}
+
 async function officerAction(
   interaction: Interaction,
   ports: ApplicationDiscordPorts,
   caller: Caller,
 ): Promise<InteractionResponse | null> {
   const parsed = parseApplicationCustomId(interaction.data?.custom_id);
-  if (!parsed || parsed.action === 'form') return null;
+  if (!parsed || !('applicationId' in parsed)) return null;
   if (!tierAllows(caller.tier, 'officer')) return ephemeral('Only officers answer applications.');
   const applicationId = parsed.applicationId;
   switch (parsed.action) {
@@ -188,9 +234,10 @@ async function officerAction(
         applicationId,
         status: 'accepted',
       });
-      return result.success
-        ? updateMessage(renderApplicationPost(result.data as Application))
-        : refusal(result);
+      if (!result.success) return refusal(result);
+      // The review post refreshes itself (the changed effect); the officer learns which role to give.
+      const accepted = result.data as AcceptedApplication;
+      return reply(renderAcceptReply(accepted, accepted.giveRole), { ephemeral: true });
     }
     case 're':
       return replyModal(applicationId);
@@ -244,18 +291,18 @@ export async function handleApplicationInteraction(
   if (raise) return raiseNeed(ports, caller, raise);
 
   const parsed = parseApplicationCustomId(id);
-  if (parsed?.action === 'form') {
-    const values = modalValues(interaction);
-    const result = await ports.run(caller, 'application-submit', {
-      ...parsed.form,
-      about: values[APPLY_FIELDS.about],
-      experience: values[APPLY_FIELDS.experience],
-      availability: values[APPLY_FIELDS.availability],
-      applicantName: who.name,
-    });
-    return result.success
-      ? ephemeral('Thanks! Your application is with the officers; they answer here in Discord.')
-      : refusal(result);
+  if (parsed?.action === 'form') return submit(interaction, ports, who, parsed.form);
+  if (parsed?.action === 'start') {
+    return (await applyRefusal(ports, caller)) ?? applyFullModal(parsed.role);
+  }
+  if (parsed?.action === 'open') {
+    const form = formFromModal(interaction, parsed.role);
+    if (!form) {
+      return ephemeral(
+        'Name your class in "Spec and class", like Restoration Shaman or Fury Warrior, and try again.',
+      );
+    }
+    return submit(interaction, ports, who, form);
   }
   return officerAction(interaction, ports, caller);
 }

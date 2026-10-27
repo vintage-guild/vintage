@@ -31,7 +31,7 @@ export const applicationList = command({
 export const applicationReview = command({
   name: 'application-review',
   description:
-    'Answer an application: move it to in-review or accept it, optionally with a reply the applicant gets in a DM. Accepting sends them the onboarding note and asks an officer, in the recruitment channel, to give them the recruit role in Discord.',
+    'Answer an application: move it to in-review (asking for more) or accept it, optionally with a reply the applicant gets in a DM. Accepting answers giveRole: the Discord role an officer gives them (the role mapped to recruit). Role sync then promotes them, and the bot DMs the onboarding note once.',
   tier: 'officer',
   mutation: true,
   input: z.object({
@@ -49,17 +49,26 @@ export const applicationReview = command({
       ...(reply ? { reply } : {}),
       reviewedBy: caller.memberId ?? caller.surface,
       reviewedAt: at,
+      // Explicit, so a row from before onboardedAt existed isn't read as onboarded once accepted.
+      ...(status === 'accepted' ? { onboardedAt: null } : {}),
       updatedAt: at,
     });
     if (reply) await deps.applicationEffects.replied(guildId, applicationId);
-    if (status === 'accepted') await deps.applicationEffects.accepted(guildId, applicationId);
     await deps.applicationEffects.changed(guildId, applicationId);
-    return success(saved, {
-      reasoning:
-        status === 'accepted'
-          ? 'Accepted; the onboarding DM follows, and an officer gives them the recruit role'
-          : 'In review',
-    });
+    if (status !== 'accepted') return success(saved, { reasoning: 'In review' });
+    await deps.applicationEffects.accepted(guildId, applicationId);
+    const giveRole = {
+      rank: 'recruit' as const,
+      roleId: await deps.applicationRoles.recruitRoleId(guildId),
+    };
+    return success(
+      { ...saved, giveRole },
+      {
+        reasoning: giveRole.roleId
+          ? `Accepted. Give them the recruit role (${giveRole.roleId}) in Discord; role sync promotes them and the onboarding DM follows`
+          : 'Accepted. No Discord role is mapped to recruit yet (guild-roles-set); give them the recruit role once it is',
+      },
+    );
   },
 });
 

@@ -504,8 +504,14 @@ export function applicationsStore(ctx: Ctx): ApplicationsStore {
 // Referenced by name to avoid a type cycle between this file and the generated api.
 const applicationAction = (name: string) =>
   makeFunctionReference<'action', { applicationId: string }>(`applications:${name}`);
+const onboardIfPromoted = makeFunctionReference<'mutation', { applicationId: string }>(
+  'applications:onboardIfPromoted',
+);
 
-/** Effects run as scheduled actions: label and post, accept, reply, refresh (convex/applications.ts). */
+/**
+ * Effects run as scheduled functions (convex/applications.ts): label and post; after an accept,
+ * onboard them if they already hold the role; the onboarding DM; the reply DM; the post refresh.
+ */
 export function applicationsDeps(ctx: Ctx): ApplicationsDeps {
   const later = (name: string) => async (_guildId: string, applicationId: string) => {
     await writable(ctx).scheduler.runAfter(0, applicationAction(name), { applicationId });
@@ -514,9 +520,18 @@ export function applicationsDeps(ctx: Ctx): ApplicationsDeps {
     applications: applicationsStore(ctx),
     applicationEffects: {
       submitted: later('afterSubmit'),
-      accepted: later('afterAccept'),
+      accepted: async (_guildId, applicationId) => {
+        await writable(ctx).scheduler.runAfter(0, onboardIfPromoted, { applicationId });
+      },
+      onboard: later('sendOnboarding'),
       replied: later('sendReply'),
       changed: later('refreshPost'),
+    },
+    applicationRoles: {
+      recruitRoleId: async (guildId) =>
+        Object.entries(await identityStore(ctx).getRoleRankMap(guildId)).find(
+          ([, rank]) => rank === 'recruit',
+        )?.[0] ?? null,
     },
   };
 }

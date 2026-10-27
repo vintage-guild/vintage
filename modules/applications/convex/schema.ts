@@ -48,6 +48,8 @@ export const applicationFields = {
   reviewedAt: v.union(v.number(), v.null()),
   postChannelId: v.union(v.string(), v.null()),
   postMessageId: v.union(v.string(), v.null()),
+  // Optional: rows from before onboarding-on-promotion (#135) have none; see toApplication.
+  onboardedAt: v.optional(v.union(v.number(), v.null())),
   createdAt: v.number(),
   updatedAt: v.number(),
 };

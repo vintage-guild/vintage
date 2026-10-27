@@ -15,3 +15,6 @@ All notable changes to the Vintage addon. The version is the `## Version` line i
 - The raid session is saved per character and survives `/reload`.
 - Mechanic integration: in-game tests, a tools panel, and debug logging, when Mechanic is
   installed.
+- Reads and writes the website's `!VIN:1!` strings (import and export, schema version 1), with
+  the website's error codes and limits. The one difference: the addon checks the inflated-size
+  cap after inflating, where the website stops at it. Not used by a command yet.

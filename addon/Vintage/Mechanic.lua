@@ -69,6 +69,35 @@ local tests = {
 		end,
 	},
 	{
+		id = "bridge.codec",
+		name = "Bridge strings: decodes a website string and round-trips its own",
+		category = "Bridge",
+		run = function()
+			-- libs/bridge-format/fixtures/raid-export-empty.v1.json, made by the website's codec
+			local websiteMade = "!VIN:1!JX2ouIPKs(5fwQfvCM5NxqgONH6zWIsSKssnVusmVKtLRfLAffKFrLKAkowIgz9awxqtq5xuqoMArvMxqzwsQ5wmxoLDM5LYMkkXmtrxiY7uo5NFjCjuzmda"
+			local decoded = ns.BridgeCodec:DecodeKind(websiteMade, "raid-export")
+			local payload = {
+				v = 1,
+				kind = "raid-export",
+				exportedAt = time(),
+				addonVersion = C_AddOns.GetAddOnMetadata(ADDON_NAME, "Version"),
+				exporter = "Mechanic",
+				attendance = {},
+				loot = { { itemId = 16800, looter = "Mechanic", at = time() } },
+				items = {},
+			}
+			local encoded = ns.BridgeCodec:Encode(payload)
+			local back = encoded.success and ns.BridgeCodec:Decode(encoded.data)
+			local roundTrip = back and back.success and back.data.loot[1].itemId == 16800
+			local passed = decoded.success and roundTrip == true
+			return passed,
+				{
+					Detail("website string", decoded.success and "decoded" or decoded.error.code, decoded.success),
+					Detail("round trip", roundTrip and "ok" or (encoded.error and encoded.error.code or "failed"), roundTrip),
+				}
+		end,
+	},
+	{
 		id = "view.themes",
 		name = "Vintage themes are registered with FenUI",
 		category = "View",

@@ -113,6 +113,10 @@ describe('untrusted input', () => {
     expect(() => deserialize(unhex('0122fffe'))).toThrow();
   });
 
+  it('keeps a leading byte order mark, as Lua does', () => {
+    expect(deserialize(serialize('﻿Ab'))).toBe('﻿Ab');
+  });
+
   it('rejects truncated input', () => {
     expect(() => deserialize(unhex('01326162'))).toThrow(SerializeError);
   });

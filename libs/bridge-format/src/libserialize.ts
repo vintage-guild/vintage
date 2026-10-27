@@ -56,8 +56,9 @@ const T = {
 const E = { STRING: 0, TABLE: 1, ARRAY: 2, MIXED: 3 } as const;
 
 const utf8 = new TextEncoder();
-// Fatal, so bytes that aren't UTF-8 fail as corrupt instead of turning into U+FFFD.
-const fromUtf8 = new TextDecoder('utf-8', { fatal: true });
+// Fatal, so bytes that aren't UTF-8 fail as corrupt instead of turning into U+FFFD. ignoreBOM
+// keeps a leading U+FEFF in each string, as Lua does, instead of silently dropping it.
+const fromUtf8 = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
 
 // ── Writing ──────────────────────────────────────────────────────────────────
 

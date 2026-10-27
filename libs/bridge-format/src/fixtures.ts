@@ -1,6 +1,8 @@
-// Golden fixtures shared with the addon's Lua codec (`addon/Vintage/Core`). Each file holds
-// the decoded value and its encoded string; both sides must decode `encoded` to `payload`,
-// or to the listed error. `pnpm fixtures:bridge` writes them; tests fail if they're stale.
+// Golden fixtures shared with the addon's Lua codec (`addon/Vintage/Core/BridgeFormat`). Each
+// file holds the decoded value and its encoded string; both sides must decode `encoded` to
+// `payload`, or to the listed error. `wow-data.json` carries the class and role lists the Lua
+// schema copies. `pnpm fixtures:bridge` writes them; tests fail if they're stale.
+import { CLASS_NAMES, ROLES } from '@vintage/wow-data';
 import { encodeValue } from './envelope';
 import type { BridgeErrorCode } from './errors';
 import type { LuaValue } from './libserialize';
@@ -142,5 +144,11 @@ export function buildFixtures(): Record<string, string> {
     const file = { ...fixture, encoded: encodeValue(fixture.payload) };
     files[`${name}.json`] = `${JSON.stringify(file, null, 2)}\n`;
   }
+  const wowData = {
+    description: 'The class and role lists from @vintage/wow-data that the addon schema checks',
+    classes: CLASS_NAMES,
+    roles: ROLES,
+  };
+  files['wow-data.json'] = `${JSON.stringify(wowData, null, 2)}\n`;
   return files;
 }

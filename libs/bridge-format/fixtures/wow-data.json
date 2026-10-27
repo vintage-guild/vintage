@@ -1,0 +1,20 @@
+{
+  "description": "The class and role lists from @vintage/wow-data that the addon schema checks",
+  "classes": [
+    "warrior",
+    "paladin",
+    "hunter",
+    "rogue",
+    "priest",
+    "shaman",
+    "mage",
+    "warlock",
+    "druid"
+  ],
+  "roles": [
+    "tank",
+    "healer",
+    "melee",
+    "ranged"
+  ]
+}

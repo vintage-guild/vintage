@@ -21,3 +21,7 @@ ignore:
   - Libs/FenUI/CONTRIBUTING.md
   - Libs/FenUI/Docs
   - Libs/FenUI/IMPROVEMENTS.md
+  - Libs/LibSerialize/.pkgmeta
+  - Libs/LibSerialize/archive
+  - Libs/LibSerialize/buildreadme.lua
+  - Libs/LibSerialize/tests.lua

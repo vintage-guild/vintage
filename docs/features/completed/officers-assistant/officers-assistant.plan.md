@@ -1,6 +1,6 @@
 # Officers' assistant: Random in a side panel
 
-**Status:** active (2026-10-27). Phases 1 (the backend) and 2 (the panel) are built and tested; the live check (#169) is next. **Owner modules:** agent (commands and runs), ui-kit (the
+**Status:** completed (2026-10-27). All three phases are done: built, tested, and checked live on production (J33, [run record](../../../jtbd/runs/2026-10-27.md)). **Owner modules:** agent (commands and runs), ui-kit (the
 panel), apps/web (the quarters shell). **Epic:** #126, which listed site chat as a later non-goal;
 this is that follow-on.
 
@@ -20,10 +20,10 @@ three tabs.
 | Caps, the ledger, the kill switch | `agent-status`, `agent-runs`, `agent-pause` | ✅ |
 | Any officer command as a tool | `afd-discover`, `afd-detail`, `afd-call` over the registry | ✅ tier-checked as the asking member |
 | What a run records per tool call | `AgentToolCall` | ✅ #167: command, summary, error, started and finished times, written as each call happens |
-| Progress during a turn | `AgentRun.notes`, `AgentRun.draft` | ✅ #167: from the Agents API event stream, while the run runs. Tested with a fake stream that trails the loop, and checked once on the local backend against the live API (2026-10-27); on production in #169 |
+| Progress during a turn | `AgentRun.notes`, `AgentRun.draft` | ✅ #167: from the Agents API event stream, while the run runs. Tested with a fake stream that trails the loop, and checked on the local backend against the live API and on production (J33, 2026-10-27) |
 | Page context | `agent-ask { context }` | ✅ #167: stored on the run, sent as header lines |
 | A thread's history | `agent-runs { thread }` | ✅ #167, newest first |
-| Stopping a turn | `agent-cancel` | ✅ #167: tested, and checked once on the local backend (about 9 s from Stop to cancelled, most of it upstream); on production in #169 |
+| Stopping a turn | `agent-cancel` | ✅ #167: tested, and checked on the local backend and on production (about 7–9 s from Stop to cancelled, most of it upstream; "Stopping…" shows at once) |
 | Chat UI | `<vintage-agent-panel>` (ui-kit) | ✅ #168: built from Violet’s vendored conversation elements (thread, message, message text, approval card, composer, suggestions, status), checked in dev against the fixtures’ stand-in Random |
 
 ## What the backend gives us
@@ -124,7 +124,7 @@ still stops everything.
 |---|---|---|---|---|
 | 1 ✅ | Backend: context, history, progress, stop | #167 | agent module, agent-runtime, apps/api, manifest | `agent-ask` takes `context`; `agent-runs` filters by `thread`; runs carry tool calls with input summaries and start and finish times, commentary notes, and partial text, while the turn runs; `agent-cancel` stops a turn |
 | 2 ✅ | The panel in the quarters | #168 | ui-kit, apps/web | `<vintage-agent-panel>` from Violet elements, a safe markdown element, the run-to-parts mapper, the shell slot, tab-aware prompts and context chips, happy-dom tests, and the dev fixtures answering through a fake agent |
-| 3 | Live check and the job | #169 | docs/jtbd, apps/api/tests/jtbd | A new JTBD job ("Ask Random beside the work and confirm its changes") with a scenario test, and a live run on production in the test server |
+| 3 ✅ | Live check and the job | #169 | docs/jtbd, apps/api/tests/jtbd | A new JTBD job ("Ask Random beside the work and confirm its changes") with a scenario test, and a live run on production in the test server |
 
 Phase 1 changes commands (`agent-ask` input, `agent-runs` input, a new `agent-cancel`), so it
 updates `commands.manifest.json`; the new inputs are optional, so it isn't breaking. Phase 2 needs
@@ -148,4 +148,5 @@ phase 1. Phase 3 needs both.
 | 2026-10-27 | The panel reads a running question with `agent-run-get` every 0.7 s. The website's `CommandClient` has `read` and `run` only; a Convex subscription can replace the polling later without changing the panel's model. |
 | 2026-10-27 | Answers render with a small markdown reader that builds DOM nodes from text (`renderMarkdown`), not `marked` and DOMPurify: nothing in an answer is ever parsed as HTML, so there is nothing to sanitize. Links must be https. |
 | 2026-10-27 | Docked full height on the right; the document gets `data-assistant-open` while the panel is open, and the site's body makes room. Tool rows read in the past tense ("Read signups"): a call is recorded once it finishes, so "Working on it" and the timer cover the wait. |
+| 2026-10-27 | Escape listens on the document while a turn runs (focus can sit outside the panel after sending), stepping aside for a menu that handled it, an open dialog, or text composition. Found in the live run. |
 | 2026-10-26 | fabric-zero informs behavior only; no code from it. Lushly's panel code may be ported (Bloodfen's). |

@@ -17,5 +17,5 @@ when they affect every contributor, in the Decisions table in [AGENTS.md](../../
 | Home page | active | [home-page](active/home-page/home-page.plan.md) |
 | Role-aware views and the officers' quarters | active | [role-aware-views](active/role-aware-views/role-aware-views.plan.md) |
 | Character choice (guess, switch, spec per raid) | proposed | [character-choice](proposed/character-choice/character-choice.plan.md) |
-| Officers’ assistant (Random in a side panel) | active | [officers-assistant](active/officers-assistant/officers-assistant.plan.md) |
+| Officers’ assistant (Random in a side panel) | completed | [officers-assistant](completed/officers-assistant/officers-assistant.plan.md) |
 | The Vintage addon (form the raid, attendance, loot popup, export) | active | [vintage-addon](active/vintage-addon/vintage-addon.plan.md) |

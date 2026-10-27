@@ -82,3 +82,21 @@ Live checklist:
       and shows only what anyone can do.
 - [ ] `/random ask question: how do I make a dungeon run?` answers with the command to type, from
       the same page.
+
+### J33 · Ask Random beside the work and confirm its changes
+
+When I'm working in the officers' quarters, I want to ask Random about what's on my screen and
+confirm the changes it prepares right there, so I don't have to switch to Discord or another tab.
+
+Live checklist (https://vintageguild.gg/officers, signed in as an officer):
+
+- [ ] **Ask Random** (or Alt+A) opens the panel at the right edge, full height; the quarters keep
+      scrolling beside it and the footer sits at the bottom.
+- [ ] On Tonight with a raid picked, the panel says "Looking at Tonight · <raid>", and a starter
+      prompt asks with that context.
+- [ ] While it works: "Working on it" with a timer, its note, the commands it reads ("Read
+      signups"), then the answer as it is written and "Took Ns".
+- [ ] "Lock the roster for this raid" comes back as a change to confirm; **Confirm** locks it and
+      Tonight shows the raid locked without a reload.
+- [ ] **Stop** (or Escape) on a long question ends it as "Stopped".
+- [ ] A page reload keeps the panel open and the conversation; **New chat** starts over.

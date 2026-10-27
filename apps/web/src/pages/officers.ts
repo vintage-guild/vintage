@@ -575,6 +575,8 @@ export class Page extends FASTElement {
   @observable assistantOpen = readAssistantOpen();
   private onAssistantKey = (event: KeyboardEvent) => {
     // The physical A key: on a Mac, Option+A types å, so event.key would miss it.
+    // A held key repeats; one press toggles once.
+    if (event.repeat) return;
     if (event.altKey && !event.ctrlKey && !event.metaKey && event.code === 'KeyA') {
       event.preventDefault();
       this.toggleAssistant();

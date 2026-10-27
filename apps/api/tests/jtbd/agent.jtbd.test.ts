@@ -2,6 +2,7 @@
 // prepared, an officer sees the notes that need them, and help fits each rank. Only the OpenAI turn is stood in for:
 // agentUi.answer calls the same registry tools the agent would, as the asking member.
 
+import { recordProgress } from '@vintage/agent/commands';
 import { createFakeDecisions } from '@vintage/decisions/testing';
 import type { Caller } from '@vintage/guild-kit';
 import type { RaidEvent, Signup } from '@vintage/raids/contract';
@@ -117,6 +118,81 @@ describe('Guild agent', () => {
     expect(content(await g.host.agentUi.click(AERYN, confirm!.custom_id, reply.content!))).toMatch(
       /Not done: That change is already done/,
     );
+  });
+
+  it('J33 · Ask Random beside the work and confirm its changes', async () => {
+    // The officers' side panel on the website: the question carries the page and the raid in
+    // view; the panel reads the run as it works, confirms the prepared change, and can stop.
+    const context = {
+      page: 'Officers’ quarters · Tonight',
+      selection: { kind: 'raid' as const, id: g.raid.id, label: 'Molten Core' },
+    };
+    const { runId } = await g.host.ok<{ runId: string }>(g.officer, 'agent-ask', {
+      question: 'Lock the roster for this raid',
+      thread: 'tab-1',
+      context,
+    });
+    type View = {
+      status: string;
+      context: unknown;
+      notes: string[];
+      toolCalls: { command: string | null; summary: string | null }[];
+      confirmations: { id: string; status: string }[];
+      answer: string | null;
+      cancelRequested: boolean;
+    };
+    const view = () => g.host.ok<View>(g.officer, 'agent-run-get', { runId });
+    expect((await view()).context).toEqual(context);
+
+    // While the turn runs, the panel shows the agent's note.
+    const store = g.host.deps.agent;
+    await store.updateRun(g.officer.guildId, runId, { status: 'running' });
+    await recordProgress(store, g.officer.guildId, runId, {
+      notes: ['I’ll prepare locking Molten Core.'],
+      draft: null,
+    });
+    expect(await view()).toMatchObject({
+      status: 'running',
+      notes: ['I’ll prepare locking Molten Core.'],
+    });
+
+    // The turn ends with the lock prepared, not done: one row, one change to confirm.
+    await g.host.agentUi.answer(
+      runId,
+      [{ tool: 'afd-call', args: { name: 'roster-lock', input: { eventId: g.raid.id } } }],
+      'Press Confirm to lock the roster.',
+    );
+    const answered = await view();
+    expect(answered.toolCalls).toMatchObject([{ command: 'roster-lock', summary: 'roster-lock' }]);
+    expect(answered.confirmations).toMatchObject([{ status: 'pending' }]);
+    const before = await g.host.ok<{ event: RaidEvent }>(g.officer, 'raid-get', {
+      eventId: g.raid.id,
+    });
+    expect(before.event.status).toBe('open');
+
+    // Confirm from the panel runs it.
+    await g.host.ok(g.officer, 'agent-confirm', { confirmationId: answered.confirmations[0]!.id });
+    const after = await g.host.ok<{ event: RaidEvent }>(g.officer, 'raid-get', {
+      eventId: g.raid.id,
+    });
+    expect(after.event.status).toBe('locked');
+
+    // A reload reads the conversation back by thread.
+    const thread = await g.host.ok<{ id: string }[]>(g.officer, 'agent-runs', { thread: 'tab-1' });
+    expect(thread.map((r) => r.id)).toEqual([runId]);
+
+    // A second question, stopped while it works.
+    const second = await g.host.ok<{ runId: string }>(g.officer, 'agent-ask', {
+      question: 'Compare every raid this month',
+      thread: 'tab-1',
+    });
+    await store.updateRun(g.officer.guildId, second.runId, { status: 'running' });
+    expect(await g.host.ok(g.officer, 'agent-cancel', { runId: second.runId })).toMatchObject({
+      status: 'stopping',
+    });
+    expect(
+      await g.host.ok<View>(g.officer, 'agent-run-get', { runId: second.runId }),
+    ).toMatchObject({ status: 'running', cancelRequested: true });
   });
 
   it('J27 · See the signup notes that need an officer', async () => {

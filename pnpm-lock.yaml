@@ -89,6 +89,9 @@ importers:
       '@vintage/discord-kit':
         specifier: workspace:*
         version: link:../../libs/discord-kit
+      '@vintage/gateway':
+        specifier: workspace:*
+        version: link:../gateway
       '@vintage/guild-kit':
         specifier: workspace:*
         version: link:../../packages/guild-kit

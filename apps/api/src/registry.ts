@@ -10,6 +10,7 @@ import { type PollsDeps, pollsCommands } from '@vintage/polls/commands';
 import { type ProgressDeps, progressCommands } from '@vintage/progress/commands';
 import { type RaidsDeps, raidsCommands } from '@vintage/raids/commands';
 import { type SiteDeps, siteCommands } from '@vintage/site/commands';
+import { helpGetCommand } from './help';
 
 /** Union of every module's deps. Each host builds this from its own stores. */
 export type VintageDeps = IdentityDeps &
@@ -21,7 +22,7 @@ export type VintageDeps = IdentityDeps &
   AgentDeps &
   ApplicationsDeps;
 
-export const commands: readonly AnyGuildCommand<VintageDeps>[] = [
+const moduleCommands: readonly AnyGuildCommand<VintageDeps>[] = [
   ...identityCommands,
   ...raidsCommands,
   ...coordinatorCommands,
@@ -30,4 +31,10 @@ export const commands: readonly AnyGuildCommand<VintageDeps>[] = [
   ...siteCommands,
   ...agentCommands,
   ...applicationsCommands,
+];
+
+/** Every module's commands, plus `help-get`, which reads their tiers to fit help to each reader. */
+export const commands: readonly AnyGuildCommand<VintageDeps>[] = [
+  ...moduleCommands,
+  helpGetCommand(moduleCommands, () => process.env.VINTAGE_SITE_URL ?? null),
 ];

@@ -154,6 +154,14 @@ set `VINTAGE_SITE_URL` in the Convex env so ranked polls link to the website (on
 `raid-night-poll` through the same path. Times are typed in the guild's clock. No new bot
 permissions; re-register the commands after deploying.
 
+### Help in Discord
+
+`/random help` (an overview, or one `topic`) and `/random poll help` / `/random raid help` answer
+privately through the same path, fitted to the member's rank by `help-get`. The pages come from
+`apps/gateway/src/commands.ts`, so after a command change: deploy Convex and the gateway, then
+register the commands again, in the test server first. Topic pages link `VINTAGE_SITE_URL` when it
+is set. No new bot permissions.
+
 ### Website sign-in (Discord)
 
 Members sign in to the website with Discord only (#7). Better Auth runs inside Convex

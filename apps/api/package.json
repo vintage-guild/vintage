@@ -24,6 +24,7 @@
     "@vintage/coordinator": "workspace:*",
     "@vintage/decisions": "workspace:*",
     "@vintage/discord-kit": "workspace:*",
+    "@vintage/gateway": "workspace:*",
     "@vintage/guild-kit": "workspace:*",
     "@vintage/identity": "workspace:*",
     "@vintage/polls": "workspace:*",

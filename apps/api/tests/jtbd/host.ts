@@ -10,6 +10,7 @@ import { runTick } from '@vintage/coordinator/commands';
 import { createFakeDiscord, createMemoryCoordinatorStore } from '@vintage/coordinator/testing';
 import type { DecisionsPort } from '@vintage/decisions';
 import {
+  type CommandInteractionOption,
   type Interaction,
   InteractionType,
   type LayoutComponent,
@@ -33,6 +34,7 @@ import { createMemorySiteStore } from '@vintage/site/testing';
 import { fixedClock, testRegistry } from '@vintage/testing';
 import { handleAgentInteraction } from '../../src/discord-agent';
 import { handleApplicationInteraction } from '../../src/discord-applications';
+import { handleHelpInteraction } from '../../src/discord-help';
 import { handlePollInteraction } from '../../src/discord-polls';
 import { handleRaidInteraction } from '../../src/discord-raids';
 import { handleSignupInteraction } from '../../src/discord-signups';
@@ -437,6 +439,38 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
       ),
   };
 
+  /** `/random help [topic]` and `/random <group> help`, run through src/discord-help.ts. */
+  const helpUi = {
+    slash: (discordId: string, where: { topic?: string; group?: string } = {}) => {
+      const help: CommandInteractionOption = {
+        name: 'help',
+        type: 1,
+        options: where.topic ? [{ name: 'topic', type: 3, value: where.topic }] : [],
+      };
+      return handleHelpInteraction(
+        {
+          id: 'i',
+          application_id: 'app',
+          token: 'token',
+          type: InteractionType.APPLICATION_COMMAND,
+          guild_id: DISCORD_GUILD,
+          channel_id: SIGNUP_CHANNEL,
+          member: { user: { id: discordId, username: discordId }, roles: [] },
+          data: {
+            name: 'random',
+            options: where.group ? [{ name: where.group, type: 2, options: [help] }] : [help],
+          },
+        },
+        {
+          discordGuildId: DISCORD_GUILD,
+          guildId: GUILD,
+          memberByDiscordId,
+          run: (caller, name, input) => registry.execute({ name, input, caller }, deps),
+        },
+      );
+    },
+  };
+
   const agentUi = {
     ask: (discordId: string, question: string) =>
       agentInteract(discordId, {
@@ -607,6 +641,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
 
   return {
     agentUi,
+    helpUi,
     applicationUi,
     applicationEffects,
     discordUi,

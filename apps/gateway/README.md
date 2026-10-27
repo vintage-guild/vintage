@@ -66,6 +66,15 @@ global). From `apps/gateway`, with the token from `apps/api/.env.local`:
 DISCORD_GUILD_ID=<server id> node --env-file=../api/.env.local --import tsx scripts/register-commands.ts --prune
 ```
 
+### Help pages follow the definitions
+
+`/random help` and each group's `help` subcommand are forwarded to Convex, which builds the page
+from `RANDOM_COMMAND` (exported as `@vintage/gateway/commands`) and the examples in
+`apps/api/src/help-topics.ts`. When you add or change a subcommand, add it to a topic there with an
+example: `apps/api/tests/help.test.ts` fails until you do, and when an example no longer fits the
+options. A new subcommand group also needs its own `help` subcommand (`GROUP_HELP`), and a new
+topic needs a choice on `/random help`.
+
 ## Bot name and avatar
 
 The bot is **Random**, the raven the site calls Random Raven in its News section. Its avatar is the

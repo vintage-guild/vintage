@@ -882,6 +882,30 @@
       }
     },
     {
+      "name": "help-get",
+      "description": "How to use Random, the guild’s Discord bot: an overview, or one topic’s commands, options, and examples, for your own rank.",
+      "tier": "public",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "topic": {
+            "description": "One topic; leave out for the overview",
+            "type": "string",
+            "enum": [
+              "events",
+              "signups",
+              "polls",
+              "ask",
+              "recruiting"
+            ]
+          }
+        }
+      }
+    },
+    {
       "name": "kill-record",
       "description": "Record a boss kill: the raid, the boss (ids from progress-get), when (defaults to now), and what dropped with its quality. The guild’s first kill of a boss is what the ledger shows; later kills are kept as the kill log.",
       "tier": "leader",

@@ -1,8 +1,20 @@
 // The slash commands the gateway answers. The register script sends these definitions to
 // Discord, and the interaction handler routes on the same names, so they cannot drift apart.
+// apps/api imports this file too (`@vintage/gateway/commands`) to build Random's help pages in
+// Convex, so it stays pure data: discord-kit only, no Node or Vercel imports.
 import { type ApplicationCommand, ApplicationCommandOptionType } from '@vintage/discord-kit';
 
 const T = ApplicationCommandOptionType;
+
+/**
+ * `/random <group> help`: that group's help page. Convex renders it for the reader's rank from
+ * these same definitions (apps/api/src/help.ts).
+ */
+const GROUP_HELP = {
+  type: T.SUB_COMMAND,
+  name: 'help',
+  description: 'How these commands work, for your rank',
+} as const;
 
 /** `/random poll create`: Discord checks the option types and ranges; poll-create checks the rest. */
 const POLL_GROUP = {
@@ -10,6 +22,7 @@ const POLL_GROUP = {
   name: 'poll',
   description: 'Guild polls',
   options: [
+    GROUP_HELP,
     {
       type: T.SUB_COMMAND,
       name: 'create',
@@ -132,6 +145,7 @@ const RAID_GROUP = {
   name: 'raid',
   description: 'Raids (raid leaders and officers)',
   options: [
+    GROUP_HELP,
     {
       type: T.SUB_COMMAND,
       name: 'create',
@@ -253,6 +267,30 @@ const RECRUITING = {
   description: 'Show who Vintage is recruiting',
 };
 
+/**
+ * `/random help`: what Random does, for the reader's rank, or one topic's page. The topic values
+ * match HELP_TOPICS in apps/api/src/help-topics.ts; a test there checks they stay the same.
+ */
+const HELP = {
+  type: T.SUB_COMMAND,
+  name: 'help',
+  description: 'What Random can do for you, and how',
+  options: [
+    {
+      type: T.STRING,
+      name: 'topic',
+      description: 'One topic in detail',
+      choices: [
+        { name: 'Events', value: 'events' },
+        { name: 'Signups', value: 'signups' },
+        { name: 'Polls', value: 'polls' },
+        { name: 'Ask Random', value: 'ask' },
+        { name: 'Recruiting', value: 'recruiting' },
+      ],
+    },
+  ],
+};
+
 export const RANDOM_COMMAND = {
   name: 'random',
   description: 'Vintage guild tools',
@@ -263,6 +301,7 @@ export const RANDOM_COMMAND = {
       name: 'ping',
       description: 'Check that Random is answering',
     },
+    HELP,
     POLL_GROUP,
     RAID_GROUP,
     ASK,
@@ -273,6 +312,7 @@ export const RANDOM_COMMAND = {
 
 /** Subcommands and groups whose work runs in Convex; the gateway forwards them. */
 export const FORWARDED_GROUPS: ReadonlySet<string> = new Set([
+  HELP.name,
   POLL_GROUP.name,
   RAID_GROUP.name,
   ASK.name,

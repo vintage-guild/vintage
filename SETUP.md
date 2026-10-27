@@ -224,8 +224,15 @@ Better Auth also runs an OAuth 2.1 server for MCP clients like Claude and Codex 
    Commands run with the member's own tier.
 
 Metadata is at `<CONVEX_SITE_URL>/.well-known/oauth-authorization-server/api/auth` (issuer
-`<CONVEX_SITE_URL>/api/auth`). Tokens are opaque. `convex/mcp.ts` (`mcp:caller`) checks them for
-the `/mcp` endpoint, which arrives with AFD 2.2.
+`<CONVEX_SITE_URL>/api/auth`). Tokens are opaque.
+
+The `/mcp` endpoint lives on the gateway (apps/gateway, AFD's stateless handler), because the handler
+needs Node. The gateway serves the protected-resource metadata clients discover the sign-in from
+(`/.well-known/oauth-protected-resource/mcp`, RFC 9728). For each request it forwards the
+member's token to two Convex routes, with `VINTAGE_GATEWAY_SECRET` (`src/mcp-gateway.ts`):
+`/gateway/mcp/tools` (the tools that member may use) and `/gateway/mcp/call` (one command run as
+them; destructive commands still preview first and need the confirm token). `convex/mcp.ts`
+resolves the token to the member (`src/mcp-caller.ts`).
 
 The Better Auth component is **installed locally** (`apps/api/convex/betterAuth/`), because the
 OAuth provider adds tables. After changing auth options that add tables (a new plugin, for

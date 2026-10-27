@@ -4,8 +4,10 @@
 //   DISCORD_PUBLIC_KEY       verifies Discord's signatures
 //   VINTAGE_CONVEX_SITE_URL  the Convex deployment's HTTP actions URL (https://<name>.convex.site)
 //   VINTAGE_GATEWAY_SECRET   shared with Convex; signup buttons are forwarded with it
+// It also serves /mcp's sign-in metadata (src/mcp-metadata.ts), which needs no Discord settings.
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { createInteractionHandler } from './interactions';
+import { isMetadataRequest, metadataResponse } from './mcp-metadata';
 
 let cached: { key: string; handle: (request: Request) => Promise<Response> } | undefined;
 
@@ -45,12 +47,18 @@ async function toRequest(req: IncomingMessage): Promise<Request> {
   });
 }
 
+/** The web-standard Response for a request: MCP's sign-in metadata, else the Discord endpoint. */
+export async function respond(request: Request): Promise<Response> {
+  if (isMetadataRequest(request, process.env)) return metadataResponse(request, process.env);
+  const handle = handler();
+  return handle
+    ? handle(request)
+    : Response.json({ error: 'DISCORD_PUBLIC_KEY is not set' }, { status: 500 });
+}
+
 /** Run the web-standard handler for a Node request and write its Response back. */
 export default async function vercelHandler(req: IncomingMessage, res: ServerResponse) {
-  const handle = handler();
-  const response = handle
-    ? await handle(await toRequest(req))
-    : Response.json({ error: 'DISCORD_PUBLIC_KEY is not set' }, { status: 500 });
+  const response = await respond(await toRequest(req));
   res.statusCode = response.status;
   response.headers.forEach((value, name) => {
     res.setHeader(name, value);

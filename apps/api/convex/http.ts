@@ -3,21 +3,11 @@
 // PING) stays in apps/gateway.
 import { oauthProviderAuthServerMetadata } from '@better-auth/oauth-provider';
 import { httpRouter } from 'convex/server';
+import { json, refuseUnlessGateway } from '../src/gateway-auth';
+import { createMcpGatewayRoutes } from '../src/mcp-gateway';
 import { internal } from './_generated/api';
 import { httpAction } from './_generated/server';
 import { authComponent, createAuth, siteOrigins } from './auth';
-
-/** Compare secrets without leaking their length or content through timing. */
-function sameSecret(given: string, expected: string): boolean {
-  let diff = given.length ^ expected.length;
-  for (let i = 0; i < Math.max(given.length, expected.length); i++) {
-    diff |= (given.charCodeAt(i) || 0) ^ (expected.charCodeAt(i) || 0);
-  }
-  return diff === 0;
-}
-
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
 const http = httpRouter();
 
@@ -50,11 +40,8 @@ http.route({
   path: '/gateway/interaction',
   method: 'POST',
   handler: httpAction(async (ctx, request) => {
-    const secret = process.env.VINTAGE_GATEWAY_SECRET;
-    if (!secret) return json({ error: 'VINTAGE_GATEWAY_SECRET is not set' }, 500);
-    const auth = request.headers.get('authorization') ?? '';
-    if (!sameSecret(auth.replace(/^Bearer /, ''), secret))
-      return json({ error: 'unauthorized' }, 401);
+    const refused = refuseUnlessGateway(request, process.env.VINTAGE_GATEWAY_SECRET);
+    if (refused) return refused;
     let interaction: unknown;
     try {
       interaction = await request.json();
@@ -64,6 +51,29 @@ http.route({
     const response = await ctx.runMutation(internal.discord.interaction, { interaction });
     return response ? json(response) : json({ error: 'not a Vintage interaction' }, 404);
   }),
+});
+
+/**
+ * The /mcp endpoint's two calls (#9, src/mcp-gateway.ts), from the gateway with its secret and the
+ * member's OAuth token: the tools that member may use, and one command run as them.
+ */
+const mcpRoutes = (ctx: Parameters<Parameters<typeof httpAction>[0]>[0]) =>
+  createMcpGatewayRoutes({
+    secret: process.env.VINTAGE_GATEWAY_SECRET,
+    tools: (token) => ctx.runQuery(internal.mcp.tools, { token }),
+    call: (token, request) => ctx.runMutation(internal.mcp.call, { token, ...request }),
+  });
+
+http.route({
+  path: '/gateway/mcp/tools',
+  method: 'POST',
+  handler: httpAction(async (ctx, request) => mcpRoutes(ctx).tools(request)),
+});
+
+http.route({
+  path: '/gateway/mcp/call',
+  method: 'POST',
+  handler: httpAction(async (ctx, request) => mcpRoutes(ctx).call(request)),
 });
 
 export default http;

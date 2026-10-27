@@ -110,6 +110,10 @@ site, **so I can** keep the calendar true without commands (the quarters' Calend
 - [ ] Rook pauses the schedule: creating raids now makes none. Resumed, its next nights appear.
 - [ ] Once a raid has started, Rook marks it done; it moves under Earlier.
 - [ ] Cancel previews first ("N people have signed up"), then cancels (J08).
+- [ ] With `serverEvents` on (test server first; the bot needs Create Events, SETUP.md), each
+  posted raid also shows in the server's **Events** list, at the instance, linking to its signup
+  card. Moving the raid moves the event; cancelling it cancels the event. "Interested" there is
+  not a signup.
 - [ ] A raider reads the calendar but `raid-create` answers `COMMAND_NOT_FOUND`.
 - [ ] Viewed from Europe in late October, a raid shows the guild's clock beside the viewer's and
   notes it is an hour off from usual.
@@ -133,6 +137,7 @@ command, **so I can** open signups without going to the site.
   the time as a Discord timestamp, and the signup card goes up within seconds (no wait for the tick).
 - [ ] The time is read in the guild's clock (the zone the site's calendar uses: the first active
   schedule's, else the first schedule's, else New York).
+- [ ] With `serverEvents` on, the new raid also shows in the server's Events list (J24).
 - [ ] `/random raid pick-night` with two times opens a raid-night vote in the signup channel (J18).
 - [ ] A raider gets a private "needs the Raid Leader rank"; an unreadable or impossible time says
   how to write one.

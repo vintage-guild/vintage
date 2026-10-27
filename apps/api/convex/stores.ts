@@ -257,8 +257,11 @@ export function siteDeps(ctx: Ctx): SiteDeps {
 const coordinator = components.coordinator;
 
 export function coordinatorStore(ctx: Ctx): CoordinatorStore {
-  const getConfig = async (guildId: string): Promise<CoordinatorConfig> =>
-    (await ctx.runQuery(coordinator.config.get, { guildId })) ?? defaultConfig(guildId);
+  // Merged over the defaults: rows saved before a field existed (serverEvents) read as its default.
+  const getConfig = async (guildId: string): Promise<CoordinatorConfig> => ({
+    ...defaultConfig(guildId),
+    ...(await ctx.runQuery(coordinator.config.get, { guildId })),
+  });
   return {
     getConfig,
     setConfig: async (guildId, patch, now) => {

@@ -9,9 +9,14 @@
 //   lock           at the lock offset: signups lock
 //   final-roster   after lock, the roster to the signup channel
 //   import-string  after lock, the addon import string to the officer channel
+//   server-event   if `serverEvents`, once the post is up: a Discord server event for the raid;
+//                  edited when the raid moves or is renamed (not logged, like refresh)
+//   server-event-cancel  the raid was cancelled: its server event is set to CANCELED. A finished
+//                  raid's event is left alone; Discord completes EXTERNAL events at their end time.
 import type { Signup } from '@vintage/raids/contract';
 import type { CoordinatorAction } from '../contract';
 import type { TickEvent, TickMember, TickState } from '../store';
+import { MAX_SERVER_EVENTS } from './server-event';
 
 const HOUR = 60 * 60 * 1000;
 
@@ -25,6 +30,27 @@ export type PlannedAction =
   | { kind: 'lock'; tick: TickEvent; rule: 'lock'; target: string }
   | { kind: 'final-roster'; tick: TickEvent; rule: 'final-roster'; target: string }
   | { kind: 'import-string'; tick: TickEvent; rule: 'import-string'; target: string }
+  | {
+      kind: 'server-event';
+      tick: TickEvent;
+      rule: 'server-event';
+      target: string;
+      post: CoordinatorAction;
+    }
+  /** Edit the server event in place; like refresh, not logged as an action. */
+  | {
+      kind: 'server-event-update';
+      tick: TickEvent;
+      serverEvent: CoordinatorAction;
+      post: CoordinatorAction;
+    }
+  | {
+      kind: 'server-event-cancel';
+      tick: TickEvent;
+      rule: 'server-event-cancel';
+      target: string;
+      serverEvent: CoordinatorAction;
+    }
   /** Logged without sending: a reminder overtaken by a later one, or nothing to say. */
   | { kind: 'skip'; tick: TickEvent; rule: string; target: string; reason: string };
 
@@ -143,11 +169,62 @@ function planLock(
   return out;
 }
 
+const sentAction = (state: TickState, eventId: string, rule: string) =>
+  state.actions.find((a) => a.eventId === eventId && a.rule === rule && a.status === 'sent');
+
+/**
+ * Server events (`serverEvents`): create one per posted raid, edit it when the raid changes, and
+ * cancel it when the raid is cancelled. At most MAX_SERVER_EVENTS exist at once, well under
+ * Discord's 100; raids past the cap get theirs as earlier ones finish.
+ */
+function planServerEvents(
+  state: TickState,
+  now: number,
+  serverEventHash: (tick: TickEvent, post: CoordinatorAction) => string,
+): PlannedAction[] {
+  const out: PlannedAction[] = [];
+  const live = state.events.filter(
+    (t) => now < t.event.startsAt && (t.event.status === 'open' || t.event.status === 'locked'),
+  );
+  let held = live.filter((t) => sentAction(state, t.event.id, 'server-event')).length;
+  for (const tick of live) {
+    const post = sentAction(state, tick.event.id, 'post');
+    if (!post) continue; // the event links to the post; it follows on the next tick
+    const serverEvent = sentAction(state, tick.event.id, 'server-event');
+    if (!serverEvent) {
+      if (held >= MAX_SERVER_EVENTS) continue;
+      held++;
+      out.push({ kind: 'server-event', tick, rule: 'server-event', target: tick.event.id, post });
+    } else if (serverEvent.renderHash !== serverEventHash(tick, post)) {
+      out.push({ kind: 'server-event-update', tick, serverEvent, post });
+    }
+  }
+  for (const tick of state.cancelled ?? []) {
+    const serverEvent = sentAction(state, tick.event.id, 'server-event');
+    if (
+      !serverEvent ||
+      settled(state.actions, tick.event.id).has(`server-event-cancel|${tick.event.id}`)
+    ) {
+      continue;
+    }
+    out.push({
+      kind: 'server-event-cancel',
+      tick,
+      rule: 'server-event-cancel',
+      target: tick.event.id,
+      serverEvent,
+    });
+  }
+  return out;
+}
+
 /** Every action due now, in the order they should happen. Nothing for a paused or unconfigured guild. */
 export function planTick(
   state: TickState,
   now: number,
   renderHash: (tick: TickEvent) => string,
+  /** Hash of the server event a raid should have; needed only when `serverEvents` is on. */
+  serverEventHash?: (tick: TickEvent, post: CoordinatorAction) => string,
 ): PlannedAction[] {
   const channel = state.config.signupChannelId;
   if (state.config.paused || !channel) return [];
@@ -160,9 +237,7 @@ export function planTick(
       continue;
     }
     const done = settled(state.actions, tick.event.id);
-    const post = state.actions.find(
-      (a) => a.eventId === tick.event.id && a.rule === 'post' && a.status === 'sent',
-    );
+    const post = sentAction(state, tick.event.id, 'post');
     if (!post) {
       out.push({ kind: 'post', tick, rule: 'post', target: channel });
       continue; // reminders reference the post; they wait for the next tick
@@ -174,6 +249,9 @@ export function planTick(
       ...planDigest(state, tick, done, now),
       ...planLock(state, tick, done, now),
     );
+  }
+  if (state.config.serverEvents && serverEventHash) {
+    out.push(...planServerEvents(state, now, serverEventHash));
   }
   return out;
 }

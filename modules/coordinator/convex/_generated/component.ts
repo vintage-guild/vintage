@@ -93,6 +93,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             >;
             opsChannelId: string | null;
             paused: boolean;
+            serverEvents?: boolean;
             signupChannelId: string | null;
             weeklyAssessment?: boolean;
           };

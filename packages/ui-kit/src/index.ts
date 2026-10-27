@@ -34,6 +34,13 @@ export {
 export { type CharacterInput, VintageCharacterForm } from './elements/character-form';
 export { type ListedCharacter, VintageCharacterList } from './elements/character-list';
 export { VintageClassBadge } from './elements/class-badge';
+export {
+  type CoordinatorDeskConfig,
+  type CoordinatorDeskEntry,
+  type CoordinatorDeskRaid,
+  RUN_REREAD_MS,
+  VintageCoordinatorDesk,
+} from './elements/coordinator-desk';
 export { VintageFigure } from './elements/figure';
 export {
   type GuildProfileDeskProfile,
@@ -76,7 +83,7 @@ export {
 } from './elements/signup-card';
 export { VintageThemeSwitch } from './elements/theme-switch';
 export { type TonightRaid, type TonightSignup, VintageTonight } from './elements/tonight';
-export { roleLabel, titleCase } from './labels';
+export { roleLabel, ruleHours, ruleLead, ruleWords, titleCase } from './labels';
 export { describeError, type ElementResult, toElementResult } from './result';
 export {
   applyTheme,

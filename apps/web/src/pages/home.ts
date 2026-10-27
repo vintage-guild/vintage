@@ -330,7 +330,8 @@ const template = html<Page>`
                   (x) => x.profile.discordInvite,
                   html<Page>`<a class="btn primary" href="${(x) => x.profile.discordInvite ?? ''}" rel="noopener">Join the Discord</a>`,
                 )}
-                <a class="btn ${(x) => (x.profile.discordInvite ? '' : 'primary')}" href="/about">How we raid</a>
+                <a class="btn ${(x) => (x.profile.discordInvite ? '' : 'primary')}" href="/apply">Apply to raid</a>
+                <a class="btn" href="/about">How we raid</a>
                 <a class="btn" href="/#roster" data-section-link="roster">Who’s in</a>
               </p>
               ${when(

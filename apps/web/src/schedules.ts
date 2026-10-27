@@ -89,3 +89,29 @@ export function describeTimings(schedules: readonly Schedule[]): string {
     .map((g) => `For ${list(g.names)}, ${timingsSentence(g.timings)}.`)
     .join(' ');
 }
+
+/**
+ * The note after the next raid's time: "signups lock Sat 6:00 PM EST" (`raid-list`'s
+ * `locksAt`), "signups close any minute" once that's passed but Random hasn't locked yet, and
+ * "locked · roster posted" after. Empty without a lock time (an older server).
+ */
+export function lockLabel(
+  status: string,
+  locksAt: number | undefined,
+  now: number,
+  timeZone?: string,
+): string {
+  if (status === 'locked') return 'locked · roster posted';
+  if (locksAt === undefined) return '';
+  if (now >= locksAt) return 'signups close any minute';
+  const zone = timeZone ? { timeZone } : {};
+  const at = new Date(locksAt);
+  const day = at.toLocaleDateString(undefined, { weekday: 'short', ...zone });
+  const time = at.toLocaleTimeString(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZoneName: 'short',
+    ...zone,
+  });
+  return `signups lock ${day} ${time}`;
+}

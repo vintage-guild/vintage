@@ -109,3 +109,38 @@ describe('the home signup card', () => {
     expect(page.guess).toBeNull();
   });
 });
+
+describe('the home signup card on raid day', () => {
+  it('says when signups lock and hands the card my place in line', async () => {
+    const locksAt = event.startsAt - 2 * 3_600_000;
+    client((name) => {
+      if (name === 'raid-list') {
+        const [row] = (reader(name).data as object[]) ?? [];
+        return { success: true, data: [{ ...row, locksAt }] };
+      }
+      if (name === 'signup-list') {
+        return {
+          success: true,
+          data: [
+            { ...signup('m2', 'healer'), queuePosition: null },
+            { ...signup('m1', 'tank'), queued: true, queuePosition: 2 },
+          ],
+        };
+      }
+      return reader(name);
+    });
+    setSession({ memberId: 'm1', tier: 'raider', rank: 'raider', timezone: 'UTC' } as never);
+    const page = document.createElement('vintage-home-page') as HomePage & { lockLabel: string };
+    document.body.append(page);
+    try {
+      await page.loadRaids();
+      await new Promise((r) => setTimeout(r, 50));
+      expect(page.lockLabel).toMatch(/^signups lock \w{3} \d{1,2}:\d{2}\s?[AP]M UTC$/);
+      const card = page.shadowRoot?.querySelector('vintage-signup-card');
+      expect(card?.getAttribute('queue-position')).toBe('2');
+      expect(card?.getAttribute('lock-label')).toBe(page.lockLabel);
+    } finally {
+      page.remove();
+    }
+  });
+});

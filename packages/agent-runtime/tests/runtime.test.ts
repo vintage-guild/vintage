@@ -10,6 +10,7 @@ import {
   DISCOVER_TOOL,
   finalText,
   isTransient,
+  publicTurnError,
   runTurn,
   type StartTurnRequest,
 } from '../src/index';
@@ -435,6 +436,48 @@ describe('createOpenAIAgents', () => {
     expect(isTransient(new TypeError('reset'))).toBe(true);
     expect(isTransient({ status: 503 })).toBe(true);
     expect(isTransient({ status: 404 })).toBe(false);
+  });
+
+  it('tells members a safe reason, never the raw error', () => {
+    const raw = 'Agents API GET /agents/sessions/sess_SECRET 400: {"error":{"message":"bad"}}';
+    expect(publicTurnError({ status: 'failed', error: raw })).toBe(
+      'The agent service returned an error (400)',
+    );
+    expect(publicTurnError({ status: 'failed', error: raw })).not.toContain('sess_');
+    expect(publicTurnError({ status: 'timeout', error: 'no answer after 120000 ms' })).toMatch(
+      /too long/,
+    );
+    expect(
+      publicTurnError({ status: 'failed', error: 'Agents API POST /x 429: slow down' }),
+    ).toMatch(/busy/);
+    expect(publicTurnError({ status: 'failed', error: 'connection reset' })).toBe(
+      'The agent could not answer',
+    );
+  });
+
+  it('treats a destructive command as a change even when it says mutation: false', async () => {
+    const odd = command({
+      name: 'thing-wipe',
+      description: 'Wipe.',
+      tier: 'member',
+      destructive: true,
+      mutation: false,
+      input: z.object({}),
+      handler: async (_i, { deps, dryRun }) => {
+        if (!dryRun) deps.log.push('wiped');
+        return success({ wouldWipe: true });
+      },
+    });
+    const deps: Deps = { log: [] };
+    const t = createRegistryTools({
+      registry: testRegistry([odd]),
+      deps,
+      caller: makeCaller('member'),
+    });
+    const result = await t.execute(CALL_TOOL, { name: 'thing-wipe', input: {} });
+    expect(result.confirmation?.confirmToken).toEqual(expect.any(String));
+    expect(result.output).not.toContain(result.confirmation?.confirmToken as string);
+    expect(deps.log).toEqual([]);
   });
 
   it('falls back to the last assistant message when there is no final answer', () => {

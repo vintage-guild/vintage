@@ -46,6 +46,19 @@ const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(r
 
 const describe = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
+/**
+ * What a member may read about a failed turn. Raw errors carry session ids and upstream response
+ * bodies, so they go to server logs; the run gets one of these.
+ */
+export function publicTurnError(outcome: Pick<TurnOutcome, 'status' | 'error'>): string {
+  if (outcome.status === 'timeout') return 'The agent took too long to answer';
+  const status = /^Agents API \S+ \S+ (\d{3})/.exec(outcome.error ?? '')?.[1];
+  if (status === '429') return 'The agent is busy right now; try again in a minute';
+  if (status) return `The agent service returned an error (${status})`;
+  if (outcome.status === 'completed') return 'The agent finished without an answer';
+  return 'The agent could not answer';
+}
+
 /** Network failures, rate limits, and server errors are worth another try; 4xx answers are not. */
 export function isTransient(err: unknown): boolean {
   const status = (err as { status?: unknown } | null)?.status;

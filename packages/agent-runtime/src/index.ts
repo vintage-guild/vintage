@@ -19,6 +19,7 @@ export {
 } from './tools';
 export {
   isTransient,
+  publicTurnError,
   runTurn,
   type ToolExecution,
   type TurnOptions,

@@ -8,16 +8,24 @@
 import { ASK_INSTRUCTIONS, askInput, recordToolCall } from '@vintage/agent/commands';
 import { isAgentCommand, SESSION_REUSE_MS } from '@vintage/agent/contract';
 import {
+  type AgentRuntime,
   createOpenAIAgents,
   createRegistryTools,
+  publicTurnError,
   REGISTRY_TOOLS,
   runTurn,
   type ToolExecution,
+  type TurnOutcome,
 } from '@vintage/agent-runtime';
 import type { Caller } from '@vintage/guild-kit';
 import { v } from 'convex/values';
 import { internal } from './_generated/api';
-import { internalAction, internalMutation, internalQuery } from './_generated/server';
+import {
+  type ActionCtx,
+  internalAction,
+  internalMutation,
+  internalQuery,
+} from './_generated/server';
 import { deps, GUILD_ID, registry } from './commands';
 import { agentStore, identityStore } from './stores';
 
@@ -135,6 +143,37 @@ export const finish = internalMutation({
 
 const describe = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
+/**
+ * Record a finished turn. OpenAI keeps sessions until deleted, and the sweep only knows the ones in
+ * the map: delete a failed run's session (finish drops its record) and the one a restart replaced.
+ * Members see a safe reason; the raw error goes to the logs.
+ */
+async function settle(
+  ctx: ActionCtx,
+  runtime: AgentRuntime,
+  runId: string,
+  replaced: string | null,
+  outcome: TurnOutcome,
+) {
+  const answered = outcome.status === 'completed' && Boolean(outcome.text);
+  if (!answered && outcome.sessionId) {
+    await runtime.delete(outcome.sessionId).catch(() => undefined);
+  }
+  if (outcome.restarted && replaced) await runtime.delete(replaced).catch(() => undefined);
+  if (!answered) console.log(`agent run ${runId} failed: ${outcome.error ?? 'no answer'}`);
+  await ctx.runMutation(internal.agent.finish, {
+    runId,
+    status: answered ? 'answered' : 'failed',
+    answer: outcome.text,
+    error: answered ? null : publicTurnError(outcome),
+    sessionId: outcome.sessionId,
+  });
+  console.log(
+    `agent run ${runId}: ${outcome.status}, ${outcome.toolCalls.length} tool calls` +
+      `${outcome.restarted ? ', new session' : ''}`,
+  );
+}
+
 /** Answer one queued question. Scheduled by `agent-ask`; safe to run twice (begin claims it). */
 export const answer = internalAction({
   args: { runId: v.string() },
@@ -187,25 +226,11 @@ export const answer = internalAction({
             args: call.arguments ?? {},
           }),
       });
-      const answered = outcome.status === 'completed' && Boolean(outcome.text);
-      if (!answered && outcome.sessionId) {
-        // finish drops the session record, so delete the session at OpenAI now or nothing will.
-        await runtime.delete(outcome.sessionId).catch(() => undefined);
-      }
-      await ctx.runMutation(internal.agent.finish, {
-        runId,
-        status: answered ? 'answered' : 'failed',
-        answer: outcome.text,
-        error: answered ? null : (outcome.error ?? 'no answer'),
-        sessionId: outcome.sessionId,
-      });
-      console.log(
-        `agent run ${runId}: ${outcome.status}, ${outcome.toolCalls.length} tool calls` +
-          `${outcome.restarted ? ', new session' : ''}`,
-      );
+      await settle(ctx, runtime, runId, reuse, outcome);
       return { status: outcome.status };
     } catch (err) {
-      await fail(describe(err));
+      console.log(`agent run ${runId} failed: ${describe(err)}`);
+      await fail('The agent could not answer');
       return { status: 'failed' as const };
     }
   },

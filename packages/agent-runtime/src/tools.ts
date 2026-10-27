@@ -146,7 +146,9 @@ export function createRegistryTools<Deps>(options: RegistryToolsOptions<Deps>) {
     const command = visible(name);
     if (!command) return notFound(name);
 
-    if (!command.mutation) {
+    // A destructive command is a change even if declared `mutation: false`: its preview carries
+    // a confirm token the model must never see.
+    if (!command.mutation && !command.destructive) {
       return fromResult(name, await registry.execute({ name, input, caller }, deps));
     }
 

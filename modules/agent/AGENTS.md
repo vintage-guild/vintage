@@ -25,7 +25,9 @@ member to confirm. This module owns the agent's data and commands; the runtime l
   the member who asked can run it (`agent-confirm`), within 5 minutes for destructive changes
   and 30 for others. Officers cannot confirm someone else's change.
 - **Tokens never leave the store.** `agent-run-get` and `agent-confirm` answer
-  `ConfirmationView` (no `confirmToken`), and runs are shown without their session id.
+  `ConfirmationView` (no `confirmToken`), and runs are shown without their session id. A run's
+  `error` is a member-safe reason (`publicTurnError`); the raw error, which can carry session ids
+  and upstream response bodies, goes to the Convex logs only.
 - **The agent never sees `agent-*` commands** (`isAgentCommand`), so it can't ask itself, raise
   its own caps, or confirm its own changes.
 - **Caps count questions, not dollars.** The Agents API returns null token usage, so
@@ -39,7 +41,8 @@ member to confirm. This module owns the agent's data and commands; the runtime l
   a retried function call returns the same result and never makes a second confirmation.
 - **Sessions are per conversation.** `threadKey` is `<surface>:<thread>:<member>`; a follow-up
   within 30 minutes reuses the Agents API session, and the hourly sweep deletes sessions idle
-  for an hour. A failed run drops its session so the next question starts clean.
+  for an hour. A failed run deletes its session at OpenAI and drops the record, and a restarted
+  conversation deletes the session it replaced, so no session outlives the map.
 - **Everything is in the ledger.** Every question, wording job, and Decisions call is a run
   with its tool calls and confirmations (`agent-runs`). Prompts are visible to officers.
 - **`guildId` on every row**, read through guild-scoped indexes.

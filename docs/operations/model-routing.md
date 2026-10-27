@@ -29,7 +29,7 @@ Rules of thumb:
 | Use | Model | Why |
 |---|---|---|
 | `/ask` and signup help (Agents API) | `gpt-6.1-terra`, medium effort | Best intelligence per dollar for tool use on 2026-10-26; the commands do the real work |
-| Short copy: coordinator wording, onboarding notes, insight DMs | `gpt-6.1-terra`, low effort | Fast and cheap for a few lines |
+| Short copy: the weekly roster check, insight DMs | `gpt-6.1-terra`, low effort | Fast and cheap for a few lines; the plain facts are always the fallback |
 | Bounded labels inside rules (Decisions API) | `gpt-6-luna` | The only model the endpoint accepts; input-only pricing |
 | Comp and strategy questions | `gpt-6.1-sol` | More reasoning when it's worth it |
 

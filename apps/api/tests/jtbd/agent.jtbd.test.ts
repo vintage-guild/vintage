@@ -145,7 +145,7 @@ describe('Guild agent', () => {
     );
   });
 
-  it('J30 · Find out what I can do, for my rank', async () => {
+  it('J31 · Find out what I can do, for my rank', async () => {
     const ROOK = '500000000000000002';
     await g.host.discordMember(ROOK, 'Rook', [ROLES.raidLeader]);
     const page = (response: unknown) =>
@@ -187,5 +187,103 @@ describe('Guild agent', () => {
     const read = await g.host.deps.agent.getToolResult('guild-test', runId, 'call-0');
     expect(read?.output).toContain('Your rank can’t use these yet.');
     expect(read?.output).toContain('Raid leaders and officers can: `/random raid create`');
+  });
+});
+
+describe('Raid insights', () => {
+  const BRIN = '500000000000000004';
+  const death = (player: string, t: number) => ({
+    t,
+    player,
+    pull: 0,
+    damage_last_10s: 9000,
+    killing_blow: { source: 'Ragnaros', spell: 'Lava Burst', amount: 4000 },
+    last_hits: [],
+    own_casts_last_8s: [],
+    environment: false,
+  });
+  const upload = {
+    schema: 'farsight.run',
+    version: 1,
+    parser: { name: '@farsight/core', version: '0.1.0' },
+    run: {
+      run_key: 'WoWCombatLog-110526.txt:1793000000',
+      file: 'WoWCombatLog-110526.txt',
+      start_ts: 1793000000,
+      end_ts: 1793003600,
+      start_offset: 0,
+      end_offset: 1,
+      zone_id: 409,
+      zone_name: 'Molten Core',
+      difficulty: 0,
+      is_instance: true,
+      map_id: null,
+      map_name: null,
+      map_bounds: null,
+      build: '1.60.1',
+      project: '18',
+      events: 1000,
+      duration: 3600,
+      in_combat: 2400,
+      between_pulls: 1200,
+      avg_gap: 30,
+      longest_gap: null,
+      tank: 'Tankard-Realm',
+      roster: [
+        { name: 'Tankard-Realm', done: 100, heal: 0, taken: 50000, deaths: 0 },
+        { name: 'Aeryn-Realm', done: 10, heal: 90000, taken: 8000, deaths: 2 },
+        { name: 'Brin-Realm', done: 60000, heal: 0, taken: 6000, deaths: 0 },
+      ],
+      pulls: [],
+      deaths: [death('Aeryn-Realm', 125), death('Aeryn-Realm', 1810)],
+      interrupts: [],
+      kicks: [{ player: 'Brin-Realm', attempts: 6, landed: 2 }],
+      abilities: [],
+      mobs: [],
+      encounters: [],
+    },
+  };
+
+  it('J30 · Get a private note on what the log says I could do better', async () => {
+    const { host, officer, aeryn } = await createGuild();
+    const brin = await host.discordMember(BRIN, 'Brin', [ROLES.raider]);
+    await host.ok(brin, 'character-add', {
+      name: 'Brin',
+      class: 'rogue',
+      spec: 'combat',
+      isMain: true,
+    });
+
+    const imported = await host.ok<{ runId: string; imported: boolean }>(aeryn, 'run-import', {
+      upload,
+    });
+    expect(imported.imported).toBe(true);
+    expect((await host.ok<{ imported: boolean }>(brin, 'run-import', { upload })).imported).toBe(
+      false,
+    );
+
+    // Each raider sees only their own notes, with the evidence; the officer sees everyone's.
+    type Got = { findings: { character: string; text: string; evidence: string }[] };
+    const mine = await host.ok<Got>(aeryn, 'insights-get', {});
+    expect(mine.findings.map((f) => f.character)).toEqual(['Aeryn', 'Aeryn']);
+    expect(mine.findings.map((f) => f.evidence)).toContain('at 2:05, 30:10');
+    const all = await host.ok<Got>(officer, 'insights-get', { runId: imported.runId });
+    expect(new Set(all.findings.map((f) => f.character))).toEqual(new Set(['Aeryn', 'Brin']));
+
+    // Only Aeryn opted in: the preview names her alone, and the run sends once.
+    await host.ok(aeryn, 'insights-optin-set', { dms: true });
+    const preview = await host.preview<{ wouldMessage: string[]; messages: { text: string }[] }>(
+      officer,
+      'insights-send',
+      { runId: imported.runId },
+    );
+    expect(preview.wouldMessage).toEqual(['Aeryn']);
+    expect(preview.messages[0]?.text).toMatch(/Lava Burst \(Ragnaros\) killed you 2 times/);
+    expect(host.insightsSent).toEqual([]);
+    await host.ok(officer, 'insights-send', { runId: imported.runId });
+    expect(host.insightsSent).toEqual([imported.runId]);
+    expect((await host.run(officer, 'insights-send', { runId: imported.runId })).error?.code).toBe(
+      'ALREADY_SENT',
+    );
   });
 });

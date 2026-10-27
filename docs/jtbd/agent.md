@@ -1,9 +1,10 @@
 # Guild agent
 
 Jobs for Random's answers in Discord (epic #126): asking in plain words, confirming a change the
-agent prepared, officers seeing the notes that need them, and help that fits your rank (#155). The automated scenarios run every
-command, tier, tool, and Discord render for real; only the OpenAI turn is stood in for (the test
-calls the same registry tools the agent would). The live checklist runs the real turn.
+agent prepared, officers seeing the notes that need them, and help that fits your rank (#155).
+The automated scenarios run every command, tier, tool, and Discord render for real; only the
+OpenAI turn is stood in for (the test calls the same registry tools the agent would). The live
+checklist runs the real turn.
 
 ## Live setup
 
@@ -50,7 +51,21 @@ Live checklist:
       shows **Needs an officer** with the alt question and keeps "late" in the Late line.
 - [ ] With `agent-pause`, the next digest shows every note raw, as before.
 
-### J30 · Find out what I can do, for my rank
+### J30 · Get a private note on what the log says I could do better
+
+When we've raided and someone has the log, I want a short private note on one or two things I
+could do better, with the evidence, so I can improve without being singled out in the guild.
+
+Live checklist:
+
+- [ ] A raider imports the night's Farsight summary (`run-import` with the `farsight.run` upload);
+      importing it again does nothing.
+- [ ] `insights-get` shows me only my findings, each with its times or counts; an officer sees
+      everyone's.
+- [ ] With `insights-optin-set dms:true`, an officer's `insights-send` previews me as a recipient,
+      and after Confirm I get one DM; without the opt-in I get none.
+
+### J31 · Find out what I can do, for my rank
 
 When I can't remember Random's commands, I want help inside Discord that shows what my rank can
 do, with examples, so I can get on with it without asking an officer.

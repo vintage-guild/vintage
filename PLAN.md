@@ -154,6 +154,7 @@ Every capability is an AFD command. A command definition carries:
 | `site` | `page.publish`, `news.post` | site |
 | `agent` | `ask`, `pause`, `resume` | agent |
 | `application` | `submit`, `get`, `withdraw`, `list`, `review`, `decline`, `config.get`, `config.set` | applications |
+| `run` / `insights` | `run.import`; `insights.runs`, `insights.get`, `insights.optin.set`, `insights.send` | insights |
 
 Destructive: `raid.cancel`, `roster.remove`, `loot.award`, `character.remove`, `site.page.publish`.
 

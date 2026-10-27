@@ -27,7 +27,9 @@ export const memberMe = command({
 export const memberList = command({
   name: 'member-list',
   description:
-    'Guild members with their rank, tier, and main character. Discord-only friends are not listed.',
+    'Guild members with their rank, tier, main character, when they got that rank (null when it ' +
+    'changed before that was recorded), and when Discord last synced them. Discord-only ' +
+    'friends are not listed.',
   tier: 'recruit',
   input: z.object({ rank: z.enum(GUILD_RANKS).exclude(['friend']).optional() }),
   handler: async ({ rank }, { guildId, deps }) => {
@@ -45,6 +47,8 @@ export const memberList = command({
         rank: m.rank,
         tier: m.tier,
         main: mains.get(m.id) ?? null,
+        rankSince: m.rankSince,
+        syncedAt: m.syncedAt,
       }));
     return success(rows, { reasoning: `${rows.length} member(s)` });
   },
@@ -72,6 +76,10 @@ export const memberSync = command({
     const rank = resolveRank(input.inServer, input.roleIds, map);
     const tier = tierForRank(rank);
     const before = await deps.identity.getMemberByDiscordId(guildId, input.discordId);
+    const at = now();
+    const previousRank = before ? before.rank : null;
+    // A new member's rank counts from this sync; an unchanged one keeps its date (or its null).
+    const rankSince = !before || previousRank !== rank ? at : before.rankSince;
     const member = await deps.identity.upsertMember({
       guildId,
       discordId: input.discordId,
@@ -79,9 +87,9 @@ export const memberSync = command({
       roleIds: input.roleIds,
       rank,
       tier,
-      syncedAt: now(),
+      syncedAt: at,
+      rankSince,
     });
-    const previousRank = before ? before.rank : null;
     const changed = !before || previousRank !== rank || before.tier !== tier;
     const label = rank ? `${rank} (${tier})` : `no guild rank (${tier})`;
     return success(

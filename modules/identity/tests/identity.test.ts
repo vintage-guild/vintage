@@ -1,5 +1,11 @@
 import type { Caller } from '@vintage/guild-kit';
-import { makeCaller, previewAndConfirm, TEST_GUILD_ID, testRegistry } from '@vintage/testing';
+import {
+  fixedClock,
+  makeCaller,
+  previewAndConfirm,
+  TEST_GUILD_ID,
+  testRegistry,
+} from '@vintage/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { identityCommands } from '../src/commands';
 import type { Character, Member } from '../src/contract';
@@ -269,5 +275,68 @@ describe('identity commands', () => {
     const list = await run('character-list', { allGuild: true }, otherGuild);
     expect(list).toMatchObject({ success: true, data: [] });
     expect(TEST_GUILD_ID).not.toBe('another-guild');
+  });
+});
+
+describe('when a member got their rank', () => {
+  const HOUR = 3_600_000;
+  const system = makeCaller('officer', { surface: 'system', memberId: undefined });
+  const sync = (
+    registry: ReturnType<typeof testRegistry<IdentityDeps>>,
+    deps: IdentityDeps,
+    roleIds: string[],
+  ) =>
+    registry.execute(
+      {
+        name: 'member-sync',
+        input: { discordId: 'd-wren', displayName: 'Wren', inServer: true, roleIds },
+        caller: system,
+      },
+      deps,
+    );
+  const memberOf = (result: { data?: unknown }) => (result.data as { member: Member }).member;
+
+  it('counts from the first sync, keeps the date while the rank holds, and moves it on a change', async () => {
+    const clock = fixedClock();
+    const registry = testRegistry<IdentityDeps>([...identityCommands], clock);
+    const deps = createMemoryIdentityDeps({ ...ROLE_MAP });
+    const joined = clock.now();
+
+    expect(memberOf(await sync(registry, deps, ['role-recruit'])).rankSince).toBe(joined);
+    clock.advance(HOUR);
+    const later = memberOf(await sync(registry, deps, ['role-recruit']));
+    expect(later).toMatchObject({ rankSince: joined, syncedAt: joined + HOUR });
+
+    clock.advance(HOUR);
+    const raider = memberOf(await sync(registry, deps, ['role-raider']));
+    expect(raider).toMatchObject({ rank: 'raider', rankSince: joined + 2 * HOUR });
+
+    const list = await registry.execute(
+      { name: 'member-list', input: {}, caller: makeCaller('leader') },
+      deps,
+    );
+    expect(list).toMatchObject({
+      data: [{ displayName: 'Wren', rankSince: joined + 2 * HOUR, syncedAt: joined + 2 * HOUR }],
+    });
+  });
+
+  it('leaves a member recorded before the date existed at null until their rank changes', async () => {
+    const clock = fixedClock();
+    const registry = testRegistry<IdentityDeps>([...identityCommands], clock);
+    const deps = createMemoryIdentityDeps({ ...ROLE_MAP });
+    await deps.identity.upsertMember({
+      guildId: TEST_GUILD_ID,
+      discordId: 'd-wren',
+      displayName: 'Wren',
+      roleIds: ['role-recruit'],
+      rank: 'recruit',
+      tier: 'recruit',
+      syncedAt: clock.now() - HOUR,
+      rankSince: null,
+    });
+
+    expect(memberOf(await sync(registry, deps, ['role-recruit'])).rankSince).toBeNull();
+    clock.advance(HOUR);
+    expect(memberOf(await sync(registry, deps, ['role-raider'])).rankSince).toBe(clock.now());
   });
 });

@@ -43,6 +43,13 @@ export interface Member {
   tier: Tier;
   prefs: MemberPrefs;
   syncedAt: number;
+  /**
+   * When the member got their current rank (or lost their last one): the sync that first saw
+   * it, so a new member counts from their first sync. Null when the rank last changed before
+   * this was recorded (2026-10-27). Written only by `member-sync`. A recruit's trial runs
+   * from here.
+   */
+  rankSince: number | null;
 }
 
 export interface MemberPrefs {

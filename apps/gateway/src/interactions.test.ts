@@ -199,6 +199,40 @@ describe('interactions endpoint', () => {
       expect(bodies).toEqual([pollCreate]);
     });
 
+    it('forwards the raid group to Convex', async () => {
+      const raidCreate = {
+        ...pollCreate,
+        data: {
+          name: 'random',
+          options: [
+            {
+              name: 'raid',
+              type: 2,
+              options: [
+                {
+                  name: 'create',
+                  type: 1,
+                  options: [{ name: 'start', type: 3, value: '2026-11-10 20:00' }],
+                },
+              ],
+            },
+          ],
+        },
+      };
+      const bodies: unknown[] = [];
+      const fakeFetch = (async (_url: string, init: RequestInit) => {
+        bodies.push(JSON.parse(init.body as string));
+        return new Response(JSON.stringify({ type: 4, data: { content: 'made', flags: 64 } }));
+      }) as typeof fetch;
+      const handle = createInteractionHandler({
+        publicKey,
+        convex: { siteUrl: 'https://x.convex.site', secret: 's', fetch: fakeFetch },
+      });
+      const res = await handle(await signedRequest(raidCreate));
+      expect(await res.json()).toMatchObject({ data: { content: 'made' } });
+      expect(bodies).toEqual([raidCreate]);
+    });
+
     it('forwards /random ask to Convex and returns its deferred reply', async () => {
       const ask = {
         ...base,

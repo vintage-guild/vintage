@@ -8,6 +8,7 @@ import {
   systemCaller,
 } from '@vintage/guild-kit';
 import { type Infer, v } from 'convex/values';
+import { onboardAfterSync } from '../src/onboarding';
 import { refuseMutationInRead } from '../src/read-only';
 import { commands, type VintageDeps } from '../src/registry';
 import { discordIdOf, webCaller } from '../src/web-caller';
@@ -144,8 +145,22 @@ const memberSyncInput = v.object({
   roleIds: v.array(v.string()),
 });
 
-const runMemberSync = (ctx: Ctx, input: Infer<typeof memberSyncInput>) =>
-  registry().execute({ name: 'member-sync', input, caller: systemCaller(GUILD_ID) }, deps(ctx));
+/** member-sync, then onboarding if it promoted an accepted applicant (src/onboarding.ts). */
+async function runMemberSync(ctx: Ctx, input: Infer<typeof memberSyncInput>) {
+  const result = await registry().execute(
+    { name: 'member-sync', input, caller: systemCaller(GUILD_ID) },
+    deps(ctx),
+  );
+  // Onboarding must never stop rank sync: a throw here would roll back the whole batch.
+  try {
+    await onboardAfterSync(result, (name, onboardInput) =>
+      runSystemCommand(ctx, name, onboardInput),
+    );
+  } catch (err) {
+    console.error(`member-sync ${input.discordId}: onboarding failed: ${String(err)}`);
+  }
+  return result;
+}
 
 /** System entry point for sign-in and the role-sync cron: runs `member-sync` as the system caller. */
 export const syncMember = internalMutation({

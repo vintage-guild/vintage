@@ -14,8 +14,17 @@ the Discord Developer Portal → your application.
 | `DISCORD_APP_ID` | General Information → Application ID | `scripts/register-commands.ts` |
 | `DISCORD_BOT_TOKEN` | Bot → Token | `scripts/register-commands.ts`, `scripts/set-bot-profile.ts` |
 | `DISCORD_GUILD_ID` | Optional: a guild id | Register commands to one guild (instant) instead of globally |
-| `VINTAGE_CONVEX_SITE_URL` | The Convex deployment's HTTP actions URL (`https://<name>.convex.site`) | Forwarding signup buttons and modals |
+| `VINTAGE_CONVEX_SITE_URL` | The Convex deployment's HTTP actions URL (`https://<name>.convex.site`) | Forwarding signup buttons and modals; the issuer in /mcp's sign-in metadata (`<that origin>/api/auth`) |
+| `VINTAGE_MCP_URL` | Optional: the /mcp URL, if not `https://vintage-gateway.vercel.app/mcp` | The protected-resource metadata and /mcp's 401 challenge |
 | `VINTAGE_GATEWAY_SECRET` | Any long random string; the same value in the Convex env | Authenticates the forward to Convex |
+
+## MCP sign-in metadata
+
+`/.well-known/oauth-protected-resource` (and `/.well-known/oauth-protected-resource/mcp`) answers
+RFC 9728 metadata that names /mcp as the resource and Better Auth on Convex as its authorization
+server (`src/mcp-metadata.ts`). It needs no Discord settings. /mcp itself (AFD's stateless handler,
+#9) will answer an unauthenticated request with `mcpChallenge()`, a 401 whose `WWW-Authenticate`
+header points there, so MCP clients find the sign-in flow.
 
 ## Signup buttons
 

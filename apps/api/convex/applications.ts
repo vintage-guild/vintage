@@ -1,7 +1,8 @@
 // Applications outside the command's transaction (#134, #135): label a new application with the
-// Decisions API and post it for officers; refresh the post when it changes; give an accepted
-// applicant the recruit role and the onboarding DM; DM the officers' reply. Each runs as a
-// scheduled action from the module's ApplicationEffects port (stores.ts). Without
+// Decisions API and post it for officers; refresh the post when it changes; DM the officers'
+// reply; onboard an accepted applicant once role sync has promoted them (src/onboarding.ts), with
+// the onboarding DM. Each runs as a scheduled function from the module's ApplicationEffects port
+// (stores.ts). The bot never sets roles: an officer gives the recruit role. Without
 // DISCORD_BOT_TOKEN the Discord parts do nothing; without OPENAI_API_KEY it posts unlabeled.
 //   npx convex run applications:afterSubmit '{"applicationId":"…"}'
 
@@ -9,14 +10,16 @@ import {
   labelApplication,
   renderApplicantDm,
   renderApplicationPost,
+  renderOnboardingDm,
 } from '@vintage/applications/commands';
 import type { Application, ApplicationLabels } from '@vintage/applications/contract';
-import { createDiscordRest, DiscordRestError } from '@vintage/discord-kit';
+import { createDiscordRest, DiscordRestError, type MessageData } from '@vintage/discord-kit';
 import { STARTER_RECRUITING } from '@vintage/site/contract';
 import { v } from 'convex/values';
+import { onboardIfPromoted as onboardIfMember } from '../src/onboarding';
 import { internal } from './_generated/api';
 import { internalAction, internalMutation, internalQuery } from './_generated/server';
-import { GUILD_ID } from './commands';
+import { GUILD_ID, runSystemCommand } from './commands';
 import { decisionsFor } from './decisions';
 import { applicationsStore, identityStore, siteStore } from './stores';
 
@@ -125,17 +128,17 @@ export const refreshPost = internalAction({
   },
 });
 
-async function dm(discordUserId: string, text: string) {
+async function dm(discordUserId: string, message: MessageData) {
   const discord = rest();
   if (!discord) return 'no bot token';
   try {
     const channel = (await discord.request('POST', '/users/@me/channels', {
       body: { recipient_id: discordUserId },
     })) as { id: string };
-    await discord.createMessage(channel.id, renderApplicantDm(text));
+    await discord.createMessage(channel.id, message);
     return 'sent';
   } catch (err) {
-    // 50007: they don't accept DMs from this server. The reply still shows on their application.
+    // 50007: they don't accept DMs from this server. A reply still shows on their application.
     if (err instanceof DiscordRestError && err.code === 50007) return 'DMs closed';
     throw err;
   }
@@ -148,52 +151,37 @@ export const sendReply = internalAction({
     const loaded = await ctx.runQuery(internal.applications.load, { applicationId });
     const app = loaded?.application;
     if (!app?.reply) return 'no reply';
-    return dm(app.discordId, `About your application to Vintage:\n\n${app.reply}`);
-  },
-});
-
-/** Which Discord role officers give an accepted applicant: the one mapped to the recruit rank. */
-export const recruitRole = internalQuery({
-  args: {},
-  handler: async (ctx) => {
-    const map = await identityStore(ctx).getRoleRankMap(GUILD_ID);
-    return Object.entries(map).find(([, rank]) => rank === 'recruit')?.[0] ?? null;
+    return dm(
+      app.discordId,
+      renderApplicantDm(`About your application to Vintage:\n\n${app.reply}`),
+    );
   },
 });
 
 /**
- * An accepted applicant gets the onboarding DM, and the recruitment channel gets a note asking an
- * officer to give them the recruit role in Discord. The bot never holds Manage Roles
- * (vintage-discord skill): officers set roles, and role sync makes them a recruit here.
+ * After an accept: if the applicant already holds recruit or above (an officer gave the role
+ * first), onboard them now; otherwise role sync does it when it promotes them (commands.ts).
  */
-export const afterAccept = internalAction({
+export const onboardIfPromoted = internalMutation({
+  args: { applicationId: v.string() },
+  handler: async (ctx, { applicationId }) => {
+    const app = await applicationsStore(ctx).get(GUILD_ID, applicationId);
+    if (!app) return null;
+    const member = await identityStore(ctx).getMemberByDiscordId(GUILD_ID, app.discordId);
+    return onboardIfMember(member, (name, input) => runSystemCommand(ctx, name, input));
+  },
+});
+
+/** The onboarding DM, once `application-onboard` has marked the application. */
+export const sendOnboarding = internalAction({
   args: { applicationId: v.string() },
   handler: async (ctx, { applicationId }): Promise<string> => {
     const loaded = await ctx.runQuery(internal.applications.load, { applicationId });
-    const discord = rest();
-    const app = loaded?.application;
-    if (!app || !loaded || !discord) return 'skipped: no bot';
-    const site = process.env.VINTAGE_SITE_URL ?? 'the Vintage website';
-    let onboarding: string;
-    try {
-      onboarding = await dm(app.discordId, loaded.config.onboarding.replaceAll('{site}', site));
-    } catch (err) {
-      onboarding = `failed (${describe(err)})`;
-    }
-    const roleId = await ctx.runQuery(internal.applications.recruitRole, {});
-    const role = roleId
-      ? `<@&${roleId}>`
-      : 'the recruit role (none is mapped yet: guild-roles-set)';
-    const dmNote =
-      onboarding === 'sent' ? 'They have the onboarding DM.' : `Onboarding DM: ${onboarding}.`;
-    if (app.postChannelId) {
-      await discord
-        .createMessage(app.postChannelId, {
-          content: `Accepted ${app.characterName} (<@${app.discordId}>). An officer gives them ${role} in Discord; role sync does the rest. ${dmNote}`,
-          allowed_mentions: { parse: [] },
-        })
-        .catch(() => undefined);
-    }
-    return `onboarding ${onboarding}`;
+    if (!loaded) return 'missing';
+    const message = renderOnboardingDm(
+      loaded.config.onboarding,
+      process.env.VINTAGE_SITE_URL ?? null,
+    );
+    return dm(loaded.application.discordId, message);
   },
 });

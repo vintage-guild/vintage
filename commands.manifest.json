@@ -401,8 +401,33 @@
       }
     },
     {
+      "name": "application-onboard",
+      "description": "Onboard a promoted member: if their latest accepted application hasn't been onboarded, mark it and send the onboarding DM (unless they turned DMs off). System only: runs after role sync promotes someone.",
+      "tier": "officer",
+      "mutation": true,
+      "destructive": false,
+      "systemOnly": true,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "discordId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "dmOptOut": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "discordId",
+          "dmOptOut"
+        ]
+      }
+    },
+    {
       "name": "application-review",
-      "description": "Answer an application: move it to in-review or accept it, optionally with a reply the applicant gets in a DM. Accepting sends them the onboarding note and asks an officer, in the recruitment channel, to give them the recruit role in Discord.",
+      "description": "Answer an application: move it to in-review (asking for more) or accept it, optionally with a reply the applicant gets in a DM. Accepting answers giveRole: the Discord role an officer gives them (the role mapped to recruit). Role sync then promotes them, and the bot DMs the onboarding note once.",
       "tier": "officer",
       "mutation": true,
       "destructive": false,

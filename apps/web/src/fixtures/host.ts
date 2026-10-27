@@ -150,8 +150,14 @@ export function createFixtureHost(
     applicationEffects: {
       submitted: async () => undefined,
       accepted: async () => undefined,
+      onboard: async () => undefined,
       replied: async () => undefined,
       changed: async () => undefined,
+    },
+    applicationRoles: {
+      recruitRoleId: async (g) =>
+        Object.entries(await identity.getRoleRankMap(g)).find(([, r]) => r === 'recruit')?.[0] ??
+        null,
     },
     polls,
     pollMembers: {

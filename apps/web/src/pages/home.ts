@@ -59,6 +59,7 @@ import {
 } from '../dates';
 import { readGuildProfile } from '../guild-profile';
 import { type PollCardModel, type PollGet, pollCardModel } from '../polls';
+import { raidHref } from '../raids';
 import { describeNights, describeTimings } from '../schedules';
 import { currentSession } from '../session';
 import {
@@ -237,6 +238,7 @@ const template = html<Page>`
                   @signup-changed="${(x) => x.loadRaids().then(() => (x.view === 'officer' ? x.loadOfficer() : undefined))}"
                 >
                   <p class="note">${(x) => (x.next ? [x.next.event.instance, players(x.next.event)].filter(Boolean).join(' · ') : '')}</p>
+                  <p class="note"><a href="${(x) => raidHref(x.next?.event.id ?? '')}">See who’s coming</a></p>
                   ${when(
                     (x) => !x.signUpAllowed,
                     html`<p class="note">Signups open to recruits and up. Ask an officer about raiding with us.</p>`,
@@ -259,7 +261,7 @@ const template = html<Page>`
                         ${(r) => weekday(r.event.startsAt)}<b>${(r) => monthDay(r.event.startsAt)}</b>
                       </time>
                       <div class="t">
-                        <b>${(r) => r.event.name}</b>
+                        <b><a href="${(r) => raidHref(r.event.id)}">${(r) => r.event.name}</a></b>
                         <span>${(r) => timeOf(r.event.startsAt)} · ${(r) => players(r.event)}</span>
                       </div>
                       <span class="s ${(r) => (r.myStatus ? 'mine' : '')}">${(r) => summarize(r)}</span>

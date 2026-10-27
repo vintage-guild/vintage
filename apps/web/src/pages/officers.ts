@@ -30,6 +30,7 @@ import {
   type TonightSignup,
 } from '@vintage/ui-kit';
 import { formatMonthDay, formatWeekday, preferredTimeZone } from '../dates';
+import { raidHref } from '../raids';
 import { canSignIn, currentSession } from '../session';
 import { currentView } from '../view';
 import { pageStyles } from './page-styles';
@@ -365,6 +366,10 @@ const template = html<Page>`
               ?loading="${(x) => !x.loaded}"
               @tonight-changed="${(x) => x.load()}"
             ></vintage-tonight>
+            ${when(
+              (x) => x.raid,
+              html<Page>`<p><a href="${(x) => raidHref(x.raid?.id ?? '')}">See this raid as members do</a></p>`,
+            )}
             ${when(
               (x) => x.loadError,
               html<Page>`<p class="error" role="alert">${(x) => x.loadError}</p>`,

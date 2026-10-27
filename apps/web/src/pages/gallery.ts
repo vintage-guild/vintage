@@ -10,6 +10,7 @@ import {
   type LedgerRaid,
   type ListedCharacter,
   type PollCardOption,
+  type RaidRosterSignup,
   type RosterDeskMember,
   type RosterMember,
   SIGNUP_STATUSES,
@@ -272,6 +273,30 @@ const GALLERY_ROLES = {
   '300000000000000005': 'recruit',
 };
 
+/** A locked ten as members see it: groups and the bench showing, two waiting for a spot. */
+const GALLERY_RAID_ROSTER: RaidRosterSignup[] = [
+  ['Stridulent', 'warrior', 'protection', 'tank', 'accepted', null, 1, false],
+  ['Aeryn', 'priest', 'holy', 'healer', 'accepted', null, 2, false],
+  ['Garrick', 'paladin', 'holy', 'healer', 'tentative', 'depends on work', null, false],
+  ['Brannoch', 'warrior', 'fury', 'melee', 'accepted', null, null, false],
+  ['Morwenna', 'mage', 'frost', 'ranged', 'late', 'by 8:30', 2, false],
+  ['Thistle', 'druid', 'restoration', 'healer', 'accepted', null, null, true],
+  ['Isolde', 'mage', 'fire', 'ranged', 'late', 'after the kids are down', null, true],
+  ['Nimue', 'mage', 'fire', 'ranged', 'declined', null, null, false],
+].map(([name, cls, spec, role, status, note, group, queued], i) => ({
+  id: `r${i}`,
+  memberId: name === 'Aeryn' ? 'me' : `m${i}`,
+  characterName: name as string,
+  class: cls as string,
+  spec: spec as string,
+  role: role as string,
+  status: status as string,
+  note: note as string | null,
+  queued: queued as boolean,
+  roster: name === 'Brannoch' ? 'benched' : group ? 'rostered' : 'pending',
+  group: group as number | null,
+}));
+
 const GALLERY_TONIGHT_SIGNUPS: TonightSignup[] = [
   ['Stridulent', 'warrior', 'protection', 'tank', 'accepted', null, 1],
   ['Bloodfen Il', 'warrior', 'protection', 'tank', 'late', 'by 8:30', null],
@@ -338,6 +363,24 @@ const template = html<Page>`
         :gaps="${() => ['need 1 more healer']}"
         :waiting="${() => ['Elowen', 'Fenwick']}"
       ></vintage-tonight>
+    </section>
+    <section>
+      <h2>Raid roster</h2>
+      <p>The members' raid page (<code>/raids/&lt;id&gt;</code>), read-only: a locked ten with groups and the bench, the queue apart, and the signed-in member's row marked.</p>
+      <vintage-raid-roster
+        me="me"
+        :raid="${() => ({ id: 'demo', size: 10, status: 'locked' })}"
+        :counts="${() => ({ accepted: 5, late: 2, tentative: 1, bench: 0, declined: 1 })}"
+        :signups="${() => GALLERY_RAID_ROSTER}"
+        :comp="${() => ({ selected: 6, raidSize: 10, tank: 1, healer: 3, dps: 2, gaps: ['need 4 more players', 'no Mark of the Wild'] })}"
+      ></vintage-raid-roster>
+      <h3>For a member below recruit</h3>
+      <vintage-raid-roster
+        signups-note="Who’s signed up opens to recruits and up. Ask an officer about raiding with us."
+        comp-note="The comp and its gaps are for raiders and up."
+        :raid="${() => ({ id: 'demo', size: 10, status: 'open' })}"
+        :counts="${() => ({ accepted: 7, late: 1, tentative: 1, bench: 0, declined: 0 })}"
+      ></vintage-raid-roster>
     </section>
     <section>
       <h2>Calendar</h2>

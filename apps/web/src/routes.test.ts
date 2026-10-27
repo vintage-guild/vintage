@@ -27,6 +27,7 @@ describe('VintageRoutes', () => {
     ['characters', 'Characters'],
     ['polls', 'Polls'],
     ['polls/j971cqgtxed9zmwk9nfvwafby18h1hwn', 'Polls'],
+    ['raids/k572bq8d3w0g0x9m2fz1y7j4hd7tn1pa', 'Raid'],
     ['officers', 'Officers’ quarters'],
     ['apply', 'Apply'],
     ['oauth/sign-in', 'Connect an app'],
@@ -38,6 +39,8 @@ describe('VintageRoutes', () => {
 
   it('falls back to the not-found page', async () => {
     expect(await titleOf('no/such/page')).toBe('Not found');
+    // A raid page needs its raid; the calendar is the home page's Raids section.
+    expect(await titleOf('raids')).toBe('Not found');
   });
 });
 

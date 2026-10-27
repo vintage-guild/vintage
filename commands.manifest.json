@@ -23,7 +23,7 @@
     },
     {
       "name": "agent-ask",
-      "description": "Ask the guild agent a question in plain words (\"am I on the roster Thursday?\", \"who has not answered?\"). It answers with the commands you can run; anything that would change data comes back as a confirmation you press. Answers arrive a few seconds later: read them with agent-run-get. Pass `thread` (a channel or chat id) to keep follow-ups in one conversation.",
+      "description": "Ask the guild agent a question in plain words (\"am I on the roster Thursday?\", \"who has not answered?\"). It answers with the commands you can run; anything that would change data comes back as a confirmation you press. Answers arrive a few seconds later: read them with agent-run-get. Pass `thread` (a channel or chat id) to keep follow-ups in one conversation, and `context` (the page and what is selected on it) so \"this raid\" means the one in view.",
       "tier": "member",
       "mutation": true,
       "destructive": false,
@@ -40,10 +40,74 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 100
+          },
+          "context": {
+            "type": "object",
+            "properties": {
+              "page": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "selection": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "raid",
+                      "application",
+                      "poll",
+                      "member",
+                      "character",
+                      "run"
+                    ]
+                  },
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  }
+                },
+                "required": [
+                  "kind",
+                  "id",
+                  "label"
+                ]
+              }
+            },
+            "required": [
+              "page"
+            ]
           }
         },
         "required": [
           "question"
+        ]
+      }
+    },
+    {
+      "name": "agent-cancel",
+      "description": "Stop a question the agent is still working on. A queued question never runs; a running one stops at its next step and keeps what it prepared so far. Your own questions; officers can stop anyone's.",
+      "tier": "member",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "runId"
         ]
       }
     },
@@ -175,7 +239,7 @@
     },
     {
       "name": "agent-runs",
-      "description": "The agent ledger, newest first: questions, wording jobs, and Decisions calls, with the commands each ran. Members see their own; officers see everyone and can filter by member or kind.",
+      "description": "The agent ledger, newest first: questions, wording jobs, and Decisions calls, with the commands each ran. Members see their own; officers see everyone and can filter by member or kind. Pass `thread` for one conversation on this surface (your own, or a member's with memberId).",
       "tier": "member",
       "mutation": false,
       "destructive": false,
@@ -194,6 +258,11 @@
               "wording",
               "decision"
             ]
+          },
+          "thread": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
           },
           "limit": {
             "default": 20,

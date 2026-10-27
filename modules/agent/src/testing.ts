@@ -12,6 +12,7 @@ import type { AgentDeps, AgentStore, RunFilter, StoredToolResult } from './store
 
 const matches = (run: AgentRun, f: RunFilter) =>
   (f.memberId === undefined || run.memberId === f.memberId) &&
+  (f.threadKey === undefined || run.threadKey === f.threadKey) &&
   (f.kind === undefined || run.kind === f.kind) &&
   (f.statuses === undefined || f.statuses.includes(run.status)) &&
   (f.since === undefined || run.createdAt >= f.since);

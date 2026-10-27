@@ -21,6 +21,8 @@ export interface ToolCallOutcome {
   /** The guild command it ran or prepared. */
   command: string | null;
   confirmation: PreparedChange | null;
+  /** The command and its input in one readable line, for the run's tool rows. */
+  summary?: string | null;
 }
 
 export interface ToolCallKey {
@@ -28,6 +30,8 @@ export interface ToolCallKey {
   runId: string;
   callId: string;
   name: string;
+  /** When the turn loop first saw the call; recorded as the row's start. */
+  startedAt?: number | null;
 }
 
 /** What the agent receives for the call. */
@@ -89,7 +93,15 @@ export async function recordToolCall(
   }
   const toolCalls: AgentToolCall[] = [
     ...run.toolCalls,
-    { name, command: outcome.command, success: outcome.success },
+    {
+      name,
+      command: outcome.command,
+      success: outcome.success,
+      summary: outcome.summary ?? null,
+      error: outcome.success ? null : (outcome.error ?? null),
+      startedAt: key.startedAt ?? now,
+      finishedAt: now,
+    },
   ];
   await store.updateRun(guildId, runId, { toolCalls, confirmationIds });
   await store.putToolResult({

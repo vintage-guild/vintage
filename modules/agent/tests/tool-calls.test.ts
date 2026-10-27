@@ -26,6 +26,10 @@ async function queuedRun(
     toolCalls: [],
     confirmationIds: [],
     inputTokens: null,
+    context: null,
+    notes: [],
+    draft: null,
+    cancelRequested: false,
     createdAt: NOW,
     finishedAt: null,
   });
@@ -35,6 +39,7 @@ const prepared = (confirmToken: string | null): ToolCallOutcome => ({
   success: true,
   output: '{"pendingConfirmation":true}',
   command: 'signup-set',
+  summary: 'signup-set: status tentative',
   confirmation: {
     command: 'signup-set',
     input: { eventId: 'r1', status: 'tentative' },
@@ -50,13 +55,24 @@ describe('recordToolCall', () => {
     const run = await queuedRun(store);
     const reply = await recordToolCall(
       store,
-      { guildId: GUILD, runId: run.id, callId: 'c1', name: 'afd-call' },
+      { guildId: GUILD, runId: run.id, callId: 'c1', name: 'afd-call', startedAt: NOW - 400 },
       NOW,
       async () => prepared('tok'),
     );
     expect(reply).toEqual({ success: true, output: '{"pendingConfirmation":true}' });
     const saved = await store.getRun(GUILD, run.id);
-    expect(saved?.toolCalls).toEqual([{ name: 'afd-call', command: 'signup-set', success: true }]);
+    // The row a surface shows: what ran, in words, and when it started and ended.
+    expect(saved?.toolCalls).toEqual([
+      {
+        name: 'afd-call',
+        command: 'signup-set',
+        success: true,
+        summary: 'signup-set: status tentative',
+        error: null,
+        startedAt: NOW - 400,
+        finishedAt: NOW,
+      },
+    ]);
     const [confirmation] = await store.listConfirmations(GUILD, run.id);
     expect(confirmation).toMatchObject({
       memberId: 'm1',

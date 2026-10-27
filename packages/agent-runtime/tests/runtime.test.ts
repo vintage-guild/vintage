@@ -509,3 +509,162 @@ describe('summarize', () => {
     expect(summarize('raid-cancel', { eventId: 'j57' })).toBe('raid-cancel');
   });
 });
+
+describe('runTurn progress and stopping', () => {
+  const ok = async () => ({ success: true, output: '{}' });
+
+  it('reports the agent notes, then the answer as it is written', async () => {
+    const runtime = createFakeAgentRuntime([
+      {
+        notes: ['Checking the signups.'],
+        rounds: [[{ name: 'signup_list' }]],
+        answer: 'Aeryn and Kol.',
+      },
+    ]);
+    const reports: { notes: string[]; draft: string | null }[] = [];
+    const outcome = await runTurn({
+      runtime,
+      request,
+      sleep: noSleep,
+      progressMs: 0,
+      executeTool: ok,
+      onProgress: (p) => void reports.push(structuredClone(p)),
+    });
+    expect(outcome).toMatchObject({ status: 'completed', text: 'Aeryn and Kol.' });
+    expect(runtime.streamed).toHaveLength(1);
+    // A partial note first, then the whole note, then the answer growing to its end.
+    expect(reports[0]).toEqual({ notes: ['Checking th'], draft: null });
+    expect(reports).toContainEqual({ notes: ['Checking the signups.'], draft: null });
+    expect(reports.at(-1)).toEqual({ notes: ['Checking the signups.'], draft: 'Aeryn and Kol.' });
+  });
+
+  it('ignores the earlier turns a reused session replays', async () => {
+    const runtime = createFakeAgentRuntime(
+      [
+        { notes: ['Old note.'], answer: 'First.' },
+        { notes: ['New note.'], answer: 'Second.' },
+      ],
+      { lagPolls: 0 },
+    );
+    const first = await runTurn({ runtime, request, sleep: noSleep, executeTool: ok });
+    const reports: { notes: string[]; draft: string | null }[] = [];
+    await runTurn({
+      runtime,
+      request: { ...request, sessionId: first.sessionId },
+      sleep: noSleep,
+      executeTool: ok,
+      onProgress: (p) => void reports.push(structuredClone(p)),
+    });
+    expect(reports.at(-1)).toEqual({ notes: ['New note.'], draft: 'Second.' });
+    expect(reports.flatMap((r) => r.notes)).not.toContain('Old note.');
+  });
+
+  it('stops a turn the member cancelled, upstream too', async () => {
+    const runtime = createFakeAgentRuntime([
+      { rounds: [[{ name: 'a' }], [{ name: 'b' }]], answer: 'never sent' },
+    ]);
+    let calls = 0;
+    const outcome = await runTurn({
+      runtime,
+      request,
+      sleep: noSleep,
+      executeTool: async () => {
+        calls++;
+        return { success: true, output: '{}' };
+      },
+      isCancelled: async () => calls >= 1,
+    });
+    expect(outcome).toMatchObject({ status: 'cancelled', text: null, error: null });
+    expect(calls).toBe(1);
+    expect(runtime.cancelled).toEqual([outcome.sessionId]);
+    expect(publicTurnError(outcome)).toBe('Stopped');
+  });
+
+  it('tells each tool call when the loop first saw it', async () => {
+    const runtime = createFakeAgentRuntime([{ rounds: [[{ name: 'a' }]], answer: 'ok' }]);
+    const seen: (number | undefined)[] = [];
+    await runTurn({
+      runtime,
+      request,
+      sleep: noSleep,
+      now: () => 1234,
+      executeTool: async (call) => {
+        seen.push(call.seenAt);
+        return { success: true, output: '{}' };
+      },
+    });
+    expect(seen).toEqual([1234]);
+  });
+});
+
+describe('runTurn progress when the stream misbehaves', () => {
+  const ok = async () => ({ success: true, output: '{}' });
+  type Report = { notes: string[]; draft: string | null };
+
+  it('lands the last notes and the answer before returning, when the stream trails the loop', async () => {
+    const runtime = createFakeAgentRuntime([{ notes: ['Reading.'], answer: 'Done here.' }], {
+      trails: true,
+    });
+    const reports: Report[] = [];
+    const outcome = await runTurn({
+      runtime,
+      request,
+      sleep: noSleep,
+      progressMs: 0,
+      executeTool: ok,
+      onProgress: (p) => void reports.push(structuredClone(p)),
+    });
+    // When runTurn resolves, the caller records the outcome: progress must already be in.
+    expect(outcome.status).toBe('completed');
+    expect(reports.at(-1)).toEqual({ notes: ['Reading.'], draft: 'Done here.' });
+  });
+
+  it('never holds the answer for a stream that ignores abort or a write that never returns', async () => {
+    const base = createFakeAgentRuntime([{ answer: 'Still answered.' }]);
+    const stuck = {
+      ...base,
+      // Opens, sends nothing, and ignores the abort signal.
+      events: () => ({
+        [Symbol.asyncIterator]: () => ({ next: () => new Promise<never>(() => undefined) }),
+      }),
+    };
+    const started = Date.now();
+    const outcome = await runTurn({
+      runtime: stuck,
+      request,
+      sleep: noSleep,
+      progressGraceMs: 10,
+      executeTool: ok,
+      onProgress: () => new Promise<void>(() => undefined),
+    });
+    expect(outcome).toMatchObject({ status: 'completed', text: 'Still answered.' });
+    expect(Date.now() - started).toBeLessThan(2500);
+
+    const hung = createFakeAgentRuntime([{ notes: ['Hmm.'], answer: 'Also answered.' }]);
+    const second = await runTurn({
+      runtime: hung,
+      request,
+      sleep: noSleep,
+      progressMs: 0,
+      executeTool: ok,
+      onProgress: () => new Promise<void>(() => undefined),
+    });
+    expect(second).toMatchObject({ status: 'completed', text: 'Also answered.' });
+  });
+
+  it('keeps a new session’s progress even when the clocks disagree', async () => {
+    const runtime = createFakeAgentRuntime([{ notes: ['Checking.'], answer: 'Fine.' }]);
+    const reports: Report[] = [];
+    await runTurn({
+      runtime,
+      request,
+      sleep: noSleep,
+      // Ten minutes ahead of the API, or a start that took that long.
+      now: () => Date.now() + 10 * 60 * 1000,
+      progressMs: 0,
+      executeTool: ok,
+      onProgress: (p) => void reports.push(structuredClone(p)),
+    });
+    expect(reports.at(-1)).toEqual({ notes: ['Checking.'], draft: 'Fine.' });
+  });
+});

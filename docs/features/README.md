@@ -16,3 +16,4 @@ when they affect every contributor, in the Decisions table in [AGENTS.md](../../
 | PR self-review (review lanes) | active | [pr-self-review](active/pr-self-review/pr-self-review.plan.md) |
 | Home page | active | [home-page](active/home-page/home-page.plan.md) |
 | Role-aware views and the officers' quarters | active | [role-aware-views](active/role-aware-views/role-aware-views.plan.md) |
+| Character choice (guess, switch, spec per raid) | proposed | [character-choice](proposed/character-choice/character-choice.plan.md) |

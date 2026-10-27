@@ -29,6 +29,9 @@ from the review post in the recruitment channel. Maturity: **official**.
   starter needs until an officer saves the band). The floors are conservative because no real
   applications exist to score yet; below them a label reads "unsure". Re-check with
   `pnpm --filter @vintage/applications exec tsx scripts/label-sample.ts`.
+- **The recruitment channel is officers-only.** Posts carry the applicant's Discord mention,
+  answers, labels, and the officers' reply. Nothing checks the channel's permissions, so
+  `application-config-set channelId` must name a channel only officers can read.
 - **Decline is destructive.** In Discord the Decline button shows a preview and the Confirm click
   declines. A reply is optional and is DMed.
 - **Accept never touches Discord roles.** The bot doesn't hold Manage Roles (`vintage-discord`

@@ -49,11 +49,17 @@ export const applicationSubmit = command({
       });
     }
     const at = now();
+    // Open applications count however old they are; only the per-month cap uses the window.
+    const [open] = await deps.applications.list(guildId, {
+      discordId: caller.discordId,
+      statuses: OPEN_STATUSES,
+      limit: 1,
+    });
     const mine = await deps.applications.list(guildId, {
       discordId: caller.discordId,
       since: at - SUBMIT_LIMIT.windowMs,
     });
-    if (mine.some((a) => OPEN_STATUSES.includes(a.status))) {
+    if (open) {
       return error('APPLICATION_OPEN', 'Your application is still with the officers', {
         suggestion: 'Check it with application-get; officers reply in Discord',
         retryable: false,

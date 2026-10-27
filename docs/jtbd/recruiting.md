@@ -59,10 +59,11 @@ Live checklist:
 
 - [ ] `/random apply character:… class:… spec:… role:raider` opens a form for the long answers;
       submitting it says the officers have it.
-- [ ] The recruitment channel (`application-config-set channelId`) shows the application with its
-      labels and Accept, Reply, and Decline.
+- [ ] The recruitment channel (`application-config-set channelId`, officers only) shows the
+      application with its labels and Accept, Reply, and Decline.
 - [ ] Reply sends me the officer's text in a DM, and the post shows it.
-- [ ] Accept gives me the recruit role in Discord and the onboarding DM with the site's address.
+- [ ] Accept sends me the onboarding DM with the site's address, and asks an officer in the
+      recruitment channel to give me the recruit role (the bot never sets roles).
 - [ ] Applying again while one is open says it is still with the officers.
 
 ### J29 · Get a weekly roster check with one-click recruiting changes

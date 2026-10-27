@@ -71,6 +71,12 @@ describe('application-submit', () => {
     expect(code(await run('application-submit', form, guest))).toBe('APPLICATION_OPEN');
   });
 
+  it('keeps one open application however old it is', async () => {
+    await run('application-submit', form, guest);
+    clock.advance(31 * 24 * 60 * 60 * 1000);
+    expect(code(await run('application-submit', form, guest))).toBe('APPLICATION_OPEN');
+  });
+
   it('caps applications per person per month', async () => {
     for (let i = 0; i < 3; i++) {
       const { id } = data<{ id: string }>(await run('application-submit', form, guest));

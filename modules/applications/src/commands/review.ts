@@ -113,7 +113,7 @@ export const applicationConfigGet = command({
 export const applicationConfigSet = command({
   name: 'application-config-set',
   description:
-    'Set the recruitment channel new applications are posted to (a Discord channel id, or null to stop posting) and the onboarding note (`{site}` becomes the website address).',
+    'Set the recruitment channel new applications are posted to (a Discord channel id, or null to stop posting) and the onboarding note (`{site}` becomes the website address). The channel must be visible to officers only: posts carry each applicant’s answers and labels.',
   tier: 'officer',
   mutation: true,
   input: z.object({

@@ -2,7 +2,9 @@
 // what this renders and stores its hash, so the event is edited only when the raid changes.
 // "Interested" on the event is Discord's own; it is not a signup and is never read back.
 import type { ScheduledEventData } from '@vintage/discord-kit';
+import { KIND_LABELS, kindOf } from '@vintage/raids/contract';
 import type { TickEvent } from '../store';
+import { eventTitle, noun } from './kind-words';
 import { hashJson } from './render';
 
 /** Discord allows 100 SCHEDULED or ACTIVE events per server; we never hold more than this. */
@@ -33,21 +35,26 @@ export function signupLink(
   return links?.siteUrl ? links.siteUrl.replace(/\/$/, '') : null;
 }
 
-/** The server event's fields for a raid, inside Discord's limits. */
+/**
+ * The server event's fields, inside Discord's limits. Like the card, the words follow the kind:
+ * "Dungeon · SM Cathedral", "5-player dungeon: Scarlet Monastery."; a raid keeps its own name.
+ */
 export function renderServerEvent(tick: TickEvent, link: string | null): ScheduledEventData {
   const { event } = tick;
-  const where = link ? `Sign up: ${link}` : 'Sign up on the raid card in Discord.';
+  const where = link ? `Sign up: ${link}` : `Sign up on the ${noun(event)} card in Discord.`;
   const description = [
-    `${event.size}-player ${event.instance}.`,
+    `${event.size}-player ${noun(event)}: ${event.instance}.`,
     where,
     '"Interested" here is not a signup.',
   ].join('\n');
   return {
-    name: clip(event.name.trim() || event.instance, MAX_NAME),
+    name: clip(eventTitle({ ...event, name: event.name.trim() || event.instance }), MAX_NAME),
     scheduled_start_time: new Date(event.startsAt).toISOString(),
     scheduled_end_time: new Date(event.startsAt + event.durationMinutes * MINUTE).toISOString(),
     description: clip(description, MAX_DESCRIPTION),
-    entity_metadata: { location: clip(event.instance.trim() || 'Raid', MAX_LOCATION) },
+    entity_metadata: {
+      location: clip(event.instance.trim() || KIND_LABELS[kindOf(event)], MAX_LOCATION),
+    },
   };
 }
 

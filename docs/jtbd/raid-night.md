@@ -133,11 +133,28 @@ without leaving Discord.
 ### J28 · Make a raid from Discord
 **When** a run comes together in chat, **I (raid leader) want** to make the raid with a slash
 command, **so I can** open signups without going to the site.
-- [ ] Rook runs `/random raid create` with a start like `2026-11-03 8pm`; the private reply shows
-  the time as a Discord timestamp, and the signup card goes up within seconds (no wait for the tick).
+- [ ] Rook runs `/random event create` with a start like `2026-11-03 8pm`; the private reply shows
+  the time as a Discord timestamp, says what was made ("40-player raid", "looking for 4 tanks · 10
+  healers · 26 DPS"), and the signup card goes up within seconds (no wait for the tick).
 - [ ] The time is read in the guild's clock (the zone the site's calendar uses: the first active
   schedule's, else the first schedule's, else New York).
 - [ ] With `serverEvents` on, the new raid also shows in the server's Events list (J24).
-- [ ] `/random raid pick-night` with two times opens a raid-night vote in the signup channel (J18).
+- [ ] `kind: battleground` with `healers: 3` makes a 10-player battleground looking for 0 tanks,
+  3 healers and 7 DPS; its server event is named "Battleground · …". A 10-player dungeon is
+  refused with the sizes a dungeon takes.
+- [ ] `/random event pick-night` with two times opens a raid-night vote in the signup channel (J18).
 - [ ] A raider gets a private "needs the Raid Leader rank"; an unreadable or impossible time says
   how to write one.
+- [ ] A stale `/random raid` (before the commands are re-registered) gets the private "can't do
+  that yet" reply, not a timeout.
+
+### J30 · Run a dungeon with the same signups
+**When** a few of us want a dungeon, **I (raid leader) want** the same signup card with a
+dungeon's comp, **so I can** fill five spots without a raid's rules getting in the way.
+- [ ] Rook runs `/random event create` with `kind: dungeon`, `size: 5`, `tanks: 1`, `healers: 1`,
+  `dps: 3`; the reply says "5-player dungeon" and "looking for 1 tank · 1 healer · 3 DPS".
+- [ ] The card is titled "Dungeon · … · Scarlet Monastery", says "5-person dungeon", and shows
+  Tanks 1/1, Healers 0/1, DPS 0/3 once the tank answers.
+- [ ] **Missing** lists only roles (1 healer · 3 dps): no Mark of the Wild, Fortitude, or
+  Intellect line, since buffs only count for raids.
+- [ ] The sixth person to answer is queued, and the card shows **5** going and **1** queued.

@@ -1,10 +1,16 @@
-import { raidSizeSchema, roleTargetsSchema } from '@vintage/comp-solver';
-import { error, success } from '@vintage/guild-kit';
+import { roleTargetsSchema } from '@vintage/comp-solver';
+import { success } from '@vintage/guild-kit';
 import { z } from 'zod';
 import { type RaidEvent, type Schedule, WEEKDAYS } from '../contract';
 import { isValidTime, isValidTimeZone, occurrences } from '../domain/recurrence';
 import { command } from '../store';
-import { scheduleNotFound } from './shared';
+import {
+  eventSizeSchema,
+  kindSchema,
+  scheduleNotFound,
+  sizeForKind,
+  targetsTooBig,
+} from './shared';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -26,7 +32,8 @@ const reminderHoursSchema = z
 const scheduleFields = {
   name: z.string().trim().min(1).max(60),
   instance: z.string().trim().min(1).max(60),
-  size: raidSizeSchema,
+  kind: kindSchema,
+  size: eventSizeSchema,
   weekdays: weekdaysSchema,
   time: timeSchema,
   timeZone: timeZoneSchema,
@@ -42,24 +49,17 @@ const scheduleFields = {
   lootMethodId: z.string().min(1).nullable(),
 };
 
-/** A target total above the raid size can never be met. */
-function targetsTooBig(size: number, targets: Schedule['roleTargets']) {
-  if (!targets || targets.tank + targets.healer + targets.dps <= size) return null;
-  return error('ROLE_TARGETS_TOO_BIG', `Role targets add up to more than ${size}`, {
-    suggestion: 'Lower the tank, healer, or dps targets so they fit the raid size',
-    retryable: false,
-  });
-}
-
 export const scheduleCreate = command({
   name: 'schedule-create',
   description:
     'Create a recurring raid night, e.g. Molten Core every Tuesday and Thursday at 20:00 New York ' +
-    'time. Events are created ahead of time by schedule-materialize.',
+    'time, or a weekly dungeon or battleground with kind (default raid). Events are created ' +
+    'ahead of time by schedule-materialize.',
   tier: 'leader',
   mutation: true,
   input: z.object({
     ...scheduleFields,
+    kind: scheduleFields.kind.default('raid'),
     durationMinutes: scheduleFields.durationMinutes.default(180),
     leadDays: scheduleFields.leadDays.default(7),
     reminderHours: scheduleFields.reminderHours.default([72, 24]),
@@ -68,12 +68,14 @@ export const scheduleCreate = command({
     lootMethodId: scheduleFields.lootMethodId.default(null),
   }),
   handler: async (input, { guildId, deps }) => {
-    const tooBig = targetsTooBig(input.size, input.roleTargets);
-    if (tooBig) return tooBig;
+    const invalid =
+      sizeForKind(input.kind, input.size) ?? targetsTooBig(input.size, input.roleTargets);
+    if (invalid) return invalid;
     const schedule = await deps.raids.insertSchedule({
       guildId,
       name: input.name,
       instance: input.instance,
+      kind: input.kind,
       size: input.size,
       recurrence: { weekdays: input.weekdays, time: input.time, timeZone: input.timeZone },
       durationMinutes: input.durationMinutes,
@@ -96,7 +98,7 @@ export const scheduleCreate = command({
 export const scheduleUpdate = command({
   name: 'schedule-update',
   description:
-    'Change a schedule (time, days, size, timings, comp targets) or pause it with active: false. ' +
+    'Change a schedule (time, days, kind, size, timings, comp targets) or pause it with active: false. ' +
     'Raids already created keep their time; use raid-reschedule for those.',
   tier: 'leader',
   mutation: true,
@@ -109,11 +111,13 @@ export const scheduleUpdate = command({
     const current = await deps.raids.getSchedule(guildId, scheduleId);
     if (!current) return scheduleNotFound();
     const size = input.size ?? current.size;
-    const tooBig = targetsTooBig(
-      size,
-      input.roleTargets === undefined ? current.roleTargets : input.roleTargets,
-    );
-    if (tooBig) return tooBig;
+    const invalid =
+      sizeForKind(input.kind ?? current.kind, size) ??
+      targetsTooBig(
+        size,
+        input.roleTargets === undefined ? current.roleTargets : input.roleTargets,
+      );
+    if (invalid) return invalid;
 
     const { weekdays, time, timeZone, leadDays, reminderHours, lockHours, ...rest } = input;
     const patch: Partial<Schedule> = {
@@ -181,6 +185,7 @@ export const scheduleMaterialize = command({
             scheduleId: schedule.id,
             name: schedule.name,
             instance: schedule.instance,
+            kind: schedule.kind,
             size: schedule.size,
             startsAt,
             durationMinutes: schedule.durationMinutes,

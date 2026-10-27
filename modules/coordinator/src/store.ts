@@ -3,7 +3,13 @@ import type { MessageData, ScheduledEventData } from '@vintage/discord-kit';
 import { type Caller, type CommandResult, commandsFor } from '@vintage/guild-kit';
 import type { GuildRank } from '@vintage/identity/contract';
 import type { Poll } from '@vintage/polls/contract';
-import type { RaidEvent, RaidSize, ScheduleTimings, Signup } from '@vintage/raids/contract';
+import type {
+  EventKind,
+  RaidEvent,
+  RoleTargets,
+  ScheduleTimings,
+  Signup,
+} from '@vintage/raids/contract';
 import type { ClassNeed } from '@vintage/site/contract';
 import type {
   ActionStatus,
@@ -156,7 +162,9 @@ export interface CoordinatorRaids {
     raid: {
       name: string;
       instance: string;
-      size: RaidSize;
+      kind: EventKind;
+      size: number;
+      roleTargets: RoleTargets | null;
       startsAt: number;
       durationMinutes: number;
     },

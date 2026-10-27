@@ -26,6 +26,7 @@ const raid = (id: string, overrides: Partial<RaidEvent> = {}): RaidEvent => ({
   scheduleId: null,
   name: 'MC nights',
   instance: 'Molten Core',
+  kind: 'raid',
   size: 40,
   startsAt: START,
   durationMinutes: 180,
@@ -55,6 +56,21 @@ describe('renderServerEvent', () => {
       entity_metadata: { location: 'Molten Core' },
     });
     expect(data.description).toContain('not a signup');
+    expect(data.description).toContain('40-player raid: Molten Core.');
+  });
+
+  it('names the kind for dungeons, battlegrounds, and other events', () => {
+    const cases = [
+      ['dungeon', 5, 'Dungeon · MC nights', '5-player dungeon'],
+      ['battleground', 15, 'Battleground · MC nights', '15-player battleground'],
+      ['other', 3, 'Event · MC nights', '3-player event'],
+    ] as const;
+    for (const [kind, size, name, words] of cases) {
+      const data = renderServerEvent(asTick(raid('r1', { kind, size })), null);
+      expect(data.name).toBe(name);
+      expect(data.description).toContain(words);
+      expect(data.description).toContain(`Sign up on the ${words.split(' ')[1]} card`);
+    }
   });
 
   it('clips long names, locations, and descriptions', () => {

@@ -87,3 +87,4 @@ than no check.
 | 2026-10-25 | TypeScript 6 (`tsc6`) for type-check, matching Lushly's tooling pin. |
 | 2026-10-25 | Boundary checks are a dependency-free script (`scripts/check-boundaries.mjs`), not dependency-cruiser. |
 | 2026-10-25 | FAST-AF is vendored as built output in `vendor/`, pinned to a commit, until it's on npm. Never edit it ([VENDORED.md](vendor/VENDORED.md)). |
+| 2026-10-26 | Dungeons, battlegrounds and other events are raids-module events with a `kind`, not a separate system; Discord calls them `/random event` (#151). |

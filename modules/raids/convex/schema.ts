@@ -1,7 +1,16 @@
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 
-export const raidSize = v.union(v.literal(10), v.literal(20), v.literal(40));
+// Any size from 1 to 40; which sizes a kind allows is checked by the commands (src/domain/kinds.ts).
+// Widened from the 10/20/40 literals, so every existing row still matches.
+export const eventSize = v.number();
+
+export const eventKind = v.union(
+  v.literal('raid'),
+  v.literal('dungeon'),
+  v.literal('battleground'),
+  v.literal('other'),
+);
 
 export const weekday = v.union(
   v.literal('sun'),
@@ -50,7 +59,9 @@ export const scheduleFields = {
   guildId: v.string(),
   name: v.string(),
   instance: v.string(),
-  size: raidSize,
+  // Optional so rows written before kinds existed stay valid; read as 'raid'.
+  kind: v.optional(eventKind),
+  size: eventSize,
   recurrence: v.object({ weekdays: v.array(weekday), time: v.string(), timeZone: v.string() }),
   durationMinutes: v.number(),
   timings: v.object({
@@ -69,7 +80,9 @@ export const eventFields = {
   scheduleId: v.union(v.string(), v.null()),
   name: v.string(),
   instance: v.string(),
-  size: raidSize,
+  // Optional so rows written before kinds existed stay valid; read as 'raid'.
+  kind: v.optional(eventKind),
+  size: eventSize,
   startsAt: v.number(),
   durationMinutes: v.number(),
   status: raidStatus,

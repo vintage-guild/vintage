@@ -10,6 +10,7 @@ const schedule = (over: Partial<Schedule> = {}): Schedule => ({
   guildId: 'g',
   name: 'Raid night',
   instance: "Onyxia's Lair",
+  kind: 'raid',
   size: 40,
   recurrence: { weekdays: ['wed', 'thu'], time: '20:00', timeZone: 'America/New_York' },
   durationMinutes: 180,

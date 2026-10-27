@@ -85,59 +85,80 @@ const POLL_GROUP = {
   ],
 };
 
-/** The raid options both raid subcommands share, in Discord's order (required first). */
-const RAID_BASICS = [
+/** The options both event subcommands require, in Discord's order (required first). */
+const EVENT_BASICS = [
   {
     type: T.STRING,
     name: 'name',
-    description: 'The raid’s name, e.g. Onyxia run',
+    description: 'The event’s name, e.g. Onyxia run or Cathedral run',
     required: true,
     max_length: 60,
   },
   {
     type: T.STRING,
     name: 'instance',
-    description: 'Where, e.g. Onyxia’s Lair',
+    description: 'Where, e.g. Onyxia’s Lair or Scarlet Monastery',
     required: true,
     max_length: 60,
   },
   {
+    // Not a fixed choice any more: the command checks it per kind (raid 10/20/40, dungeon 5,
+    // battleground 10/15/40, other 1–40) and says which sizes fit.
     type: T.INTEGER,
     name: 'size',
-    description: 'Raid size',
+    description: 'Players: raid 10/20/40, dungeon 5, battleground 10/15/40, other 1–40',
     required: true,
-    choices: [
-      { name: '10', value: 10 },
-      { name: '20', value: 20 },
-      { name: '40', value: 40 },
-    ],
+    min_value: 1,
+    max_value: 40,
   },
 ];
 
-const RAID_HOURS = {
-  type: T.NUMBER,
-  name: 'hours',
-  description: 'How long the raid runs, in hours (default 3)',
-  min_value: 0.5,
-  max_value: 8,
-};
+/** The optional options both event subcommands share: what kind, and the role counts. */
+const EVENT_EXTRAS = [
+  {
+    type: T.STRING,
+    name: 'kind',
+    description: 'What kind of event (default raid)',
+    choices: [
+      { name: 'Raid', value: 'raid' },
+      { name: 'Dungeon', value: 'dungeon' },
+      { name: 'Battleground', value: 'battleground' },
+      { name: 'Other', value: 'other' },
+    ],
+  },
+  ...(['tanks', 'healers', 'dps'] as const).map((name) => ({
+    type: T.INTEGER,
+    name,
+    description: `How many ${name === 'dps' ? 'DPS' : name} (default: the kind’s usual comp)`,
+    min_value: 0,
+    max_value: 40,
+  })),
+  {
+    type: T.NUMBER,
+    name: 'hours',
+    description: 'How long it runs, in hours (default 3)',
+    min_value: 0.5,
+    max_value: 8,
+  },
+];
 
 /**
- * `/random raid create` and `/random raid pick-night`: raid-create and raid-night-poll, run as
- * the raid leader who asked. Times are typed in the guild's clock (`2026-11-10 20:00`, or
+ * `/random event create` and `/random event pick-night` (#151; `/random raid` until then):
+ * raid-create and raid-night-poll, run as the raid leader who asked, for a raid, dungeon,
+ * battleground, or other event. Times are typed in the guild's clock (`2026-11-10 20:00`, or
  * `2026-11-10 8pm`) and echoed back as Discord timestamps, so mistakes show at once.
  */
-const RAID_GROUP = {
+const EVENT_GROUP = {
   type: T.SUB_COMMAND_GROUP,
-  name: 'raid',
-  description: 'Raids (raid leaders and officers)',
+  name: 'event',
+  description: 'Raids, dungeons, battlegrounds, and other events (raid leaders and officers)',
   options: [
     {
       type: T.SUB_COMMAND,
       name: 'create',
-      description: 'Make a one-off raid, open for signups',
+      description: 'Make a one-off event, open for signups',
       options: [
-        ...RAID_BASICS,
+        ...EVENT_BASICS,
         {
           type: T.STRING,
           name: 'start',
@@ -145,15 +166,15 @@ const RAID_GROUP = {
           required: true,
           max_length: 40,
         },
-        RAID_HOURS,
+        ...EVENT_EXTRAS,
       ],
     },
     {
       type: T.SUB_COMMAND,
       name: 'pick-night',
-      description: 'Let the raid vote on a start time; the winner becomes the raid',
+      description: 'Let people vote on a start time; the winner becomes the event',
       options: [
-        ...RAID_BASICS,
+        ...EVENT_BASICS,
         {
           type: T.STRING,
           name: 'times',
@@ -161,6 +182,7 @@ const RAID_GROUP = {
           required: true,
           max_length: 400,
         },
+        ...EVENT_EXTRAS,
         {
           type: T.INTEGER,
           name: 'vote_hours',
@@ -175,7 +197,6 @@ const RAID_GROUP = {
           min_value: 1,
           max_value: 40,
         },
-        RAID_HOURS,
       ],
     },
   ],
@@ -264,7 +285,7 @@ export const RANDOM_COMMAND = {
       description: 'Check that Random is answering',
     },
     POLL_GROUP,
-    RAID_GROUP,
+    EVENT_GROUP,
     ASK,
     APPLY,
     RECRUITING,
@@ -274,7 +295,7 @@ export const RANDOM_COMMAND = {
 /** Subcommands and groups whose work runs in Convex; the gateway forwards them. */
 export const FORWARDED_GROUPS: ReadonlySet<string> = new Set([
   POLL_GROUP.name,
-  RAID_GROUP.name,
+  EVENT_GROUP.name,
   ASK.name,
   APPLY.name,
   RECRUITING.name,

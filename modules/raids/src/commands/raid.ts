@@ -1,9 +1,18 @@
-import { raidSizeSchema, roleTargetsSchema, type SignupStatus } from '@vintage/comp-solver';
+import { roleTargetsSchema, type SignupStatus } from '@vintage/comp-solver';
 import { error, success, tierAllows } from '@vintage/guild-kit';
 import { z } from 'zod';
-import { RAID_STATUSES, type Signup } from '../contract';
+import { kindNoun, RAID_STATUSES, type Signup } from '../contract';
 import { command } from '../store';
-import { eventNotFound, instantSchema, isLive, raidClosed } from './shared';
+import {
+  eventNotFound,
+  eventSizeSchema,
+  instantSchema,
+  isLive,
+  kindSchema,
+  raidClosed,
+  sizeForKind,
+  targetsTooBig,
+} from './shared';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -22,13 +31,18 @@ function countByStatus(signups: Signup[]): Record<SignupStatus, number> {
 
 export const raidCreate = command({
   name: 'raid-create',
-  description: 'Create a one-off raid (not from a schedule), open for signups.',
+  description:
+    'Create a one-off event (not from a schedule), open for signups: a raid (10, 20 or 40), a ' +
+    'dungeon (5), a battleground (10, 15 or 40), or another event (1 to 40). roleTargets ' +
+    'default to the kind: raid comps by size, 1 tank/1 healer/3 dps for dungeons, no tank ' +
+    'for battlegrounds, none for other.',
   tier: 'leader',
   mutation: true,
   input: z.object({
     name: z.string().trim().min(1).max(60),
     instance: z.string().trim().min(1).max(60),
-    size: raidSizeSchema,
+    kind: kindSchema.default('raid'),
+    size: eventSizeSchema,
     startsAt: instantSchema,
     durationMinutes: z
       .number()
@@ -40,6 +54,9 @@ export const raidCreate = command({
     lootMethodId: z.string().min(1).nullable().default(null),
   }),
   handler: async (input, { guildId, deps, now }) => {
+    const invalid =
+      sizeForKind(input.kind, input.size) ?? targetsTooBig(input.size, input.roleTargets);
+    if (invalid) return invalid;
     if (input.startsAt <= now()) return inPast();
     const event = await deps.raids.insertEvent({
       guildId,
@@ -48,7 +65,9 @@ export const raidCreate = command({
       status: 'open',
       configVersion: 1,
     });
-    return success(event, { reasoning: `${event.name} is open for signups` });
+    return success(event, {
+      reasoning: `${event.name} (${event.size}-player ${kindNoun(event.kind)}) is open for signups`,
+    });
   },
 });
 

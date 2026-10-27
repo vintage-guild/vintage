@@ -17,6 +17,15 @@ directly. Maturity: **core**.
 
 ## Rules
 
+- **Event kinds** (#151): every schedule and event has a `kind`: `raid` (10/20/40), `dungeon`
+  (5), `battleground` (10/15/40), or `other` (1–40). Rows from before kinds read as `raid` (the
+  component's mapper fills it; the field is optional in the schema). `raid-create`,
+  `schedule-create`/`-update` check the size per kind (`SIZE_NOT_ALLOWED`) and that roleTargets
+  fit (`ROLE_TARGETS_TOO_BIG`). `roleTargets: null` means the kind's default: comp-solver's by
+  size for raids, 1/1/3 for dungeons, healers and dps (no tank) for battlegrounds, none for
+  `other`. Raid buffs count as gaps only for raids (`eventTemplate`). The rules live in
+  `@vintage/comp-solver` (`kinds.ts`) so the card and the site share them; the contract
+  re-exports them.
 - **Times are UTC epoch ms**, computed from the schedule's local time and zone. Never store
   local times on events; Discord and the website render them per viewer.
 - **Materializing is idempotent.** `schedule-materialize` skips any occurrence that already has

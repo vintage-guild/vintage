@@ -36,7 +36,9 @@ const SCHEDULE: CalendarSchedule = {
   id: 's1',
   name: 'Raid night',
   instance: "Onyxia's Lair",
+  kind: 'raid',
   size: 40,
+  roleTargets: null,
   recurrence: { weekdays: ['wed', 'thu'], time: '20:00', timeZone: 'America/New_York' },
   durationMinutes: 180,
   timings: { leadDays: 7, reminderHours: [72, 24], lockHours: 2 },
@@ -48,6 +50,7 @@ const raid = (over: Partial<CalendarRaid> = {}): CalendarRaid => ({
   scheduleId: 's1',
   name: 'Raid night',
   instance: "Onyxia's Lair",
+  kind: 'raid',
   size: 40,
   startsAt: Date.UTC(2026, 10, 5, 1), // Wed 4 Nov, 20:00 New York (EST)
   durationMinutes: 180,
@@ -281,7 +284,9 @@ describe('vintage-schedule-form', () => {
       input: {
         name: 'Raid night',
         instance: 'Molten Core',
+        kind: 'raid',
         size: 40,
+        roleTargets: null,
         weekdays: ['tue', 'thu'],
         time: '20:00',
         timeZone: 'America/New_York',
@@ -318,6 +323,77 @@ describe('vintage-schedule-form', () => {
       input: { scheduleId: 's1', time: '19:30', lockHours: 4 },
     });
   });
+
+  it('pre-fills the comp from the kind and size, and follows them until a count is typed', async () => {
+    const { f, submitted } = await form(null);
+    expect([f.tanks, f.healers, f.dps]).toEqual([4, 10, 26]);
+    f.setKind('dungeon');
+    expect(f.size).toBe(5);
+    expect([f.tanks, f.healers, f.dps]).toEqual([1, 1, 3]);
+    await settle();
+    expect(f.shadowRoot?.querySelector<HTMLInputElement>('#dps')?.value).toBe('3');
+    expect(text(f.shadowRoot?.querySelector('.counts-note') as Element)).toContain(
+      '5-player dungeon',
+    );
+    f.name = 'SM Sundays';
+    f.instance = 'Scarlet Monastery';
+    f.toggleDay('sun', true);
+    submit(f);
+    // The usual comp goes out as null, so it keeps following the kind's default.
+    expect(submitted).toHaveBeenLastCalledWith({
+      command: 'schedule-create',
+      input: expect.objectContaining({ kind: 'dungeon', size: 5, roleTargets: null }),
+    });
+
+    f.setKind('battleground');
+    f.setSize(15);
+    expect([f.tanks, f.healers, f.dps]).toEqual([0, 3, 12]);
+    f.setCount('healers', 4);
+    f.setSize(10);
+    expect([f.tanks, f.healers, f.dps]).toEqual([0, 4, 12]);
+    submit(f);
+    expect(f.problem).toBe('The counts add up to more than 10 players.');
+    f.setCount('dps', 6);
+    submit(f);
+    expect(submitted).toHaveBeenLastCalledWith({
+      command: 'schedule-create',
+      input: expect.objectContaining({
+        kind: 'battleground',
+        size: 10,
+        roleTargets: { tank: 0, healer: 4, dps: 6 },
+      }),
+    });
+  });
+
+  it('refuses a size the kind does not allow', async () => {
+    const { f, submitted } = await form(null);
+    f.name = 'Fishing';
+    f.instance = 'Stranglethorn';
+    f.setKind('other');
+    f.setSize(41);
+    submit(f);
+    expect(f.problem).toBe('An event is 1 to 40 players.');
+    expect(submitted).not.toHaveBeenCalled();
+  });
+
+  it('edits a schedule’s kind and its own counts', async () => {
+    const { f, submitted } = await form({
+      ...SCHEDULE,
+      kind: 'dungeon',
+      size: 5,
+      roleTargets: { tank: 1, healer: 2, dps: 2 },
+    });
+    expect(f.kind).toBe('dungeon');
+    expect([f.tanks, f.healers, f.dps]).toEqual([1, 2, 2]);
+    f.setCount('healers', 1);
+    f.setCount('dps', 3);
+    submit(f);
+    // Back to the dungeon's usual 1/1/3: stored as null, the kind's default.
+    expect(submitted).toHaveBeenCalledWith({
+      command: 'schedule-update',
+      input: { scheduleId: 's1', roleTargets: null },
+    });
+  });
 });
 
 describe('vintage-raid-form', () => {
@@ -337,6 +413,55 @@ describe('vintage-raid-form', () => {
     f.shadowRoot?.querySelector('form')?.requestSubmit();
     expect(submitted).not.toHaveBeenCalled();
     expect(f.problem).toContain('already passed');
+  });
+
+  it('adds a one-off dungeon with its kind and counts', async () => {
+    const el = await desk();
+    el.openRaid(null);
+    await settle();
+    const f = $<VintageRaidForm>(el, 'vintage-raid-form');
+    const submitted = vi.fn();
+    f.addEventListener('form-submit', (e) => submitted((e as CustomEvent).detail));
+    f.setKind('dungeon');
+    f.setCount('tanks', 1);
+    f.setCount('healers', 1);
+    f.setCount('dps', 2);
+    Object.assign(f, {
+      name: 'Cathedral run',
+      instance: 'Scarlet Monastery',
+      date: '2026-11-04',
+      time: '20:00',
+    });
+    await settle();
+    expect(text(f.shadowRoot?.querySelector('button.primary') as Element)).toBe('Add the dungeon');
+    f.shadowRoot?.querySelector('form')?.requestSubmit();
+    expect(submitted).toHaveBeenCalledWith({
+      command: 'raid-create',
+      input: expect.objectContaining({
+        kind: 'dungeon',
+        size: 5,
+        roleTargets: { tank: 1, healer: 1, dps: 2 },
+      }),
+    });
+  });
+
+  it('shows the kind on the agenda for everything but raids', async () => {
+    const el = await desk({
+      raids: [
+        raid(),
+        raid({
+          id: 'r2',
+          kind: 'dungeon',
+          size: 5,
+          instance: 'Scarlet Monastery',
+          scheduleId: null,
+        }),
+      ],
+    });
+    const page = text(el.shadowRoot as unknown as Element);
+    expect(page).toContain("40-player Onyxia's Lair");
+    expect(page).not.toContain('Raid · 40-player');
+    expect(page).toContain('Dungeon · 5-player Scarlet Monastery');
   });
 });
 

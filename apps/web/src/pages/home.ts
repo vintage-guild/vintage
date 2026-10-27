@@ -16,7 +16,14 @@ import {
   RAIDS_OPEN_AT,
   RAIDS_OPEN_ON,
 } from '@vintage/progress/contract';
-import type { RaidEvent, Schedule, Signup, SignupStatus } from '@vintage/raids/contract';
+import {
+  KIND_LABELS,
+  kindOf,
+  type RaidEvent,
+  type Schedule,
+  type Signup,
+  type SignupStatus,
+} from '@vintage/raids/contract';
 import {
   type ClassNeed,
   type GuildProfile,
@@ -78,6 +85,9 @@ interface RaidRow {
 const weekday = (ms: number) => formatWeekday(ms);
 const monthDay = (ms: number) => formatMonthDay(ms);
 const timeOf = (ms: number) => formatTime(ms);
+/** "40 players" for a raid; other kinds say what they are: "5 players · Dungeon" (#151). */
+const players = (e: RaidEvent) =>
+  kindOf(e) === 'raid' ? `${e.size} players` : `${e.size} players · ${KIND_LABELS[kindOf(e)]}`;
 
 /** "Warrior, Priest, or Shaman": the classes the band marks high, for the members' one-liner. */
 function highNeeds(band: Recruiting): string {
@@ -216,7 +226,7 @@ const template = html<Page>`
                   :counts="${(x) => x.nextCounts}"
                   @signup-changed="${(x) => x.loadRaids().then(() => (x.view === 'officer' ? x.loadOfficer() : undefined))}"
                 >
-                  <p class="note">${(x) => x.next?.event.instance} · ${(x) => x.next?.event.size} players</p>
+                  <p class="note">${(x) => x.next?.event.instance} · ${(x) => (x.next ? players(x.next.event) : '')}</p>
                   ${when(
                     (x) => !x.signUpAllowed,
                     html`<p class="note">Signups open to recruits and up. Ask an officer about raiding with us.</p>`,
@@ -240,7 +250,7 @@ const template = html<Page>`
                       </time>
                       <div class="t">
                         <b>${(r) => r.event.name}</b>
-                        <span>${(r) => timeOf(r.event.startsAt)} · ${(r) => r.event.size} players</span>
+                        <span>${(r) => timeOf(r.event.startsAt)} · ${(r) => players(r.event)}</span>
                       </div>
                       <span class="s ${(r) => (r.myStatus ? 'mine' : '')}">${(r) => summarize(r)}</span>
                     </div>

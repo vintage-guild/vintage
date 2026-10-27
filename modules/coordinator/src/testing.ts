@@ -217,21 +217,28 @@ export function createFakeDiscord(): CoordinatorDiscord & {
  * Records materialize/lock/create calls; `onLock` lets a test change the state like raids would.
  * `createForRaidNight` marks the night in `store`, like the one Convex mutation does.
  */
+type RaidNightRequest = Parameters<CoordinatorRaids['createForRaidNight']>[2];
+
 export function createFakeRaids(
   onLock?: (eventId: string) => void,
   store?: CoordinatorStore,
 ): CoordinatorRaids & {
   calls: string[];
   created: { id: string; name: string; startsAt: number }[];
+  /** Everything each create asked raids for: kind, size, role targets, and the rest. */
+  requests: RaidNightRequest[];
 } {
   const calls: string[] = [];
   const created: { id: string; name: string; startsAt: number }[] = [];
+  const requests: RaidNightRequest[] = [];
   return {
     calls,
     created,
+    requests,
     async createForRaidNight(guildId, raidNightId, raid, detail) {
       const id = `raid_${created.length + 1}`;
       created.push({ id, name: raid.name, startsAt: raid.startsAt });
+      requests.push(raid);
       calls.push(`create:${raid.name}`);
       await store?.updateRaidNight(guildId, raidNightId, {
         outcome: 'created',

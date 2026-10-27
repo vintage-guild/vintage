@@ -7,8 +7,8 @@ import type { Signup } from '@vintage/raids/contract';
 import { v } from 'convex/values';
 import { handleAgentInteraction } from '../src/discord-agent';
 import { handleApplicationInteraction } from '../src/discord-applications';
+import { handleEventInteraction } from '../src/discord-events';
 import { handlePollInteraction } from '../src/discord-polls';
-import { handleRaidInteraction } from '../src/discord-raids';
 import { handleSignupInteraction } from '../src/discord-signups';
 import { internal } from './_generated/api';
 import { internalMutation } from './_generated/server';
@@ -60,7 +60,7 @@ export const interaction = internalMutation({
     });
     if (signup) return signup;
 
-    const raid = await handleRaidInteraction(incoming, {
+    const event = await handleEventInteraction(incoming, {
       discordGuildId,
       guildId: GUILD_ID,
       memberByDiscordId,
@@ -68,7 +68,7 @@ export const interaction = internalMutation({
       afterChange: () => coordinatorScheduler(ctx).runTickNow(GUILD_ID),
       now: () => Date.now(),
     });
-    if (raid) return raid;
+    if (event) return event;
 
     const poll = await handlePollInteraction(incoming, {
       discordGuildId,

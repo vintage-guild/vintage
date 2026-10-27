@@ -2,6 +2,7 @@
 // time becomes a raid. Pure: what a poll's result means for the raid, and the words around it.
 import { discordTimestamp, type MessageData, TimestampStyle } from '@vintage/discord-kit';
 import type { Poll } from '@vintage/polls/contract';
+import { kindNoun, kindOf } from '@vintage/raids/contract';
 import type { RaidNight } from '../contract';
 
 /** "Tue 10 Nov, 8:00 PM EST": short enough for a poll button, in the guild's time zone. */
@@ -21,14 +22,20 @@ export function startLabel(startsAt: number, timeZone: string): string {
 }
 
 /** The poll description: each candidate in every reader's own local time. */
-export function candidateLines(name: string, startTimes: number[]): string {
+export function candidateLines(
+  name: string,
+  startTimes: number[],
+  kind: RaidNight['kind'] = 'raid',
+): string {
   const lines = startTimes.map(
     (t, i) =>
       `${i + 1}. ${discordTimestamp(t, TimestampStyle.LONG_DATE_TIME)} (${discordTimestamp(t, TimestampStyle.RELATIVE)})`,
   );
-  return [`Vote for when **${name}** happens. The winning time becomes the raid.`, ...lines].join(
-    '\n',
-  );
+  const what = kindNoun(kind);
+  return [
+    `Vote for when **${name}** happens. The winning time becomes the ${what}.`,
+    ...lines,
+  ].join('\n');
 }
 
 export type RaidNightDecision =
@@ -77,7 +84,8 @@ export function renderRaidNightUnresolved(
   const question = poll ? `“${poll.question}”` : 'A raid-night poll';
   return {
     content:
-      `${question} closed without a raid for **${raidNight.name}**: ${reason}. ` +
+      `${question} closed without a ${kindNoun(kindOf(raidNight))} for **${raidNight.name}**: ` +
+      `${reason}. ` +
       'Pick a time and run `raid-create`, or start another poll with `raid-night-poll`.',
     allowed_mentions: { parse: [] },
   };

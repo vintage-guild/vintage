@@ -12,6 +12,24 @@ const result = solveComp({ raidSize: 10, template: defaultTemplate(10), signups 
 result.gaps.map((g) => g.reason); // ['need 1 healer', 'no Mark of the Wild']
 ```
 
+`raidSize` is any group from 1 to 40 (`groupSizeSchema`). `RaidSize` (10, 20, 40) and
+`raidSizeSchema` stay for raids.
+
+## Event kinds
+
+`kinds.ts` holds the rules for raids, dungeons, battlegrounds, and other events (#151), shared by
+the raids commands, the coordinator card, and the site's forms:
+
+| Kind | Sizes | Default targets | Buffs count |
+|---|---|---|---|
+| `raid` | 10, 20, 40 | `defaultTemplate(size)` | yes |
+| `dungeon` | 5 | 1 tank, 1 healer, 3 dps | no |
+| `battleground` | 10, 15, 40 | no tank; 2, 3 or 8 healers; the rest dps | no |
+| `other` | 1–40 | none (anyone fills any slot) | no |
+
+`sizeFits(kind, size)`, `defaultRoleTargets(kind, size)`, and `eventTemplate(event)` (the
+template to solve with: the event's targets or the kind's, raid buffs only for raids).
+
 ## How it picks
 
 Signups are ranked by status (accepted, late, tentative, bench), then `priority` (higher

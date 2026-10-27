@@ -6,6 +6,14 @@ export const RAID_SIZES = [10, 20, 40] as const;
 export type RaidSize = (typeof RAID_SIZES)[number];
 export const raidSizeSchema = z.union([z.literal(10), z.literal(20), z.literal(40)]);
 
+/** The largest group the solver plans for. */
+export const MAX_GROUP_SIZE = 40;
+/**
+ * Any group the solver can plan: a 5-player dungeon, a 15-player battleground, a raid. Which
+ * sizes an event may use is the caller's rule (the raids module checks it per event kind).
+ */
+export const groupSizeSchema = z.number().int().min(1).max(MAX_GROUP_SIZE);
+
 /**
  * How a member answered the signup post, best first. `declined` is never eligible;
  * `bench` means they volunteered to sit and are picked only when nobody else fits.
@@ -76,7 +84,7 @@ export type CompTemplate = z.input<typeof compTemplateSchema>;
 
 export const compInputSchema = z
   .object({
-    raidSize: raidSizeSchema,
+    raidSize: groupSizeSchema,
     template: compTemplateSchema,
     signups: z.array(compSignupSchema),
   })
@@ -133,11 +141,11 @@ export type CompGap =
       missing: number;
       reason: string;
     }
-  | { kind: 'size'; raidSize: RaidSize; have: number; missing: number; reason: string };
+  | { kind: 'size'; raidSize: number; have: number; missing: number; reason: string };
 
 export interface CompCounts {
   selected: number;
-  raidSize: RaidSize;
+  raidSize: number;
   tank: number;
   healer: number;
   dps: number;

@@ -467,7 +467,7 @@ describe('JTBD: raid night', () => {
 
   it('J28 · a raid leader makes a raid from Discord, and its signup card goes up', async () => {
     const { wed } = await scheduleRaidNights(g);
-    const ui = g.host.raidUi;
+    const ui = g.host.eventUi;
     const content = (r: unknown) => (r as { data?: { content?: string } }).data?.content ?? '';
     const before = g.host.sentTo(SIGNUP_CHANNEL).length;
     const ticks = g.host.ticksRequested.length;
@@ -481,6 +481,9 @@ describe('JTBD: raid night', () => {
       start: '2026-11-03 8pm',
     });
     expect(content(made)).toContain(`<t:${tue8pm / 1000}:F>`);
+    // No kind given: a raid, with the usual 40-person comp.
+    expect(content(made)).toContain("Made **Onyxia run** (Onyxia's Lair, 40-player raid) for <t:");
+    expect(content(made)).toContain('looking for 4 tanks · 10 healers · 26 DPS');
     expect(g.host.ticksRequested.length).toBeGreaterThan(ticks);
 
     // The next tick posts its signup card beside the scheduled nights.
@@ -522,6 +525,87 @@ describe('JTBD: raid night', () => {
       start: 'next tuesday',
     });
     expect(content(unclear)).toMatch(/couldn't read “next tuesday”/);
+
+    // Another kind, with the counts set by hand: the reply and the Events list say what it is.
+    const bg = await ui.slash(g.rook.discordId!, 'create', {
+      name: 'WSG premade',
+      instance: 'Warsong Gulch',
+      size: 10,
+      start: '2026-11-03 9pm',
+      kind: 'battleground',
+      healers: 3,
+    });
+    expect(content(bg)).toContain('(Warsong Gulch, 10-player battleground)');
+    expect(content(bg)).toContain('looking for 0 tanks · 3 healers · 7 DPS');
+    const wrongSize = await ui.slash(g.rook.discordId!, 'create', {
+      name: 'Big SM',
+      instance: 'Scarlet Monastery',
+      size: 10,
+      start: '2026-11-03 9pm',
+      kind: 'dungeon',
+    });
+    expect(content(wrongSize)).toMatch(/A dungeon can't be 10 players.*Use a size of 5/s);
+    await g.host.tick();
+    await g.host.tick();
+    const bgEvent = [...g.host.discord.serverEvents.values()].find(
+      (e) => e.data.name === 'Battleground · WSG premade',
+    );
+    expect(bgEvent?.data.description).toContain('10-player battleground: Warsong Gulch.');
+  });
+
+  it('J30 · a 5-player dungeon shows its 1/1/3 comp and what it is missing, and queues the sixth', async () => {
+    await g.host.configureCoordinator();
+    const made = await g.host.eventUi.slash(g.rook.discordId!, 'create', {
+      name: 'Cathedral run',
+      instance: 'Scarlet Monastery',
+      size: 5,
+      start: '2026-10-28 7pm',
+      kind: 'dungeon',
+      tanks: 1,
+      healers: 1,
+      dps: 3,
+    });
+    const reply = (made as { data?: { content?: string } }).data?.content ?? '';
+    expect(reply).toContain('(Scarlet Monastery, 5-player dungeon)');
+    expect(reply).toContain('looking for 1 tank · 1 healer · 3 DPS');
+    const raids = await g.host.ok<{ event: RaidEvent }[]>(g.aeryn, 'raid-list', {});
+    const sm = raids.find((r) => r.event.name === 'Cathedral run')!.event;
+    expect(sm).toMatchObject({ kind: 'dungeon', size: 5 });
+
+    // A tank answers: the card shows the dungeon's targets, the missing roles, and no buffs.
+    await answer(g, g.aeryn, 'aeryn', sm.id, 'accepted');
+    await g.host.tick();
+    const card = g.host
+      .sentTo(SIGNUP_CHANNEL)
+      .find((m) => m.message.embeds?.[0]?.title?.includes('Cathedral run'))!.message;
+    expect(card.embeds?.[0]?.title).toBe('Dungeon · Cathedral run · Scarlet Monastery');
+    const text = messageText(card);
+    expect(text).toContain('5-person dungeon');
+    expect(text).toMatch(/Tanks 1\/1/);
+    expect(text).toMatch(/Healers 0\/1/);
+    expect(text).toMatch(/DPS 0\/3/);
+    expect(text).toContain('**Missing** 1 healer · 3 dps');
+    expect(text).not.toMatch(/MotW|Fort|Mark of the Wild|Fortitude|Arcane Intellect/);
+
+    // Five more answer: the dungeon holds five, so the sixth person in is queued.
+    g.host.clock.advance(60 * 1000);
+    await answer(g, g.bram, 'bram', sm.id, 'accepted');
+    for (const [who, key] of [
+      [g.cade, 'cade'],
+      [g.dara, 'dara'],
+      [g.ana, 'ana'],
+      [g.rook, 'rook'],
+    ] as const) {
+      g.host.clock.advance(60 * 1000);
+      await answer(g, who, key, sm.id, 'accepted');
+    }
+    const sixth = await g.host.ok<Signup | null>(g.rook, 'signup-get', { eventId: sm.id });
+    expect(sixth?.queued).toBe(true);
+    await g.host.tick();
+    const edited = messageText(g.host.editsTo(SIGNUP_CHANNEL).at(-1)!.message);
+    expect(edited).toMatch(/\*\*5\*\* going/);
+    expect(edited).toMatch(/\*\*1\*\* queued/);
+    expect(edited).toMatch(/Queue 1\n1\. .*Rookwood/);
   });
 
   it('J24 · a raid leader keeps the calendar right from the quarters: one-offs, moves, pauses, done', async () => {

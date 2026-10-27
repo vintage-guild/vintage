@@ -1,8 +1,8 @@
-import { type CompSignup, defaultTemplate, solveComp } from '@vintage/comp-solver';
+import { type CompSignup, solveComp } from '@vintage/comp-solver';
 import { success } from '@vintage/guild-kit';
 import type { GuildRank } from '@vintage/identity/contract';
 import { z } from 'zod';
-import { RANK_PRIORITY } from '../contract';
+import { eventTemplate, RANK_PRIORITY } from '../contract';
 import { command } from '../store';
 import { eventNotFound } from './shared';
 
@@ -35,9 +35,8 @@ export const compSuggest = command({
         signedUpAt: s.signedUpAt,
       };
     });
-    const template = event.roleTargets
-      ? { ...defaultTemplate(event.size), targets: event.roleTargets }
-      : defaultTemplate(event.size);
+    // The kind's targets, and raid buffs only for raids.
+    const template = eventTemplate(event);
     const result = solveComp({ raidSize: event.size, template, signups: compSignups });
     const reasoning = result.gaps.length
       ? result.gaps.map((g) => g.reason).join(' · ')

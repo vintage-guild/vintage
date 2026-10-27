@@ -33,8 +33,8 @@ import { createMemorySiteStore } from '@vintage/site/testing';
 import { fixedClock, testRegistry } from '@vintage/testing';
 import { handleAgentInteraction } from '../../src/discord-agent';
 import { handleApplicationInteraction } from '../../src/discord-applications';
+import { handleEventInteraction } from '../../src/discord-events';
 import { handlePollInteraction } from '../../src/discord-polls';
-import { handleRaidInteraction } from '../../src/discord-raids';
 import { handleSignupInteraction } from '../../src/discord-signups';
 import { commands, type VintageDeps } from '../../src/registry';
 import { createTickSource } from '../../src/tick-source';
@@ -389,14 +389,14 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     });
   }
 
-  /** `/random raid create` and `/random raid pick-night`, run through src/discord-raids.ts. */
-  const raidUi = {
+  /** `/random event create` and `/random event pick-night`, run through src/discord-events.ts. */
+  const eventUi = {
     slash: (
       discordId: string,
       sub: 'create' | 'pick-night',
       options: Record<string, string | number>,
     ) =>
-      handleRaidInteraction(
+      handleEventInteraction(
         {
           id: 'i',
           application_id: 'app',
@@ -409,7 +409,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
             name: 'random',
             options: [
               {
-                name: 'raid',
+                name: 'event',
                 type: 2,
                 options: [
                   {
@@ -610,7 +610,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     applicationUi,
     applicationEffects,
     discordUi,
-    raidUi,
+    eventUi,
     pollUi,
     clock,
     deps,

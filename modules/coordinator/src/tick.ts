@@ -309,7 +309,9 @@ async function settleRaidNight(
       {
         name: night.name,
         instance: night.instance,
+        kind: night.kind,
         size: night.size,
+        roleTargets: night.roleTargets,
         startsAt: decision.startsAt,
         durationMinutes: night.durationMinutes,
       },

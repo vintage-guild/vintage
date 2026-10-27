@@ -39,11 +39,12 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           durationMinutes: number;
           guildId: string;
           instance: string;
+          kind?: "raid" | "dungeon" | "battleground" | "other";
           lootMethodId: string | null;
           name: string;
           roleTargets: { dps: number; healer: number; tank: number } | null;
           scheduleId: string | null;
-          size: 10 | 20 | 40;
+          size: number;
           startsAt: number;
           status: "open" | "locked" | "cancelled" | "completed";
         },
@@ -73,11 +74,12 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             configVersion?: number;
             durationMinutes?: number;
             instance?: string;
+            kind?: "raid" | "dungeon" | "battleground" | "other";
             lootMethodId?: string | null;
             name?: string;
             roleTargets?: { dps: number; healer: number; tank: number } | null;
             scheduleId?: string | null;
-            size?: 10 | 20 | 40;
+            size?: number;
             startsAt?: number;
             status?: "open" | "locked" | "cancelled" | "completed";
           };
@@ -103,6 +105,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           durationMinutes: number;
           guildId: string;
           instance: string;
+          kind?: "raid" | "dungeon" | "battleground" | "other";
           lootMethodId: string | null;
           name: string;
           recurrence: {
@@ -113,7 +116,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             >;
           };
           roleTargets: { dps: number; healer: number; tank: number } | null;
-          size: 10 | 20 | 40;
+          size: number;
           timings: {
             leadDays: number;
             lockHours: number;
@@ -140,6 +143,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             configVersion?: number;
             durationMinutes?: number;
             instance?: string;
+            kind?: "raid" | "dungeon" | "battleground" | "other";
             lootMethodId?: string | null;
             name?: string;
             recurrence?: {
@@ -150,7 +154,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               >;
             };
             roleTargets?: { dps: number; healer: number; tank: number } | null;
-            size?: 10 | 20 | 40;
+            size?: number;
             timings?: {
               leadDays: number;
               lockHours: number;

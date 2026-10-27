@@ -34,6 +34,3 @@ Thumbs.db
 
 # Vercel CLI project link (local only)
 .vercel/
-
-.vercel
-.env*

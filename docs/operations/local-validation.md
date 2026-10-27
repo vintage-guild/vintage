@@ -4,7 +4,7 @@ The same commands run locally and in CI (PLAN §7.2).
 
 | Command | Runs | When |
 |---|---|---|
-| `pnpm validate:final` | lockfile, conflict markers, lint, boundaries, agent docs, vendor, lockfile registry, command manifest, type-check, tests | Before every PR (also the pre-push hook) |
+| `pnpm validate:final` | lockfile, conflict markers, lint, boundaries, agent docs, vendor, lockfile registry, command manifest, type-check, build, tests | Before every PR (also the pre-push hook) |
 | `pnpm check` | everything above, plus the gate-script self-tests and botcore plugin tests | Before merging gate or tooling changes |
 | `pnpm check:boundaries` | layer, module, and cycle rules (`scripts/check-boundaries.mjs`) | Any change under `apps/ modules/ packages/ libs/` |
 | `pnpm check:manifest` | `commands.manifest.json` matches the registry | Any command change; fix with `pnpm manifest:write` |

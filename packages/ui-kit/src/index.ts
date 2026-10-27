@@ -6,6 +6,21 @@ export {
   NOT_CONNECTED,
   setCommandClient,
 } from './client';
+export { POLL_MS as AGENT_POLL_MS, VintageAgentPanel } from './elements/agent-panel';
+export {
+  type AgentPanelConfirmation,
+  type AgentPanelContext,
+  type AgentPanelRun,
+  type AgentPanelToolCall,
+  type ApprovalView,
+  commandLabel,
+  contextLabel,
+  STARTER_PROMPTS,
+  type ToolRow,
+  type TurnView,
+  toolRows,
+  turnView,
+} from './elements/agent-panel-model';
 export {
   type ApplicationsDeskRow,
   labelsText,
@@ -55,6 +70,7 @@ export {
 } from './elements/guild-profile-desk';
 export { VintageHero } from './elements/hero';
 export { VintageLogoHeader } from './elements/logo-header';
+export { VintageMarkdown } from './elements/markdown-text';
 export { VintageMemberMenu } from './elements/member-menu';
 export { VintageMemberPrefs } from './elements/member-prefs';
 export {
@@ -96,6 +112,7 @@ export {
 export { VintageThemeSwitch } from './elements/theme-switch';
 export { type TonightRaid, type TonightSignup, VintageTonight } from './elements/tonight';
 export { roleLabel, ruleHours, ruleLead, ruleWords, titleCase } from './labels';
+export { type Block, type Inline, parseInline, parseMarkdown, renderMarkdown } from './markdown';
 export { describeError, type ElementResult, toElementResult } from './result';
 export {
   applyTheme,

@@ -184,6 +184,12 @@ importers:
       '@microsoft/fast-router':
         specifier: workspace:*
         version: link:../../vendor/fast-router
+      '@vintage/agent':
+        specifier: workspace:*
+        version: link:../../modules/agent
+      '@vintage/agent-runtime':
+        specifier: workspace:*
+        version: link:../../packages/agent-runtime
       '@vintage/applications':
         specifier: workspace:*
         version: link:../../modules/applications

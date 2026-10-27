@@ -5,6 +5,14 @@ import '@lushly-dev/violet-elements/dist/badge/violet-badge';
 import '@lushly-dev/violet-elements/dist/button/violet-button';
 import '@lushly-dev/violet-elements/dist/card/violet-card';
 import '@lushly-dev/violet-elements/dist/checkbox/violet-checkbox';
+// The conversation elements the officers' assistant panel is built from.
+import '@lushly-dev/violet-elements/dist/conversation/violet-approval-card';
+import '@lushly-dev/violet-elements/dist/conversation/violet-chat-composer';
+import '@lushly-dev/violet-elements/dist/conversation/violet-chat-suggestions';
+import '@lushly-dev/violet-elements/dist/conversation/violet-conversation-thread';
+import '@lushly-dev/violet-elements/dist/conversation/violet-message';
+import '@lushly-dev/violet-elements/dist/conversation/violet-message-status';
+import '@lushly-dev/violet-elements/dist/conversation/violet-message-text';
 import '@lushly-dev/violet-elements/dist/option/violet-option';
 import '@lushly-dev/violet-elements/dist/select/violet-select';
 import '@lushly-dev/violet-elements/dist/switch/violet-switch';

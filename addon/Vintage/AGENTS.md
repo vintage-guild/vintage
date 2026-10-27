@@ -10,8 +10,8 @@ Load the `vintage-addon` skill before changing anything here.
 
 | Folder | Holds | Rule |
 |---|---|---|
-| `Core/` | Session reducer, migrations, actions returning ActionResult | Pure Lua 5.1. No WoW API, no `LibStub`; runs in busted and Mechanic's sandbox |
-| `Bridge/` | `Secrets`, `Context` (every game read), `Events`, `Executor` (the action registry) | The only layer that calls WoW APIs. Every returned field passes `Secrets.Public` |
+| `Core/` | Session reducer, migrations, actions returning ActionResult; `BridgeFormat/`: the `!VIN:1!` codec and payload schemas, the Lua twin of `libs/bridge-format` | Pure Lua 5.1. No WoW API, no `LibStub`; runs in busted and Mechanic's sandbox |
+| `Bridge/` | `Secrets`, `BridgeStrings` (`ns.BridgeCodec` over the embedded LibSerialize and LibDeflate), `Context` (every game read), `Events`, `Executor` (the action registry) | The only layer that calls WoW APIs. Every returned field passes `Secrets.Public` |
 | `View/` | FenUI raid window, theme registration, minimap button | Calls `ns.Executor:Execute(name, params)`; never Core or WoW game state directly |
 | `Theme/VintageTokens.lua` | FenUI theme generated from `libs/design-tokens` | Never edit; `pnpm tokens:build` writes it |
 | `Vintage.lua`, `Config.lua`, `Settings.lua` | AceAddon lifecycle and slash commands, AceDB (`VintageDB`), AceConfig | Slash commands are Executor actions plus a printed result |
@@ -34,6 +34,7 @@ defaults, and add a step instead of changing an old one.
 |---|---|
 | Full gate (CI `addon` lane) | `python Tools/validate.py --lua lua5.1` from this folder: tool versions, validator tests, locale keys, TOC/XML manifest, `.pkgmeta`, library pins, theme freshness, CHANGELOG version, luacheck, busted. Its diff-whitespace stage checks uncommitted edits, so it only catches anything locally |
 | No Lua on the machine | `python Tools/validate.py --static` runs only the Python stages and says so |
+| Bridge fixtures | `pnpm fixtures:bridge`, then `python Tools/validate.py --write-fixtures`, then `VINTAGE_WRITE_FIXTURES=1 busted Tests/core/bridge_codec_spec.lua` (rewrites `lua-made.json` under Lua 5.1), then `--write-fixtures` again ([order](../../libs/bridge-format/README.md#fixtures)) |
 | Mechanic (MCP) | `addon.lint`, `addon.test`, `sandbox.test` for `Core/`, `addon.validate` with `addon="Vintage"` |
 | In game | Mechanic's protocol: `diagnostic.targets`, ask for `/reload`, wait for confirmation, then `addon.output` with the same target. Never straight after an edit |
 

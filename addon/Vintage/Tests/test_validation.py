@@ -101,6 +101,35 @@ class Libraries(unittest.TestCase):
         self.assertTrue(any("the library changed" in error for error in errors))
 
 
+class BridgeFixtures(unittest.TestCase):
+    def test_renders_lua_literals(self):
+        self.assertEqual(validate.lua_string('say "hi"\\\n\x01Élowen'), '"say \\"hi\\"\\\\\\n\\001Élowen"')
+        self.assertEqual(validate.lua_value([], 0), "{}")
+        self.assertEqual(validate.lua_value({"b": True, "a": 1, "end": "x", "kebab-key": 2}, 0),
+                         '{\n\ta = 1,\n\tb = true,\n\t["end"] = "x",\n\t["kebab-key"] = 2,\n}')
+        with self.assertRaises(ValueError):
+            validate.lua_value(None, 0)
+
+    def test_the_lua_file_must_match_the_json_fixtures(self):
+        with tempfile.TemporaryDirectory() as repo:
+            addon = Path(repo) / "addon" / "Vintage"
+            fixtures = "libs/bridge-format/fixtures/"
+            write(repo, fixtures + "raid-export.v1.json", '{"payload": {"v": 1}, "encoded": "!VIN:1!a"}')
+            write(repo, fixtures + "lua-made.json", '{"$comment": "x", "strings": {"raid-export.v1": "!VIN:1!b"}}')
+            self.assertEqual(validate.check_bridge_fixtures(addon),
+                             ["Tests/fixtures/bridge_fixtures.lua is stale; run python Tools/validate.py --write-fixtures"])
+            validate.write_bridge_fixtures(addon)
+            self.assertEqual(validate.check_bridge_fixtures(addon), [])
+            text = (addon / "Tests/fixtures/bridge_fixtures.lua").read_text(encoding="utf-8")
+            self.assertIn('["raid-export.v1"] = "!VIN:1!b"', text)
+            write(repo, fixtures + "lua-made.json", '{"$comment": "x", "strings": {"raid-export.v1": "!VIN:1!c"}}')
+            self.assertEqual(len(validate.check_bridge_fixtures(addon)), 1)
+
+    def test_fixture_check_is_skipped_outside_the_monorepo(self):
+        with tempfile.TemporaryDirectory() as root:
+            self.assertEqual(validate.check_bridge_fixtures(Path(root)), [])
+
+
 class ThemeAndVersion(unittest.TestCase):
     def test_theme_must_match_the_generated_file(self):
         with tempfile.TemporaryDirectory() as repo:

@@ -13,6 +13,9 @@ local function loadBridge(hostOptions, withFenCore)
 			dofile("Libs/FenCore/" .. file)
 		end
 	end
+	for _, path in ipairs(Load.BRIDGE_LIBRARIES) do
+		assert(loadfile(path))()
+	end
 	local ns = Load.files(Load.CORE)
 	ns.db = { char = { session = ns.Core.Session.New() } }
 	Load.files(Load.BRIDGE, ns)
@@ -36,6 +39,16 @@ describe("Bridge.Secrets", function()
 		assert.is_false(ns.Secrets.IsSecret(host:Secret()))
 		assert.are.equal("Aeryn", ns.Secrets.Public("Aeryn"))
 		assert.are.equal("1.60.1", ns.Context:BuildClientContext().gameVersion)
+	end)
+end)
+
+describe("Bridge.BridgeStrings", function()
+	it("gives the addon a codec over the embedded libraries", function()
+		local _, ns = loadBridge()
+		local fixtures = dofile("Tests/fixtures/bridge_fixtures.lua").fixtures
+		local decoded = ns.BridgeCodec:DecodeKind(fixtures["raid-import.v1"].encoded, "raid-import")
+		assert.is_true(decoded.success)
+		assert.are.equal("Molten Core — week 1", decoded.data.raid.title)
 	end)
 end)
 

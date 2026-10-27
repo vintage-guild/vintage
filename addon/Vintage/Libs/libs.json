@@ -15,6 +15,8 @@
     "AceLocale-3.0": { "version": "latest", "source": "Libs/Ace3/AceLocale-3.0" },
     "LibDataBroker-1.1": "latest",
     "LibDBIcon-1.0": "latest",
+    "LibDeflate": "latest",
+    "LibSerialize": "latest",
     "FenCore": "latest",
     "FenUI": "latest"
   },
@@ -22,6 +24,6 @@
     "Ace3": "Copied from the committed upstream Ace3 (git HEAD), not a working copy: a locally modified Ace library would override every other addon's copy through LibStub.",
     "FenCore": "Pure logic domains (ActionResult, Secrets)",
     "FenUI": "UI widgets and design tokens; the Vintage themes come from Theme/VintageTokens.lua",
-    "LibDeflate, LibSerialize": "Arrive with the bridge codec (PR2, issue #23)"
+    "LibDeflate, LibSerialize": "The bridge codec (Core/BridgeFormat). LibSerialize must be MINOR 7 or later: its stable serialization matches libs/bridge-format byte for byte. _dev_/Libs/LibSerialize is a clone of rossnichols/LibSerialize at tag v1.2.3"
   }
 }

@@ -1,9 +1,13 @@
 // An in-memory Vintage for JTBD scenarios: every module's memory store, the real command registry,
 // the real coordinator tick, and a fake Discord that records what the bot sends. Callers are
 // resolved from synced members the way commands.ts does it, so tiers come from Discord roles.
+import { recordToolCall, renderAgentReply } from '@vintage/agent/commands';
+import { type AgentDelivery, isAgentCommand, toConfirmationView } from '@vintage/agent/contract';
 import { createMemoryAgentStore } from '@vintage/agent/testing';
+import { createRegistryTools } from '@vintage/agent-runtime';
 import { runTick } from '@vintage/coordinator/commands';
 import { createFakeDiscord, createMemoryCoordinatorStore } from '@vintage/coordinator/testing';
+import type { DecisionsPort } from '@vintage/decisions';
 import {
   type Interaction,
   InteractionType,
@@ -25,6 +29,7 @@ import type { Signup } from '@vintage/raids/contract';
 import { createMemoryRaidsStore, createRecordingEventSink } from '@vintage/raids/testing';
 import { createMemorySiteStore } from '@vintage/site/testing';
 import { fixedClock, testRegistry } from '@vintage/testing';
+import { handleAgentInteraction } from '../../src/discord-agent';
 import { handlePollInteraction } from '../../src/discord-polls';
 import { handleSignupInteraction } from '../../src/discord-signups';
 import { commands, type VintageDeps } from '../../src/registry';
@@ -73,6 +78,11 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
   const pollEvents = createPollEventSink();
   const tickSource = createTickSource({ raids, identity, coordinator });
   const ticksRequested: string[] = [];
+  /** Questions agent-ask queued, with where the answer goes (as the Convex action receives them). */
+  const queued: { runId: string; delivery: AgentDelivery | undefined }[] = [];
+  let pendingDelivery: AgentDelivery | undefined;
+  /** Decisions for the tick's digest; null keeps notes raw, like a deployment without a key. */
+  let decisions: DecisionsPort | null = null;
   const deps: VintageDeps = {
     identity,
     raids,
@@ -105,8 +115,12 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     progress: createMemoryProgressStore(),
     site: createMemorySiteStore(),
     agent: createMemoryAgentStore(),
-    // Questions stay queued in JTBD runs: the turn itself needs OpenAI (covered in agent tests).
-    agentQueue: { enqueue: async () => undefined },
+    // The turn itself needs OpenAI; agentUi.answer stands in for it (it calls the same tools).
+    agentQueue: {
+      enqueue: async (_g, runId) => {
+        queued.push({ runId, delivery: pendingDelivery });
+      },
+    },
     agentRunner: {
       run: (caller, name, input, confirmToken) =>
         registry.execute({ name, input, caller, ...(confirmToken ? { confirmToken } : {}) }, deps),
@@ -171,6 +185,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
         },
         discord,
         polls: { get: (g, id) => polls.getPoll(g, id) },
+        decisions,
       },
       GUILD,
       clock.now(),
@@ -304,6 +319,116 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
   }
 
   /** `/random poll create`, and clicks or picks on a poll post or its private replies. */
+
+  /** The member's caller for a Discord interaction, resolved like convex/discord.ts. */
+  const memberByDiscordId = (discordId: string) => identity.getMemberByDiscordId(GUILD, discordId);
+
+  function agentInteract(discordId: string, interaction: Partial<Interaction>) {
+    return handleAgentInteraction(
+      {
+        id: 'i',
+        application_id: 'app',
+        token: `token-${discordId}`,
+        type: InteractionType.MESSAGE_COMPONENT,
+        guild_id: DISCORD_GUILD,
+        channel_id: POLL_CHANNEL,
+        member: { user: { id: discordId, username: discordId }, roles: [] },
+        ...interaction,
+      } as Interaction,
+      {
+        discordGuildId: DISCORD_GUILD,
+        guildId: GUILD,
+        memberByDiscordId,
+        ask: async (caller, input, delivery) => {
+          pendingDelivery = delivery;
+          try {
+            return await registry.execute({ name: 'agent-ask', input, caller }, deps);
+          } finally {
+            pendingDelivery = undefined;
+          }
+        },
+        run: (caller, name, input) => registry.execute({ name, input, caller }, deps),
+      },
+    );
+  }
+
+  /** The member's private reply once a run ends, as convex/agent.ts delivers it. */
+  async function agentReply(runId: string) {
+    const run = await deps.agent.getRun(GUILD, runId);
+    if (!run) throw new Error(`no run ${runId}`);
+    const confirmations = (await deps.agent.listConfirmations(GUILD, runId)).map(
+      toConfirmationView,
+    );
+    return renderAgentReply({
+      status: run.status,
+      answer: run.answer,
+      error: run.error,
+      confirmations,
+    });
+  }
+
+  const agentUi = {
+    ask: (discordId: string, question: string) =>
+      agentInteract(discordId, {
+        type: InteractionType.APPLICATION_COMMAND,
+        data: {
+          name: 'random',
+          options: [
+            { name: 'ask', type: 1, options: [{ name: 'question', type: 3, value: question }] },
+          ],
+        },
+      } as Partial<Interaction>),
+    click: (discordId: string, customId: string, content: string) =>
+      agentInteract(discordId, {
+        data: { custom_id: customId, component_type: 2 },
+        message: { id: 'reply', content },
+      } as Partial<Interaction>),
+    /**
+     * Stand in for the OpenAI turn: the agent calls `calls` through the real registry tools as the
+     * asking member (recorded like the Convex tool mutation), then answers `text`.
+     */
+    answer: async (
+      runId: string,
+      calls: { tool: string; args: Record<string, unknown> }[],
+      text: string,
+    ) => {
+      const run = await deps.agent.getRun(GUILD, runId);
+      const member = run?.memberId ? await identity.getMember(GUILD, run.memberId) : null;
+      if (!run || !member) throw new Error('the run has no member');
+      const tools = createRegistryTools({
+        registry,
+        deps,
+        caller: {
+          surface: 'agent',
+          guildId: GUILD,
+          tier: member.tier,
+          memberId: member.id,
+          discordId: member.discordId,
+          onBehalfOf: member.id,
+        },
+        hidden: isAgentCommand,
+      });
+      for (const [i, call] of calls.entries()) {
+        await recordToolCall(
+          deps.agent,
+          { guildId: GUILD, runId, callId: `call-${i}`, name: call.tool },
+          clock.now(),
+          () => tools.execute(call.tool, call.args),
+        );
+      }
+      await deps.agent.updateRun(GUILD, runId, {
+        status: 'answered',
+        answer: text,
+        finishedAt: clock.now(),
+      });
+      return agentReply(runId);
+    },
+    queued,
+    setDecisions: (port: DecisionsPort | null) => {
+      decisions = port;
+    },
+  };
+
   const pollUi = {
     create: (discordId: string, options: Record<string, string | number | boolean>) =>
       pollInteract(discordId, {
@@ -342,6 +467,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
   };
 
   return {
+    agentUi,
     discordUi,
     pollUi,
     clock,

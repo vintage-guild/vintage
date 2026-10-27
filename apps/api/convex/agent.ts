@@ -5,8 +5,19 @@
 // the session map, and every confirmation. No webhooks: the action polls (the #128 spike measured
 // 9–12 s for a question with one tool call).
 //   npx convex run agent:answer '{"runId":"…"}'
-import { ASK_INSTRUCTIONS, askInput, recordToolCall } from '@vintage/agent/commands';
-import { isAgentCommand, SESSION_REUSE_MS } from '@vintage/agent/contract';
+import {
+  ASK_INSTRUCTIONS,
+  askInput,
+  recordToolCall,
+  renderAgentReply,
+  routeQuestion,
+} from '@vintage/agent/commands';
+import {
+  type AgentDelivery,
+  isAgentCommand,
+  SESSION_REUSE_MS,
+  toConfirmationView,
+} from '@vintage/agent/contract';
 import {
   type AgentRuntime,
   createOpenAIAgents,
@@ -17,6 +28,7 @@ import {
   type ToolExecution,
   type TurnOutcome,
 } from '@vintage/agent-runtime';
+import { createDiscordRest } from '@vintage/discord-kit';
 import type { Caller } from '@vintage/guild-kit';
 import { v } from 'convex/values';
 import { internal } from './_generated/api';
@@ -27,6 +39,7 @@ import {
   internalQuery,
 } from './_generated/server';
 import { deps, GUILD_ID, registry } from './commands';
+import { decisionsFor } from './decisions';
 import { agentStore, identityStore } from './stores';
 
 /** Everything `answer` needs to start a turn, read in one query. */
@@ -44,6 +57,7 @@ export const load = internalQuery({
       config,
       session,
       memberName: member?.displayName ?? null,
+      memberTier: member?.tier ?? 'public',
     };
   },
 });
@@ -109,8 +123,11 @@ export const finish = internalMutation({
     answer: v.union(v.string(), v.null()),
     error: v.union(v.string(), v.null()),
     sessionId: v.union(v.string(), v.null()),
+    label: v.optional(v.union(v.string(), v.null())),
+    /** The router answered without a turn: the conversation's session is untouched. */
+    keepSession: v.optional(v.boolean()),
   },
-  handler: async (ctx, { runId, status, answer, error, sessionId }) => {
+  handler: async (ctx, { runId, status, answer, error, sessionId, label, keepSession }) => {
     const store = agentStore(ctx);
     const run = await store.getRun(GUILD_ID, runId);
     if (!run) return null;
@@ -121,8 +138,9 @@ export const finish = internalMutation({
       error,
       sessionId,
       finishedAt: now,
+      ...(label === undefined ? {} : { label }),
     });
-    if (run.threadKey && run.memberId) {
+    if (run.threadKey && run.memberId && !keepSession) {
       if (sessionId && status === 'answered') {
         const existing = await store.getSession(GUILD_ID, run.threadKey);
         await store.putSession({
@@ -154,6 +172,7 @@ async function settle(
   runId: string,
   replaced: string | null,
   outcome: TurnOutcome,
+  label: string | null,
 ) {
   const answered = outcome.status === 'completed' && Boolean(outcome.text);
   if (!answered && outcome.sessionId) {
@@ -167,6 +186,7 @@ async function settle(
     answer: outcome.text,
     error: answered ? null : publicTurnError(outcome),
     sessionId: outcome.sessionId,
+    label,
   });
   console.log(
     `agent run ${runId}: ${outcome.status}, ${outcome.toolCalls.length} tool calls` +
@@ -174,65 +194,124 @@ async function settle(
   );
 }
 
-/** Answer one queued question. Scheduled by `agent-ask`; safe to run twice (begin claims it). */
-export const answer = internalAction({
+/** Run one queued question to its end: router, then (when needed) one agent turn. */
+async function runAnswer(ctx: ActionCtx, runId: string): Promise<string> {
+  const loaded = await ctx.runQuery(internal.agent.load, { runId });
+  if (!loaded) return 'missing';
+  if (!(await ctx.runMutation(internal.agent.begin, { runId }))) return 'already-started';
+  const fail = async (error: string) => {
+    await ctx.runMutation(internal.agent.finish, {
+      runId,
+      status: 'failed',
+      answer: null,
+      error,
+      sessionId: null,
+    });
+    return 'failed';
+  };
+
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return fail('The agent is not set up yet (no OpenAI key on the server)');
+  const { run, config, session, memberName, memberTier } = loaded;
+  if (config.paused) return fail('The agent was paused before this question ran');
+
+  // The router answers off-topic questions and officer-only requests without a turn (#133).
+  const route = await routeQuestion(
+    decisionsFor(ctx, 'ask-router'),
+    run.prompt,
+    memberTier,
+    GUILD_ID,
+  );
+  if (route.reply) {
+    await ctx.runMutation(internal.agent.finish, {
+      runId,
+      status: 'answered',
+      answer: route.reply,
+      error: null,
+      sessionId: null,
+      label: route.label,
+      keepSession: true,
+    });
+    return 'routed';
+  }
+
+  const now = Date.now();
+  const reuse = session && now - session.lastUsedAt < SESSION_REUSE_MS ? session.sessionId : null;
+  try {
+    const runtime = createOpenAIAgents({ apiKey });
+    const outcome = await runTurn({
+      runtime,
+      request: {
+        sessionId: reuse,
+        model: config.model,
+        effort: config.effort,
+        instructions: ASK_INSTRUCTIONS,
+        tools: REGISTRY_TOOLS,
+        input: askInput(run.prompt, { surface: run.surface, now, memberName }),
+        metadata: { guildId: GUILD_ID, runId, memberId: run.memberId ?? '' },
+      },
+      executeTool: (call) =>
+        ctx.runMutation(internal.agent.tool, {
+          runId,
+          callId: call.callId,
+          name: call.name,
+          args: call.arguments ?? {},
+        }),
+    });
+    await settle(ctx, runtime, runId, reuse, outcome, route.label);
+    return outcome.status;
+  } catch (err) {
+    console.log(`agent run ${runId} failed: ${describe(err)}`);
+    return fail('The agent could not answer');
+  }
+}
+
+/** The finished run as a member sees it, for delivery. */
+export const view = internalQuery({
   args: { runId: v.string() },
-  handler: async (ctx, { runId }): Promise<{ status: string }> => {
-    const loaded = await ctx.runQuery(internal.agent.load, { runId });
-    if (!loaded) return { status: 'missing' as const };
-    if (!(await ctx.runMutation(internal.agent.begin, { runId }))) {
-      return { status: 'already-started' as const };
-    }
-    const fail = (error: string) =>
-      ctx.runMutation(internal.agent.finish, {
-        runId,
-        status: 'failed',
-        answer: null,
-        error,
-        sessionId: null,
-      });
+  handler: async (ctx, { runId }) => {
+    const store = agentStore(ctx);
+    const run = await store.getRun(GUILD_ID, runId);
+    if (!run) return null;
+    const confirmations = (await store.listConfirmations(GUILD_ID, runId)).map(toConfirmationView);
+    return { status: run.status, answer: run.answer, error: run.error, confirmations };
+  },
+});
 
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      await fail('OPENAI_API_KEY is not set in the Convex environment');
-      return { status: 'failed' as const };
-    }
-    const { run, config, session, memberName } = loaded;
-    if (config.paused) {
-      await fail('The agent was paused before this question ran');
-      return { status: 'failed' as const };
-    }
+/** Edit the member's private "thinking" reply with the answer and any Confirm buttons. */
+async function deliver(ctx: ActionCtx, runId: string, delivery: AgentDelivery) {
+  const reply = await ctx.runQuery(internal.agent.view, { runId });
+  if (!reply) return;
+  try {
+    await createDiscordRest().editOriginalResponse(
+      delivery.applicationId,
+      delivery.token,
+      renderAgentReply(reply),
+    );
+  } catch (err) {
+    // The token expired (15 minutes) or Discord refused it: the answer is still in the ledger.
+    console.log(`agent run ${runId}: could not deliver to Discord: ${describe(err)}`);
+  }
+}
 
-    const now = Date.now();
-    const reuse = session && now - session.lastUsedAt < SESSION_REUSE_MS ? session.sessionId : null;
-    try {
-      const runtime = createOpenAIAgents({ apiKey });
-      const outcome = await runTurn({
-        runtime,
-        request: {
-          sessionId: reuse,
-          model: config.model,
-          effort: config.effort,
-          instructions: ASK_INSTRUCTIONS,
-          tools: REGISTRY_TOOLS,
-          input: askInput(run.prompt, { surface: run.surface, now, memberName }),
-          metadata: { guildId: GUILD_ID, runId, memberId: run.memberId ?? '' },
-        },
-        executeTool: (call) =>
-          ctx.runMutation(internal.agent.tool, {
-            runId,
-            callId: call.callId,
-            name: call.name,
-            args: call.arguments ?? {},
-          }),
-      });
-      await settle(ctx, runtime, runId, reuse, outcome);
-      return { status: outcome.status };
-    } catch (err) {
-      console.log(`agent run ${runId} failed: ${describe(err)}`);
-      await fail('The agent could not answer');
-      return { status: 'failed' as const };
+const deliveryArg = v.object({
+  kind: v.literal('discord'),
+  applicationId: v.string(),
+  token: v.string(),
+});
+
+/**
+ * Answer one queued question, then deliver it where it was asked. Scheduled by `agent-ask`;
+ * safe to run twice (begin claims the run, and a second run delivers nothing new).
+ */
+export const answer = internalAction({
+  args: { runId: v.string(), delivery: v.optional(deliveryArg) },
+  handler: async (ctx, { runId, delivery }): Promise<{ status: string }> => {
+    const status = await runAnswer(ctx, runId);
+    if (delivery && status !== 'already-started' && status !== 'missing') {
+      await deliver(ctx, runId, delivery);
     }
+    return { status };
   },
 });
 

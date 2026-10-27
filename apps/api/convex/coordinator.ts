@@ -8,6 +8,7 @@ import { v } from 'convex/values';
 import { internal } from './_generated/api';
 import { internalAction, internalMutation, internalQuery } from './_generated/server';
 import { GUILD_ID, runSystemCommand } from './commands';
+import { decisionsFor } from './decisions';
 import { coordinatorStore, pollsStore, tickSource } from './stores';
 
 export const state = internalQuery({
@@ -211,6 +212,8 @@ export const tick = internalAction({
             }),
         },
         discord: discordPorts(token),
+        // Signup-note labels for the digest (#132); null without a key, and the digest prints notes raw.
+        decisions: decisionsFor(ctx, 'note-triage'),
       },
       GUILD_ID,
       Date.now(),

@@ -1,0 +1,245 @@
+{
+  "$comment": "Labeled /ask questions for picking ROUTE_THRESHOLD (#133). Written for this fixture. `route` is the human label; `observed` is filled by scripts/score-questions.ts against the live Decisions API and is what the router test reads.",
+  "questions": [
+    {
+      "question": "When is the next raid?",
+      "route": "guild-question",
+      "observed": {
+        "route": "guild-question",
+        "confidence": 0.99
+      }
+    },
+    {
+      "question": "am I on the roster Thursday?",
+      "route": "guild-question",
+      "observed": {
+        "route": "guild-question",
+        "confidence": 1
+      }
+    },
+    {
+      "question": "who hasn't answered for MC yet",
+      "route": "guild-question",
+      "observed": {
+        "route": "guild-question",
+        "confidence": 0.97
+      }
+    },
+    {
+      "question": "what classes are we recruiting?",
+      "route": "guild-question",
+      "observed": {
+        "route": "guild-question",
+        "confidence": 0.85
+      }
+    },
+    {
+      "question": "how many healers do we have signed up",
+      "route": "guild-question",
+      "observed": {
+        "route": "guild-question",
+        "confidence": 0.99
+      }
+    },
+    {
+      "question": "what did we decide in the raid night poll?",
+      "route": "guild-question",
+      "observed": {
+        "route": "guild-question",
+        "confidence": 0.97
+      }
+    },
+    {
+      "question": "why did the bot ping me?",
+      "route": "guild-question",
+      "observed": {
+        "route": "guild-question",
+        "confidence": 0.96
+      }
+    },
+    {
+      "question": "what's our progress in Molten Core",
+      "route": "guild-question",
+      "observed": {
+        "route": "guild-question",
+        "confidence": 1
+      }
+    },
+    {
+      "question": "which characters do I have saved?",
+      "route": "guild-question",
+      "observed": {
+        "route": "guild-question",
+        "confidence": 0.8
+      }
+    },
+    {
+      "question": "is loot council or soft reserve this week?",
+      "route": "guild-question",
+      "observed": {
+        "route": "guild-question",
+        "confidence": 1
+      }
+    },
+    {
+      "question": "Sign me up as tentative for Molten Core.",
+      "route": "own-change",
+      "observed": {
+        "route": "own-change",
+        "confidence": 0.97
+      }
+    },
+    {
+      "question": "mark me late for thursday, about 20 min",
+      "route": "own-change",
+      "observed": {
+        "route": "own-change",
+        "confidence": 0.99
+      }
+    },
+    {
+      "question": "add my alt Kol, resto shaman",
+      "route": "own-change",
+      "observed": {
+        "route": "own-change",
+        "confidence": 0.87
+      }
+    },
+    {
+      "question": "cancel my signup for friday",
+      "route": "own-change",
+      "observed": {
+        "route": "own-change",
+        "confidence": 0.99
+      }
+    },
+    {
+      "question": "turn off DM reminders for me",
+      "route": "own-change",
+      "observed": {
+        "route": "own-change",
+        "confidence": 1
+      }
+    },
+    {
+      "question": "vote Thursday in the raid night poll",
+      "route": "own-change",
+      "observed": {
+        "route": "own-change",
+        "confidence": 0.97
+      }
+    },
+    {
+      "question": "bench Kol for thursday",
+      "route": "officer-action",
+      "observed": {
+        "route": "officer-action",
+        "confidence": 1
+      }
+    },
+    {
+      "question": "lock the roster for MC",
+      "route": "officer-action",
+      "observed": {
+        "route": "officer-action",
+        "confidence": 0.93
+      }
+    },
+    {
+      "question": "cancel Friday's raid",
+      "route": "officer-action",
+      "observed": {
+        "route": "officer-action",
+        "confidence": 0.93
+      }
+    },
+    {
+      "question": "set recruiting to high need for resto shamans",
+      "route": "officer-action",
+      "observed": {
+        "route": "officer-action",
+        "confidence": 0.95
+      }
+    },
+    {
+      "question": "move Bram to group 2",
+      "route": "officer-action",
+      "observed": {
+        "route": "officer-action",
+        "confidence": 0.97
+      }
+    },
+    {
+      "question": "create a raid for Saturday 8pm, Onyxia",
+      "route": "officer-action",
+      "observed": {
+        "route": "officer-action",
+        "confidence": 0.97
+      }
+    },
+    {
+      "question": "pause the coordinator",
+      "route": "officer-action",
+      "observed": {
+        "route": "officer-action",
+        "confidence": 0.21
+      }
+    },
+    {
+      "question": "what's the capital of France",
+      "route": "off-topic",
+      "observed": {
+        "route": "off-topic",
+        "confidence": 0.99
+      }
+    },
+    {
+      "question": "write me a python script to sort a list",
+      "route": "off-topic",
+      "observed": {
+        "route": "off-topic",
+        "confidence": 0.97
+      }
+    },
+    {
+      "question": "tell me a joke",
+      "route": "off-topic",
+      "observed": {
+        "route": "off-topic",
+        "confidence": 0.96
+      }
+    },
+    {
+      "question": "what's the best build in Elden Ring",
+      "route": "off-topic",
+      "observed": {
+        "route": "off-topic",
+        "confidence": 0.97
+      }
+    },
+    {
+      "question": "help with my math homework: 3x + 5 = 20",
+      "route": "off-topic",
+      "observed": {
+        "route": "off-topic",
+        "confidence": 1
+      }
+    },
+    {
+      "question": "hi",
+      "route": "off-topic",
+      "observed": {
+        "route": "off-topic",
+        "confidence": 0.4
+      }
+    },
+    {
+      "question": "what's the best enchant for a fury warrior's weapon",
+      "route": "guild-question",
+      "observed": {
+        "route": "off-topic",
+        "confidence": 0.61
+      }
+    }
+  ]
+}

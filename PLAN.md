@@ -717,7 +717,7 @@ Phase 0 has about ten days and one maintainer, so it is cut to the minimum that 
 - [x] `libs/discord-kit`: signature verification, embeds, components, timestamps Landed early in Phase 0 (#43).
 - [x] `libs/comp-solver`: selected roster, bench, and gaps with reasons (part of #15; `comp-suggest` lands with `raids`)
 - [ ] Member prefs (DM opt-out, default character, timezone); live roster board on the website
-- [ ] Hosted agent v0 (§3.10): `/ask` in Discord + site chat, read commands + own signups, spend caps, `agent.pause`. The runtime, the `agent` module, caps, the ledger, and confirmations are built and checked live on the local backend (#129); the Discord `/random ask` surface is next (#18)
+- [ ] Hosted agent v0 (§3.10): `/ask` in Discord + site chat, read commands + own signups, spend caps, `agent.pause`. The runtime, the `agent` module, caps, the ledger, and confirmations are built and checked live on the local backend (#129); Discord `/random ask` with Confirm buttons and the Decisions router are built and tested (#18, #133); site chat is left
 - [ ] First reskin pass once the GM answers Q12: guild colors, class/quality/role/status tokens, display font. Started with the home page (2026-10-25): plum, verdigris, and rose tokens, Bitter display, Plex body ([home page plan](docs/features/active/home-page/home-page.plan.md))
 - [ ] Triage + fleet loops live (`do-triage`, `do-run-fleet`); `vintage-discord` skill
 - [ ] **Addon spike at launch (Nov 4–6):** scaffold `addon/Vintage` from the Weekly layout; on the live Forever client confirm `C_PartyInfo.InviteUnit`, `SetRaidSubgroup`, `LOOT_OPENED`/`CHAT_MSG_LOOT`, and the `GiveMasterLoot` handout (Q6, Q7); check Mechanic sandbox stubs against the 1.60.1 changes

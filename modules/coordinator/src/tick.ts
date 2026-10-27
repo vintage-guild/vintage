@@ -5,6 +5,7 @@ import { DiscordRestError, type MessageData } from '@vintage/discord-kit';
 import type { Poll } from '@vintage/polls/contract';
 import type { CoordinatorConfig, RaidNight } from './contract';
 import { renderFinalRoster, renderSignupPost } from './domain/card';
+import { triageNotes } from './domain/notes';
 import { type PlannedAction, planTick } from './domain/plan';
 import {
   decideRaidNight,
@@ -12,6 +13,7 @@ import {
   renderRaidNightUnresolved,
 } from './domain/raid-night';
 import {
+  digestNotes,
   hashMessage,
   renderDigest,
   renderDm,
@@ -90,8 +92,10 @@ async function perform(
         }
         throw err;
       }
-    case 'digest':
-      return send(renderDigest(tick, state.members, action.waiting));
+    case 'digest': {
+      const labels = await triageNotes(ports.decisions, state.guildId, digestNotes(tick));
+      return send(renderDigest(tick, state.members, action.waiting, labels));
+    }
     case 'lock':
       await ports.raids.lock(state.guildId, tick.event.id);
       return { status: 'sent' };

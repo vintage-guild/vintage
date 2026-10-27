@@ -13,6 +13,8 @@ member to confirm. This module owns the agent's data and commands; the runtime l
 | `src/contract.ts` | `AgentConfig` and defaults, `AgentRun` (the ledger), `AgentConfirmation`, `AgentSessionRecord`, windows (`CONFIRM_WINDOW_MS`, `SESSION_REUSE_MS`), `isAgentCommand`, `threadKeyOf` |
 | `src/store.ts` | `AgentStore` port, `AgentQueue` (schedules a run), `AgentCommandRunner` (runs a confirmed command), `AgentDeps`, `command` |
 | `src/domain/limits.ts` | Pure: UTC day and month starts, `refuseAsk` (pause, busy, daily and monthly caps) |
+| `src/domain/router.ts` | The `/ask` router (#133): one Decisions question, `ROUTE_THRESHOLD` from `tests/fixtures/questions.json` |
+| `src/render/discord.ts` | The private Discord reply: the answer, one Confirm/Drop row per prepared change (`agent:ok:<id>`, `agent:no:<id>`), the click's outcome |
 | `src/domain/instructions.ts` | `ASK_INSTRUCTIONS` (the agent's standing rules) and `askInput` (surface, time, member, question) |
 | `src/commands/` | `agent-ask`, `agent-run-get`, `agent-runs` (member); `agent-confirm`, `agent-decline` (member, own changes only); `agent-status`, `agent-pause`, `agent-resume`, `agent-config-set` (officer) |
 | `src/testing.ts` | Memory store and deps (a recording queue and runner) |
@@ -43,6 +45,13 @@ member to confirm. This module owns the agent's data and commands; the runtime l
   within 30 minutes reuses the Agents API session, and the hourly sweep deletes sessions idle
   for an hour. A failed run deletes its session at OpenAI and drops the record, and a restarted
   conversation deletes the session it replaced, so no session outlives the map.
+- **The router fails open.** Off-topic questions, and officer actions from anyone below leader,
+  get a fixed reply without a turn; below `ROUTE_THRESHOLD`, on a refusal, or with no key, the
+  question goes to the agent. Tier checks stay in guild-kit. Re-score the fixture with
+  `pnpm --filter @vintage/agent exec tsx scripts/score-questions.ts` when the choices change.
+- **Discord replies are private.** `/random ask` defers an ephemeral reply; the action edits it
+  with the answer through the interaction token (passed to the scheduled run, never stored,
+  valid 15 minutes). A missed delivery leaves the answer in the ledger.
 - **Everything is in the ledger.** Every question, wording job, and Decisions call is a run
   with its tool calls and confirmations (`agent-runs`). Prompts are visible to officers.
 - **`guildId` on every row**, read through guild-scoped indexes.

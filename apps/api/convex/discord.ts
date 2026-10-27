@@ -5,11 +5,12 @@ import type { Interaction } from '@vintage/discord-kit';
 import type { Caller, CommandResult } from '@vintage/guild-kit';
 import type { Signup } from '@vintage/raids/contract';
 import { v } from 'convex/values';
+import { handleAgentInteraction } from '../src/discord-agent';
 import { handlePollInteraction } from '../src/discord-polls';
 import { handleSignupInteraction } from '../src/discord-signups';
 import { internal } from './_generated/api';
 import { internalMutation } from './_generated/server';
-import { GUILD_ID, runCommandAs } from './commands';
+import { askAs, GUILD_ID, runCommandAs } from './commands';
 import { REFRESH_DELAY_MS } from './pollPosts';
 import { coordinatorScheduler, identityStore, raidsStore } from './stores';
 
@@ -21,6 +22,15 @@ export const interaction = internalMutation({
     const people = identityStore(ctx);
     const memberByDiscordId = (discordId: string) =>
       people.getMemberByDiscordId(GUILD_ID, discordId);
+
+    const agent = await handleAgentInteraction(incoming, {
+      discordGuildId,
+      guildId: GUILD_ID,
+      memberByDiscordId,
+      ask: (caller, input, delivery) => askAs(ctx, caller, input, delivery),
+      run: (caller, name, input) => runCommandAs(ctx, caller, name, input),
+    });
+    if (agent) return agent;
 
     const raids = raidsStore(ctx);
     const signup = await handleSignupInteraction(incoming, {

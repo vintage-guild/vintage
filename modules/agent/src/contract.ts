@@ -125,6 +125,12 @@ export interface AgentSessionRecord {
   lastUsedAt: number;
 }
 
+/**
+ * Where a finished run's answer goes besides the ledger. Discord: edit the deferred reply to the
+ * interaction (its token is valid for 15 minutes and is passed to the scheduled run, never stored).
+ */
+export type AgentDelivery = { kind: 'discord'; applicationId: string; token: string };
+
 /** Follow-ups within this window reuse the session; older ones start fresh and are swept. */
 export const SESSION_REUSE_MS = 30 * 60 * 1000;
 

@@ -1,0 +1,405 @@
+{
+  "$comment": "Labeled signup notes for picking the note-triage thresholds (#132). Written for this fixture in the style of raid signup notes; the test server has too few real ones yet. `kind` and `needsOfficer` are the human labels. `observed` is filled by scripts/score-signup-notes.ts against the live Decisions API and is what the threshold test reads.",
+  "notes": [
+    {
+      "note": "running about 20 min late, work ran over",
+      "kind": "late",
+      "needsOfficer": false,
+      "observed": {
+        "kind": "late",
+        "kindConfidence": 1,
+        "needsOfficer": 0
+      }
+    },
+    {
+      "note": "will be there by 8:15 server, start without me",
+      "kind": "late",
+      "needsOfficer": false,
+      "observed": {
+        "kind": "late",
+        "kindConfidence": 1,
+        "needsOfficer": 0
+      }
+    },
+    {
+      "note": "have to leave at 10 sharp tonight",
+      "kind": "late",
+      "needsOfficer": false,
+      "observed": {
+        "kind": "late",
+        "kindConfidence": 1,
+        "needsOfficer": 0
+      }
+    },
+    {
+      "note": "late, kids bedtime. 30 min tops",
+      "kind": "late",
+      "needsOfficer": false,
+      "observed": {
+        "kind": "late",
+        "kindConfidence": 1,
+        "needsOfficer": 0
+      }
+    },
+    {
+      "note": "might be a few mins late, traffic",
+      "kind": "late",
+      "needsOfficer": false,
+      "observed": {
+        "kind": "late",
+        "kindConfidence": 1,
+        "needsOfficer": 0
+      }
+    },
+    {
+      "note": "here for first half only, can someone take my spot after Rag?",
+      "kind": "late",
+      "needsOfficer": true,
+      "observed": {
+        "kind": "late",
+        "kindConfidence": 1,
+        "needsOfficer": 0.63
+      }
+    },
+    {
+      "note": "not sure yet, waiting on my shift schedule",
+      "kind": "tentative",
+      "needsOfficer": false,
+      "observed": {
+        "kind": "tentative",
+        "kindConfidence": 1,
+        "needsOfficer": 0
+      }
+    },
+    {
+      "note": "maybe, depends if the baby sleeps",
+      "kind": "tentative",
+      "needsOfficer": false,
+      "observed": {
+        "kind": "tentative",
+        "kindConfidence": 1,
+        "needsOfficer": 0
+      }
+    },
+    {
+      "note": "50/50 tonight",
+      "kind": "tentative",
+      "needsOfficer": false,
+      "observed": {
+        "kind": "tentative",
+        "kindConfidence": 1,
+        "needsOfficer": 0
+      }
+    },
+    {
+      "note": "will confirm by tomorrow noon",
+      "kind": "tentative",
+      "needsOfficer": false,
+      "observed": {
+        "kind": "other",
+        "kindConfidence": 0.41,
+        "needsOfficer": 0
+      }
+    },
+    {
+      "note": "probably, internet has been flaky",
+      "kind": "tentative",
+      "needsOfficer": false,
+      "observed": {
+        "kind": "tentative",
+        "kindConfidence": 0.76,
+        "needsOfficer": 0
+      }
+    },
+    {
+      "note": "out of town this week, sorry",
+      "kind": "absent",
+      "needsOfficer": false,
+      "observed": {
+        "kind": "absent",
+        "kindConfidence": 0.99,
+        "needsOfficer": 0
+      }
+    },
+    {
+      "note": "sick, can't make it",
+      "kind": "absent",
+      "needsOfficer": false,
+      "observed": {
+        "kind": "absent",
+        "kindConfidence": 1,
+        "needsOfficer": 0
+      }
+    },
+    {
+      "note": "wedding this weekend",
+      "kind": "absent",
+      "needsOfficer": false,
+      "observed": {
+        "kind": "absent",
+        "kindConfidence": 0.77,
+        "needsOfficer": 0
+      }
+    },
+    {
+      "note": "can't, family dinner",
+      "kind": "absent",
+      "needsOfficer": false,
+      "observed": {
+        "kind": "absent",
+        "kindConfidence": 1,
+        "needsOfficer": 0
+      }
+    },
+    {
+      "note": "away until the 10th, please don't bench me for loot priority",
+      "kind": "absent",
+      "needsOfficer": true,
+      "observed": {
+        "kind": "absent",
+        "kindConfidence": 0.8,
+        "needsOfficer": 0.59
+      }
+    },
+    {
+      "note": "no",
+      "kind": "absent",
+      "needsOfficer": false,
+      "observed": {
+        "kind": "absent",
+        "kindConfidence": 1,
+        "needsOfficer": 0
+      }
+    },
+    {
+      "note": "can I bring my alt Kol instead? need resto shaman?",
+      "kind": "swap",
+      "needsOfficer": true,
+      "observed": {
+        "kind": "swap",
+        "kindConfidence": 1,
+        "needsOfficer": 0.76
+      }
+    },
+    {
+      "note": "happy to go heals if we're short",
+      "kind": "swap",
+      "needsOfficer": false,
+      "observed": {
+        "kind": "late",
+        "kindConfidence": 0.44,
+        "needsOfficer": 0
+      }
+    },
+    {
+      "note": "bringing the warlock this week, mage needs more gear first",
+      "kind": "swap",
+      "needsOfficer": false,
+      "observed": {
+        "kind": "other",
+        "kindConfidence": 0.6,
+        "needsOfficer": 0
+      }
+    },
+    {
+      "note": "can swap to tank if needed",
+      "kind": "swap",
+      "needsOfficer": false,
+      "observed": {
+        "kind": "swap",
+        "kindConfidence": 0.89,
+        "needsOfficer": 0.01
+      }
+    },
+    {
+      "note": "would like to switch my main to the priest, ok?",
+      "kind": "swap",
+      "needsOfficer": true,
+      "observed": {
+        "kind": "swap",
+        "kindConfidence": 0.99,
+        "needsOfficer": 0.85
+      }
+    },
+    {
+      "note": "can I play feral this time instead of resto?",
+      "kind": "swap",
+      "needsOfficer": true,
+      "observed": {
+        "kind": "swap",
+        "kindConfidence": 1,
+        "needsOfficer": 0.57
+      }
+    },
+    {
+      "note": "what time is the pull?",
+      "kind": "question",
+      "needsOfficer": true,
+      "observed": {
+        "kind": "question",
+        "kindConfidence": 1,
+        "needsOfficer": 0.84
+      }
+    },
+    {
+      "note": "do we need fire resist gear for this one?",
+      "kind": "question",
+      "needsOfficer": true,
+      "observed": {
+        "kind": "question",
+        "kindConfidence": 1,
+        "needsOfficer": 0.89
+      }
+    },
+    {
+      "note": "is this a loot council raid or soft res?",
+      "kind": "question",
+      "needsOfficer": true,
+      "observed": {
+        "kind": "question",
+        "kindConfidence": 1,
+        "needsOfficer": 0.84
+      }
+    },
+    {
+      "note": "are we clearing trash first or skipping to the boss?",
+      "kind": "question",
+      "needsOfficer": true,
+      "observed": {
+        "kind": "question",
+        "kindConfidence": 1,
+        "needsOfficer": 0.96
+      }
+    },
+    {
+      "note": "who's leading tonight?",
+      "kind": "question",
+      "needsOfficer": true,
+      "observed": {
+        "kind": "question",
+        "kindConfidence": 1,
+        "needsOfficer": 0.98
+      }
+    },
+    {
+      "note": "can someone send me the addon string?",
+      "kind": "question",
+      "needsOfficer": true,
+      "observed": {
+        "kind": "other",
+        "kindConfidence": 0.64,
+        "needsOfficer": 0.37
+      }
+    },
+    {
+      "note": "need summon at the stone",
+      "kind": "other",
+      "needsOfficer": false,
+      "observed": {
+        "kind": "other",
+        "kindConfidence": 1,
+        "needsOfficer": 0.01
+      }
+    },
+    {
+      "note": "bringing flasks for everyone",
+      "kind": "other",
+      "needsOfficer": false,
+      "observed": {
+        "kind": "other",
+        "kindConfidence": 1,
+        "needsOfficer": 0
+      }
+    },
+    {
+      "note": "let's gooooo",
+      "kind": "other",
+      "needsOfficer": false,
+      "observed": {
+        "kind": "other",
+        "kindConfidence": 1,
+        "needsOfficer": 0
+      }
+    },
+    {
+      "note": "first raid with the guild, excited",
+      "kind": "other",
+      "needsOfficer": false,
+      "observed": {
+        "kind": "other",
+        "kindConfidence": 1,
+        "needsOfficer": 0
+      }
+    },
+    {
+      "note": "have 20 major mana pots if anyone needs",
+      "kind": "other",
+      "needsOfficer": false,
+      "observed": {
+        "kind": "other",
+        "kindConfidence": 1,
+        "needsOfficer": 0
+      }
+    },
+    {
+      "note": "ready",
+      "kind": "other",
+      "needsOfficer": false,
+      "observed": {
+        "kind": "other",
+        "kindConfidence": 1,
+        "needsOfficer": 0
+      }
+    },
+    {
+      "note": "please put me on the bench list if we are full, it's fine",
+      "kind": "other",
+      "needsOfficer": true,
+      "observed": {
+        "kind": "other",
+        "kindConfidence": 0.99,
+        "needsOfficer": 0.01
+      }
+    },
+    {
+      "note": "I'll be on discord voice but muted, mic broke",
+      "kind": "other",
+      "needsOfficer": false,
+      "observed": {
+        "kind": "other",
+        "kindConfidence": 1,
+        "needsOfficer": 0
+      }
+    },
+    {
+      "note": "late again sorry lol",
+      "kind": "late",
+      "needsOfficer": false,
+      "observed": {
+        "kind": "late",
+        "kindConfidence": 1,
+        "needsOfficer": 0
+      }
+    },
+    {
+      "note": "can't make Thursday but can do Friday if we move it",
+      "kind": "absent",
+      "needsOfficer": true,
+      "observed": {
+        "kind": "absent",
+        "kindConfidence": 0.89,
+        "needsOfficer": 0.19
+      }
+    },
+    {
+      "note": "tentative, if I come I'll be late",
+      "kind": "tentative",
+      "needsOfficer": false,
+      "observed": {
+        "kind": "late",
+        "kindConfidence": 0.89,
+        "needsOfficer": 0
+      }
+    }
+  ]
+}

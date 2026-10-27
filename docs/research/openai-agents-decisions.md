@@ -360,18 +360,30 @@ them to OpenAI, tests use memory fakes, and every path has a deterministic fallb
 
 ## 8. Open questions to settle by trying
 
-1. Does the Agents API accept `gpt-6-luna` and `gpt-6.1-terra`? Docs only show Astra and Sol.
-2. Webhook round-trip latency per function call from a Convex HTTP action, and whether
-   Discord's 3-second acknowledgement plus a follow-up message is comfortable for one-call
-   answers.
-3. Measured Decisions latency and accuracy on our own notes and applications versus plain Luna
-   with a strict enum (the fallback if the endpoint disappoints).
-4. Who runs the Farsight host on raid night (the logging raider's desktop) and whether a
+Settled by the #128 spike and the PR work that followed (2026-10-26/27):
+
+- **Models.** The Agents API accepts `gpt-6.1-terra` (low and medium) and `gpt-6-luna`. Terra
+  at medium is the default for questions.
+- **Latency.** One question with one tool call answers in 9–12 s; with four tool calls about
+  20 s. A Convex action polls the session; no webhooks. Discord defers privately and the action
+  edits the reply, so the 3-second acknowledgement is never at risk.
+- **Token usage** on sessions and turns comes back null, and `spend_control` from the SDK types is
+  rejected: caps count questions.
+- **Decisions on our notes.** 40 labeled signup notes in one request: 1.2 s, about 14,700 input
+  tokens (a seventh of a cent). Kind right 35 of 40; at 0.7 confidence 36 labeled with one
+  arguable miss. "Needs an officer": no false flag at any threshold above 0.01; 0.3 catches 11
+  of 14. 30 labeled `/ask` questions for the router: at 0.8, 27 route confidently and none that
+  should reach the agent is turned away.
+
+Still open:
+
+1. Applications: the same scoring on real applications once a few exist.
+2. Who runs the Farsight host on raid night (the logging raider's desktop) and whether a
    `crawler-publish` after ingest is reliable enough, or whether Vintage should accept a manual
    upload of the summary file as the fallback.
-5. How `@farsight/core` behaves on a 100 to 200 MB raid log: time, memory, and whether the
+3. How `@farsight/core` behaves on a 100 to 200 MB raid log: time, memory, and whether the
    second pass must stream before any of this is usable.
-6. Cost of the wording layer per raid night: 25 Terra turns over structured findings plus the
+4. Cost of the wording layer per raid night: 25 Terra turns over structured findings plus the
    Decisions gate should be cents, not dollars; measure before promising weekly DMs.
-7. Whether a saved agent (by id) or an inline agent per session is easier to version alongside
+5. Whether a saved agent (by id) or an inline agent per session is easier to version alongside
    `commands.manifest.json`.

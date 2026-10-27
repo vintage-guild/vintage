@@ -5,6 +5,7 @@ import { type CompResult, compRoleOf, defaultTemplate, solveComp } from '@vintag
 import { discordTimestamp, type MessageData, TimestampStyle } from '@vintage/discord-kit';
 import { RANK_PRIORITY, type Signup } from '@vintage/raids/contract';
 import type { TickEvent, TickMember } from '../store';
+import type { NoteInput, NoteLabel } from './notes';
 
 /** Discord's message content limit. */
 const MAX_CONTENT = 2000;
@@ -101,19 +102,44 @@ export function renderDm(tick: TickEvent, member: TickMember): MessageData {
 }
 
 /** Officer digest: confirmed count, comp gaps, and who hasn't answered. */
+/** The signups' notes as note-triage input, keyed by signup id. */
+export function digestNotes(tick: TickEvent): NoteInput[] {
+  return tick.signups
+    .filter((s) => s.note?.trim())
+    .map((s) => ({ id: s.id, who: s.characterName, note: s.note as string }));
+}
+
+/**
+ * The officer digest. With note labels (#132), notes that ask an officer for something lead, and
+ * offers to swap characters or roles get their own line; every other note reads as before. Without
+ * labels (no key, paused, failed, unsure) the digest is exactly the old one.
+ */
 export function renderDigest(
   tick: TickEvent,
   members: TickMember[],
   waiting: TickMember[],
+  labels: Map<string, NoteLabel> | null = null,
 ): MessageData {
   const comp = compFor(tick, members);
   const waitingLine = waiting.length
     ? `Not answered (${waiting.length}): ${waiting.map((m) => m.displayName).join(', ')}`
     : 'Everyone expected has answered.';
+  const label = (s: Signup) => labels?.get(s.id);
+  const flagged = tick.signups.filter((s) => s.note && label(s)?.needsOfficer);
+  const swaps = tick.signups.filter(
+    (s) => s.note && !label(s)?.needsOfficer && label(s)?.kind === 'swap',
+  );
+  const lifted = new Set([...flagged, ...swaps].map((s) => s.id));
+  const listed = (title: string, people: Signup[]) =>
+    people.length
+      ? `${title} (${people.length}): ${people.map((s) => `${s.characterName} (${s.note})`).join(', ')}`
+      : null;
   const withReasons = (status: Signup['status'], title: string) => {
     const people = tick.signups.filter((s) => s.status === status);
     if (!people.length) return null;
-    const names = people.map((s) => (s.note ? `${s.characterName} (${s.note})` : s.characterName));
+    const names = people.map((s) =>
+      s.note && !lifted.has(s.id) ? `${s.characterName} (${s.note})` : s.characterName,
+    );
     return `${title} (${people.length}): ${names.join(', ')}`;
   };
   const queued = tick.signups.filter((s) => s.queued).length;
@@ -123,6 +149,8 @@ export function renderDigest(
       `${comp.counts.confirmed}/${tick.event.size} confirmed · ${roleCounters(tick.signups)}` +
         `${queued ? ` · ${queued} queued` : ''}`,
       gapLine(comp),
+      listed('**Needs an officer**', flagged),
+      listed('Offers to swap', swaps),
       withReasons('late', 'Late'),
       withReasons('tentative', 'Tentative'),
       withReasons('bench', 'Bench'),

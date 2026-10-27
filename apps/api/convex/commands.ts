@@ -1,6 +1,13 @@
 // The Convex surface of the command registry. The website calls `read` (live queries) and
 // `run` (mutations); /mcp, Discord, and the agent go through the same registry (PLAN §3.3).
-import { type Caller, createGuildRegistry, error, systemCaller } from '@vintage/guild-kit';
+import type { AgentDelivery } from '@vintage/agent/contract';
+import {
+  type Caller,
+  type CommandResult,
+  createGuildRegistry,
+  error,
+  systemCaller,
+} from '@vintage/guild-kit';
 import { type Infer, v } from 'convex/values';
 import { commands, type VintageDeps } from '../src/registry';
 import { discordIdOf, webCaller } from '../src/web-caller';
@@ -27,15 +34,19 @@ export function registry() {
 
 type Ctx = Parameters<typeof identityStore>[0];
 
-export const deps = (ctx: Ctx): VintageDeps => ({
+/** `options.agentDelivery`: where agent-ask delivers the answer (a Discord interaction). */
+export const deps = (ctx: Ctx, options: { agentDelivery?: AgentDelivery } = {}): VintageDeps => ({
   ...identityDeps(ctx),
   ...raidsDeps(ctx),
   ...coordinatorDeps(ctx, (caller, name, input) => runAs(ctx, caller, { name, input })),
   ...pollsDeps(ctx),
   ...progressDeps(ctx),
   ...siteDeps(ctx),
-  ...agentDeps(ctx, (caller, name, input, confirmToken) =>
-    runAs(ctx, caller, { name, input, ...(confirmToken ? { confirmToken } : {}) }),
+  ...agentDeps(
+    ctx,
+    (caller, name, input, confirmToken) =>
+      runAs(ctx, caller, { name, input, ...(confirmToken ? { confirmToken } : {}) }),
+    options.agentDelivery,
   ),
 });
 
@@ -97,6 +108,17 @@ export const runCommandAs = (
   input: unknown,
   confirmToken?: string,
 ) => runAs(ctx, caller, { name, input, ...(confirmToken ? { confirmToken } : {}) });
+
+/** agent-ask as a resolved caller, delivering the answer to the interaction that asked (#18). */
+export const askAs = async (
+  ctx: Ctx,
+  caller: Caller,
+  input: { question: string; thread?: string },
+  agentDelivery: AgentDelivery,
+): Promise<CommandResult<unknown>> =>
+  toConvex(
+    await registry().execute({ name: 'agent-ask', input, caller }, deps(ctx, { agentDelivery })),
+  );
 
 /** Run a command as the system caller from server code (the coordinator tick, crons). */
 export const runSystemCommand = (ctx: Ctx, name: string, input: unknown) =>

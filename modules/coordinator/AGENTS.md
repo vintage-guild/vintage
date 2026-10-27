@@ -68,6 +68,12 @@ and posts the final roster and addon import string. Maturity: **core**.
   role with late people marked and everyone's reason (the signup `note`), the queue when the raid
   is full, tentative and bench with reasons, and comp gaps. The digest lists late, tentative, and
   bench reasons too. (Ideas from Raid-Helper: docs/research/raid-helper.md.)
+- **Note triage (#132).** Before the digest goes out, one Decisions request labels every note on
+  the raid (`domain/notes.ts`): its kind, and whether it asks an officer for something. Notes
+  that do lead the digest under **Needs an officer**; offers to swap get their own line; every
+  other note reads as before. `NOTE_THRESHOLDS` come from `tests/fixtures/signup-notes.json`
+  (re-score with `pnpm --filter @vintage/coordinator exec tsx scripts/score-signup-notes.ts`).
+  No `decisions` port, a paused agent, a refusal, or an error: the digest is exactly the old one.
 - Button clicks (`signup:<eventId>:<status>` for accepted, late, tentative, bench, declined) go
   gateway → Convex `POST /gateway/interaction` → `apps/api/src/discord-signups.ts`: a character
   picker when needed, a reason form for Late and Tentative, private replies, and an immediate tick

@@ -12,12 +12,30 @@ export {
   refuseAsk,
 } from '../domain/limits';
 export {
+  decideRoute,
+  ROUTE_REPLIES,
+  ROUTE_THRESHOLD,
+  type Route,
+  type RouteDecision,
+  routeQuestion,
+  routeRequest,
+} from '../domain/router';
+export {
   type PreparedChange,
   recordToolCall,
   type ToolCallKey,
   type ToolCallOutcome,
   type ToolReply,
 } from '../domain/tool-calls';
+export {
+  type AgentButton,
+  agentCustomId,
+  MAX_CHANGES_SHOWN,
+  parseAgentCustomId,
+  type ReplyView,
+  renderAgentReply,
+  renderChangeResult,
+} from '../render/discord';
 export type {
   AgentCommandRunner,
   AgentDeps,

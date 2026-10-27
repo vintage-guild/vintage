@@ -5,6 +5,7 @@ import type { AgentDeps, AgentStore } from '@vintage/agent/commands';
 import {
   type AgentConfig,
   type AgentConfirmation,
+  type AgentDelivery,
   type AgentRun,
   defaultAgentConfig,
 } from '@vintage/agent/contract';
@@ -413,7 +414,9 @@ export function agentStore(ctx: Ctx): AgentStore {
 const toJson = (value: unknown) => (value === undefined ? null : JSON.parse(JSON.stringify(value)));
 
 // Referenced by name to avoid a type cycle between this file and the generated api.
-const answerRun = makeFunctionReference<'action', { runId: string }>('agent:answer');
+const answerRun = makeFunctionReference<'action', { runId: string; delivery?: AgentDelivery }>(
+  'agent:answer',
+);
 
 /** Runs a command as a caller, with a confirm token for destructive ones (agent-confirm). */
 export type RunConfirmedCommand = (
@@ -423,12 +426,16 @@ export type RunConfirmedCommand = (
   confirmToken?: string,
 ) => Promise<CommandResult<unknown>>;
 
-export function agentDeps(ctx: Ctx, run: RunConfirmedCommand): AgentDeps {
+/** `delivery`: where the answer goes too (the Discord interaction that asked), when there is one. */
+export function agentDeps(ctx: Ctx, run: RunConfirmedCommand, delivery?: AgentDelivery): AgentDeps {
   return {
     agent: agentStore(ctx),
     agentQueue: {
       enqueue: async (_guildId, runId) => {
-        await writable(ctx).scheduler.runAfter(0, answerRun, { runId });
+        await writable(ctx).scheduler.runAfter(0, answerRun, {
+          runId,
+          ...(delivery ? { delivery } : {}),
+        });
       },
     },
     agentRunner: { run },

@@ -196,6 +196,13 @@ export interface NeedLineView {
   need: 'high' | 'medium' | 'closed';
 }
 
+/** A loop, not a regex: `/\/+$/` backtracks on a long run of slashes (CodeQL). */
+function withoutTrailingSlashes(url: string): string {
+  let end = url.length;
+  while (end > 0 && url[end - 1] === '/') end--;
+  return url.slice(0, end);
+}
+
 /** `/random recruiting`: the open needs, and how to apply. */
 export function renderRecruitingPost(
   headline: string,
@@ -218,7 +225,9 @@ export function renderRecruitingPost(
           '',
           ...lines,
           '',
-          'Apply with `/random apply` here in Discord.',
+          siteUrl
+            ? `Apply with \`/random apply\` here in Discord, or on the site: ${withoutTrailingSlashes(siteUrl)}/apply`
+            : 'Apply with `/random apply` here in Discord.',
         ].join('\n'),
         ...(siteUrl ? { url: siteUrl } : {}),
       }),

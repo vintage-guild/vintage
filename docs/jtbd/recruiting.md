@@ -64,7 +64,8 @@ Live checklist:
 - [ ] Reply sends me the officer's text in a DM, and the post shows it.
 - [ ] Accept sends me the onboarding DM with the site's address, and asks an officer in the
       recruitment channel to give me the recruit role (the bot never sets roles).
-- [ ] Applying again while one is open says it is still with the officers.
+- [ ] Applying again while one is open says it is still with the officers, and a raider is
+      told they already raid with Vintage, both before the form opens.
 - [ ] On the site, signed in with Discord, `/apply` shows the same form, then my application's
       status and the officers' reply; officers see it in the quarters' Applications tab, where
       Decline asks for a second click.

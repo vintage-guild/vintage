@@ -260,6 +260,6 @@ describe('the DM gate', () => {
     const text = plainDm('Molten Core', findings);
     expect(text).toMatch(/^From the Molten Core log:/);
     expect(text).toMatch(/\(at 2:05, 30:10\)/);
-    expect(text).toMatch(/insights-optin-set dms:false/);
+    expect(text).toMatch(/stop my raid notes/);
   });
 });

@@ -13,6 +13,7 @@ import {
   publicTurnError,
   runTurn,
   type StartTurnRequest,
+  summarize,
 } from '../src/index';
 import { createFakeAgentRuntime } from '../src/testing';
 
@@ -285,7 +286,7 @@ describe('createRegistryTools', () => {
       command: 'signup-set',
       input: { eventId: 'r1', status: 'tentative' },
       confirmToken: null,
-      summary: 'signup-set: eventId r1, status tentative',
+      summary: 'signup-set: status tentative',
     });
     expect(JSON.parse(result.output).pendingConfirmation).toBe(true);
   });
@@ -492,5 +493,19 @@ describe('createOpenAIAgents', () => {
       ]),
     ).toBe('hi');
     expect(finalText([])).toBeNull();
+  });
+});
+
+describe('summarize', () => {
+  it('leaves ids out of the line a member reads', () => {
+    expect(
+      summarize('signup-set', {
+        eventId: 'j57',
+        characterId: 'j574',
+        status: 'accepted',
+        note: 'late',
+      }),
+    ).toBe('signup-set: status accepted, note late');
+    expect(summarize('raid-cancel', { eventId: 'j57' })).toBe('raid-cancel');
   });
 });

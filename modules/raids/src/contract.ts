@@ -1,10 +1,28 @@
 // Public surface of the raids module. Other modules import only this file.
 
-import type { RaidSize, RoleTargets, SignupStatus } from '@vintage/comp-solver';
+import type { RoleTargets, SignupStatus } from '@vintage/comp-solver';
 import type { GuildRank } from '@vintage/identity/contract';
 import type { Role, WowClass } from '@vintage/wow-data';
+import type { EventKind } from './domain/kinds';
 
 export type { RaidSize, RoleTargets, SignupStatus } from '@vintage/comp-solver';
+export {
+  AKind,
+  aKind,
+  defaultRoleTargets,
+  EVENT_KINDS,
+  type EventKind,
+  eventTemplate,
+  hasRoleTargets,
+  KIND_LABELS,
+  KIND_SIZES,
+  kindNoun,
+  kindOf,
+  MAX_EVENT_SIZE,
+  sizeFits,
+  sizesText,
+  targetsOf,
+} from './domain/kinds';
 
 export const WEEKDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 export type Weekday = (typeof WEEKDAYS)[number];
@@ -34,11 +52,14 @@ export interface Schedule {
   name: string;
   /** Instance or activity, e.g. "Molten Core". */
   instance: string;
-  size: RaidSize;
+  /** What kind of event; rows from before kinds existed read as `raid`. */
+  kind: EventKind;
+  /** Players; allowed sizes depend on the kind (`sizeFits`). */
+  size: number;
   recurrence: Recurrence;
   durationMinutes: number;
   timings: ScheduleTimings;
-  /** Comp targets; null means the comp-solver default for the size. */
+  /** Comp targets; null means the default for the kind and size (`defaultRoleTargets`). */
   roleTargets: RoleTargets | null;
   lootMethodId: string | null;
   /** Inactive schedules create no new events. */
@@ -58,7 +79,10 @@ export interface RaidEvent {
   scheduleId: string | null;
   name: string;
   instance: string;
-  size: RaidSize;
+  /** What kind of event; rows from before kinds existed read as `raid`. */
+  kind: EventKind;
+  /** Players; allowed sizes depend on the kind (`sizeFits`). */
+  size: number;
   /** Epoch ms. */
   startsAt: number;
   durationMinutes: number;

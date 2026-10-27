@@ -598,6 +598,115 @@ describe('raids commands', () => {
     });
   });
 
+  describe('event kinds', () => {
+    it('reads as a raid when the kind is left out', async () => {
+      expect(await createRaid()).toMatchObject({ kind: 'raid', size: 10 });
+    });
+
+    it('checks the size against the kind', async () => {
+      const sizes: [string, number, boolean][] = [
+        ['raid', 15, false],
+        ['raid', 20, true],
+        ['dungeon', 5, true],
+        ['dungeon', 10, false],
+        ['battleground', 15, true],
+        ['battleground', 20, false],
+        ['other', 1, true],
+        ['other', 7, true],
+      ];
+      for (const [kind, size, fits] of sizes) {
+        const result = await run(
+          'raid-create',
+          { name: 'Run', instance: 'Somewhere', kind, size, startsAt: clock.now() + DAY },
+          leader,
+        );
+        if (fits) expect(result.success, `${kind} ${size}`).toBe(true);
+        else
+          expect(result, `${kind} ${size}`).toMatchObject({ error: { code: 'SIZE_NOT_ALLOWED' } });
+      }
+      // Nothing is bigger than 40, whatever the kind.
+      expect(
+        await run(
+          'raid-create',
+          { name: 'Run', instance: 'x', kind: 'other', size: 41, startsAt: clock.now() + DAY },
+          leader,
+        ),
+      ).toMatchObject({ error: { code: 'VALIDATION_ERROR' } });
+    });
+
+    it('refuses role targets bigger than the event', async () => {
+      expect(
+        await run(
+          'raid-create',
+          {
+            name: 'SM',
+            instance: 'Scarlet Monastery',
+            kind: 'dungeon',
+            size: 5,
+            roleTargets: { tank: 1, healer: 2, dps: 3 },
+            startsAt: clock.now() + DAY,
+          },
+          leader,
+        ),
+      ).toMatchObject({ error: { code: 'ROLE_TARGETS_TOO_BIG' } });
+    });
+
+    it('schedules carry the kind to the events they make', async () => {
+      const weekly = {
+        name: 'SM Sundays',
+        instance: 'Scarlet Monastery',
+        kind: 'dungeon',
+        size: 5,
+        weekdays: ['thu'],
+        time: '20:00',
+        timeZone: 'America/New_York',
+      };
+      const schedule = await ok<Schedule>('schedule-create', weekly, leader);
+      expect(schedule.kind).toBe('dungeon');
+      const { created } = await ok<{ created: RaidEvent[] }>(
+        'schedule-materialize',
+        { scheduleId: schedule.id },
+        leader,
+      );
+      expect(created.map((e) => e.kind)).toEqual(['dungeon']);
+      // Changing the size checks it against the schedule's kind.
+      expect(
+        await run('schedule-update', { scheduleId: schedule.id, size: 10 }, leader),
+      ).toMatchObject({ error: { code: 'SIZE_NOT_ALLOWED' } });
+    });
+
+    it('a dungeon plays 1 tank, 1 healer, 3 dps, with no raid buffs in its gaps', async () => {
+      const raid = await createRaid({ kind: 'dungeon', size: 5, instance: 'Scarlet Monastery' });
+      await ok(
+        'signup-set',
+        { eventId: raid.id, characterId: 'aeryn', status: 'accepted' },
+        as('aeryn'),
+      );
+      const result = await run('comp-suggest', { eventId: raid.id }, as('aeryn'));
+      const data = result.data as { gaps: { kind: string; reason: string }[] };
+      expect(data.gaps.map((g) => g.reason)).toEqual(['need 1 healer', 'need 3 dps']);
+      expect(data.gaps.some((g) => g.kind === 'requirement')).toBe(false);
+    });
+
+    it('a battleground has no tank target; other has none at all', async () => {
+      const bg = await createRaid({ kind: 'battleground', size: 10, instance: 'Warsong Gulch' });
+      const bgComp = (await run('comp-suggest', { eventId: bg.id }, as('aeryn'))).data as {
+        gaps: { kind: string; role?: string }[];
+      };
+      expect(bgComp.gaps.filter((g) => g.kind === 'role').map((g) => g.role)).toEqual([
+        'healer',
+        'dps',
+      ]);
+      // Ten players like a 10-person raid, but no Mark of the Wild or Fortitude gaps.
+      expect(bgComp.gaps.some((g) => g.kind === 'requirement')).toBe(false);
+      const other = await createRaid({ kind: 'other', size: 3, instance: 'Fishing contest' });
+      const otherComp = (await run('comp-suggest', { eventId: other.id }, as('aeryn'))).data as {
+        gaps: { kind: string }[];
+      };
+      expect(otherComp.gaps.map((g) => g.kind)).toEqual(['size']);
+    });
+  });
+
   it('scopes everything by guild', async () => {
     const raid = await createRaid();
     const otherGuild = makeCaller('leader', { guildId: 'other-guild', memberId: 'x' });

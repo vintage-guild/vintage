@@ -5,8 +5,8 @@ import { mutation, query } from './_generated/server';
 import { eventFields, raidStatus } from './schema';
 
 const toEvent = (doc: Doc<'raidEvents'>) => {
-  const { _id, _creationTime, ...rest } = doc;
-  return { id: _id as string, ...rest };
+  const { _id, _creationTime, kind, ...rest } = doc;
+  return { id: _id as string, ...rest, kind: kind ?? ('raid' as const) };
 };
 
 const { guildId: _guildId, ...patchable } = eventFields;

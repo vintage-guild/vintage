@@ -14,6 +14,7 @@ const raid = (over: Partial<CalendarRaid> = {}): CalendarRaid => ({
   scheduleId: 's1',
   name: 'Raid night',
   instance: "Onyxia's Lair",
+  kind: 'raid',
   size: 40,
   startsAt: Date.UTC(2026, 10, 5, 1), // Wed 4 Nov, 20:00 New York
   durationMinutes: 180,

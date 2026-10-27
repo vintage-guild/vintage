@@ -92,6 +92,7 @@ describe('runTick', () => {
       scheduleId: 'sched-1',
       name: 'MC nights',
       instance: 'Molten Core',
+      kind: 'raid',
       size: 10,
       startsAt: START,
       durationMinutes: 180,
@@ -329,7 +330,9 @@ describe('runTick', () => {
     expect(text).toContain(`**1** going${em}<:status_late:`);
     expect(text).toContain(`**1** late${em}<:status_tentative:`);
     // The lock and size sit on their own line, as subtext.
-    expect(text).toMatch(/\n-# <:info_open:\d+> Signups open · lock \d+h before · 10-person\n/);
+    expect(text).toMatch(
+      /\n-# <:info_open:\d+> Signups open · lock \d+h before · 10-person raid\n/,
+    );
     expect(text).toMatch(/<:status_queued:\d+> \*\*1\*\* queued/);
     expect(text).toMatch(/Queue 1\n1\. <:square_mage:\d+> Pip \*frost\*/);
     expect(text).toMatch(/\*\*Tentative\*\* <:square_warrior:\d+> Cade \*prot\*/);

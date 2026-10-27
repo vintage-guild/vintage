@@ -1,7 +1,8 @@
 // raid-night-poll (#64): offer a few start times for a raid, let members vote, and let the tick
 // turn the winner into the raid. The poll itself is made by polls' poll-create, run as this leader.
-import { raidSizeSchema } from '@vintage/comp-solver';
+import { groupSizeSchema, roleTargetsSchema } from '@vintage/comp-solver';
 import { error, success, TIERS, type Tier, tierAllows } from '@vintage/guild-kit';
+import { AKind, aKind, EVENT_KINDS, sizeFits, sizesText } from '@vintage/raids/contract';
 import { z } from 'zod';
 import { RAID_NIGHT_TAG } from '../contract';
 import { candidateLines, startLabel } from '../domain/raid-night';
@@ -30,8 +31,9 @@ const invalid = (message: string, suggestion: string) =>
 export const raidNightPoll = command({
   name: 'raid-night-poll',
   description:
-    'Ask the raid which night works: post a poll of 2–10 start times for a one-off raid. When ' +
-    'the poll closes, the coordinator creates the raid at the winning time; a tie, a missed ' +
+    'Ask the raid which night works: post a poll of 2–10 start times for a one-off raid (or ' +
+    'another kind: dungeon, battleground, other, with optional roleTargets). When the poll ' +
+    'closes, the coordinator creates the event at the winning time; a tie, a missed ' +
     'quorum, or no votes goes to the ops channel instead. Labels use timeZone (New York by ' +
     'default); the post shows each time in every reader’s own zone.',
   tier: 'leader',
@@ -39,7 +41,9 @@ export const raidNightPoll = command({
   input: z.object({
     name: z.string().trim().min(1).max(60),
     instance: z.string().trim().min(1).max(60),
-    size: raidSizeSchema,
+    kind: z.enum(EVENT_KINDS).default('raid'),
+    size: groupSizeSchema,
+    roleTargets: roleTargetsSchema.nullable().default(null),
     durationMinutes: z
       .number()
       .int()
@@ -57,6 +61,20 @@ export const raidNightPoll = command({
     quorum: z.number().int().min(1).nullable().default(null),
   }),
   handler: async (input, { caller, guildId, deps, now }) => {
+    // The same checks raid-create makes, so the raid made from the winner can't be refused.
+    if (!sizeFits(input.kind, input.size)) {
+      return error('SIZE_NOT_ALLOWED', `${AKind(input.kind)} can't be ${input.size} players`, {
+        suggestion: `Use a size of ${sizesText(input.kind)} for ${aKind(input.kind)}, or pick kind "other"`,
+        retryable: false,
+      });
+    }
+    const targets = input.roleTargets;
+    if (targets && targets.tank + targets.healer + targets.dps > input.size) {
+      return error('ROLE_TARGETS_TOO_BIG', `Role targets add up to more than ${input.size}`, {
+        suggestion: 'Lower the tank, healer, or dps targets so they fit the size',
+        retryable: false,
+      });
+    }
     const startTimes = [...new Set(input.startTimes)].sort((a, b) => a - b);
     if (startTimes.length < 2) {
       return invalid('The start times are all the same', 'Offer at least two different times');
@@ -80,7 +98,7 @@ export const raidNightPoll = command({
       caller,
       {
         question: input.question ?? `When should we run ${input.name}?`,
-        description: candidateLines(input.name, startTimes),
+        description: candidateLines(input.name, startTimes, input.kind),
         options: startTimes.map((t, i) => ({ label: labels[i]!, value: String(t) })),
         method: 'single',
         eligibleTier: input.eligibleTier,
@@ -98,7 +116,9 @@ export const raidNightPoll = command({
       pollId: poll.id,
       name: input.name,
       instance: input.instance,
+      kind: input.kind,
       size: input.size,
+      roleTargets: input.roleTargets,
       durationMinutes: input.durationMinutes,
       createdBy: caller.memberId ?? caller.surface,
       createdAt: now(),

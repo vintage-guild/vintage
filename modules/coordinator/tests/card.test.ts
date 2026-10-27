@@ -18,6 +18,7 @@ const event: RaidEvent = {
   scheduleId: null,
   name: 'Raid night',
   instance: 'Molten Core',
+  kind: 'raid',
   size: 40,
   startsAt: Date.UTC(2026, 9, 29, 0),
   durationMinutes: 180,
@@ -120,5 +121,78 @@ describe('raid cards', () => {
     expect(emoji('square_warrior')).toMatch(/^<:square_warrior:\d+>$/);
     expect(emoji('status_going')).toMatch(/^<:status_going:\d+>$/);
     expect(emoji('not_an_emoji')).toBe('');
+  });
+});
+
+describe('event kinds on the card', () => {
+  const signup = (i: number, cls: WowClass, spec: string, role: Signup['role']): Signup => ({
+    id: `k${i}`,
+    guildId: 'g',
+    eventId: 'ev-k',
+    memberId: `km${i}`,
+    characterId: `kc${i}`,
+    characterName: `Char${i}`,
+    class: cls,
+    spec,
+    role,
+    status: 'accepted',
+    note: null,
+    signedUpAt: i,
+    updatedAt: i,
+    roster: 'pending',
+    group: null,
+    queued: false,
+    promotedAt: null,
+  });
+  const tickFor = (overrides: Partial<RaidEvent>, signups: Signup[]): TickEvent => ({
+    event: { ...event, id: 'ev-k', ...overrides },
+    timings: DEFAULT_TIMINGS,
+    signups,
+  });
+  const plain = (name: string) => name.replace(/<:[^>]+>\s*/g, '');
+
+  it('a dungeon shows its 1/1/3 targets and missing roles, and no buffs', () => {
+    const tick = tickFor(
+      { kind: 'dungeon', size: 5, name: 'Cathedral run', instance: 'Scarlet Monastery' },
+      [signup(1, 'warrior', 'protection', 'tank')],
+    );
+    const message = renderSignupPost(tick, []);
+    const card = message.embeds![0] as Embed;
+    expect(card.title).toBe('Dungeon · Cathedral run · Scarlet Monastery');
+    expect(card.description).toContain('5-person dungeon');
+    expect(card.fields!.slice(0, 3).map((f) => plain(f.name))).toEqual([
+      'Tanks 1/1',
+      'Healers 0/1',
+      'DPS 0/3',
+    ]);
+    const text = messageText(message);
+    expect(text).toContain('**Missing** 1 healer · 3 dps');
+    expect(text).not.toMatch(/MotW|Fort\b/);
+  });
+
+  it('a raid still lists missing buffs and keeps its own title', () => {
+    const tick = tickFor({ size: 10 }, [signup(1, 'warrior', 'protection', 'tank')]);
+    const message = renderSignupPost(tick, []);
+    expect(messageText(message)).toMatch(/\*\*Missing\*\* .*MotW/);
+    expect((message.embeds![0] as Embed).title).toBe('Raid night · Molten Core');
+  });
+
+  it('an "other" event with no role targets lists everyone in one column', () => {
+    const tick = tickFor({ kind: 'other', size: 8, name: 'Fishing', instance: 'Stranglethorn' }, [
+      signup(1, 'warrior', 'protection', 'tank'),
+      signup(2, 'mage', 'frost', 'ranged'),
+    ]);
+    const card = renderSignupPost(tick, []).embeds![0] as Embed;
+    expect(card.title).toBe('Event · Fishing · Stranglethorn');
+    expect(card.fields![0]!.name).toBe('Going 2/8');
+    expect(card.fields!.some((f) => f.name.includes('Tanks'))).toBe(false);
+  });
+
+  it('an "other" event with role targets keeps the columns', () => {
+    const tick = tickFor({ kind: 'other', size: 8, roleTargets: { tank: 1, healer: 2, dps: 5 } }, [
+      signup(1, 'warrior', 'protection', 'tank'),
+    ]);
+    const card = renderSignupPost(tick, []).embeds![0] as Embed;
+    expect(plain(card.fields![0]!.name)).toBe('Tanks 1/1');
   });
 });

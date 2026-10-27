@@ -1,10 +1,11 @@
 // Discord messages the coordinator sends. Pure: data in, discord-kit MessageData out. Times use
 // Discord timestamp markup so everyone sees their own local time (PLAN §6.2).
 import { encodeBridge } from '@vintage/bridge-format';
-import { type CompResult, compRoleOf, defaultTemplate, solveComp } from '@vintage/comp-solver';
+import { type CompResult, compRoleOf, solveComp } from '@vintage/comp-solver';
 import { discordTimestamp, type MessageData, TimestampStyle } from '@vintage/discord-kit';
-import { RANK_PRIORITY, type Signup } from '@vintage/raids/contract';
+import { eventTemplate, RANK_PRIORITY, type Signup } from '@vintage/raids/contract';
 import type { TickEvent, TickMember } from '../store';
+import { eventTitle, noun } from './kind-words';
 import type { NoteInput, NoteLabel } from './notes';
 
 /** Discord's message content limit. */
@@ -32,12 +33,10 @@ export function roleCounters(signups: Signup[]): string {
 /** The comp for a raid's signups, ranked like comp-suggest. */
 export function compFor(tick: TickEvent, members: TickMember[]): CompResult {
   const rank = new Map(members.map((m) => [m.memberId, m.rank]));
-  const template = tick.event.roleTargets
-    ? { ...defaultTemplate(tick.event.size), targets: tick.event.roleTargets }
-    : defaultTemplate(tick.event.size);
   return solveComp({
     raidSize: tick.event.size,
-    template,
+    // The kind's targets, and raid buffs only for raids.
+    template: eventTemplate(tick.event),
     signups: tick.signups.map((s) => {
       const r = rank.get(s.memberId);
       return {
@@ -74,7 +73,7 @@ export function hashJson(value: unknown): string {
 /** Channel reminder that pings only the people who haven't answered. */
 export function renderReminder(tick: TickEvent, waiting: TickMember[]): MessageData {
   const names = waiting.map(mention).join(' ');
-  const content = `**${tick.event.name}** starts ${when(tick.event.startsAt)}. Still waiting on: ${names}\nAnswer on the signup post above.`;
+  const content = `**${eventTitle(tick.event)}** starts ${when(tick.event.startsAt)}. Still waiting on: ${names}\nAnswer on the signup post above.`;
   return {
     content: content.slice(0, MAX_CONTENT),
     allowed_mentions: { users: waiting.map((m) => m.discordId) },
@@ -90,7 +89,7 @@ export function renderPromotion(
   const who = member ? `<@${member.discordId}>` : `**${signup.characterName}**`;
   return {
     content:
-      `${who} a spot opened up: ${signup.characterName} is in for **${tick.event.name}** ` +
+      `${who} a spot opened up: ${signup.characterName} is in for **${eventTitle(tick.event)}** ` +
       `${when(tick.event.startsAt)}. Can't make it after all? Change your answer on the signup post.`,
     allowed_mentions: { users: member ? [member.discordId] : [] },
   };
@@ -99,8 +98,8 @@ export function renderPromotion(
 export function renderDm(tick: TickEvent, member: TickMember): MessageData {
   return {
     content:
-      `Hi ${member.displayName}, **${tick.event.name}** starts ${when(tick.event.startsAt)} and you ` +
-      "haven't answered yet. Use the buttons on the signup post in the raid signups channel. " +
+      `Hi ${member.displayName}, **${eventTitle(tick.event)}** starts ${when(tick.event.startsAt)} and you ` +
+      `haven't answered yet. Use the buttons on the ${noun(tick.event)} signup post in Discord. ` +
       'You can turn these DMs off in your profile on the guild site.',
     allowed_mentions: { parse: [] },
   };
@@ -150,7 +149,7 @@ export function renderDigest(
   const queued = tick.signups.filter((s) => s.queued).length;
   return {
     content: [
-      `**${tick.event.name}** ${when(tick.event.startsAt)}`,
+      `**${eventTitle(tick.event)}** ${when(tick.event.startsAt)}`,
       `${comp.counts.confirmed}/${tick.event.size} confirmed · ${roleCounters(tick.signups)}` +
         `${queued ? ` · ${queued} queued` : ''}`,
       gapLine(comp),

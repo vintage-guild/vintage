@@ -51,7 +51,18 @@ export const createForRaidNight = internalMutation({
     raid: v.object({
       name: v.string(),
       instance: v.string(),
-      size: v.union(v.literal(10), v.literal(20), v.literal(40)),
+      kind: v.union(
+        v.literal('raid'),
+        v.literal('dungeon'),
+        v.literal('battleground'),
+        v.literal('other'),
+      ),
+      // raid-create checks the size against the kind.
+      size: v.number(),
+      roleTargets: v.union(
+        v.object({ tank: v.number(), healer: v.number(), dps: v.number() }),
+        v.null(),
+      ),
       startsAt: v.number(),
       durationMinutes: v.number(),
     }),

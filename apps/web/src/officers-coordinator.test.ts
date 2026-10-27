@@ -27,6 +27,7 @@ const event = (id: string, name: string): RaidEvent => ({
   scheduleId: null,
   name,
   instance: "Onyxia's Lair",
+  kind: 'raid',
   size: 40,
   startsAt: Date.now() - 86_400_000,
   durationMinutes: 180,

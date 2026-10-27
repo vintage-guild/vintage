@@ -115,11 +115,13 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           durationMinutes: number;
           guildId: string;
           instance: string;
+          kind?: "raid" | "dungeon" | "battleground" | "other";
           name: string;
           outcome: "pending" | "created" | "unresolved" | "cancelled";
           pollId: string;
           raidEventId: string | null;
-          size: 10 | 20 | 40;
+          roleTargets?: { dps: number; healer: number; tank: number } | null;
+          size: number;
         },
         any,
         Name

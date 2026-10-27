@@ -12,7 +12,7 @@ import { raidsCommands } from '@vintage/raids/commands';
 import { createMemoryRaidsDeps } from '@vintage/raids/testing';
 import { fixedClock, testRegistry } from '@vintage/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { handleRaidInteraction, parseLocalTime, type RaidPorts } from '../src/discord-raids';
+import { type EventPorts, handleEventInteraction, parseLocalTime } from '../src/discord-events';
 
 const GUILD = 'guild-test';
 const DISCORD_GUILD = '600000000000000001';
@@ -58,7 +58,7 @@ type Deps = ReturnType<typeof createMemoryRaidsDeps> &
   ReturnType<typeof createMemoryCoordinatorDeps>;
 let deps: Deps;
 let ticks: number;
-let ports: RaidPorts;
+let ports: EventPorts;
 
 beforeEach(async () => {
   deps = {
@@ -98,7 +98,7 @@ const slash = (
     name: 'random',
     options: [
       {
-        name: 'raid',
+        name: 'event',
         type: T.SUB_COMMAND_GROUP,
         options: [
           {
@@ -119,10 +119,10 @@ const slash = (
 const said = (r: unknown) => (r as { data?: { content?: string; flags?: number } }).data ?? {};
 const BASICS = { name: 'Onyxia run', instance: 'Onyxia’s Lair', size: 40 };
 
-describe('/random raid create', () => {
+describe('/random event create', () => {
   it('makes the raid as the raid leader, in the guild clock, and starts a tick', async () => {
     const reply = said(
-      await handleRaidInteraction(
+      await handleEventInteraction(
         slash('rook', 'create', { ...BASICS, start: '2026-11-10 8pm' }),
         ports,
       ),
@@ -147,6 +147,7 @@ describe('/random raid create', () => {
       guildId: GUILD,
       name: 'Old night',
       instance: 'Molten Core',
+      kind: 'raid',
       size: 40,
       recurrence: { weekdays: ['wed'], time: '20:00', timeZone: 'Australia/Sydney' },
       durationMinutes: 180,
@@ -160,6 +161,7 @@ describe('/random raid create', () => {
       guildId: GUILD,
       name: 'Raid night',
       instance: 'Molten Core',
+      kind: 'raid',
       size: 40,
       recurrence: { weekdays: ['tue'], time: '20:00', timeZone: 'Europe/Berlin' },
       durationMinutes: 180,
@@ -169,7 +171,7 @@ describe('/random raid create', () => {
       active: true,
       configVersion: 1,
     });
-    await handleRaidInteraction(
+    await handleEventInteraction(
       slash('rook', 'create', { ...BASICS, start: '2026-11-10 20:00' }),
       ports,
     );
@@ -182,6 +184,7 @@ describe('/random raid create', () => {
       guildId: GUILD,
       name: 'Raid night',
       instance: 'Molten Core',
+      kind: 'raid',
       size: 40,
       recurrence: { weekdays: ['tue'], time: '20:00', timeZone: 'Europe/Berlin' },
       durationMinutes: 180,
@@ -191,7 +194,7 @@ describe('/random raid create', () => {
       active: false,
       configVersion: 1,
     });
-    await handleRaidInteraction(
+    await handleEventInteraction(
       slash('rook', 'create', { ...BASICS, start: '2026-11-10 20:00' }),
       ports,
     );
@@ -201,7 +204,7 @@ describe('/random raid create', () => {
 
   it('tells a raider it needs a raid leader, and makes nothing', async () => {
     const reply = said(
-      await handleRaidInteraction(
+      await handleEventInteraction(
         slash('aeryn', 'create', { ...BASICS, start: '2026-11-10 20:00' }),
         ports,
       ),
@@ -213,12 +216,12 @@ describe('/random raid create', () => {
 
   it('explains a time it cannot read, and passes the command’s own refusals through', async () => {
     const bad = said(
-      await handleRaidInteraction(slash('rook', 'create', { ...BASICS, start: 'tuesday' }), ports),
+      await handleEventInteraction(slash('rook', 'create', { ...BASICS, start: 'tuesday' }), ports),
     );
     expect(bad.content).toContain("couldn't read “tuesday”");
     expect(bad.content).toContain('2026-11-10 20:00');
     const past = said(
-      await handleRaidInteraction(
+      await handleEventInteraction(
         slash('rook', 'create', { ...BASICS, start: '2026-10-01 20:00' }),
         ports,
       ),
@@ -226,12 +229,66 @@ describe('/random raid create', () => {
     expect(past.content).not.toContain('Made');
     expect(await deps.raids.listEvents(GUILD)).toEqual([]);
   });
+
+  it('makes a dungeon with the counts given, and says so', async () => {
+    const reply = said(
+      await handleEventInteraction(
+        slash('rook', 'create', {
+          name: 'Cathedral run',
+          instance: 'Scarlet Monastery',
+          size: 5,
+          start: '2026-11-10 8pm',
+          kind: 'dungeon',
+          tanks: 1,
+          healers: 1,
+          dps: 3,
+        }),
+        ports,
+      ),
+    );
+    const [event] = await deps.raids.listEvents(GUILD);
+    expect(event).toMatchObject({
+      kind: 'dungeon',
+      size: 5,
+      roleTargets: { tank: 1, healer: 1, dps: 3 },
+    });
+    expect(reply.content).toContain(
+      'Made **Cathedral run** (Scarlet Monastery, 5-player dungeon) for',
+    );
+    expect(reply.content).toContain('looking for 1 tank · 1 healer · 3 DPS');
+  });
+
+  it('sends no role targets unless a count is given; the rest of the dps fills the size', async () => {
+    await handleEventInteraction(
+      slash('rook', 'create', { ...BASICS, start: '2026-11-10 8pm' }),
+      ports,
+    );
+    await handleEventInteraction(
+      slash('rook', 'create', { ...BASICS, name: 'Ony 2', start: '2026-11-10 9pm', tanks: 3 }),
+      ports,
+    );
+    const [plain, tuned] = await deps.raids.listEvents(GUILD);
+    expect(plain).toMatchObject({ kind: 'raid', roleTargets: null });
+    // Healers from the 40-person default (10); dps is what is left.
+    expect(tuned?.roleTargets).toEqual({ tank: 3, healer: 10, dps: 27 });
+  });
+
+  it('passes a size the kind does not allow back as the command says it', async () => {
+    const reply = said(
+      await handleEventInteraction(
+        slash('rook', 'create', { ...BASICS, size: 7, start: '2026-11-10 8pm', kind: 'dungeon' }),
+        ports,
+      ),
+    );
+    expect(reply.content).toContain("A dungeon can't be 7 players");
+    expect(await deps.raids.listEvents(GUILD)).toEqual([]);
+  });
 });
 
-describe('/random raid pick-night', () => {
+describe('/random event pick-night', () => {
   it('opens a raid-night vote with the times, closing after the vote hours', async () => {
     const reply = said(
-      await handleRaidInteraction(
+      await handleEventInteraction(
         slash('rook', 'pick-night', {
           ...BASICS,
           times: '2026-11-12 20:00; 2026-11-10 8pm',
@@ -252,9 +309,33 @@ describe('/random raid pick-night', () => {
     );
   });
 
+  it('carries the kind and counts to the raid night', async () => {
+    const reply = said(
+      await handleEventInteraction(
+        slash('rook', 'pick-night', {
+          name: 'WSG premade',
+          instance: 'Warsong Gulch',
+          size: 10,
+          kind: 'battleground',
+          healers: 3,
+          times: '2026-11-12 20:00; 2026-11-10 8pm',
+        }),
+        ports,
+      ),
+    );
+    expect([...deps.coordinator.raidNights.values()]).toEqual([
+      expect.objectContaining({
+        kind: 'battleground',
+        size: 10,
+        roleTargets: { tank: 0, healer: 3, dps: 7 },
+      }),
+    ]);
+    expect(reply.content).toContain('becomes the 10-player battleground');
+  });
+
   it('names the time it could not read', async () => {
     const reply = said(
-      await handleRaidInteraction(
+      await handleEventInteraction(
         slash('rook', 'pick-night', { ...BASICS, times: '2026-11-10 20:00; friday' }),
         ports,
       ),
@@ -267,14 +348,14 @@ describe('/random raid pick-night', () => {
 describe('scope', () => {
   it('refuses other servers and members it does not know', async () => {
     const elsewhere = said(
-      await handleRaidInteraction(
+      await handleEventInteraction(
         slash('rook', 'create', { ...BASICS, start: '2026-11-10 20:00' }, '999'),
         ports,
       ),
     );
     expect(elsewhere.content).toContain('only runs raids in the Vintage guild server');
     const stranger = said(
-      await handleRaidInteraction(
+      await handleEventInteraction(
         slash('nobody', 'create', { ...BASICS, start: '2026-11-10 20:00' }),
         ports,
       ),
@@ -287,6 +368,6 @@ describe('scope', () => {
       ...slash('rook', 'create', {}),
       data: { name: 'random', options: [{ name: 'poll', type: T.SUB_COMMAND_GROUP }] },
     };
-    expect(await handleRaidInteraction(poll as Interaction, ports)).toBeNull();
+    expect(await handleEventInteraction(poll as Interaction, ports)).toBeNull();
   });
 });

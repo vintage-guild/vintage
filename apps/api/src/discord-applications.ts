@@ -20,7 +20,11 @@ import {
   renderRecruitingPost,
   replyModal,
 } from '@vintage/applications/commands';
-import type { Application } from '@vintage/applications/contract';
+import {
+  type Application,
+  type ApplicationStatus,
+  OPEN_STATUSES,
+} from '@vintage/applications/contract';
 import { parseRaiseNeedCustomId } from '@vintage/coordinator/commands';
 import {
   type CommandInteractionOption,
@@ -102,7 +106,24 @@ function options(interaction: Interaction): Record<string, string> {
   return values;
 }
 
-async function startApply(interaction: Interaction): Promise<InteractionResponse> {
+async function startApply(
+  interaction: Interaction,
+  ports: ApplicationDiscordPorts,
+  caller: Caller,
+): Promise<InteractionResponse> {
+  // Refuse before the form, so nobody types three answers only to be turned away.
+  if (tierAllows(caller.tier, 'raider')) {
+    return ephemeral(
+      'You already raid with Vintage. Ask an officer if you want to change your rank.',
+    );
+  }
+  const latest = await ports.run(caller, 'application-get', {});
+  const status = latest.success
+    ? (latest.data as { status?: ApplicationStatus } | null)?.status
+    : null;
+  if (status && OPEN_STATUSES.includes(status)) {
+    return ephemeral('Your application is still with the officers; they answer here in Discord.');
+  }
   const o = options(interaction);
   const wowClass = CLASS_NAMES.find((c) => c === o.class);
   const role = o.role === 'flex-raider' ? 'flex-raider' : 'raider';
@@ -214,7 +235,9 @@ export async function handleApplicationInteraction(
 
   if (interaction.type === InteractionType.APPLICATION_COMMAND) {
     const [sub] = subcommandPath(interaction);
-    return sub === APPLY_SUBCOMMAND ? startApply(interaction) : postRecruiting(ports, caller);
+    return sub === APPLY_SUBCOMMAND
+      ? startApply(interaction, ports, caller)
+      : postRecruiting(ports, caller);
   }
   const id = interaction.data?.custom_id ?? '';
   const raise = parseRaiseNeedCustomId(id);

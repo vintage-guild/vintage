@@ -115,11 +115,14 @@ const fromResult = (
 });
 
 /** A short, readable line for a mutation: `signup-set: status tentative, eventId r1`. */
+/** Ids (`eventId`, `characterIds`, `id`) are for commands, not for the member reading the line. */
+const isIdField = (key: string) => key === 'id' || key.endsWith('Id') || key.endsWith('Ids');
+
 export function summarize(command: string, input: unknown): string {
   const fields =
     input && typeof input === 'object'
       ? Object.entries(input as Record<string, unknown>)
-          .filter(([, v]) => v !== undefined && v !== null && v !== '')
+          .filter(([k, v]) => v !== undefined && v !== null && v !== '' && !isIdField(k))
           .slice(0, 6)
           .map(([k, v]) => `${k} ${typeof v === 'object' ? JSON.stringify(v) : String(v)}`)
       : [];

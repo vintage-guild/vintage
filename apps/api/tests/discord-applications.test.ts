@@ -142,9 +142,23 @@ describe('/random apply', () => {
     expect(effects).toEqual([{ effect: 'submitted', applicationId: only().id }]);
   });
 
-  it('refuses a second open application with the reason', async () => {
+  it('refuses a second open application before the form', async () => {
     await apply();
-    expect(content(await apply())).toMatch(/Your application is still with the officers/);
+    const again = await handleApplicationInteraction(
+      slash('d-guest', 'apply', { character: 'Kol', class: 'shaman', spec: 'restoration' }),
+      ports,
+    );
+    expect(content(again)).toMatch(/"type":4/);
+    expect(content(again)).toMatch(/Your application is still with the officers/);
+  });
+
+  it('refuses a raider before the form', async () => {
+    const response = await handleApplicationInteraction(
+      slash('d-vex', 'apply', { character: 'Vex', class: 'warrior', spec: 'arms' }),
+      ports,
+    );
+    expect(content(response)).toMatch(/"type":4/);
+    expect(content(response)).toMatch(/You already raid with Vintage/);
   });
 
   it('only answers in the guild server', async () => {

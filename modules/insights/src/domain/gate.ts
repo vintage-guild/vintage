@@ -58,8 +58,8 @@ export async function gateFindings(
 }
 
 export const DM_INSTRUCTIONS = [
-  "You write a short private note to a World of Warcraft raider from their guild's assistant.",
-  'Turn the notes below into two or three friendly sentences that help them improve next raid. Keep every number and time exactly as given. Do not compare them to anyone, do not scold, add nothing that is not in the notes. No greeting, no sign-off.',
+  "You write the opening of a short private note to a World of Warcraft raider from their guild's assistant.",
+  'The notes below are sent right after your words, exactly as written, so do not repeat them, their numbers, or their times. In one or two friendly sentences, say which of them is most worth working on next raid and why it helps. Do not compare them to anyone, do not scold, add nothing that is not in the notes, and do not say how to turn these messages off. No greeting, no sign-off.',
 ].join('\n');
 
 /** The DM without the agent: the findings as written, with their evidence. */
@@ -67,6 +67,6 @@ export function plainDm(zoneName: string, findings: readonly InsightFinding[]): 
   return [
     `From the ${zoneName} log:`,
     ...findings.map((f) => `• ${f.text} (${f.evidence})`),
-    '-# Turn these off with insights-optin-set dms:false.',
+    '-# To stop these notes, use `/random ask` and say "stop my raid notes".',
   ].join('\n');
 }

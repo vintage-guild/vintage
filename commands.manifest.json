@@ -22,6 +22,201 @@
       }
     },
     {
+      "name": "agent-ask",
+      "description": "Ask the guild agent a question in plain words (\"am I on the roster Thursday?\", \"who has not answered?\"). It answers with the commands you can run; anything that would change data comes back as a confirmation you press. Answers arrive a few seconds later: read them with agent-run-get. Pass `thread` (a channel or chat id) to keep follow-ups in one conversation.",
+      "tier": "member",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "thread": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          }
+        },
+        "required": [
+          "question"
+        ]
+      }
+    },
+    {
+      "name": "agent-config-set",
+      "description": "Change the guild agent: the model and reasoning effort for questions, and the caps (questions per member per day, questions and Decisions calls per guild per month). Fields left out stay as they are.",
+      "tier": "officer",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string",
+            "pattern": "^gpt-[a-z0-9.-]+$"
+          },
+          "effort": {
+            "type": "string",
+            "enum": [
+              "none",
+              "minimal",
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "memberDailyAsks": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 500
+          },
+          "guildMonthlyAsks": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "guildMonthlyDecisions": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000
+          }
+        }
+      }
+    },
+    {
+      "name": "agent-confirm",
+      "description": "Run a change the agent prepared for you: the exact command and input it showed. Only the member who asked can confirm, within 5 minutes for destructive changes and 30 for others.",
+      "tier": "member",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "confirmationId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "confirmationId"
+        ]
+      }
+    },
+    {
+      "name": "agent-decline",
+      "description": "Drop a change the agent prepared for you, without running it.",
+      "tier": "member",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "confirmationId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "confirmationId"
+        ]
+      }
+    },
+    {
+      "name": "agent-pause",
+      "description": "Stop the guild agent: no questions, no wording, no Decisions calls until resumed. Everything falls back to templates and plain commands.",
+      "tier": "officer",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "agent-resume",
+      "description": "Turn the guild agent back on after agent-pause.",
+      "tier": "officer",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "agent-run-get",
+      "description": "One agent run: its status, the answer once there is one, and any changes waiting for you to confirm. Your own runs; officers see anyone's.",
+      "tier": "member",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "runId"
+        ]
+      }
+    },
+    {
+      "name": "agent-runs",
+      "description": "The agent ledger, newest first: questions, wording jobs, and Decisions calls, with the commands each ran. Members see their own; officers see everyone and can filter by member or kind.",
+      "tier": "member",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "memberId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "ask",
+              "wording",
+              "decision"
+            ]
+          },
+          "limit": {
+            "default": 20,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        }
+      }
+    },
+    {
+      "name": "agent-status",
+      "description": "Whether the guild agent is on, its model and caps, and how much it has been used today and this month (questions, wording jobs, Decisions calls, failures in the last day).",
+      "tier": "officer",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
       "name": "character-add",
       "description": "Register one of your characters (main or alt).",
       "tier": "member",

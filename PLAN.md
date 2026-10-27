@@ -72,7 +72,7 @@ flowchart TB
     subgraph Core["apps/api · Convex"]
         REG["AFD command registry<br/>+ guild-kit policy (permission, guildId, dryRun/confirm)"]
         AUTH["Better Auth<br/>Discord provider · MCP OAuth · role sync"]
-        AGENT["Hosted guild agent<br/>Convex Node action · OpenAI Agents SDK"]
+        AGENT["Hosted guild agent<br/>Convex action · OpenAI Agents API"]
         EVT["Events table + crons + scheduler"]
         subgraph Mods["Modules (Convex components)"]
             ID[identity]
@@ -113,7 +113,7 @@ Three runtimes, each for a reason:
 | Auth | **Better Auth 1.8** via `@convex-dev/better-auth`, Discord provider only, `@better-auth/mcp` plugin as the OAuth server for MCP clients | Roles synced from Discord; non-members see public pages only |
 | Hosting | **Vercel** for the website + gateway | Hobby plan cannot deploy a private GitHub-org repo: one Pro seat or a public repo (Q10) |
 | Discord bot | **HTTP interactions endpoint** (serverless) + REST calls from Convex actions | No always-on gateway process for MVP |
-| Intelligence | **OpenAI Agents SDK** in Convex Node actions; tools come from the registry | `gpt-5.6-luna` for `/ask` and copy; `gpt-5.6-sol` for comp/strategy reasoning (§3.10) |
+| Intelligence | **OpenAI Agents API** (hosted sessions) driven from Convex actions; tools come from the registry. **Decisions API** for bounded labels inside deterministic rules | `gpt-6.1-terra` (medium) for `/ask`, Terra (low) for short copy, `gpt-6-luna` behind Decisions, `gpt-6.1-sol` for comp/strategy (§3.10, [research note](docs/research/openai-agents-decisions.md)) |
 | Web UI | **FAST-AF** (FAST Element v3 + AFD) with `violet-elements` primitives and its Router, Vite | `afd-adapters` renders `CommandResult`s; themed by Vintage tokens (§3.8, §3.9) |
 | Design system | **AFD site** design language + **Violet** token engine (`afd-site → vintage → dark/parchment`) | Build-time export to CSS, TS, and a FenUI Lua theme; plain-DTCG fallback |
 | Addon | **`Vintage`** on **FenCore, FenUI, MechanicLib**, LibSerialize + LibDeflate, Ace3 as needed | Weekly addon layout (§3.6); Forever uses the Mainline API family, so these Retail libraries carry over; published on CurseForge |
@@ -323,11 +323,12 @@ afd-site                    base: AFD site palette, type roles, spacing, motion
 
 The agent is a member-facing assistant, not an autonomous actor. It runs where the data is and uses the same commands as everyone else.
 
-- **Runtime:** `packages/agent` on the OpenAI Agents SDK, executed in Convex Node actions. No separate service.
-- **Tools:** the same AFD meta-tools over `afd-client`'s in-process Direct transport against the registry, bound to the **asking member's** identity, so the agent can never do more than that member could.
+- **Runtime:** the OpenAI **Agents API** holds the loop and a durable session per conversation (`environment: none`, no sandbox). `agent-ask` queues a run in the `agent` module and schedules a Convex action (`apps/api/convex/agent.ts`) that starts or resumes the session, answers each function call, and records the answer; `packages/agent-runtime` is the client, the turn loop, and the registry tools. It polls instead of using webhooks (one tool call answers in 9–12 s, #128). No separate service.
+- **Tools:** three function tools, `afd-discover`, `afd-detail`, `afd-call`, run against the registry in a Convex mutation as the **asking member** (surface `agent`), so the agent can never do more than that member could. The agent never sees or calls `agent-*` commands.
 - **Entry points:** Discord `/ask` (acknowledge within 3 seconds, then follow up when the answer is ready), chat on the website, and coordinator copywriting (the agent drafts the friendly wording; a deterministic template is the fallback if the call fails or the budget is exhausted).
-- **Models:** `gpt-5.6-luna` by default; `gpt-5.6-sol` for comp and strategy questions. Routing follows `docs/operations/model-routing.md`.
-- **Guardrails:** mutating commands go through the same `dryRun` → confirm flow (the agent shows the preview and asks); every tool call is logged with the member and prompt; per-member daily and global monthly spend caps; `agent.pause` kill switch for officers.
+- **Models:** `gpt-6.1-terra` at medium effort by default (`agent-config-set` changes it); Terra at low for short wording; `gpt-6-luna` only behind the Decisions API. Routing follows `docs/operations/model-routing.md`.
+- **Guardrails:** the agent never runs a command that changes data. `afd-call` turns every mutation into a pending confirmation (destructive ones carry their real dryRun preview and token, never shown to the model), and only the member who asked can run it with `agent-confirm` (5 minutes for destructive, 30 otherwise). Every run, tool call, and confirmation is in the agent ledger (`agent-runs`). Caps count questions, not dollars, because the API reports no token usage: per member per day, per guild per month, plus a monthly Decisions cap. `agent-pause` is the officers' kill switch for the agent and Decisions alike.
+- **Decisions:** `packages/decisions` asks bounded questions (predicate, choice, score) from Convex actions; consumers act only above a threshold picked from labeled examples and fall back to their non-AI behavior otherwise. Every call is a `decision` run in the same ledger.
 
 ### 3.11 Core entities
 
@@ -376,7 +377,8 @@ vintage/
 ├─ vendor/                  built FAST-AF packages, pinned (VENDORED.md); never edited
 ├─ packages/                platform glue (knows Convex / AFD / Vercel / OpenAI / FAST-AF)
 │  ├─ guild-kit/            AFD policy: caller resolution, permissions, guildId, Convex binding, dryRun/confirm
-│  ├─ agent/                hosted agent wiring (§3.10)
+│  ├─ agent-runtime/        Agents API client, turn loop, registry tools (§3.10)
+│  ├─ decisions/            Decisions API port, fake, thresholds (§3.10)
 │  ├─ ui-kit/               Vintage composites on FAST-AF + violet-elements (§3.9)
 │  ├─ testing/              fixtures, convex-test helpers
 │  └─ config/               tsconfig + lint presets
@@ -715,7 +717,7 @@ Phase 0 has about ten days and one maintainer, so it is cut to the minimum that 
 - [x] `libs/discord-kit`: signature verification, embeds, components, timestamps Landed early in Phase 0 (#43).
 - [x] `libs/comp-solver`: selected roster, bench, and gaps with reasons (part of #15; `comp-suggest` lands with `raids`)
 - [ ] Member prefs (DM opt-out, default character, timezone); live roster board on the website
-- [ ] Hosted agent v0 (§3.10): `/ask` in Discord + site chat, read commands + own signups, spend caps, `agent.pause`
+- [ ] Hosted agent v0 (§3.10): `/ask` in Discord + site chat, read commands + own signups, spend caps, `agent.pause`. The runtime, the `agent` module, caps, the ledger, and confirmations are built and checked live on the local backend (#129); the Discord `/random ask` surface is next (#18)
 - [ ] First reskin pass once the GM answers Q12: guild colors, class/quality/role/status tokens, display font. Started with the home page (2026-10-25): plum, verdigris, and rose tokens, Bitter display, Plex body ([home page plan](docs/features/active/home-page/home-page.plan.md))
 - [ ] Triage + fleet loops live (`do-triage`, `do-run-fleet`); `vintage-discord` skill
 - [ ] **Addon spike at launch (Nov 4–6):** scaffold `addon/Vintage` from the Weekly layout; on the live Forever client confirm `C_PartyInfo.InviteUnit`, `SetRaidSubgroup`, `LOOT_OPENED`/`CHAT_MSG_LOOT`, and the `GiveMasterLoot` handout (Q6, Q7); check Mechanic sandbox stubs against the 1.60.1 changes
@@ -741,7 +743,7 @@ Phase 0 has about ten days and one maintainer, so it is cut to the minimum that 
 - More loot methods (prio lists, DKP, EPGP, MS>OS)
 - Boss strategy docs + content notes the agent can draw on
 - Battle.net / Armory sync if Blizzard exposes Forever profile data
-- Recruitment pipeline, guild bank, crafting orders, events beyond raids
+- Guild bank, crafting orders, events beyond raids (the recruitment pipeline moved to epic #126)
 - Always-on Discord gateway worker if the bot needs to read channel chatter
 - Fold `apps/gateway` into Convex HTTP actions if they prove sufficient
 
@@ -772,7 +774,7 @@ Phase 0 has about ten days and one maintainer, so it is cut to the minimum that 
 | 7 | Do `C_PartyInfo.InviteUnit`, `SetRaidSubgroup`, and the loot events behave on Forever, and do Mechanic's sandbox stubs cover the 1.60.1 changes? | Bloodfen, Nov 4–6 | Phase 2 addon |
 | 8 | Do Convex local components handle the module pattern cleanly (auth handoff, cross-module events)? | Bloodfen, spike | Phase 0 module pattern |
 | 9 | Exact GitHub org name (`Vintage` if available, else a `Vintage-*` variant); is the guild name secured at reservation? | GM + Bloodfen | Org creation |
-| 10 | Hosting budget: Vercel Pro seat (~$20/mo) vs. a public repo; Convex Starter limits and preview availability; OpenAI spend cap and who pays | GM + Bloodfen | First deploy, Phase 1 agent |
+| 10 | Hosting budget: Vercel Pro seat (~$20/mo) vs. a public repo; Convex Starter limits and preview availability; OpenAI spend cap and who pays. The caps exist (`agent-config-set`: 20 questions per member per day, 1,000 per guild per month, 20,000 Decisions calls per month by default); who pays is open | GM + Bloodfen | First deploy, Phase 1 agent |
 | 11 | Website domain | GM | Phase 0 deploy |
 | 12 | Guild colors, crest/logo, and how "WoW" the site should feel (subtle vs. full parchment-and-gold) | GM | Phase 1 reskin |
 | 13 | Does FenUI accept an external theme table that overrides its semantic tokens, or does that need an upstream hook? | Bloodfen | Phase 2 addon theme |

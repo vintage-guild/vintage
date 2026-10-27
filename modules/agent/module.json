@@ -1,0 +1,7 @@
+{
+  "name": "agent",
+  "maturity": "official",
+  "owners": ["@Falkicon"],
+  "dependsOn": [],
+  "description": "The hosted guild agent (PLAN §3.10): questions through the OpenAI Agents API, answered with the asking member's commands; caps, the run ledger, and confirm-before-change."
+}

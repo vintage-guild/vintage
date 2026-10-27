@@ -28,8 +28,12 @@ Rules of thumb:
 
 | Use | Model | Why |
 |---|---|---|
-| `/ask`, signup help, coordinator copywriting | `gpt-5.6-luna` | Cheap, fast, and the commands do the real work |
-| Comp and strategy questions | `gpt-5.6-sol` | More reasoning when it's worth it |
+| `/ask` and signup help (Agents API) | `gpt-6.1-terra`, medium effort | Best intelligence per dollar for tool use on 2026-10-26; the commands do the real work |
+| Short copy: coordinator wording, onboarding notes, insight DMs | `gpt-6.1-terra`, low effort | Fast and cheap for a few lines |
+| Bounded labels inside rules (Decisions API) | `gpt-6-luna` | The only model the endpoint accepts; input-only pricing |
+| Comp and strategy questions | `gpt-6.1-sol` | More reasoning when it's worth it |
 
-The agent runs with per-member daily and global monthly spend caps, and falls back to plain
+Measured in the #128 spike: Terra and Luna both work in the Agents API, and one question with
+one tool call answers in 9–12 s. The API reports no token usage, so the caps count questions.
+The agent runs with per-member daily and global monthly caps, and falls back to plain
 templates when it's unavailable (PLAN.md §3.10).

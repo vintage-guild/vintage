@@ -6,6 +6,7 @@ import { commands, type VintageDeps } from '../src/registry';
 import { discordIdOf, webCaller } from '../src/web-caller';
 import { internalMutation, mutation, query } from './_generated/server';
 import {
+  agentDeps,
   coordinatorDeps,
   identityDeps,
   identityStore,
@@ -18,7 +19,7 @@ import {
 /** Single-guild deployment for now; every record still carries guildId (PLAN §3.11). */
 export const GUILD_ID = process.env.VINTAGE_GUILD_ID ?? 'vintage';
 
-function registry() {
+export function registry() {
   const confirmSecret = process.env.VINTAGE_CONFIRM_SECRET;
   if (!confirmSecret) throw new Error('Set VINTAGE_CONFIRM_SECRET in the Convex environment');
   return createGuildRegistry<VintageDeps>({ commands, confirmSecret });
@@ -26,13 +27,16 @@ function registry() {
 
 type Ctx = Parameters<typeof identityStore>[0];
 
-const deps = (ctx: Ctx): VintageDeps => ({
+export const deps = (ctx: Ctx): VintageDeps => ({
   ...identityDeps(ctx),
   ...raidsDeps(ctx),
   ...coordinatorDeps(ctx, (caller, name, input) => runAs(ctx, caller, { name, input })),
   ...pollsDeps(ctx),
   ...progressDeps(ctx),
   ...siteDeps(ctx),
+  ...agentDeps(ctx, (caller, name, input, confirmToken) =>
+    runAs(ctx, caller, { name, input, ...(confirmToken ? { confirmToken } : {}) }),
+  ),
 });
 
 /** The website caller: the signed-in member from the token's Discord id (convex/auth.ts), else public. */

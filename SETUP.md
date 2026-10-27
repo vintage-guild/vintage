@@ -63,6 +63,15 @@ npx convex run commands:read '{"name":"member-list","input":{}}'
 `dev:local` starts an anonymous local Convex backend, pushes functions, and regenerates
 `convex/_generated` (commit those changes). Use `dev:local:watch` to keep it running.
 
+The hosted agent and the Decisions API need an OpenAI key in the Convex environment
+(`npx convex env set OPENAI_API_KEY …`); without it `agent-ask` runs fail with a clear error and
+Decisions consumers keep their non-AI behavior. To ask as a member from the CLI, pass an identity
+with their Discord id:
+
+```bash
+npx convex run commands:run '{"name":"agent-ask","input":{"question":"When is the next raid?"}}' --identity '{"subject":"x","discordId":"<member discord id>"}'
+```
+
 ## Discord (only if you work on the bot)
 
 The bot's settings live in the Discord Developer Portal under the **Random** application (renamed

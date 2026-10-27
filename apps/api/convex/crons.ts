@@ -12,4 +12,7 @@ crons.interval('coordinator', { minutes: 5 }, internal.coordinator.tick);
 /** Open due draft polls and close due open ones (#61). Idempotent per run. */
 crons.interval('poll-sweep', { minutes: 5 }, internal.polls.sweep);
 
+/** Delete idle Agents API sessions and close expired confirmations (PLAN §3.10, #129). */
+crons.interval('agent-sweep', { hours: 1 }, internal.agent.sweep);
+
 export default crons;

@@ -1,6 +1,7 @@
 // Discord sign-in (#7) without Convex or the network: the bot's member lookup, the sync that runs
 // right after sign-in, and the caller the website's commands then run as.
 
+import { createMemoryAgentDeps } from '@vintage/agent/testing';
 import { createMemoryCoordinatorDeps } from '@vintage/coordinator/testing';
 import type { MemberSyncInput } from '@vintage/identity/commands';
 import { createMemoryIdentityDeps } from '@vintage/identity/testing';
@@ -48,6 +49,7 @@ function host() {
     ...createMemoryPollsDeps(),
     ...createMemoryProgressDeps(),
     ...createMemorySiteDeps(),
+    ...createMemoryAgentDeps().deps,
   };
   const registry = testRegistry<VintageDeps>(commands);
   const system = makeCaller('officer', { surface: 'system', memberId: undefined });

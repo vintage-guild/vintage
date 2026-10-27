@@ -290,6 +290,8 @@ describe('the recruiting post', () => {
 
   it('points to the website apply page when the site is known', () => {
     expect(text('https://vintageguild.gg/')).toContain('https://vintageguild.gg/apply');
+    expect(text('https://vintageguild.gg//')).toContain('https://vintageguild.gg/apply');
+    expect(text('https://vintageguild.gg')).toContain('https://vintageguild.gg/apply');
     expect(text('https://vintageguild.gg/')).toContain('/random apply');
   });
 

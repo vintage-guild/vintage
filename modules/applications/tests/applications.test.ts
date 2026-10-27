@@ -102,6 +102,87 @@ describe('application-submit', () => {
   });
 });
 
+describe('who may apply (#145)', () => {
+  const MINUTE = 60_000;
+  const web = (discordId: string) => makeCaller('public', { discordId, surface: 'web' });
+  const applicant = (n: number) =>
+    makeCaller('public', { discordId: `d-${n}`, surface: 'discord' });
+  const check = async (caller: Caller) =>
+    data<{ canApply: boolean; reason: string | null; suggestion: string | null }>(
+      await run('application-check', {}, caller),
+    );
+
+  it('answers in order: sign in, raiding, in the server, open, too many', async () => {
+    expect((await check(makeCaller('public'))).reason).toBe('sign-in');
+    expect((await check(raider)).reason).toBe('already-raiding');
+    harness.notInServer.add('d-web');
+    expect((await check(web('d-web'))).reason).toBe('not-in-server');
+    harness.notInServer.delete('d-web');
+    expect(await check(web('d-web'))).toMatchObject({ canApply: true, reason: null });
+    await run('application-submit', form, guest);
+    expect((await check(guest)).reason).toBe('open');
+  });
+
+  it('asks website applicants to join the Discord first; /random apply is already there', async () => {
+    harness.notInServer.add('d-web');
+    const refused = await run('application-submit', form, web('d-web'));
+    expect(code(refused)).toBe('JOIN_DISCORD_FIRST');
+    expect(refused.error?.suggestion).toMatch(/join/i);
+    // Someone using /random is in the server whatever the last sync said.
+    harness.notInServer.add('d-kol');
+    expect(code(await run('application-submit', form, guest))).toBe('OK');
+  });
+
+  it('holds new applications once the guild limit is reached, and says when to try again', async () => {
+    await run('application-config-set', { limitCount: 3, limitWindowMinutes: 10 }, officer);
+    for (let n = 0; n < 3; n++) {
+      expect(code(await run('application-submit', form, applicant(n)))).toBe('OK');
+      clock.advance(MINUTE);
+    }
+    // Three came in at 0, 1, and 2 minutes; at 3 minutes the first frees a slot at 10.
+    const refused = await run('application-submit', form, applicant(3));
+    expect(code(refused)).toBe('APPLICATIONS_BUSY');
+    expect(refused.error).toMatchObject({
+      message: 'The application limit has been reached',
+      suggestion: 'Try again in 7 minutes',
+      retryable: true,
+    });
+    expect(await check(applicant(4))).toMatchObject({
+      reason: 'busy',
+      suggestion: 'Try again in 7 minutes',
+    });
+    clock.advance(7 * MINUTE);
+    expect(code(await run('application-submit', form, applicant(3)))).toBe('OK');
+  });
+
+  it('alerts the officers once per window, however many are held', async () => {
+    await run('application-config-set', { limitCount: 2, limitWindowMinutes: 10 }, officer);
+    await run('application-submit', form, applicant(0));
+    await run('application-submit', form, applicant(1));
+    for (let n = 2; n < 6; n++) await run('application-submit', form, applicant(n));
+    expect(harness.limitAlerts).toEqual([NOW + 10 * MINUTE]);
+    // A later window that fills up gets its own alert.
+    clock.advance(30 * MINUTE);
+    await run('application-submit', form, applicant(6));
+    await run('application-submit', form, applicant(7));
+    await run('application-submit', form, applicant(8));
+    expect(harness.limitAlerts).toEqual([NOW + 10 * MINUTE, NOW + 40 * MINUTE]);
+  });
+
+  it('defaults to 10 per 30 minutes, which officers may change within bounds', async () => {
+    const config = data<{ limitCount: number; limitWindowMinutes: number }>(
+      await run('application-config-get', {}, officer),
+    );
+    expect(config).toMatchObject({ limitCount: 10, limitWindowMinutes: 30 });
+    expect(code(await run('application-config-set', { limitCount: 0 }, officer))).toBe(
+      'VALIDATION_ERROR',
+    );
+    expect(code(await run('application-config-set', { limitWindowMinutes: 1 }, officer))).toBe(
+      'VALIDATION_ERROR',
+    );
+  });
+});
+
 describe('reading applications', () => {
   it('shows applicants their own status, officers everything, others nothing', async () => {
     const { id } = data<{ id: string }>(await run('application-submit', form, guest));

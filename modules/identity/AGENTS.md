@@ -30,6 +30,14 @@ Members, characters, and Discord roles → guild rank → permission tier (PLAN 
   officers can't lock themselves out. Tiers follow at the next sync, not at save time. The first
   map is saved through `commands:runAsSystem` (system caller, deployment access only), since no
   one is an officer yet.
+- `member-sync` also writes `inServer` (#145): whether the account was in the Discord server
+  at the sync. Rows from before it read as in when they have a rank, out otherwise, until the
+  next sync writes it. Applications read it to ask website applicants to join first.
+- `member-refresh` (public, your own account) re-reads your Discord membership now instead of
+  at the next sync: apps/api schedules `auth:syncSignIn`, the sign-in sync. A member synced in
+  the last 30 seconds gets the stored answer (`current`) without asking Discord; otherwise it
+  answers `checking`, and the caller reads again a few seconds later. Each call by a
+  non-member schedules one Discord read; the 30-second floor only covers known members.
 - Role sync (`apps/api/convex/roleSync.ts`, every 15 min) reads the whole `GuildDirectory` before
   planning. Never plan from a partial or empty directory: missing members are synced as gone.
 - Rank decides tier (`RANK_TIER` in the contract). Discord-only Friends and anyone without a

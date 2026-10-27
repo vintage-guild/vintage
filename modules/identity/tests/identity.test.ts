@@ -404,6 +404,7 @@ describe('when a member got their rank', () => {
       discordId: 'd-wren',
       displayName: 'Wren',
       roleIds: ['role-recruit'],
+      inServer: true,
       rank: 'recruit',
       tier: 'recruit',
       syncedAt: clock.now() - HOUR,
@@ -413,5 +414,61 @@ describe('when a member got their rank', () => {
     expect(memberOf(await sync(registry, deps, ['role-recruit'])).rankSince).toBeNull();
     clock.advance(HOUR);
     expect(memberOf(await sync(registry, deps, ['role-raider'])).rankSince).toBe(clock.now());
+  });
+});
+
+describe('member-refresh (#145)', () => {
+  const NOW = Date.UTC(2026, 9, 27, 18);
+  const system = makeCaller('officer', { surface: 'system', memberId: undefined });
+  const joiner = makeCaller('public', { discordId: 'd-new', surface: 'web' });
+  let clock: ReturnType<typeof fixedClock>;
+  let requests: string[];
+  let deps: IdentityDeps;
+  let registry: ReturnType<typeof testRegistry<IdentityDeps>>;
+
+  const run = (name: string, input: unknown, caller: Caller) =>
+    registry.execute({ name, input, caller }, deps);
+
+  beforeEach(() => {
+    clock = fixedClock(NOW);
+    requests = [];
+    registry = testRegistry<IdentityDeps>([...identityCommands], clock);
+    deps = {
+      ...createMemoryIdentityDeps({ ...ROLE_MAP }),
+      memberRefresh: { request: async (_g, discordId) => void requests.push(discordId) },
+    };
+  });
+
+  it('asks Discord now for someone it has not seen, and says to read again', async () => {
+    expect(await run('member-refresh', {}, joiner)).toMatchObject({
+      success: true,
+      data: { status: 'checking' },
+    });
+    expect(requests).toEqual(['d-new']);
+  });
+
+  it('answers from the last sync when it is seconds old, without asking again', async () => {
+    await run(
+      'member-sync',
+      { discordId: 'd-new', displayName: 'New', inServer: true, roleIds: [] },
+      system,
+    );
+    expect(await run('member-refresh', {}, joiner)).toMatchObject({
+      data: { status: 'current', inServer: true },
+    });
+    expect(requests).toEqual([]);
+    clock.advance(31_000);
+    expect(await run('member-refresh', {}, joiner)).toMatchObject({ data: { status: 'checking' } });
+    expect(requests).toEqual(['d-new']);
+  });
+
+  it('needs a Discord account, and a host that can reach Discord', async () => {
+    expect(await run('member-refresh', {}, makeCaller('public'))).toMatchObject({
+      error: { code: 'DISCORD_REQUIRED' },
+    });
+    deps = createMemoryIdentityDeps({ ...ROLE_MAP });
+    expect(await run('member-refresh', {}, joiner)).toMatchObject({
+      error: { code: 'NOT_AVAILABLE' },
+    });
   });
 });

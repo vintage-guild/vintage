@@ -9,9 +9,10 @@ Applications tab (`vintage-applications-desk`). Maturity: **official**.
 
 | Path | Holds |
 |---|---|
-| `src/contract.ts` | `Application` (with `onboardedAt`), `ApplicationLabels`, statuses (`OPEN_STATUSES`), `APPLY_ROLES` (raider, flex-raider), limits, `OwnApplicationView` / `toOwnView`, `GiveRole` / `AcceptedApplication`, `ApplicationsConfig` with the default onboarding note |
-| `src/store.ts` | `ApplicationsStore` port, `ApplicationEffects` (submitted, accepted, onboard, replied, changed), `ApplicationRoles` (the recruit role id), `ApplicationsDeps`, `command` |
-| `src/commands/` | `application-submit`, `application-get`, `application-withdraw` (public, own); `application-list`, `application-review`, `application-decline` (destructive), `application-config-get`, `application-config-set` (officer); `application-onboard` (system only) |
+| `src/contract.ts` | `Application` (with `onboardedAt`), `ApplicationLabels`, statuses (`OPEN_STATUSES`), `APPLY_ROLES` (raider, flex-raider), limits, `OwnApplicationView` / `toOwnView`, `GiveRole` / `AcceptedApplication`, `ApplicationsConfig` with the default onboarding note and the rolling limit, `ApplyCheck` / `ApplyBlock` |
+| `src/store.ts` | `ApplicationsStore` port, `ApplicationEffects` (submitted, accepted, onboard, replied, changed, limitReached), `ApplicationRoles` (the recruit role id), `ApplicationMembers` (in the Vintage server, from identity), `ApplicationsDeps`, `command` |
+| `src/commands/` | `application-check`, `application-submit`, `application-get`, `application-withdraw` (public, own); `application-list`, `application-review`, `application-decline` (destructive), `application-config-get`, `application-config-set` (officer); `application-onboard` (system only) |
+| `src/domain/eligibility.ts` | `checkApply`: who may apply now, in order, and `BLOCKS` (each refusal's code and words); `guildLimit` |
 | `src/domain/labels.ts` | The Decisions request (role it reads as, complete, fit to the open needs) and `LABEL_THRESHOLDS` |
 | `src/render/discord.ts` | The apply modals (the slash command's, and the full one behind the recruiting post's Apply buttons, `app:start:<role>` → `app:open:<role>`), the review post with Accept / Ask more / Decline, the decline preview, the officer's accept reply, DMs, the `/random recruiting` post; custom ids `app:<action>:<id>` |
 | `src/testing.ts` | Memory store and deps (recording effects) |
@@ -20,9 +21,23 @@ Applications tab (`vintage-applications-desk`). Maturity: **official**.
 ## Rules
 
 - **A Discord account is the identity.** `application-submit` needs `caller.discordId` and is
-  open to the public tier: applicants aren't members yet. Raiders can't apply
-  (`ALREADY_RAIDING`); one open application per person (`APPLICATION_OPEN`); at most three per
-  30 days (`TOO_MANY_APPLICATIONS`).
+  open to the public tier: applicants aren't members yet.
+- **One answer to "may I apply?"** (#145). `checkApply` decides for `application-check` (read
+  before any form, on the site and in Discord) and for `application-submit`, in this order:
+  signed in with Discord (`DISCORD_REQUIRED`), not a raider (`ALREADY_RAIDING`), in the Vintage
+  Discord server (`JOIN_DISCORD_FIRST`), no open application (`APPLICATION_OPEN`), at most three
+  per 30 days (`TOO_MANY_APPLICATIONS`), and the guild under its rolling limit
+  (`APPLICATIONS_BUSY`, retryable, with `retryAt`). Surfaces show the block's message and
+  suggestion; they never re-derive it.
+- **Join the Discord first** (decided 2026-10-27). Officers answer applicants in Discord, so
+  applying needs membership of the server. `/random` callers are in it by definition; on the
+  site, identity's `Member.inServer` from the last sync (every 15 minutes) decides, and the
+  site's "I've joined" runs `member-refresh` to re-read it now.
+- **A rolling limit, not a cap** (decided 2026-10-27). At most `limitCount` applications
+  (default 10) per `limitWindowMinutes` (default 30) across the guild; past it, applicants are
+  told when to try again, so a flood has to keep coming back. Officers set both with
+  `application-config-set`. The first refusal in a window (`limitAlertedAt`) posts one note
+  to the recruitment channel (`applications:limitAlert`).
 - **Applicants see only their own status and reply** (`toOwnView`): never the labels or who
   reviewed. Someone else's id answers `APPLICATION_NOT_FOUND`.
 - **Labels inform, never decide.** One Decisions request after submit (`applications:afterSubmit`)

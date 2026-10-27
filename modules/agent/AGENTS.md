@@ -36,7 +36,10 @@ member to confirm. This module owns the agent's data and commands; the runtime l
 - **Caps count questions, not dollars.** The Agents API returns null token usage, so
   `agent-ask` refuses with `AGENT_PAUSED`, `AGENT_BUSY` (a question of yours queued or running in
   the last 5 minutes), `AGENT_DAILY_LIMIT` (per member, UTC day), or `AGENT_MONTHLY_LIMIT` (per
-  guild, UTC month). Decisions calls have their own monthly cap, checked in apps/api.
+  guild, UTC month). Decisions calls have their own monthly cap, checked in apps/api; the call
+  that reaches 80% of it, and the one that reaches it, each post one note to the officers' ops
+  channel (`decisionsBudgetAlert`, `decisions:budgetAlert`), since labels and triage stop
+  quietly once it is used up (#145).
 - **Pause stops everything AI.** `agent-pause` refuses new questions, makes a queued run fail
   when it starts, and refuses Decisions calls, whose consumers fall back to their templates.
 - **One answer per run.** The action claims a run by moving it from `queued` to `running`; a

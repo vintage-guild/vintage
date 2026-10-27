@@ -37,6 +37,11 @@ export interface Member {
   displayName: string;
   /** Discord role ids at the last sync. */
   roleIds: string[];
+  /**
+   * In the guild's Discord server at the last sync. A brand-new member with no roles yet is in
+   * (`rank` null); someone who left is not. Written only by `member-sync`.
+   */
+  inServer: boolean;
   /** Highest guild rank among the member's Discord roles; null when they have none. */
   rank: GuildRank | null;
   /** Permission tier derived from rank (`public` without one). Written only by `member-sync`. */

@@ -41,7 +41,12 @@ export interface ApplicationsStore {
   getConfig(guildId: string): Promise<ApplicationsConfig>;
   setConfig(
     guildId: string,
-    patch: Partial<Pick<ApplicationsConfig, 'channelId' | 'onboarding'>>,
+    patch: Partial<
+      Pick<
+        ApplicationsConfig,
+        'channelId' | 'onboarding' | 'limitCount' | 'limitWindowMinutes' | 'limitAlertedAt'
+      >
+    >,
     now: number,
   ): Promise<ApplicationsConfig>;
 }
@@ -57,6 +62,13 @@ export interface ApplicationEffects {
   onboard(guildId: string, applicationId: string): Promise<void>;
   replied(guildId: string, applicationId: string): Promise<void>;
   changed(guildId: string, applicationId: string): Promise<void>;
+  /** The rolling limit was reached: tell the officers once (#145). */
+  limitReached(guildId: string, retryAt: number): Promise<void>;
+}
+
+/** Whether a Discord account is in the Vintage server (identity's members, read by apps/api). */
+export interface ApplicationMembers {
+  inServer(guildId: string, discordId: string): Promise<boolean>;
 }
 
 /** Read from identity's role → rank map by apps/api: which Discord role makes someone a recruit. */
@@ -68,6 +80,7 @@ export interface ApplicationsDeps {
   applications: ApplicationsStore;
   applicationEffects: ApplicationEffects;
   applicationRoles: ApplicationRoles;
+  applicationMembers: ApplicationMembers;
 }
 
 export type { ApplicationLabels };

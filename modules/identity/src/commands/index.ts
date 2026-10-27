@@ -1,6 +1,6 @@
 import { characterAdd, characterList, characterRemove, characterUpdate } from './character';
 import { guildRolesGet, guildRolesSet } from './guild-roles';
-import { memberList, memberMe, memberPrefsSet, memberSync } from './member';
+import { memberList, memberMe, memberPrefsSet, memberRefresh, memberSync } from './member';
 
 export type { DirectoryMember, GuildDirectory, GuildDirectoryPage } from '../directory';
 export { readDirectory } from '../directory';
@@ -12,6 +12,7 @@ export const identityCommands = [
   memberMe,
   memberList,
   memberSync,
+  memberRefresh,
   memberPrefsSet,
   characterAdd,
   characterUpdate,

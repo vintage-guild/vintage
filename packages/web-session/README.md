@@ -38,5 +38,22 @@ URL on a trusted origin, and defaults to the current page. Coming back from Disc
 carries a one-time `?ott=` token; `connectVintage` trades it for the session and removes it from
 the address bar.
 
-The server side is `apps/api/convex/auth.ts`; the setup steps (Discord redirect URI, Convex env)
-are in `SETUP.md` → Website sign-in.
+## Connecting an MCP client (`vintage.oauth`)
+
+When a member connects Claude or another MCP client, Better Auth sends their browser to the site's
+`/oauth/sign-in` page, then to `/oauth/consent`, each with a signed query:
+
+```ts
+const pending = vintage.oauth.pending(); // { clientId, scopes, query } | null
+await vintage.oauth.continue(); // sign-in page, once signed in: on to consent (or back to the app)
+const app = await vintage.oauth.client(pending.clientId); // { name?, uri?, logoUri? } for the screen
+await vintage.oauth.consent(true); // consent page: approve (or false to deny), back to the app
+```
+
+Don't change the query on those pages: its signature covers every parameter. The helpers pass it
+back as `oauth_query` only to `continue` and `consent`. That's also the only place the server
+accepts it: a sign-in carrying it is refused (`apps/api/src/oauth-server.ts`), so don't add Better
+Auth's own `oauthProviderClient` plugin, which attaches it to every request.
+
+The server side is `apps/api/convex/auth.ts`; the setup steps (Discord redirect URI, Convex env,
+MCP clients) are in `SETUP.md` → Website sign-in.

@@ -1,4 +1,3 @@
-import betterAuth from '@convex-dev/better-auth/convex.config';
 import agent from '@vintage/agent/convex.config';
 import applications from '@vintage/applications/convex.config';
 import coordinator from '@vintage/coordinator/convex.config';
@@ -9,6 +8,7 @@ import progress from '@vintage/progress/convex.config';
 import raids from '@vintage/raids/convex.config';
 import site from '@vintage/site/convex.config';
 import { defineApp } from 'convex/server';
+import betterAuth from './betterAuth/convex.config';
 
 const app = defineApp();
 app.use(betterAuth);

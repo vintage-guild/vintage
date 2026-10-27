@@ -62,3 +62,8 @@ Removing a table or field that holds no data is fine; say so in the PR.
 - `dev:local` in a fresh git worktree creates its own empty anonymous deployment; that's expected.
 - Read-only commands work in `commands.read` (a query); a store write inside `read` throws.
 - Keep the memory store and the component in step: same ordering, same scoping by `guildId`.
+- Better Auth is a **locally installed** component (`apps/api/convex/betterAuth/`), with a
+  generated schema. After auth options that add tables, run
+  `pnpm --filter @vintage/api auth:schema`, and never edit `betterAuth/schema.ts` by hand.
+  Converting from the packaged component kept existing users and sessions (checked on dev,
+  2026-10-27).

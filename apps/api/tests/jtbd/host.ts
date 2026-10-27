@@ -172,6 +172,13 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     return registry.execute({ name, input, caller, confirmToken: token }, deps);
   }
 
+  /** A destructive command's preview only: what the caller sees before Confirm. */
+  async function preview<T = unknown>(caller: Caller, name: string, input: unknown = {}) {
+    const result = await registry.execute({ name, input, caller }, deps);
+    if (!result.success) throw new Error(`${name} failed: ${JSON.stringify(result.error)}`);
+    return (result.data as { preview: T }).preview;
+  }
+
   /** Run a command and return its data, failing loudly with the error otherwise. */
   async function ok<T = unknown>(caller: Caller, name: string, input: unknown = {}): Promise<T> {
     const result = await run(caller, name, input);
@@ -634,6 +641,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     system,
     ticksRequested,
     run,
+    preview,
     ok,
     as,
     discordMember,

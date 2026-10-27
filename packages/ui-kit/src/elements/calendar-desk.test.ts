@@ -365,6 +365,16 @@ describe('vintage-schedule-form', () => {
     });
   });
 
+  it('says the counts are set by hand as soon as one is typed', async () => {
+    const { f } = await form(null);
+    const note = () => text(f.shadowRoot?.querySelector('.counts-note') as Element);
+    await settle();
+    expect(note()).toBe('The usual comp for a 40-player raid.');
+    f.setCount('tanks', 5);
+    await settle();
+    expect(note()).toContain('Counts set by hand');
+  });
+
   it('refuses a size the kind does not allow', async () => {
     const { f, submitted } = await form(null);
     f.name = 'Fishing';

@@ -553,7 +553,7 @@ describe('JTBD: raid night', () => {
     expect(bgEvent?.data.description).toContain('10-player battleground: Warsong Gulch.');
   });
 
-  it('J30 · a 5-player dungeon shows its 1/1/3 comp and what it is missing, and queues the sixth', async () => {
+  it('J31 · a 5-player dungeon shows its 1/1/3 comp and what it is missing, and queues the sixth', async () => {
     await g.host.configureCoordinator();
     const made = await g.host.eventUi.slash(g.rook.discordId!, 'create', {
       name: 'Cathedral run',

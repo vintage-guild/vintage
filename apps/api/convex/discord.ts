@@ -1,6 +1,6 @@
 // Discord interactions, run inside Convex (#10). The gateway verifies Discord's signature and
-// forwards component and modal interactions, `/random poll`, and `/random raid` to the HTTP route
-// in http.ts, which calls `interaction` here. The flows live in src/discord-*.ts.
+// forwards component and modal interactions, `/random poll`, `/random event`, and the rest of
+// `FORWARDED_GROUPS` to the HTTP route in http.ts, which calls `interaction` here. The flows live in src/discord-*.ts.
 import type { Interaction } from '@vintage/discord-kit';
 import type { Caller, CommandResult } from '@vintage/guild-kit';
 import type { Signup } from '@vintage/raids/contract';

@@ -179,7 +179,7 @@ export abstract class KindedForm extends FASTElement {
   @observable healers = 0;
   @observable dps = 0;
   /** True once the officer typed a count; then kind and size changes leave the counts alone. */
-  countsTouched = false;
+  @observable countsTouched = false;
 
   /** The sizes the size picker offers for the kind (`other` types one instead). */
   sizeChoices(): readonly number[] {

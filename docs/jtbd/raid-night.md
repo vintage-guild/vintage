@@ -148,7 +148,7 @@ command, **so I can** open signups without going to the site.
 - [ ] A stale `/random raid` (before the commands are re-registered) gets the private "can't do
   that yet" reply, not a timeout.
 
-### J30 · Run a dungeon with the same signups
+### J31 · Run a dungeon with the same signups
 **When** a few of us want a dungeon, **I (raid leader) want** the same signup card with a
 dungeon's comp, **so I can** fill five spots without a raid's rules getting in the way.
 - [ ] Rook runs `/random event create` with `kind: dungeon`, `size: 5`, `tanks: 1`, `healers: 1`,

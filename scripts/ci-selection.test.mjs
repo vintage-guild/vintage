@@ -28,10 +28,31 @@ test('module command change owes ts and contract', () => {
   assert.equal(s.addon, false);
 });
 
-test('module domain change owes ts but not contract', () => {
-  const s = selectCi({ eventName: 'pull_request', paths: ['modules/identity/src/domain/tier.ts'] });
-  assert.equal(s.ts, true);
-  assert.equal(s.contract, false);
+test('module domain or lib change owes contract: command inputs import their schemas', () => {
+  for (const path of [
+    'modules/raids/src/domain/schemas.ts',
+    'libs/wow-data/src/classes.ts',
+    'libs/comp-solver/src/index.ts',
+  ]) {
+    const s = selectCi({ eventName: 'pull_request', paths: [path] });
+    assert.equal(s.ts, true, path);
+    assert.equal(s.contract, true, path);
+  }
+});
+
+test('module tests and component code owe ts but not contract', () => {
+  for (const path of ['modules/raids/tests/signup.test.ts', 'modules/raids/convex/schema.ts']) {
+    const s = selectCi({ eventName: 'pull_request', paths: [path] });
+    assert.equal(s.ts, true, path);
+    assert.equal(s.contract, false, path);
+  }
+});
+
+test('tooling config change owes ts', () => {
+  for (const path of ['.nvmrc', '.npmrc', 'lefthook.yml', 'commitlint.config.mjs']) {
+    const s = selectCi({ eventName: 'pull_request', paths: [path] });
+    assert.equal(s.ts, true, path);
+  }
 });
 
 test('bridge-format change owes ts and addon', () => {

@@ -2,16 +2,32 @@
 import { v } from 'convex/values';
 import type { Doc } from './_generated/dataModel';
 import { mutation, type QueryCtx, query } from './_generated/server';
-import { runFields, runKind, runStatus, toolCall } from './schema';
+import { pageContext, runFields, runKind, runStatus, toolCall } from './schema';
 
+/** A run with every field: rows from before #167 have no progress fields or tool-call times. */
 const toRun = (doc: Doc<'runs'>) => {
   const { _id, _creationTime, ...rest } = doc;
-  return { id: _id as string, ...rest };
+  return {
+    id: _id as string,
+    ...rest,
+    toolCalls: rest.toolCalls.map((c) => ({
+      ...c,
+      summary: c.summary ?? null,
+      error: c.error ?? null,
+      startedAt: c.startedAt ?? null,
+      finishedAt: c.finishedAt ?? null,
+    })),
+    context: rest.context ?? null,
+    notes: rest.notes ?? [],
+    draft: rest.draft ?? null,
+    cancelRequested: rest.cancelRequested ?? false,
+  };
 };
 
 const filterArgs = {
   guildId: v.string(),
   memberId: v.optional(v.string()),
+  threadKey: v.optional(v.string()),
   kind: v.optional(runKind),
   statuses: v.optional(v.array(runStatus)),
   since: v.optional(v.number()),
@@ -20,6 +36,7 @@ const filterArgs = {
 type Filter = {
   guildId: string;
   memberId?: string;
+  threadKey?: string;
   kind?: Doc<'runs'>['kind'];
   statuses?: Doc<'runs'>['status'][];
   since?: number;
@@ -29,29 +46,41 @@ type Filter = {
 function select(ctx: QueryCtx, f: Filter) {
   const since = f.since ?? 0;
   const base =
-    f.memberId !== undefined
-      ? ctx.db.query('runs').withIndex('by_guild_member_created', (q) =>
+    f.threadKey !== undefined
+      ? ctx.db.query('runs').withIndex('by_guild_thread_created', (q) =>
           q
             .eq('guildId', f.guildId)
-            .eq('memberId', f.memberId as string)
+            .eq('threadKey', f.threadKey as string)
             .gte('createdAt', since),
         )
-      : f.kind !== undefined
-        ? ctx.db.query('runs').withIndex('by_guild_kind_created', (q) =>
+      : f.memberId !== undefined
+        ? ctx.db.query('runs').withIndex('by_guild_member_created', (q) =>
             q
               .eq('guildId', f.guildId)
-              .eq('kind', f.kind as Doc<'runs'>['kind'])
+              .eq('memberId', f.memberId as string)
               .gte('createdAt', since),
           )
-        : ctx.db
-            .query('runs')
-            .withIndex('by_guild_created', (q) =>
-              q.eq('guildId', f.guildId).gte('createdAt', since),
-            );
+        : f.kind !== undefined
+          ? ctx.db.query('runs').withIndex('by_guild_kind_created', (q) =>
+              q
+                .eq('guildId', f.guildId)
+                .eq('kind', f.kind as Doc<'runs'>['kind'])
+                .gte('createdAt', since),
+            )
+          : ctx.db
+              .query('runs')
+              .withIndex('by_guild_created', (q) =>
+                q.eq('guildId', f.guildId).gte('createdAt', since),
+              );
   return base.order('desc').filter((q) => {
     const conditions = [];
-    if (f.memberId !== undefined && f.kind !== undefined)
+    // The thread index already pins the member: a thread key ends with its member id.
+    if (f.threadKey === undefined && f.memberId !== undefined && f.kind !== undefined)
       conditions.push(q.eq(q.field('kind'), f.kind));
+    if (f.threadKey !== undefined && f.kind !== undefined)
+      conditions.push(q.eq(q.field('kind'), f.kind));
+    if (f.threadKey !== undefined && f.memberId !== undefined)
+      conditions.push(q.eq(q.field('memberId'), f.memberId));
     if (f.statuses?.length) {
       conditions.push(q.or(...f.statuses.map((s) => q.eq(q.field('status'), s))));
     }
@@ -93,6 +122,10 @@ export const update = mutation({
       confirmationIds: v.optional(v.array(v.string())),
       inputTokens: v.optional(v.union(v.number(), v.null())),
       finishedAt: v.optional(v.union(v.number(), v.null())),
+      context: v.optional(v.union(pageContext, v.null())),
+      notes: v.optional(v.array(v.string())),
+      draft: v.optional(v.union(v.string(), v.null())),
+      cancelRequested: v.optional(v.boolean()),
     }),
   },
   handler: async (ctx, { guildId, runId, patch }) => {

@@ -7,6 +7,12 @@ export {
   type VintageConnection,
 } from './connect';
 export {
+  type OAuthActions,
+  type OAuthClientInfo,
+  type PendingAuthorization,
+  pendingAuthorization,
+} from './oauth';
+export {
   type AuthUser,
   type MemberMe,
   sameSession,

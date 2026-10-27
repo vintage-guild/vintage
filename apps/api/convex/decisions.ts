@@ -51,6 +51,10 @@ export const record = internalMutation({
       toolCalls: [],
       confirmationIds: [],
       inputTokens,
+      context: null,
+      notes: [],
+      draft: null,
+      cancelRequested: false,
       createdAt: now,
       finishedAt: now,
     });

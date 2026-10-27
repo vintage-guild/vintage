@@ -6,8 +6,8 @@ import { mutation, query } from './_generated/server';
 import { prefs, rank, tier } from './schema';
 
 const toMember = (doc: Doc<'members'>) => {
-  const { _id, _creationTime, rank, ...rest } = doc;
-  return { id: _id as string, rank: rank ?? null, ...rest };
+  const { _id, _creationTime, rank, rankSince, ...rest } = doc;
+  return { id: _id as string, rank: rank ?? null, rankSince: rankSince ?? null, ...rest };
 };
 
 export const get = query({
@@ -50,6 +50,7 @@ export const upsert = mutation({
     rank,
     tier,
     syncedAt: v.number(),
+    rankSince: v.union(v.number(), v.null()),
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db

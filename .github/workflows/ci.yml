@@ -3,7 +3,8 @@ name: CI
 on:
   pull_request:
     branches: [main]
-    types: [opened, synchronize, reopened, edited]
+    # labeled/unlabeled: adding breaking-contract or ci:full-validation re-runs the checks
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
   push:
     branches: [main]
   schedule:
@@ -13,9 +14,13 @@ on:
 permissions:
   contents: read
 
+# A newer push to a PR replaces its run. A running push to main is never cancelled (it validates
+# and deploys what Vercel already shipped); a newer pending push replaces an older pending one,
+# which is safe because it contains it. The event is in the group so the weekly schedule or a
+# manual dispatch never replaces a pending push, which would skip that push's deploy.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   select:
@@ -175,3 +180,33 @@ jobs:
             }
             process.exit(failed ? 1 : 0);
           '
+
+  # Production Convex follows main, after every lane passed (docs/operations/production.md). Only
+  # this job sees the deploy key; it lives in the production environment, never in PR runs.
+  deploy-convex:
+    needs: ci-ok
+    if: always() && needs.ci-ok.result == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: production
+    concurrency:
+      group: deploy-convex-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Deploy apps/api to production Convex
+        working-directory: apps/api
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+        run: |
+          if [ -z "$CONVEX_DEPLOY_KEY" ]; then
+            echo "::warning::CONVEX_DEPLOY_KEY is not set in the production environment; skipping the deploy."
+            exit 0
+          fi
+          pnpm exec convex deploy

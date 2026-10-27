@@ -1,5 +1,5 @@
 import { agentConfigSet, agentPause, agentResume, agentStatus } from './admin';
-import { agentAsk, agentRunGet, agentRuns } from './ask';
+import { agentAsk, agentCancel, agentRunGet, agentRuns } from './ask';
 import { agentConfirm, agentDecline } from './confirm';
 
 export { ASK_INSTRUCTIONS, type AskContext, askInput } from '../domain/instructions';
@@ -11,6 +11,11 @@ export {
   monthStart,
   refuseAsk,
 } from '../domain/limits';
+export {
+  PROGRESS_LIMITS,
+  type RunProgress,
+  recordProgress,
+} from '../domain/progress';
 export {
   decideRoute,
   ROUTE_REPLIES,
@@ -52,6 +57,7 @@ export const agentCommands = [
   agentRuns,
   agentConfirm,
   agentDecline,
+  agentCancel,
   agentStatus,
   agentPause,
   agentResume,

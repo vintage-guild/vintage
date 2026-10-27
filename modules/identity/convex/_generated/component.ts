@@ -131,6 +131,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             | "member"
             | "friend"
             | null;
+          rankSince: number | null;
           roleIds: Array<string>;
           syncedAt: number;
           tier:

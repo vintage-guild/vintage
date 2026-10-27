@@ -104,7 +104,7 @@ how the pieces fit.
 
 | What | Where | Deploy |
 |---|---|---|
-| Convex production | project `jason-falk/vintage`, deployment `dusty-sardine-902` (`https://dusty-sardine-902.convex.cloud`, HTTP routes on `.convex.site`) | `npx convex deploy` in `apps/api` |
+| Convex production | project `jason-falk/vintage`, deployment `dusty-sardine-902` (`https://dusty-sardine-902.convex.cloud`, HTTP routes on `.convex.site`) | Automatic once `CONVEX_DEPLOY_KEY` is set: the `deploy-convex` CI job on every push to `main` after `ci-ok` passes. By hand: `npx convex deploy` in `apps/api` ([production runbook](docs/operations/production.md)) |
 | Convex dev | `cautious-ant-152` (what `npx convex dev` in `apps/api` pushes to) | `npx convex dev` |
 | Gateway | Vercel project `vintage-gateway` (root directory `apps/gateway`), `https://vintage-gateway.vercel.app` | Automatic: production on every push to `main`, a preview per PR. By hand: `npx --yes vercel deploy --prod --archive=tgz` from the repo root (the archive keeps the upload under Vercel's 15,000-file limit; see the gateway README) |
 | Website | Vercel project `vintage-web` (root directory `apps/web`, Node 24, `apps/web/vercel.json`), `https://vintageguild.gg` (also `https://vintage-web-pi.vercel.app`) | Automatic: production on every push to `main`, a preview per PR. By hand, from the repo root: `VERCEL_ORG_ID=team_XXxAohn4xk9zQOEGH6WsJUSs VERCEL_PROJECT_ID=prj_OTILApEA5n4u7RnslTNgppvt26Zp npx --yes vercel deploy --prod --archive=tgz` (the ids pick the website project; without them the root's link deploys the gateway) |
@@ -206,6 +206,34 @@ sign in but stays public. The variables, all in the Convex env and never in the 
 | `SITE_URL` | The website origin sign-in returns to |
 | `VINTAGE_TRUSTED_ORIGINS` | Optional: more website origins, comma-separated |
 | `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID` | Already set for role sync; sign-in reads the member with them |
+| `VINTAGE_MCP_URL` | Optional: the `/mcp` endpoint, the only resource OAuth tokens are issued for. Defaults to `https://vintage-gateway.vercel.app/mcp` |
+
+### MCP clients (OAuth)
+
+Better Auth also runs an OAuth 2.1 server for MCP clients like Claude and Codex (#9), using
+`@better-auth/oauth-provider`:
+
+1. A client registers itself at `/api/auth/oauth2/register`. Registration is open, as MCP expects.
+   Because anyone can register a client and start a sign-in, the server refuses any sign-in that
+   carries an authorization (`additionalData` or `oauth_query`). It also never lets a sign-in
+   callback redirect off the site, which is where the session's one-time token is added. Both
+   guards are in `apps/api/src/oauth-server.ts`, with the attack they stop in
+   `apps/api/tests/oauth-server.test.ts`.
+2. The member signs in on the site's `/oauth/sign-in` page and approves on `/oauth/consent`.
+3. The client gets a token that only works at `/mcp`. Scopes are `commands` and `offline_access`.
+   Commands run with the member's own tier.
+
+Metadata is at `<CONVEX_SITE_URL>/.well-known/oauth-authorization-server/api/auth` (issuer
+`<CONVEX_SITE_URL>/api/auth`). Tokens are opaque. `convex/mcp.ts` (`mcp:caller`) checks them for
+the `/mcp` endpoint, which arrives with AFD 2.2.
+
+The Better Auth component is **installed locally** (`apps/api/convex/betterAuth/`), because the
+OAuth provider adds tables. After changing auth options that add tables (a new plugin, for
+example), regenerate the schema and commit it:
+
+```bash
+pnpm --filter @vintage/api auth:schema
+```
 
 ### Coordinator (raid posts and reminders)
 

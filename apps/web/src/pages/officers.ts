@@ -13,6 +13,7 @@ import type { Progress } from '@vintage/progress/contract';
 import type { RaidEvent, Schedule, Signup } from '@vintage/raids/contract';
 import type { GuildProfile, Recruiting } from '@vintage/site/contract';
 import {
+  type AgentPanelContext,
   type ApplicationsDeskRow,
   type CalendarRaid,
   type CalendarSchedule,
@@ -22,6 +23,9 @@ import {
   getCommandClient,
   type PollsDeskPoll,
   type PollsDeskResults,
+  type RosterDeskMember,
+  type RosterDeskRoles,
+  STARTER_PROMPTS,
   type TonightRaid,
   type TonightSignup,
 } from '@vintage/ui-kit';
@@ -29,6 +33,17 @@ import { formatMonthDay, formatWeekday, preferredTimeZone } from '../dates';
 import { canSignIn, currentSession } from '../session';
 import { currentView } from '../view';
 import { pageStyles } from './page-styles';
+
+/** Whether Random's side panel is open, for this browser tab. */
+const ASSISTANT_KEY = 'vintage:agent-open';
+
+function readAssistantOpen(): boolean {
+  try {
+    return sessionStorage.getItem(ASSISTANT_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
 
 /** How far ahead the raid picker looks. */
 const AHEAD_MS = 30 * 86_400_000;
@@ -41,7 +56,7 @@ const TABS = [
   { id: 'tonight', label: 'Tonight', ready: true, hint: '' },
   { id: 'calendar', label: 'Calendar', ready: true, hint: '' },
   { id: 'coordinator', label: 'Random', ready: true, hint: '' },
-  { id: 'roster', label: 'Roster', ready: false, hint: 'ranks, sync, recruits on trial' },
+  { id: 'roster', label: 'Roster', ready: true, hint: '' },
   { id: 'guild', label: 'Guild', ready: true, hint: '' },
   { id: 'recruiting', label: 'Recruiting', ready: true, hint: '' },
   { id: 'applications', label: 'Applications', ready: true, hint: '' },
@@ -146,8 +161,23 @@ interface CompData {
 const template = html<Page>`
   <div class="page wide">
     <header class="head">
-      <span class="eyebrow">Backstage</span>
-      <h1>Officers’ quarters</h1>
+      <div class="title">
+        <span class="eyebrow">Backstage</span>
+        <h1>Officers’ quarters</h1>
+      </div>
+      ${when(
+        (x) => x.allowed,
+        html<Page>`
+          <button
+            type="button"
+            class="ask"
+            aria-expanded="${(x) => String(x.assistantOpen)}"
+            aria-keyshortcuts="Alt+A"
+            title="Alt+A"
+            @click="${(x) => x.toggleAssistant()}"
+          >${(x) => (x.assistantOpen ? 'Hide Random' : 'Ask Random')}</button>
+        `,
+      )}
     </header>
 
     ${when(
@@ -171,6 +201,8 @@ const template = html<Page>`
     ${when(
       (x) => x.allowed,
       html<Page>`
+        <div class="room ${(x) => (x.assistantOpen ? 'with-panel' : '')}">
+        <div class="work">
         <nav class="tabs" aria-label="Officers’ quarters">
           ${repeat(
             () => TABS,
@@ -231,6 +263,21 @@ const template = html<Page>`
               :entries="${(x) => x.coordinatorEntries}"
               @coordinator-changed="${(x) => x.loadCoordinator()}"
             ></vintage-coordinator-desk>
+          `,
+        )}
+
+        ${when(
+          (x) => x.tab === 'roster',
+          html<Page>`
+            <vintage-roster-desk
+              time-zone="${() => preferredTimeZone() ?? ''}"
+              ?can-configure="${(x) => x.canEditRecruiting}"
+              ?loading="${(x) => !x.rosterLoaded}"
+              error="${(x) => x.rosterError}"
+              :members="${(x) => x.rosterMembers}"
+              :roles="${(x) => x.rosterRoles}"
+              @roster-changed="${(x) => x.loadRoster()}"
+            ></vintage-roster-desk>
           `,
         )}
 
@@ -324,6 +371,22 @@ const template = html<Page>`
             )}
           `,
         )}
+        </div>
+        ${when(
+          (x) => x.assistantOpen,
+          html<Page>`
+            <aside class="assist" aria-label="Random, the guild assistant">
+              <vintage-agent-panel
+                :context="${(x) => x.assistantContext}"
+                :prompts="${(x) => STARTER_PROMPTS[x.tab] ?? []}"
+                :showUsage="${(x) => x.canEditRecruiting}"
+                @agent-changed="${(x) => x.reloadTab()}"
+                @agent-close="${(x) => x.toggleAssistant(false)}"
+              ></vintage-agent-panel>
+            </aside>
+          `,
+        )}
+        </div>
       `,
     )}
   </div>
@@ -353,8 +416,68 @@ const styles = css`
   }
 
   .head {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: var(--space-md);
+  }
+
+  .title {
     display: grid;
     gap: 0.2rem;
+  }
+
+  .ask {
+    min-block-size: var(--desk-control-height);
+    font: var(--font-weight-medium) var(--desk-font-size) var(--font-family-sans);
+    padding: 0 var(--desk-space-md);
+    border-radius: var(--desk-control-radius);
+    border: var(--border-width-thin) solid var(--color-border-strong);
+    background: var(--color-surface-raised);
+    color: var(--color-text-primary);
+    cursor: pointer;
+  }
+
+  .ask[aria-expanded='true'] {
+    box-shadow: inset 0 -2px 0 var(--color-accent-secondary);
+  }
+
+  /* The panel sits beside the work on a wide screen and below it on a narrow one. */
+  .room {
+    display: grid;
+    gap: var(--desk-space-lg);
+  }
+
+  .work {
+    display: grid;
+    gap: var(--desk-space-lg);
+    min-inline-size: 0;
+    align-content: start;
+  }
+
+  /* Narrow: the panel follows the tabs in the page. */
+  .assist {
+    block-size: 36rem;
+  }
+
+  /* Wide: docked to the window's right edge, top to bottom; the site makes room for it
+     (styles.css, html[data-assistant-open]). */
+  @media (min-width: 72rem) {
+    .assist {
+      position: fixed;
+      inset-block: 0;
+      inset-inline-end: 0;
+      inline-size: var(--assistant-panel-width);
+      block-size: auto;
+      z-index: 20;
+    }
+
+    .assist vintage-agent-panel::part(panel) {
+      border-radius: 0;
+      border-block: 0;
+      border-inline-end: 0;
+      min-block-size: 0;
+    }
   }
 
   .head h1 {
@@ -430,7 +553,8 @@ const styles = css`
  * Random reads `coordinator-status` and `coordinator-log` and runs the coordinator's leader
  * commands; Recruiting reads `recruiting-get` and saves with `recruiting-set`; Guild reads
  * `guild-profile-get` and saves with `guild-profile-set` (both officers only to save); Progress
- * reads `progress-get` and records with `kill-record`.
+ * reads `progress-get` and records with `kill-record`; Roster reads `member-list` and
+ * `guild-roles-get` and saves the role map with `guild-roles-set` (officers, preview then confirm).
  */
 export class Page extends FASTElement {
   /** Leaders and officers see the room; everyone else gets the sign-in card or a note. */
@@ -447,6 +571,15 @@ export class Page extends FASTElement {
   @observable applicationsError = '';
   /** The open tab, from `?tab=` (Tonight by default). */
   @observable tab: TabId = tabFromUrl(location.search);
+  /** Random's side panel (#168): open or closed is kept for the browser tab. */
+  @observable assistantOpen = readAssistantOpen();
+  private onAssistantKey = (event: KeyboardEvent) => {
+    // The physical A key: on a Mac, Option+A types å, so event.key would miss it.
+    if (event.altKey && !event.ctrlKey && !event.metaKey && event.code === 'KeyA') {
+      event.preventDefault();
+      this.toggleAssistant();
+    }
+  };
   @observable polls: PollsDeskPoll[] = [];
   @observable pollsError = '';
   @observable recruiting: Recruiting | null = null;
@@ -471,14 +604,21 @@ export class Page extends FASTElement {
   @observable progressLoaded = false;
   /** Bumped per ledger read, as the calendar's is. */
   private progressRead = 0;
+  @observable rosterMembers: RosterDeskMember[] = [];
+  @observable rosterRoles: RosterDeskRoles | null = null;
+  @observable rosterError = '';
+  @observable rosterLoaded = false;
+  /** Bumped per roster read, as the calendar's is. */
+  private rosterRead = 0;
   /**
    * Every calendar command is leader tier, as are Random's pause, resume, run, and repost, and
    * `kill-record`; a preview below that reads them without the buttons.
    */
   readonly canLead = tierAllows((currentSession()?.tier ?? 'public') as Tier, 'leader');
   /**
-   * `recruiting-set`, `guild-profile-set`, and `coordinator-config-set` are officer tier; raid
-   * leaders read the band, the profile, and Random's settings here but can't save them.
+   * `recruiting-set`, `guild-profile-set`, `coordinator-config-set`, and `guild-roles-set` are
+   * officer tier; raid leaders read the band, the profile, Random's settings, and the role map
+   * here but can't save them.
    */
   readonly canEditRecruiting = tierAllows((currentSession()?.tier ?? 'public') as Tier, 'officer');
 
@@ -490,9 +630,29 @@ export class Page extends FASTElement {
       : null;
   }
 
-  connectedCallback(): void {
-    super.connectedCallback();
-    if (!this.allowed) return;
+  /** What the panel sends with a question: this tab, and the raid picked on Tonight. */
+  @volatile
+  get assistantContext(): AgentPanelContext {
+    const label = TABS.find((t) => t.id === this.tab)?.label ?? 'Tonight';
+    const page = `Officers’ quarters · ${label}`;
+    const e = this.raids.find((r) => r.event.id === this.selectedId)?.event;
+    return this.tab === 'tonight' && e
+      ? { page, selection: { kind: 'raid', id: e.id, label: raidOption(e) } }
+      : { page };
+  }
+
+  toggleAssistant(open = !this.assistantOpen): void {
+    this.assistantOpen = open;
+    document.documentElement.toggleAttribute('data-assistant-open', open);
+    try {
+      sessionStorage.setItem(ASSISTANT_KEY, open ? '1' : '0');
+    } catch {
+      // Private mode: the choice lasts as long as the page.
+    }
+  }
+
+  /** After Random ran a confirmed change: read the open tab again so it shows the change. */
+  reloadTab(): void {
     void this.load();
     if (this.tab === 'polls') void this.loadPolls();
     if (this.tab === 'recruiting') void this.loadRecruiting();
@@ -501,6 +661,29 @@ export class Page extends FASTElement {
     if (this.tab === 'calendar') void this.loadCalendar();
     if (this.tab === 'coordinator') void this.loadCoordinator();
     if (this.tab === 'progress') void this.loadProgress();
+  }
+
+  disconnectedCallback(): void {
+    super.disconnectedCallback();
+    document.removeEventListener('keydown', this.onAssistantKey);
+    // Leaving the quarters gives the site its full width back.
+    document.documentElement.removeAttribute('data-assistant-open');
+  }
+
+  connectedCallback(): void {
+    super.connectedCallback();
+    if (!this.allowed) return;
+    document.addEventListener('keydown', this.onAssistantKey);
+    document.documentElement.toggleAttribute('data-assistant-open', this.assistantOpen);
+    void this.load();
+    if (this.tab === 'polls') void this.loadPolls();
+    if (this.tab === 'recruiting') void this.loadRecruiting();
+    if (this.tab === 'applications') void this.loadApplications();
+    if (this.tab === 'guild') void this.loadProfile();
+    if (this.tab === 'calendar') void this.loadCalendar();
+    if (this.tab === 'coordinator') void this.loadCoordinator();
+    if (this.tab === 'progress') void this.loadProgress();
+    if (this.tab === 'roster') void this.loadRoster();
   }
 
   /** Switch tabs and keep the choice in the address, so `/officers?tab=polls` links work. */
@@ -518,6 +701,7 @@ export class Page extends FASTElement {
     if (id === 'calendar') void this.loadCalendar();
     if (id === 'coordinator') void this.loadCoordinator();
     if (id === 'progress') void this.loadProgress();
+    if (id === 'roster') void this.loadRoster();
   }
 
   /**
@@ -590,6 +774,30 @@ export class Page extends FASTElement {
       this.coordinatorEntries = logs.flat();
     } finally {
       if (read === this.coordinatorRead) this.coordinatorLoaded = true;
+    }
+  }
+
+  /**
+   * Everyone on the rolls from `member-list` and the role map from `guild-roles-get`. Only the
+   * latest read is kept. A failed role-map read leaves the members showing.
+   */
+  async loadRoster(): Promise<void> {
+    const client = getCommandClient();
+    const read = ++this.rosterRead;
+    try {
+      const [members, roles] = await Promise.all([
+        client.read<RosterDeskMember[]>('member-list', {}),
+        client.read<RosterDeskRoles>('guild-roles-get', {}),
+      ]);
+      if (read !== this.rosterRead) return;
+      const failed = [members, roles].find((r) => !r.success);
+      this.rosterError = failed
+        ? `Couldn’t read the roster: ${failed.error?.message ?? 'the server didn’t answer'}.`
+        : '';
+      if (members.success) this.rosterMembers = members.data ?? [];
+      if (roles.success) this.rosterRoles = roles.data ?? {};
+    } finally {
+      if (read === this.rosterRead) this.rosterLoaded = true;
     }
   }
 

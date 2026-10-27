@@ -2,6 +2,7 @@
 // `beta.agents` types, checked against the live API in the 2026-10-26 spike (#128). Two
 // differences from the SDK types: `spend_control` is rejected as an unknown parameter, and token
 // usage on sessions and turns comes back null, so spend is capped by counting questions instead.
+import { readAgentEvents } from './events';
 import type {
   AgentRuntime,
   FunctionCall,
@@ -211,6 +212,21 @@ export function createOpenAIAgents(options: OpenAIAgentsOptions): AgentRuntime {
         // Already gone is fine; anything else is the caller's to log.
         if (!(err instanceof AgentsApiError && err.status === 404)) throw err;
       }
+    },
+
+    async *events(sessionId, signal) {
+      const res = await doFetch(`${baseUrl}/agents/sessions/${sessionId}/events?stream=true`, {
+        headers: {
+          authorization: `Bearer ${options.apiKey}`,
+          accept: 'text/event-stream',
+          'OpenAI-Beta': 'agents=v1',
+        },
+        signal,
+      });
+      if (!res.ok || !res.body) {
+        throw new AgentsApiError(`Agents API GET events ${res.status}`, res.status);
+      }
+      yield* readAgentEvents(res.body, signal);
     },
   };
 }

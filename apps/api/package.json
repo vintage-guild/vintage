@@ -14,9 +14,11 @@
     "type-check": "tsc6 -p tsconfig.json --noEmit && tsc6 -p convex/tsconfig.json --noEmit",
     "manifest:check": "tsx scripts/command-manifest.ts --check",
     "manifest:write": "tsx scripts/command-manifest.ts --write",
-    "dev:local:watch": "node scripts/dev-local.mjs --watch"
+    "dev:local:watch": "node scripts/dev-local.mjs --watch",
+    "auth:schema": "tsx scripts/auth-schema.ts"
   },
   "dependencies": {
+    "@better-auth/oauth-provider": "1.6.33",
     "@convex-dev/better-auth": "0.12.5",
     "@vintage/agent": "workspace:*",
     "@vintage/agent-runtime": "workspace:*",

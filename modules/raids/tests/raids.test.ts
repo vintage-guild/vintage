@@ -27,6 +27,7 @@ const member = (id: string, rank: Member['rank']): Member => ({
   tier: 'raider',
   prefs: { dmOptOut: false },
   syncedAt: 0,
+  rankSince: null,
 });
 
 const character = (

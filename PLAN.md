@@ -399,8 +399,8 @@ vintage/
 ├─ docs/
 │  ├─ architecture.md
 │  ├─ features/             proposed/ · active/ · completed/ (+ README index)
-│  ├─ design/               creative brief, style guide, motion, responsive (forked from AFD site)
-│  └─ operations/           local-validation.md, model-routing.md, runbooks
+│  ├─ design/               (planned) creative brief, style guide, motion, responsive (forked from AFD site)
+│  └─ operations/           local-validation.md, model-routing.md, cloud-sessions.md, production.md (runbook)
 ├─ .claude/                 skills/ (shared as .codex/skills), agents/, rules/, settings.json
 ├─ .github/                 workflows, area-ownership.json, CODEOWNERS, PR + issue forms
 ├─ AGENTS.md                routes agents to commands, boundaries, and skills
@@ -702,20 +702,20 @@ Phase 0 has about ten days and one maintainer, so it is cut to the minimum that 
 - [x] Agent-native setup: lean AGENTS.md + INIT.md, seeded skills + `vintage-afd-commands` + `vintage-convex-modules`, three reviewer agents, safety hooks, label taxonomy, issue forms (§7.4)
 - [ ] `packages/guild-kit` on AFD 2.2: caller resolution, permission tiers, `guildId`, dryRun/confirm tokens, transport adapter, command manifest + `contract.diff`
 - [x] `identity` module as the first component: members, characters, role → tier sync Now guild rank → tier (#42) with role sync (#44).
-- [ ] Better Auth with Discord sign-in (`@convex-dev/better-auth`) and the MCP OAuth plugin; sign-in + cron role sync
+- [ ] Better Auth with Discord sign-in (`@convex-dev/better-auth`) and the MCP OAuth plugin; sign-in + cron role sync Discord sign-in and the role-sync cron are built and live on https://vintageguild.gg; the MCP OAuth plugin waits on `/mcp`.
 - [ ] `/mcp` on `afd-server`'s stateless handler with AFD's meta-tools and the confirm-token flow; `apps/cli` = `afd-cli --transport streamable`; verified from Claude and the CLI
 - [x] `libs/design-tokens`: `afd-site` + `vintage` nodes exporting CSS/TS as-is (no reskin yet); `docs/design/` forked from the AFD site Includes the emblem palette and a FenUI Lua theme (#45); `docs/design/` still to do.
 - [x] FAST-AF vendored in `vendor/` (fast-element, fast-router, violet-elements), pinned to a commit
-- [ ] `packages/ui-kit` on FAST-AF + `violet-elements` (vendored): sign-in, profile, and character components with `@command`; Custom Elements Manifest in CI Built: logo header, badges, character form (`@command` → `character-add`), signup and sign-in cards, CEM checked in CI; the command client is stubbed until sign-in (#7) and Convex are wired.
+- [ ] `packages/ui-kit` on FAST-AF + `violet-elements` (vendored): sign-in, profile, and character components with `@command`; Custom Elements Manifest in CI Built: logo header, badges, character form (`@command` → `character-add`), signup and sign-in cards, CEM checked in CI; the command client runs over Convex through `@vintage/web-session`.
 - [ ] `apps/web`: shell on the FAST-AF Router, public about/recruitment page, member profile + characters, deployed to Vercel Shell, routes, theme switching, and Discord sign-in built; deployed to Vercel (`vintage-web`, https://vintageguild.gg) on every push to `main` with PR previews; profile and characters pages still thin.
-- [ ] Discord application created ✅; `/discord/interactions` built and tested (#43), **not yet deployed or verified by Discord**
+- [x] Discord application created ✅; `/discord/interactions` built and tested (#43), deployed on Vercel (`vintage-gateway`) and verified by Discord; live in the test server
 
 **Done when:** a guildie signs in with Discord, sees the tier matching their Discord role, adds characters, and an officer's agent lists members over MCP from Claude or the CLI.
 
 ### Phase 1 — Raid coordinator (2026-11-04 → ~11-25)
 
 - [x] `raids`: schedules, events, signups, roster, `comp-suggest` via `libs/comp-solver` (#14)
-- [ ] `coordinator`: materialize events, post signups, button flow, T-72h/T-24h reminders, officer digest, lock + final roster, `CoordinatorAction` log, `#vintage-ops` errors (the button flow is built and tested locally end to end; it goes live when the gateway is deployed, #10/#11)
+- [ ] `coordinator`: materialize events, post signups, button flow, T-72h/T-24h reminders, officer digest, lock + final roster, `CoordinatorAction` log, `#vintage-ops` errors (the button flow is built, tested, and live in the test server through the gateway; `#vintage-ops` error routing is still to do)
 - [x] `libs/discord-kit`: signature verification, embeds, components, timestamps Landed early in Phase 0 (#43).
 - [x] `libs/comp-solver`: selected roster, bench, and gaps with reasons (part of #15; `comp-suggest` lands with `raids`)
 - [ ] Member prefs (DM opt-out, default character, timezone); live roster board on the website

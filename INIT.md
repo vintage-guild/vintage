@@ -30,7 +30,7 @@ Start from the command, not the UI. Business logic belongs in module commands an
 | Folder | Holds |
 |---|---|
 | `libs/` | Pure TS, platform-free (`wow-data`, `comp-solver`, `discord-kit`, `design-tokens`, `bridge-format`) |
-| `packages/` | Platform glue (`guild-kit`, `testing`, `config`, `ui-kit` web components, `agent-runtime`, `decisions`) |
+| `packages/` | Platform glue (`guild-kit`, `testing`, `config`, `ui-kit` web components, `web-session`, `agent-runtime`, `decisions`) |
 | `modules/` | Features with their own data (`identity`, `raids`, `coordinator`, `polls`, `progress`, `site`, `agent`, `applications`, `insights`) |
 | `apps/` | Composition and transport (`api` on Convex, `gateway` on Vercel, `web` the website) |
 | `addon/Vintage/` | The WoW: Forever addon (Lua 5.1; its own validator and busted specs, [AGENTS.md](addon/Vintage/AGENTS.md)) |
@@ -52,4 +52,6 @@ npx convex run commands:read '{"name":"member-list","input":{}}'
 ```
 
 The last call returns `COMMAND_NOT_FOUND`: the CLI runs as a public caller and `member-list`
-needs `recruit`. Sign-in (Better Auth + Discord) is the next Phase 0 item.
+needs `recruit`. Members get their tier by signing in on the website with Discord (Better Auth,
+`apps/api/convex/auth.ts`). The `npx convex` calls ask for approval in agent sessions
+(`.claude/settings.json`); production runs are in [docs/operations/production.md](docs/operations/production.md).

@@ -9,6 +9,7 @@
     "includes": [
       "**",
       "!**/_generated",
+      "!apps/api/convex/betterAuth/schema.ts",
       "!**/dist",
       "!**/.turbo",
       "!**/coverage",

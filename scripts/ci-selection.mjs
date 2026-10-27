@@ -8,11 +8,14 @@ export const LANES = ['ts', 'contract', 'addon', 'botcore', 'workflowContracts']
 
 const DOCS =
   /^(docs\/|PLAN\.md$|README\.md$|INIT\.md$|CONTRIBUTING\.md$|.*\/AGENTS\.md$|AGENTS\.md$|\.claude\/)/;
-// scripts/*.mjs owe ts: it lints them and runs the check-* gates against the repo.
+// scripts/*.mjs owe ts: it lints them and runs the check-* gates against the repo. Tooling config
+// (Node version, hooks, commit rules) owes it too, or a bump is only tested after merge.
 const TS =
-  /^(apps|modules|packages|libs|vendor)\/|^scripts\/.*\.mjs$|^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|turbo\.json|tsconfig\.base\.json|biome\.json|vitest\.config\.ts)$/;
+  /^(apps|modules|packages|libs|vendor)\/|^scripts\/.*\.mjs$|^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|turbo\.json|tsconfig\.base\.json|biome\.json|vitest\.config\.ts|\.nvmrc|\.npmrc|lefthook\.yml|commitlint\.config\.mjs)$/;
+// Any module or lib source: command inputs import schemas from domain files and libs
+// (wow-data's classSchema, raids' groupSizeSchema), so a change there can break the manifest.
 const CONTRACT =
-  /^(modules\/[^/]+\/src\/(commands|contract)|packages\/guild-kit\/|apps\/api\/src\/registry|commands\.manifest\.json$|scripts\/check-contract-break\.mjs$)/;
+  /^(modules\/[^/]+\/src\/|libs\/[^/]+\/src\/|packages\/guild-kit\/|apps\/api\/src\/registry|commands\.manifest\.json$|scripts\/check-contract-break\.mjs$)/;
 // The addon ships a copy of the generated FenUI theme; validate.py checks the copy is current.
 const ADDON = /^(addon\/|libs\/bridge-format\/|libs\/design-tokens\/generated\/lua\/)/;
 const BOTCORE = /^(tooling\/botcore\/|botcore\.toml$)/;

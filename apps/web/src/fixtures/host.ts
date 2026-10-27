@@ -2,6 +2,8 @@
 // store, seeded through the same commands the site will call for real. Nothing here fakes a
 // command's answer; swapping to Convex replaces the client, not the pages.
 
+import { type AgentDeps, agentCommands } from '@vintage/agent/commands';
+import { createMemoryAgentStore } from '@vintage/agent/testing';
 import { type ApplicationsDeps, applicationsCommands } from '@vintage/applications/commands';
 import { createMemoryApplicationsStore } from '@vintage/applications/testing';
 import {
@@ -30,6 +32,7 @@ import { createMemoryRaidsStore, createRecordingEventSink } from '@vintage/raids
 import { type SiteDeps, siteCommands } from '@vintage/site/commands';
 import { createMemorySiteStore } from '@vintage/site/testing';
 import type { CommandClient } from '@vintage/ui-kit';
+import { createFixtureAgent } from './agent';
 import { FIXTURE_GUILD_ID, ROLE_IDS } from './data';
 
 export type FixtureDeps = IdentityDeps &
@@ -38,7 +41,8 @@ export type FixtureDeps = IdentityDeps &
   PollsDeps &
   CoordinatorDeps &
   SiteDeps &
-  ApplicationsDeps;
+  ApplicationsDeps &
+  AgentDeps;
 
 /** How far ahead the coordinator looks, as in apps/api. */
 const LOOKAHEAD_MS = 29 * 24 * 60 * 60 * 1000;
@@ -116,7 +120,21 @@ export function createFixtureHost(
   };
 
   const polls = createMemoryPollsStore();
+  // Random in dev: the real agent commands and ledger, with a fake turn instead of OpenAI.
+  const agent = createMemoryAgentStore();
+  const fixtureAgent = createFixtureAgent<FixtureDeps>({
+    store: agent,
+    registry: () => registry,
+    deps: () => deps,
+    member: (g, id) => identity.getMember(g, id),
+  });
   const deps: FixtureDeps = {
+    agent,
+    agentQueue: fixtureAgent,
+    agentRunner: {
+      run: (caller, name, input, confirmToken) =>
+        registry.execute({ name, input, caller, ...(confirmToken ? { confirmToken } : {}) }, deps),
+    },
     identity,
     raids,
     members: {
@@ -192,6 +210,7 @@ export function createFixtureHost(
       ...coordinatorCommands,
       ...siteCommands,
       ...applicationsCommands,
+      ...agentCommands,
     ],
     confirmSecret: 'development-fixtures',
     ...(options.now ? { now: options.now } : {}),

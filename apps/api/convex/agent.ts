@@ -8,6 +8,7 @@
 import {
   ASK_INSTRUCTIONS,
   askInput,
+  recordProgress,
   recordToolCall,
   renderAgentReply,
   routeQuestion,
@@ -96,11 +97,17 @@ async function memberCaller(
  * returned on a retry, so a mutation-preparing call never makes two confirmations.
  */
 export const tool = internalMutation({
-  args: { runId: v.string(), callId: v.string(), name: v.string(), args: v.any() },
-  handler: (ctx, { runId, callId, name, args }): Promise<ToolExecution> =>
+  args: {
+    runId: v.string(),
+    callId: v.string(),
+    name: v.string(),
+    args: v.any(),
+    startedAt: v.optional(v.number()),
+  },
+  handler: (ctx, { runId, callId, name, args, startedAt }): Promise<ToolExecution> =>
     recordToolCall(
       agentStore(ctx),
-      { guildId: GUILD_ID, runId, callId, name },
+      { guildId: GUILD_ID, runId, callId, name, startedAt: startedAt ?? null },
       Date.now(),
       async (run) => {
         const caller = run.memberId ? await memberCaller(ctx, run.memberId) : null;
@@ -119,7 +126,7 @@ export const tool = internalMutation({
 export const finish = internalMutation({
   args: {
     runId: v.string(),
-    status: v.union(v.literal('answered'), v.literal('failed')),
+    status: v.union(v.literal('answered'), v.literal('failed'), v.literal('cancelled')),
     answer: v.union(v.string(), v.null()),
     error: v.union(v.string(), v.null()),
     sessionId: v.union(v.string(), v.null()),
@@ -137,6 +144,8 @@ export const finish = internalMutation({
       answer,
       error,
       sessionId,
+      // The answer replaces the draft; the notes stay as the turn's record.
+      draft: null,
       finishedAt: now,
       ...(label === undefined ? {} : { label }),
     });
@@ -159,6 +168,20 @@ export const finish = internalMutation({
   },
 });
 
+/** The turn's progress so far, while the run is still running (a late write never undoes finish). */
+export const progress = internalMutation({
+  args: { runId: v.string(), notes: v.array(v.string()), draft: v.union(v.string(), v.null()) },
+  handler: (ctx, { runId, notes, draft }) =>
+    recordProgress(agentStore(ctx), GUILD_ID, runId, { notes, draft }),
+});
+
+/** Whether agent-cancel asked this run to stop. */
+export const stopRequested = internalQuery({
+  args: { runId: v.string() },
+  handler: async (ctx, { runId }) =>
+    (await agentStore(ctx).getRun(GUILD_ID, runId))?.cancelRequested ?? false,
+});
+
 const describe = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
 /**
@@ -175,14 +198,18 @@ async function settle(
   label: string | null,
 ) {
   const answered = outcome.status === 'completed' && Boolean(outcome.text);
+  const stopped = outcome.status === 'cancelled';
+  // A stopped turn's session is dropped like a failed one: the next question starts clean.
   if (!answered && outcome.sessionId) {
     await runtime.delete(outcome.sessionId).catch(() => undefined);
   }
   if (outcome.restarted && replaced) await runtime.delete(replaced).catch(() => undefined);
-  if (!answered) console.log(`agent run ${runId} failed: ${outcome.error ?? 'no answer'}`);
+  if (!answered && !stopped) {
+    console.log(`agent run ${runId} failed: ${outcome.error ?? 'no answer'}`);
+  }
   await ctx.runMutation(internal.agent.finish, {
     runId,
-    status: answered ? 'answered' : 'failed',
+    status: answered ? 'answered' : stopped ? 'cancelled' : 'failed',
     answer: outcome.text,
     error: answered ? null : publicTurnError(outcome),
     sessionId: outcome.sessionId,
@@ -222,6 +249,19 @@ async function runAnswer(ctx: ActionCtx, runId: string): Promise<string> {
     memberTier,
     GUILD_ID,
   );
+  // Stop pressed while the router ran: end here, before a session or turn is opened.
+  if (await ctx.runQuery(internal.agent.stopRequested, { runId })) {
+    await ctx.runMutation(internal.agent.finish, {
+      runId,
+      status: 'cancelled',
+      answer: null,
+      error: 'Stopped',
+      sessionId: null,
+      keepSession: true,
+    });
+    return 'cancelled';
+  }
+
   if (route.reply) {
     await ctx.runMutation(internal.agent.finish, {
       runId,
@@ -247,7 +287,7 @@ async function runAnswer(ctx: ActionCtx, runId: string): Promise<string> {
         effort: config.effort,
         instructions: ASK_INSTRUCTIONS,
         tools: REGISTRY_TOOLS,
-        input: askInput(run.prompt, { surface: run.surface, now, memberName }),
+        input: askInput(run.prompt, { surface: run.surface, now, memberName, page: run.context }),
         metadata: { guildId: GUILD_ID, runId, memberId: run.memberId ?? '' },
       },
       executeTool: (call) =>
@@ -256,7 +296,12 @@ async function runAnswer(ctx: ActionCtx, runId: string): Promise<string> {
           callId: call.callId,
           name: call.name,
           args: call.arguments ?? {},
+          ...(call.seenAt === undefined ? {} : { startedAt: call.seenAt }),
         }),
+      onProgress: async ({ notes, draft }) => {
+        await ctx.runMutation(internal.agent.progress, { runId, notes, draft });
+      },
+      isCancelled: () => ctx.runQuery(internal.agent.stopRequested, { runId }),
     });
     await settle(ctx, runtime, runId, reuse, outcome, route.label);
     return outcome.status;

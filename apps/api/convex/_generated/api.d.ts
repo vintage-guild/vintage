@@ -9,6 +9,7 @@
  */
 
 import type * as agent from "../agent.js";
+import type * as applications from "../applications.js";
 import type * as auth from "../auth.js";
 import type * as commands from "../commands.js";
 import type * as coordinator from "../coordinator.js";
@@ -20,6 +21,7 @@ import type * as pollPosts from "../pollPosts.js";
 import type * as polls from "../polls.js";
 import type * as roleSync from "../roleSync.js";
 import type * as stores from "../stores.js";
+import type * as wording from "../wording.js";
 
 import type {
   ApiFromModules,
@@ -29,6 +31,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   agent: typeof agent;
+  applications: typeof applications;
   auth: typeof auth;
   commands: typeof commands;
   coordinator: typeof coordinator;
@@ -40,6 +43,7 @@ declare const fullApi: ApiFromModules<{
   polls: typeof polls;
   roleSync: typeof roleSync;
   stores: typeof stores;
+  wording: typeof wording;
 }>;
 
 /**
@@ -77,4 +81,5 @@ export declare const components: {
   progress: import("@vintage/progress/_generated/component.js").ComponentApi<"progress">;
   site: import("@vintage/site/_generated/component.js").ComponentApi<"site">;
   agent: import("@vintage/agent/_generated/component.js").ComponentApi<"agent">;
+  applications: import("@vintage/applications/_generated/component.js").ComponentApi<"applications">;
 };

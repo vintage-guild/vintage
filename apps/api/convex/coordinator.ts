@@ -4,16 +4,26 @@
 //   npx convex run coordinator:tick
 import { type CoordinatorDiscord, runTick, type TickReport } from '@vintage/coordinator/commands';
 import { createDiscordRest } from '@vintage/discord-kit';
+import { STARTER_RECRUITING } from '@vintage/site/contract';
 import { v } from 'convex/values';
 import { internal } from './_generated/api';
 import { internalAction, internalMutation, internalQuery } from './_generated/server';
 import { GUILD_ID, runSystemCommand } from './commands';
 import { decisionsFor } from './decisions';
-import { coordinatorStore, pollsStore, tickSource } from './stores';
+import { coordinatorStore, pollsStore, siteStore, tickSource } from './stores';
+import { writeWording } from './wording';
 
 export const state = internalQuery({
   args: { guildId: v.string(), now: v.number() },
   handler: (ctx, { guildId, now }) => tickSource(ctx).load(guildId, now),
+});
+
+/** The recruiting band's needs, for the weekly assessment (#130). */
+export const recruitingNeeds = internalQuery({
+  args: {},
+  // Until an officer saves the band, the site shows the starter needs; assess against the same.
+  handler: async (ctx) =>
+    (await siteStore(ctx).getRecruiting(GUILD_ID))?.needs ?? STARTER_RECRUITING.needs,
 });
 
 export const config = internalQuery({
@@ -228,6 +238,14 @@ export const tick = internalAction({
         },
         // Signup-note labels for the digest (#132); null without a key, and the digest prints notes raw.
         decisions: decisionsFor(ctx, 'note-triage'),
+        // The weekly assessment (#130): the site's needs, and Terra (low) to word the facts.
+        recruiting: {
+          needs: async () => (await ctx.runQuery(internal.coordinator.recruitingNeeds, {})) ?? [],
+        },
+        wording: {
+          write: (instructions, facts) =>
+            writeWording(ctx, 'weekly-assessment', instructions, facts),
+        },
       },
       GUILD_ID,
       Date.now(),

@@ -9,6 +9,12 @@ import {
   type AgentRun,
   defaultAgentConfig,
 } from '@vintage/agent/contract';
+import type { ApplicationsDeps, ApplicationsStore } from '@vintage/applications/commands';
+import {
+  type Application,
+  type ApplicationsConfig,
+  defaultApplicationsConfig,
+} from '@vintage/applications/contract';
 import type { CoordinatorDeps, CoordinatorStore, TickSource } from '@vintage/coordinator/commands';
 import { type CoordinatorConfig, defaultConfig } from '@vintage/coordinator/contract';
 import type { Caller, CommandResult } from '@vintage/guild-kit';
@@ -442,5 +448,73 @@ export function agentDeps(ctx: Ctx, run: RunConfirmedCommand, delivery?: AgentDe
       },
     },
     agentRunner: { run },
+  };
+}
+
+const applications = components.applications;
+
+// Component rows store class as a plain string; the module's commands only write valid classes.
+const asApplication = (row: unknown) => row as Application;
+
+export function applicationsStore(ctx: Ctx): ApplicationsStore {
+  return {
+    insert: async (application) =>
+      asApplication(await writable(ctx).runMutation(applications.applications.insert, application)),
+    get: async (guildId, applicationId) => {
+      const row = await ctx.runQuery(applications.applications.get, { guildId, applicationId });
+      return row && asApplication(row);
+    },
+    update: async (guildId, applicationId, patch) =>
+      asApplication(
+        await writable(ctx).runMutation(applications.applications.update, {
+          guildId,
+          applicationId,
+          patch,
+        }),
+      ),
+    list: async (guildId, { statuses, ...filter } = {}) =>
+      (
+        await ctx.runQuery(applications.applications.list, {
+          guildId,
+          ...filter,
+          ...(statuses ? { statuses: [...statuses] } : {}),
+        })
+      ).map(asApplication),
+    getConfig: async (guildId) =>
+      ((await ctx.runQuery(applications.applications.getConfig, {
+        guildId,
+      })) as ApplicationsConfig | null) ?? defaultApplicationsConfig(guildId),
+    setConfig: async (guildId, patch, now) => {
+      const current =
+        ((await ctx.runQuery(applications.applications.getConfig, {
+          guildId,
+        })) as ApplicationsConfig | null) ?? defaultApplicationsConfig(guildId);
+      return (await writable(ctx).runMutation(applications.applications.putConfig, {
+        ...current,
+        ...patch,
+        guildId,
+        updatedAt: now,
+      })) as ApplicationsConfig;
+    },
+  };
+}
+
+// Referenced by name to avoid a type cycle between this file and the generated api.
+const applicationAction = (name: string) =>
+  makeFunctionReference<'action', { applicationId: string }>(`applications:${name}`);
+
+/** Effects run as scheduled actions: label and post, accept, reply, refresh (convex/applications.ts). */
+export function applicationsDeps(ctx: Ctx): ApplicationsDeps {
+  const later = (name: string) => async (_guildId: string, applicationId: string) => {
+    await writable(ctx).scheduler.runAfter(0, applicationAction(name), { applicationId });
+  };
+  return {
+    applications: applicationsStore(ctx),
+    applicationEffects: {
+      submitted: later('afterSubmit'),
+      accepted: later('afterAccept'),
+      replied: later('sendReply'),
+      changed: later('refreshPost'),
+    },
   };
 }

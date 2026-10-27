@@ -95,6 +95,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             paused: boolean;
             serverEvents?: boolean;
             signupChannelId: string | null;
+            weeklyAssessment?: boolean;
           };
           guildId: string;
           updatedAt: number;

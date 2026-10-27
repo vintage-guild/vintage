@@ -49,3 +49,33 @@ visitors read what is true now.
 - [ ] Rook sees the Guild tab read-only; `guild-profile-set` as Rook answers `COMMAND_NOT_FOUND`.
 - [ ] For members, the calendar's line under "Coming up" names the raid nights and signup
   timings from `schedule-list` in their time zone; change a schedule and it follows.
+
+### J28 · Apply from Discord and hear back
+
+When I want to raid with Vintage, I want to apply in the guild's Discord and hear back there, so
+I don't have to find a website or an officer first.
+
+Live checklist:
+
+- [ ] `/random apply character:… class:… spec:… role:raider` opens a form for the long answers;
+      submitting it says the officers have it.
+- [ ] The recruitment channel (`application-config-set channelId`, officers only) shows the
+      application with its labels and Accept, Reply, and Decline.
+- [ ] Reply sends me the officer's text in a DM, and the post shows it.
+- [ ] Accept sends me the onboarding DM with the site's address, and asks an officer in the
+      recruitment channel to give me the recruit role (the bot never sets roles).
+- [ ] Applying again while one is open says it is still with the officers.
+
+### J29 · Get a weekly roster check with one-click recruiting changes
+
+When the coming raids are short on tanks or healers, I want a Monday note in the officers'
+channel that says so and offers to raise those classes on the site, so recruiting keeps up with
+the roster without anyone remembering to look.
+
+Live checklist:
+
+- [ ] With `coordinator-config-set weeklyAssessment:true`, the first tick after Monday 16:00 UTC
+      posts **Weekly roster check** to the ops channel, once.
+- [ ] A healer gap offers "Raise <class> to high" buttons; an officer's click changes the band
+      on the site; a raid leader's click is refused.
+- [ ] With `agent-pause`, the note is the plain facts, not reworded.

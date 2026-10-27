@@ -9,6 +9,13 @@ import {
 } from '@vintage/discord-kit';
 import type { Poll } from '@vintage/polls/contract';
 import type { CoordinatorAction, CoordinatorConfig, RaidNight } from './contract';
+import {
+  assessmentFacts,
+  assessmentRule,
+  buildAssessment,
+  renderAssessment,
+  WORDING_INSTRUCTIONS,
+} from './domain/assessment';
 import { renderFinalRoster, renderSignupPost } from './domain/card';
 import { triageNotes } from './domain/notes';
 import { type PlannedAction, planTick } from './domain/plan';
@@ -400,5 +407,47 @@ export async function runTick(ports: TickPorts, guildId: string, now: number): P
           : await execute(action, state, ports, now),
     );
   }
+  outcomes.push(...(await runAssessment(ports, state, config, now)));
   return { outcomes };
+}
+
+/** The weekly roster and recruitment check (#130), claimed once per week like any action. */
+async function runAssessment(
+  ports: TickPorts,
+  state: TickState,
+  config: CoordinatorConfig,
+  now: number,
+): Promise<TickOutcome[]> {
+  const rule = assessmentRule(now);
+  const ops = config.opsChannelId;
+  if (!config.weeklyAssessment || !ops || !rule) return [];
+  const key = { guildId: state.guildId, eventId: 'assessment', rule, target: ops };
+  const claimed = await ports.store.claimAction(key, now, CLAIM_STALE_MS);
+  if (!claimed) return [];
+  try {
+    const needs = (await ports.recruiting?.needs(state.guildId)) ?? [];
+    const assessment = buildAssessment(state.events, state.members, needs);
+    const wording = await (
+      ports.wording?.write(WORDING_INSTRUCTIONS, assessmentFacts(assessment)) ??
+      Promise.resolve(null)
+    ).catch(() => null);
+    const sent = await ports.discord.post(ops, renderAssessment(assessment, wording));
+    const detail = `${assessment.gaps.length} gaps, ${assessment.suggestions.length} suggestions${wording ? ', worded' : ''}`;
+    await ports.store.completeAction(
+      state.guildId,
+      claimed.action.id,
+      { status: 'sent', discordMessageId: sent.id, detail },
+      now,
+    );
+    return [{ ...key, status: 'sent', detail }];
+  } catch (err) {
+    const detail = describe(err);
+    await ports.store.completeAction(
+      state.guildId,
+      claimed.action.id,
+      { status: 'failed', detail },
+      now,
+    );
+    return [{ ...key, status: 'failed', detail }];
+  }
 }

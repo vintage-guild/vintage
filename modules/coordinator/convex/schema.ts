@@ -26,6 +26,8 @@ export const configFields = {
   dmReminders: v.boolean(),
   /** Optional: rows saved before server events existed read as off. */
   serverEvents: v.optional(v.boolean()),
+  /** Optional so rows saved before #130 still load; read as false (officers turn it on). */
+  weeklyAssessment: v.optional(v.boolean()),
   paused: v.boolean(),
   updatedAt: v.number(),
 };

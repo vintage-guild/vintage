@@ -2,6 +2,7 @@
 // right after sign-in, and the caller the website's commands then run as.
 
 import { createMemoryAgentDeps } from '@vintage/agent/testing';
+import { createMemoryApplicationsDeps } from '@vintage/applications/testing';
 import { createMemoryCoordinatorDeps } from '@vintage/coordinator/testing';
 import type { MemberSyncInput } from '@vintage/identity/commands';
 import { createMemoryIdentityDeps } from '@vintage/identity/testing';
@@ -50,6 +51,7 @@ function host() {
     ...createMemoryProgressDeps(),
     ...createMemorySiteDeps(),
     ...createMemoryAgentDeps().deps,
+    ...createMemoryApplicationsDeps().deps,
   };
   const registry = testRegistry<VintageDeps>(commands);
   const system = makeCaller('officer', { surface: 'system', memberId: undefined });

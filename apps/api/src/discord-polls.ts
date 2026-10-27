@@ -9,37 +9,36 @@
 // Every reply is ephemeral. Commands decide everything (tiers, visibility, who may close); this
 // file only translates Discord to commands and results to words.
 import {
-  ApplicationCommandOptionType,
   actionRow,
   ButtonStyle,
   button,
-  type CommandInteractionOption,
   discordTimestamp,
   type Interaction,
   type InteractionResponse,
   InteractionType,
-  interactionUser,
   reply,
   subcommandPath,
   TimestampStyle,
   updateMessage,
 } from '@vintage/discord-kit';
 import type { Caller, CommandResult } from '@vintage/guild-kit';
-import type { Member } from '@vintage/identity/contract';
 import { parsePollCustomId, pollCustomId } from '@vintage/polls/commands';
 import type { Poll, PollResults } from '@vintage/polls/contract';
+import {
+  commandOptions,
+  discordCaller,
+  ephemeral,
+  failureText,
+  type MemberPorts,
+  type OptionValues,
+  SLASH_COMMAND,
+} from './discord-common';
+
+export { SLASH_COMMAND } from './discord-common';
 
 export const DEFAULT_POLL_HOURS = 24;
 
-/** The bot's slash command; the same name as RANDOM_COMMAND in apps/gateway/src/commands.ts. */
-export const SLASH_COMMAND = 'random';
-
-export interface PollPorts {
-  /** The guild's Discord server id; interactions from any other server are refused. */
-  discordGuildId: string | undefined;
-  /** The Vintage guild id the caller acts in. */
-  guildId: string;
-  memberByDiscordId(discordId: string): Promise<Member | null>;
+export interface PollPorts extends MemberPorts {
   /** Runs a command through the registry as this caller, with a confirm token when given. */
   run(
     caller: Caller,
@@ -54,27 +53,6 @@ export interface PollPorts {
   now(): number;
 }
 
-const ephemeral = (content: string) => reply(content, { ephemeral: true });
-
-/** The leaf options of `/random poll create`, by name. */
-function commandOptions(interaction: Interaction): Record<string, string | number | boolean> {
-  const values: Record<string, string | number | boolean> = {};
-  const walk = (options: CommandInteractionOption[] | undefined) => {
-    for (const o of options ?? []) {
-      if (
-        o.type === ApplicationCommandOptionType.SUB_COMMAND ||
-        o.type === ApplicationCommandOptionType.SUB_COMMAND_GROUP
-      ) {
-        walk(o.options);
-      } else if (o.value !== undefined) {
-        values[o.name] = o.value;
-      }
-    }
-  };
-  walk(interaction.data?.options);
-  return values;
-}
-
 /** "Tuesday; Thursday | Friday" or one per line → labels. */
 export function splitOptions(text: string): string[] {
   return text
@@ -84,7 +62,7 @@ export function splitOptions(text: string): string[] {
 }
 
 /** The poll-create input from the slash command's options. */
-export function createInput(values: Record<string, string | number | boolean>, now: number) {
+export function createInput(values: OptionValues, now: number) {
   const hours = typeof values.hours === 'number' ? values.hours : DEFAULT_POLL_HOURS;
   return {
     question: String(values.question ?? ''),
@@ -103,19 +81,8 @@ const NEEDS_MEMBER =
 const NEEDS_RAIDER =
   'Creating polls needs the Raider rank or higher. Ask a raid leader to post it.';
 
-/** A failed command as one line for the member, in the commands' own words. */
-function failure(result: CommandResult<unknown>, notFound: string): string {
-  const error = result.error;
-  if (!error) return 'Something went wrong. Please try again.';
-  if (error.code === 'COMMAND_NOT_FOUND') return notFound;
-  if (error.code === 'VALIDATION_ERROR') {
-    const issues = (error.details as { issues?: { path?: unknown[]; message?: string }[] })?.issues;
-    const first = issues?.[0];
-    const where = first?.path?.length ? `${first.path.join('.')}: ` : '';
-    return `That poll isn't valid. ${where}${first?.message ?? error.message}`;
-  }
-  return [error.message, error.suggestion].filter(Boolean).join('. ');
-}
+const failure = (result: CommandResult<unknown>, notFound: string) =>
+  failureText(result, notFound, "That poll isn't valid.");
 
 /** The result in words; with a hidden tally, only how many voted. */
 function summary(
@@ -230,23 +197,9 @@ export async function handlePollInteraction(
   ports: PollPorts,
 ): Promise<InteractionResponse | null> {
   if (!isPollInteraction(interaction)) return null;
-  if (!ports.discordGuildId || interaction.guild_id !== ports.discordGuildId) {
-    return ephemeral('Random only runs polls in the Vintage guild server.');
-  }
-  const user = interactionUser(interaction);
-  const member = user ? await ports.memberByDiscordId(user.id) : null;
-  if (!member) {
-    return ephemeral(
-      "I don't know you yet. Discord roles sync every 15 minutes; if you just joined, try again shortly.",
-    );
-  }
-  const caller: Caller = {
-    surface: 'discord',
-    guildId: ports.guildId,
-    tier: member.tier,
-    memberId: member.id,
-    discordId: member.discordId,
-  };
+  const who = await discordCaller(interaction, ports, 'polls');
+  if ('refusal' in who) return who.refusal;
+  const { caller } = who;
 
   if (interaction.type === InteractionType.APPLICATION_COMMAND) {
     const [, sub] = subcommandPath(interaction);

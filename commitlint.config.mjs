@@ -23,6 +23,7 @@ export default {
         // packages, libs, apps
         'guild-kit',
         'agent',
+        'applications',
         'ui-kit',
         'web-session',
         'testing',

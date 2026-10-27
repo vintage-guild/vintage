@@ -4,6 +4,7 @@ import { type Caller, type CommandResult, commandsFor } from '@vintage/guild-kit
 import type { GuildRank } from '@vintage/identity/contract';
 import type { Poll } from '@vintage/polls/contract';
 import type { RaidEvent, RaidSize, ScheduleTimings, Signup } from '@vintage/raids/contract';
+import type { ClassNeed } from '@vintage/site/contract';
 import type {
   ActionStatus,
   CoordinatorAction,
@@ -174,6 +175,10 @@ export interface TickPorts {
   decisions?: DecisionsPort | null;
   /** Where server events link to: the signup card (needs the Discord server id), else the site. */
   links?: { discordGuildId: string | null; siteUrl: string | null };
+  /** The site's recruiting needs, for the weekly assessment (#130). Absent: none listed. */
+  recruiting?: { needs(guildId: string): Promise<ClassNeed[]> };
+  /** Rewords the assessment's facts (AI); null or a throw keeps the facts as written. */
+  wording?: { write(instructions: string, facts: string): Promise<string | null> };
 }
 
 export const command = commandsFor<CoordinatorDeps>();

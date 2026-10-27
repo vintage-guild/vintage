@@ -2,8 +2,11 @@
 // code runs on Vercel functions and in tests. Verify first, over the raw body: Discord probes the
 // URL with bad signatures and drops it unless those get a 401 (PLAN §6.2).
 //
-// Button clicks, modal submits, and `/random poll` are forwarded to Convex, which runs them through
-// the command registry (apps/api convex/http.ts → discord.ts). `/random ping` answers locally.
+// Button clicks, modal submits, and the `/random` groups in FORWARDED_GROUPS are forwarded to
+// Convex, which runs them through the command registry (apps/api convex/http.ts → discord.ts).
+// `/random ping` answers locally. A `/random` command or click that this gateway or Convex doesn't
+// know yet (say, registered before a deploy reached both) gets a private "can't do that yet"
+// instead of a timeout.
 import {
   discordTimestamp,
   type Interaction,
@@ -39,6 +42,13 @@ const TROUBLE = reply('Random could not reach its backend. Please try again in a
   ephemeral: true,
 });
 
+const NOT_YET = reply(
+  "Random can't do that yet. It may be mid-update; try again in a few minutes.",
+  {
+    ephemeral: true,
+  },
+);
+
 /** Send a verified component or modal interaction to Convex and return its response. */
 async function forward(convex: ConvexForward | undefined, interaction: Interaction) {
   if (!convex) {
@@ -51,7 +61,7 @@ async function forward(convex: ConvexForward | undefined, interaction: Interacti
       headers: { 'content-type': 'application/json', authorization: `Bearer ${convex.secret}` },
       body: JSON.stringify(interaction),
     });
-    if (res.status === 404) return undefined;
+    if (res.status === 404) return NOT_YET;
     if (!res.ok) return TROUBLE;
     return (await res.json()) as InteractionResponse;
   } catch {
@@ -97,6 +107,7 @@ async function route(
     const [sub] = subcommandPath(interaction);
     if (sub === 'ping') return reply(`pong · ${discordTimestamp(now)}`, { ephemeral: true });
     if (sub && FORWARDED_GROUPS.has(sub)) return forward(convex, interaction);
+    return NOT_YET;
   }
   return undefined;
 }

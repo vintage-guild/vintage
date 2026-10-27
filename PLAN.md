@@ -153,6 +153,7 @@ Every capability is an AFD command. A command definition carries:
 | `wishlist` | `set`, `get`, `list` | wishlist |
 | `site` | `page.publish`, `news.post` | site |
 | `agent` | `ask`, `pause`, `resume` | agent |
+| `application` | `submit`, `get`, `withdraw`, `list`, `review`, `decline`, `config.get`, `config.set` | applications |
 
 Destructive: `raid.cancel`, `roster.remove`, `loot.award`, `character.remove`, `site.page.publish`.
 

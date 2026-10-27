@@ -65,7 +65,10 @@ npx convex run commands:read '{"name":"member-list","input":{}}'
 
 The hosted agent and the Decisions API need an OpenAI key in the Convex environment
 (`npx convex env set OPENAI_API_KEY …`); without it `agent-ask` runs fail with a clear error and
-Decisions consumers keep their non-AI behavior. To ask as a member from the CLI, pass an identity
+Decisions consumers keep their non-AI behavior. Applications post to the channel officers set
+with `application-config-set channelId` (it must be visible to officers only: posts carry
+applicants’ answers); the weekly roster check is off until
+`coordinator-config-set weeklyAssessment:true`. To ask as a member from the CLI, pass an identity
 with their Discord id:
 
 ```bash
@@ -144,6 +147,12 @@ Clicks from any server other than `DISCORD_GUILD_ID` get a private refusal.
 messages with `DISCORD_BOT_TOKEN` (no new permissions). After changing `apps/gateway/src/commands.ts`,
 register the commands again (`pnpm --filter @vintage/gateway register-commands`). Optional:
 set `VINTAGE_SITE_URL` in the Convex env so ranked polls link to the website (once #63 adds the page).
+
+### Raids from Discord
+
+`/random raid create` and `/random raid pick-night` (Raid Leader and up) run `raid-create` and
+`raid-night-poll` through the same path. Times are typed in the guild's clock. No new bot
+permissions; re-register the commands after deploying.
 
 ### Website sign-in (Discord)
 

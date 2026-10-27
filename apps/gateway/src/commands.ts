@@ -85,6 +85,102 @@ const POLL_GROUP = {
   ],
 };
 
+/** The raid options both raid subcommands share, in Discord's order (required first). */
+const RAID_BASICS = [
+  {
+    type: T.STRING,
+    name: 'name',
+    description: 'The raid’s name, e.g. Onyxia run',
+    required: true,
+    max_length: 60,
+  },
+  {
+    type: T.STRING,
+    name: 'instance',
+    description: 'Where, e.g. Onyxia’s Lair',
+    required: true,
+    max_length: 60,
+  },
+  {
+    type: T.INTEGER,
+    name: 'size',
+    description: 'Raid size',
+    required: true,
+    choices: [
+      { name: '10', value: 10 },
+      { name: '20', value: 20 },
+      { name: '40', value: 40 },
+    ],
+  },
+];
+
+const RAID_HOURS = {
+  type: T.NUMBER,
+  name: 'hours',
+  description: 'How long the raid runs, in hours (default 3)',
+  min_value: 0.5,
+  max_value: 8,
+};
+
+/**
+ * `/random raid create` and `/random raid pick-night`: raid-create and raid-night-poll, run as
+ * the raid leader who asked. Times are typed in the guild's clock (`2026-11-10 20:00`, or
+ * `2026-11-10 8pm`) and echoed back as Discord timestamps, so mistakes show at once.
+ */
+const RAID_GROUP = {
+  type: T.SUB_COMMAND_GROUP,
+  name: 'raid',
+  description: 'Raids (raid leaders and officers)',
+  options: [
+    {
+      type: T.SUB_COMMAND,
+      name: 'create',
+      description: 'Make a one-off raid, open for signups',
+      options: [
+        ...RAID_BASICS,
+        {
+          type: T.STRING,
+          name: 'start',
+          description: 'When, in the guild’s clock: 2026-11-10 20:00 (or 8pm)',
+          required: true,
+          max_length: 40,
+        },
+        RAID_HOURS,
+      ],
+    },
+    {
+      type: T.SUB_COMMAND,
+      name: 'pick-night',
+      description: 'Let the raid vote on a start time; the winner becomes the raid',
+      options: [
+        ...RAID_BASICS,
+        {
+          type: T.STRING,
+          name: 'times',
+          description: '2–10 start times, separated by ; (2026-11-10 20:00; 2026-11-12 20:00)',
+          required: true,
+          max_length: 400,
+        },
+        {
+          type: T.INTEGER,
+          name: 'vote_hours',
+          description: 'How long voting stays open (default 24)',
+          min_value: 1,
+          max_value: 168,
+        },
+        {
+          type: T.INTEGER,
+          name: 'quorum',
+          description: 'Fewest ballots for the result to count',
+          min_value: 1,
+          max_value: 40,
+        },
+        RAID_HOURS,
+      ],
+    },
+  ],
+};
+
 /** `/random ask`: a question for the guild agent (#18); the answer arrives privately. */
 const ASK = {
   type: T.SUB_COMMAND,
@@ -101,6 +197,62 @@ const ASK = {
   ],
 };
 
+/** `/random apply`: the short answers here, the long ones in a modal (#135). */
+const APPLY = {
+  type: T.SUB_COMMAND,
+  name: 'apply',
+  description: 'Apply to raid with Vintage',
+  options: [
+    {
+      type: T.STRING,
+      name: 'character',
+      description: 'Your character name',
+      required: true,
+      max_length: 12,
+    },
+    {
+      type: T.STRING,
+      name: 'class',
+      description: 'Your class',
+      required: true,
+      choices: [
+        'warrior',
+        'paladin',
+        'hunter',
+        'rogue',
+        'priest',
+        'shaman',
+        'mage',
+        'warlock',
+        'druid',
+      ].map((c) => ({ name: c.charAt(0).toUpperCase() + c.slice(1), value: c })),
+    },
+    {
+      type: T.STRING,
+      name: 'spec',
+      description: 'Your spec, e.g. restoration',
+      required: true,
+      max_length: 40,
+    },
+    {
+      type: T.STRING,
+      name: 'role',
+      description: 'Core raider, or flex when there is room',
+      choices: [
+        { name: 'Raider', value: 'raider' },
+        { name: 'Flex raider', value: 'flex-raider' },
+      ],
+    },
+  ],
+};
+
+/** `/random recruiting`: the open needs; leaders and officers post it to the channel. */
+const RECRUITING = {
+  type: T.SUB_COMMAND,
+  name: 'recruiting',
+  description: 'Show who Vintage is recruiting',
+};
+
 export const RANDOM_COMMAND = {
   name: 'random',
   description: 'Vintage guild tools',
@@ -112,11 +264,20 @@ export const RANDOM_COMMAND = {
       description: 'Check that Random is answering',
     },
     POLL_GROUP,
+    RAID_GROUP,
     ASK,
+    APPLY,
+    RECRUITING,
   ],
 } satisfies ApplicationCommand;
 
 /** Subcommands and groups whose work runs in Convex; the gateway forwards them. */
-export const FORWARDED_GROUPS: ReadonlySet<string> = new Set([POLL_GROUP.name, ASK.name]);
+export const FORWARDED_GROUPS: ReadonlySet<string> = new Set([
+  POLL_GROUP.name,
+  RAID_GROUP.name,
+  ASK.name,
+  APPLY.name,
+  RECRUITING.name,
+]);
 
 export const COMMANDS: readonly ApplicationCommand[] = [RANDOM_COMMAND];

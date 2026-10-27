@@ -185,6 +185,72 @@ describe('JTBD: polls', () => {
     });
   });
 
+  it('J42 · a raider votes from the home page and the poll page, ranked polls too', async () => {
+    type Got = { poll: Poll & { results: PollResults | null }; myVote: string[] | null };
+    const get = (who: Caller, pollId: string) => g.host.ok<Got>(who, 'poll-get', { pollId });
+    const votes = (got: Got) => got.poll.results?.options.map((o) => o.votes);
+
+    // An off-night poll from Discord, and a ranked one Discord can only link to the site for.
+    const { poll: night } = await aerynsPoll();
+    const ranked = await g.host.ok<Poll>(g.rook, 'poll-create', {
+      question: 'Which raid first?',
+      options: ['Onyxia', 'Molten Core', 'Zul’Gurub'],
+      method: 'ranked',
+    });
+    expect(JSON.stringify(ui.pollPosts.get(night.id)?.message)).toContain('poll:v:');
+
+    // The home page's card: the first open poll (`poll-list`), its tally and my ballot (`poll-get`).
+    const [first] = await g.host.ok<Poll[]>(g.aeryn, 'poll-list');
+    expect(first?.id).toBe(night.id);
+    expect(await get(g.aeryn, night.id)).toMatchObject({ myVote: null });
+
+    // A click on the card is `vote-cast`, the same ballot as the post's buttons: Bram's Discord
+    // vote shows as his on the site, and the post counts Aeryn's site vote.
+    await g.host.ok(g.aeryn, 'vote-cast', { pollId: night.id, choices: ['o2'] });
+    await ui.click(g.bram.discordId!, `poll:v:${night.id}:o1`);
+    expect((await get(g.bram, night.id)).myVote).toEqual(['o1']);
+    expect(ui.postText(night.id)).toContain('2 of 3 voted');
+
+    // Changing the vote on the site replaces it; "Take back my vote" is `vote-retract`.
+    await g.host.ok(g.bram, 'vote-cast', { pollId: night.id, choices: ['o2'] });
+    expect(votes(await get(g.aeryn, night.id))).toEqual([0, 2]);
+    await g.host.ok(g.bram, 'vote-retract', { pollId: night.id });
+    expect(votes(await get(g.aeryn, night.id))).toEqual([0, 1]);
+    expect((await get(g.bram, night.id)).myVote).toBeNull();
+
+    // A Member is below the audience: no card on the home page, and a vote is refused.
+    expect(await g.host.ok<Poll[]>(g.pip, 'poll-list')).toEqual([]);
+    expect(
+      await g.host.run(g.pip, 'vote-cast', { pollId: night.id, choices: ['o1'] }),
+    ).toMatchObject({ success: false });
+
+    // /polls/<id> for the ranked poll: each raider ranks in order, and the order is kept.
+    const join = (id: string, name: string) =>
+      g.host.discordMember(`50000000000000000${id}`, name, [ROLES.raider]);
+    const cato = await join('5', 'Cato');
+    const dara = await join('6', 'Dara');
+    const rank = (who: Caller, choices: string[]) =>
+      g.host.ok(who, 'vote-cast', { pollId: ranked.id, choices });
+    await rank(g.aeryn, ['o1']);
+    await rank(g.bram, ['o1']);
+    await rank(g.rook, ['o2', 'o3']);
+    await rank(cato, ['o2', 'o3']);
+    await rank(dara, ['o3', 'o2']);
+    expect((await get(dara, ranked.id)).myVote).toEqual(['o3', 'o2']);
+    // Open, the card shows first preferences.
+    expect(votes(await get(g.aeryn, ranked.id))).toEqual([2, 2, 1]);
+
+    // Closed, the runoff decides: Zul’Gurub goes out and Dara's second choice carries Molten Core.
+    await g.host.run(g.rook, 'poll-close', { pollId: ranked.id });
+    const closed = await get(g.aeryn, ranked.id);
+    expect(closed.poll.status).toBe('closed');
+    expect(closed.poll.results?.winners).toEqual(['o2']);
+    expect(closed.poll.results?.rounds).toHaveLength(2);
+    expect(
+      await g.host.run(g.aeryn, 'vote-cast', { pollId: ranked.id, choices: ['o1'] }),
+    ).toMatchObject({ success: false });
+  });
+
   describe('J18 · pick the raid night by vote', () => {
     /** Tue 3 Nov and Thu 5 Nov 2026, 20:00 New York (EST). */
     const TUE = Date.UTC(2026, 10, 4, 1);

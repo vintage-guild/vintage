@@ -47,7 +47,10 @@ pnpm --filter @vintage/web build   # dist/
   (`PROD_CONVEX_URL`) unless `VITE_CONVEX_URL` says otherwise; if it can't be reached the site
   stays up, signed out.
 - **Fonts** are self-hosted from Fontsource (Bitter variable for display, IBM Plex Sans and
-  Mono), imported in `src/main.ts`; the families are design tokens.
+  Mono), imported in `src/main.ts`; the families are design tokens. `index.html` preloads one
+  file, Bitter's latin upright woff2 (variable, so every weight), for the hero headline; Vite
+  emits it once, at the hashed URL the stylesheet uses. `src/preload.test.ts` keeps the preload
+  pointed at the display family's file.
 - **Art** (`public/art/`, Bloodfen's generated pieces, used with permission; not covered by the
   code license) is listed in `src/content/art.ts`: the hero and its portrait for phones
   (`art-phone-src`), one scene per launch raid behind its ledger row (dimmed until the raids

@@ -623,7 +623,7 @@ const styles = css`
     font-weight: var(--font-weight-bold);
     font-size: var(--font-size-sm);
     text-decoration: none;
-    box-shadow: inset 0 1px 0 rgb(255 244 228 / 6%);
+    box-shadow: var(--shadow-edge);
   }
 
   /* Crisp, not glowing: a solid darker rim, a one-pixel highlight inside the top, and a
@@ -632,9 +632,7 @@ const styles = css`
     border-color: color-mix(in srgb, var(--button-primary-bg) 55%, black);
     background: var(--button-primary-bg);
     color: var(--button-primary-text);
-    box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 30%),
-      0 1px 0 rgb(0 0 0 / 45%);
+    box-shadow: var(--shadow-button);
   }
 
   .btn:hover {
@@ -683,9 +681,7 @@ const styles = css`
     border: var(--border-width-thin) solid var(--color-border-default);
     border-inline-start: var(--border-width-thick) solid var(--color-accent-primary);
     background: var(--color-surface-raised);
-    box-shadow:
-      inset 0 1px 0 rgb(255 244 228 / 6%),
-      0 14px 34px rgb(0 0 0 / 45%);
+    box-shadow: var(--shadow-raised);
   }
 
   .callout .big {
@@ -761,9 +757,7 @@ const styles = css`
     border-radius: 0.4rem;
     border: var(--border-width-thin) solid var(--color-border-default);
     background: var(--color-surface-raised);
-    box-shadow:
-      inset 0 1px 0 rgb(255 244 228 / 6%),
-      0 14px 34px rgb(0 0 0 / 45%);
+    box-shadow: var(--shadow-raised);
   }
 
   .note,
@@ -986,7 +980,7 @@ const styles = css`
     block-size: 1.75rem;
     border-radius: 0.3rem;
     border: var(--border-width-thin) solid color-mix(in srgb, var(--color-leather-900) 55%, transparent);
-    box-shadow: 0 1px 2px rgb(0 0 0 / 25%);
+    box-shadow: 0 1px 2px var(--color-shadow-soft);
   }
 
   .needs td {
@@ -1043,7 +1037,7 @@ const styles = css`
     grid-row: 1 / span 2;
     inline-size: 5rem;
     block-size: auto;
-    filter: drop-shadow(0 6px 10px rgb(0 0 0 / 45%));
+    filter: drop-shadow(0 6px 10px var(--color-shadow-strong));
   }
 
   .feed {

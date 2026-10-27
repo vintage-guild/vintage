@@ -102,6 +102,30 @@ describe('resolveNode inheritance', () => {
   });
 });
 
+describe('shadows', () => {
+  const lifted = node('lifted', 'dark', {
+    semantic: {
+      lift: {
+        $type: 'shadow',
+        $value: [
+          { inset: true, offsetX: '0', offsetY: '1px', blur: '0', color: '#ffffff0f' },
+          { offsetX: '0', offsetY: '8px', blur: '20px', color: '{color.text}' },
+        ],
+      },
+    },
+  });
+
+  it('follows each layer color alias to its literal in the theme that resolves it', () => {
+    const lift = resolveNode('lifted', { ...tree, lifted }).get('lift');
+    expect(lift?.alias).toBeUndefined();
+    // dark points color.text at color.paper.
+    expect(lift?.resolved).toEqual([
+      { inset: true, offsetX: '0', offsetY: '1px', blur: '0', color: '#ffffff0f' },
+      { offsetX: '0', offsetY: '8px', blur: '20px', color: '#eeeeee' },
+    ]);
+  });
+});
+
 describe('resolveNode errors', () => {
   const fails = (nodes: Record<string, TokenNodeFile>, name: string, message: RegExp) =>
     expect(() => resolveNode(name, nodes)).toThrowError(message);
@@ -123,6 +147,23 @@ describe('resolveNode errors', () => {
       global: { size: { $type: 'dimension', $value: '{color.ink}' } },
     });
     fails({ base, bad }, 'bad', /\(dimension\) references \{color\.ink\} \(color\)/);
+  });
+
+  it('rejects a shadow whose layer color is not a color, or a malformed layer', () => {
+    const layer = { offsetX: '0', offsetY: '1px', blur: '0' };
+    const dimension = node('bad', 'base', {
+      global: { size: { $type: 'dimension', $value: '1px' } },
+      semantic: { lift: { $type: 'shadow', $value: [{ ...layer, color: '{size}' }] } },
+    });
+    fails({ base, bad: dimension }, 'bad', /lift \(shadow\) references \{size\} \(dimension\)/);
+    const unknown = node('bad', 'base', {
+      semantic: { lift: { $type: 'shadow', $value: [{ ...layer, color: '{color.nope}' }] } },
+    });
+    fails({ base, bad: unknown }, 'bad', /unknown token \{color\.nope\}/);
+    for (const value of [[], [{ ...layer }], [{ ...layer, color: '#000000', blurr: '2px' }]]) {
+      const bad = node('bad', null, { semantic: { lift: { $type: 'shadow', $value: value } } });
+      expect(() => flattenNode(bad), JSON.stringify(value)).toThrowError(/invalid shadow/);
+    }
   });
 
   it('rejects an override that changes type or tier', () => {

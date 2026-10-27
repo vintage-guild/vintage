@@ -504,6 +504,77 @@ describe('vintage-raid-form', () => {
     expect(page).toContain('Dungeon · 5-player Scarlet Monastery');
   });
 
+  it('shows the size and kind it holds the first time it opens', async () => {
+    const el = await desk();
+    el.openRaid(null);
+    await settle();
+    const f = $<VintageRaidForm>(el, 'vintage-raid-form');
+    expect(f.shadowRoot?.querySelector<HTMLSelectElement>('#size')?.value).toBe('40');
+    expect(f.shadowRoot?.querySelector<HTMLSelectElement>('#kind')?.value).toBe('raid');
+    el.openSchedule({ ...SCHEDULE, kind: 'dungeon', size: 5 });
+    await settle();
+    const s = $<VintageScheduleForm>(el, 'vintage-schedule-form');
+    expect(s.shadowRoot?.querySelector<HTMLSelectElement>('#kind')?.value).toBe('dungeon');
+    expect(s.shadowRoot?.querySelector<HTMLSelectElement>('#size')?.value).toBe('5');
+  });
+
+  it('starts empty each time a one-off is opened', async () => {
+    useClient(() => ({ success: true, data: {} }));
+    const el = await desk();
+    el.openRaid(null);
+    await settle();
+    const f = $<VintageRaidForm>(el, 'vintage-raid-form');
+    Object.assign(f, {
+      name: 'Cathedral run',
+      instance: 'Scarlet Monastery',
+      durationMinutes: 120,
+      date: '2026-11-04',
+      time: '20:00',
+    });
+    f.shadowRoot?.querySelector('form')?.requestSubmit();
+    await vi.waitFor(() => expect($(el, 'vintage-raid-form')).toBeNull());
+    el.openRaid(null);
+    await settle();
+    const again = $<VintageRaidForm>(el, 'vintage-raid-form');
+    expect([again.name, again.instance, again.durationMinutes, again.date]).toEqual([
+      '',
+      '',
+      180,
+      '',
+    ]);
+  });
+
+  it('words the calendar, the adding, and the cancelling by kind', async () => {
+    useClient((_name, _input, token) =>
+      token ? { success: true, data: {} } : { success: true, data: { confirmToken: 't' } },
+    );
+    const dungeon = raid({ id: 'r2', kind: 'dungeon', size: 5, scheduleId: null });
+    const el = await desk({ raids: [raid(), dungeon] });
+    expect(text($(el, 'h2'))).toBe('2 events coming up');
+    expect(button(el, 'Add a one-off event')).toBeTruthy();
+    await el.save({ command: 'raid-create', input: { name: 'Cathedral run', kind: 'dungeon' } });
+    await settle();
+    expect(text($(el, '.status'))).toBe('Dungeon added and open for signups');
+    await el.cancel('r2');
+    await settle();
+    expect(button(el, 'Cancel the dungeon')).toBeTruthy();
+    expect(text($(el, '.confirm'))).toContain('A cancelled dungeon can’t be reopened.');
+  });
+
+  it('keeps calling them raids while everything coming up is a raid', async () => {
+    const gone = raid({ id: 'r2', kind: 'dungeon', size: 5, status: 'cancelled' });
+    const el = await desk({ raids: [raid(), gone] });
+    expect(text($(el, 'h2'))).toBe('1 raid coming up');
+  });
+
+  it('words the agent’s raid-create by kind too', async () => {
+    useClient(() => ({ success: true, data: {} }));
+    const el = await desk();
+    await el.createRaid({ name: 'Warsong', kind: 'battleground' });
+    await settle();
+    expect(text($(el, '.status'))).toBe('Battleground added and open for signups');
+  });
+
   it('shows an open event without a size, and its count without a cap', async () => {
     const open = raid({ id: 'r3', kind: 'other', size: null, instance: '', scheduleId: null });
     const el = await desk({ raids: [open] });

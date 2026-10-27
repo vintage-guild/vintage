@@ -4,7 +4,7 @@ import { CLASS_NAMES, type WowClass } from '@vintage/wow-data';
 import { getCommandClient } from '../client';
 import { titleCase } from '../labels';
 import { describeError, type ElementResult, toElementResult } from '../result';
-import { deskStyles } from './desk-styles';
+import { deskStyles, pageScaleStyles } from './desk-styles';
 
 /** The applicant's own application, as `application-get` answers it (no labels, no reviewer). */
 export interface OwnApplication {
@@ -235,6 +235,6 @@ if (!customElements.get('vintage-apply-form')) {
   await VintageApplyForm.define({
     name: 'vintage-apply-form',
     template,
-    styles: [deskStyles, styles],
+    styles: [deskStyles, pageScaleStyles, styles],
   });
 }

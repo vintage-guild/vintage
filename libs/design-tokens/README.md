@@ -65,6 +65,12 @@ The tests fail when:
 CSS keeps aliases live (`--card-bg: var(--color-surface-raised)`), so devtools show the tier
 chain. Components read only `var(--…)`; switching theme is setting `data-theme` on an ancestor.
 
+**Desk density.** The page scale (`space.*`, `font.size.md`) is sized for the public site. The
+officers' quarters is a working surface, so `component.desk` (`--desk-space-*`,
+`--desk-font-size*`, `--desk-control-*`) gives it a denser scale: `deskStyles` in ui-kit maps
+`--space-xs…lg` onto `--desk-space-*` inside every desk and sizes inputs, selects, and buttons
+to `--desk-control-height`, so a row of fields lines up.
+
 ```ts
 import { discordColor, tokenValue } from '@vintage/design-tokens';
 

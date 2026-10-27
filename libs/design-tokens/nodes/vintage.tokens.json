@@ -190,6 +190,31 @@
       "$description": "Two-tone logo (assets/brand/vintage-logo-two-tone.svg): map --vintage-logo-ink and --vintage-logo-paper to these.",
       "ink": { "$value": "{color.crimson.700}", "$description": "Tag and outline." },
       "paper": { "$value": "{color.gold.300}", "$description": "Letters and inner frame." }
+    },
+    "desk": {
+      "$type": "dimension",
+      "$description": "The officers' quarters: a working surface, denser than the public pages. The officers' desks (calendar, recruiting, guild profile, applications, Random) map the page spacing scale onto desk.space and size controls from desk.control, so forms and lists fit on screen.",
+      "space": {
+        "xs": { "$value": "0.375rem", "$description": "Label to control; inside lists." },
+        "sm": { "$value": "0.625rem", "$description": "Between fields and rows." },
+        "md": {
+          "$value": "0.875rem",
+          "$description": "Inside forms, fieldsets, and cards; between sections."
+        },
+        "lg": { "$value": "1.25rem", "$description": "Between a desk's major parts." }
+      },
+      "font": {
+        "size": { "$value": "{font.size.sm}", "$description": "Controls, rows, and buttons." },
+        "size-label": { "$value": "0.8125rem", "$description": "Field labels." }
+      },
+      "control": {
+        "height": {
+          "$value": "2rem",
+          "$description": "Inputs, selects, and buttons share one height so a row of fields lines up."
+        },
+        "pad-inline": { "$value": "0.5rem", "$description": "Text inset inside a control." },
+        "radius": { "$value": "0.3rem", "$description": "Control corners." }
+      }
     }
   }
 }

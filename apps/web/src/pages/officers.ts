@@ -327,13 +327,20 @@ const raidOption = (e: RaidEvent) =>
   `${formatWeekday(e.startsAt)} ${formatMonthDay(e.startsAt)} · ${e.name} (${e.size ?? 'open'})`;
 
 const styles = css`
+  /* A working room, not a landing page: a modest title and tight sections, so a desk's form and
+     its list fit on one screen. The desks inside use the desk scale (desk-styles.ts). */
   .page.wide {
     max-inline-size: 80rem;
+    gap: var(--desk-space-lg);
   }
 
   .head {
     display: grid;
     gap: 0.2rem;
+  }
+
+  .head h1 {
+    font-size: var(--font-size-xl);
   }
 
   .eyebrow {
@@ -347,16 +354,17 @@ const styles = css`
   .tabs {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--space-xs);
+    gap: var(--desk-space-xs);
     border-block-end: var(--border-width-thin) solid var(--color-border-default);
-    padding-block-end: var(--space-xs);
+    padding-block-end: var(--desk-space-xs);
   }
 
   .tab {
-    font: var(--font-weight-medium) var(--font-size-sm) var(--font-family-sans);
-    padding: 0.45rem 0.8rem;
+    min-block-size: var(--desk-control-height);
+    font: var(--font-weight-medium) var(--desk-font-size) var(--font-family-sans);
+    padding: 0 var(--desk-space-sm);
     border: 0;
-    border-radius: 0.35rem;
+    border-radius: var(--desk-control-radius);
     background: transparent;
     color: var(--color-text-secondary);
   }
@@ -381,9 +389,10 @@ const styles = css`
   }
 
   .picker select {
-    font: var(--font-size-sm) var(--font-family-sans);
-    padding: 0.35rem 0.5rem;
-    border-radius: 0.35rem;
+    block-size: var(--desk-control-height);
+    font: var(--desk-font-size) var(--font-family-sans);
+    padding: 0 var(--desk-control-pad-inline);
+    border-radius: var(--desk-control-radius);
     border: var(--border-width-thin) solid var(--color-border-strong);
     background: var(--color-surface-raised);
     color: var(--color-text-primary);

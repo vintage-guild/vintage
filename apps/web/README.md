@@ -89,7 +89,9 @@ pnpm --filter @vintage/web build   # dist/
   `PREVIEW_ONLY`, so nothing is saved while previewing.
 - **First paint** (`index.html`): a small inline style paints the theme's canvas and text and hides
   the header at its own height until its element is defined, so the inline logo never flashes
-  page-wide; `src/first-paint.test.ts` keeps those literal colors equal to the tokens.
+  page-wide; `src/first-paint.test.ts` keeps those literal colors equal to the tokens. The saved
+  theme and a 4-second reveal fallback run from `public/first-paint.js`, a blocking script in
+  `<head>` (not inline, because of the CSP below).
 - **Times** (`src/dates.ts`) always show their zone, in the member's profile zone when they
   have set one (`member-prefs-set timezone`), else the browser's. The hero's "8 pm ET" pill is
   the guild's stated time; the cards show the viewer's.
@@ -98,3 +100,12 @@ pnpm --filter @vintage/web build   # dist/
 - **Deployed** on Vercel as `vintage-web`: https://vintageguild.gg (www redirects to it; https://vintage-web-pi.vercel.app also serves it). `vercel.json`
   here sets the build and an SPA fallback, so deep links like `/officers` load the app. Every push
   to `main` deploys it, and each PR gets a preview (SETUP.md → Deployments).
+- **Security headers** (`vercel.json`, every path): a Content-Security-Policy, `nosniff`, and
+  `strict-origin-when-cross-origin` referrers. The session token sits in localStorage, so the CSP
+  is what keeps an injected script from taking it: scripts only from this origin (no inline
+  script anywhere, `index.html` included), connections only to the production Convex deployment
+  (`https`/`wss` on `.convex.cloud`, `https` on `.convex.site`), images from this origin, Discord's
+  avatar CDN, and the Wowhead class icons, and no framing. Styles allow `'unsafe-inline'`
+  because the elements bind `style` attributes. A new third-party origin, or a deploy pointed at
+  another Convex deployment with `VITE_CONVEX_URL`, needs the policy updated too;
+  `src/security-headers.test.ts` checks it against `PROD_CONVEX_URL`.

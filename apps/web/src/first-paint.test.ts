@@ -42,9 +42,12 @@ describe('first paint', () => {
 describe('first reveal', () => {
   it('keeps the page transparent until data-ready, with a fallback that never waits forever', () => {
     expect(html).toContain('html:not([data-ready]) body > :not(script) { opacity: 0; }');
-    // The head sets data-ready on its own after 4s, independent of the app script.
-    expect(html).toMatch(
-      /setTimeout\(\(\) => \{ document\.documentElement\.dataset\.ready = ''; \}, 4000\);/,
+    // The head sets data-ready on its own after 4s, independent of the app script: a classic
+    // (blocking) script loaded before the app's module.
+    expect(html).toMatch(/<script src="\/first-paint\.js"><\/script>\s*<script type="module"/);
+    const firstPaint = readFileSync(new URL('../public/first-paint.js', import.meta.url), 'utf8');
+    expect(firstPaint).toMatch(
+      /setTimeout\(\(\) => \{\s*document\.documentElement\.dataset\.ready = '';\s*\}, 4000\);/,
     );
   });
 

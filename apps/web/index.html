@@ -27,17 +27,9 @@
       html:not([data-ready]) body > :not(script) { opacity: 0; }
       @media (prefers-reduced-motion: reduce) { body > :not(script) { transition: none; } }
     </style>
-    <script>
-      // Apply the saved theme before first paint (src/theme.ts owns the key and values).
-      try {
-        const saved = localStorage.getItem('vintage-theme');
-        if (saved === 'vintage-dark' || saved === 'vintage-parchment') {
-          document.documentElement.dataset.theme = saved;
-        }
-      } catch {}
-      // Whatever happens to the app script, never leave the page hidden for long.
-      setTimeout(() => { document.documentElement.dataset.ready = ''; }, 4000);
-    </script>
+    <!-- The saved theme and the reveal fallback, before first paint. A file, not inline: the CSP
+         (vercel.json) runs only our own scripts. -->
+    <script src="/first-paint.js"></script>
     <script type="module" src="/src/main.ts"></script>
   </head>
   <body>

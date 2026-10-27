@@ -23,7 +23,9 @@ commands). Everything runs serverless: no always-on gateway process.
 
 - **Verify before parsing.** The endpoint checks `X-Signature-Ed25519` over timestamp + raw body
   first and answers 401 on failure. Discord probes with bad signatures and removes the URL if it
-  ever accepts one. Never parse or route an unverified body.
+  ever accepts one. Never parse or route an unverified body. A signed timestamp more than 5
+  minutes from now (either way) also fails, so a captured request can't be replayed; tests pass
+  `now` to `verifyInteraction` / `createInteractionHandler` and sign with that clock.
 - **Answer within 3 seconds.** Anything slower returns a deferred response (type 5, or 6 for
   component updates) and finishes through the interaction token (valid 15 minutes).
 - **Help follows the definitions.** `/random help` and `/random <group> help` render in Convex
@@ -51,7 +53,8 @@ commands). Everything runs serverless: no always-on gateway process.
   `commands:runAsSystem` (internal; needs deployment access), preview then confirm. SETUP.md
   "First role map" has the steps.
 - **Rate limits.** Use the discord-kit REST client (or the same pattern): honor `retry_after` on
-  429, bounded retries, and never log the token.
+  429, bounded retries, and never log the token. `DiscordRestError` already replaces an
+  interaction token in its path and message with `:token`; keep it that way for any new route.
 - **Guards against self-harm.** Role sync refuses an empty member list when members are known
   (otherwise everyone would be marked departed); `guild-roles-set` refuses a map with no officer
   role (otherwise officers lock themselves out). Keep guards like these when changing either.

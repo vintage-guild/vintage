@@ -58,15 +58,28 @@ export interface ScheduledEventData {
 /** Discord's error code when a scheduled event no longer exists (deleted in the app). */
 export const UNKNOWN_SCHEDULED_EVENT = 10070;
 
+/**
+ * `path` with any interaction token replaced by `:token`. The token lets anyone post as the app
+ * for 15 minutes, so it must never reach an error message or a log line.
+ */
+function redactPath(path: string): string {
+  return path.replace(/^(\/webhooks\/[^/]+\/)[^/?]+/, '$1:token');
+}
+
 export class DiscordRestError extends Error {
+  /** The request path, with any interaction token redacted. */
+  readonly path: string;
+
   constructor(
     readonly method: string,
-    readonly path: string,
+    path: string,
     readonly status: number,
     readonly body: unknown,
   ) {
-    super(`Discord ${method} ${path} failed with ${status}${describe(body)}`);
+    const safePath = redactPath(path);
+    super(`Discord ${method} ${safePath} failed with ${status}${describe(body)}`);
     this.name = 'DiscordRestError';
+    this.path = safePath;
   }
 
   /** Discord's JSON error code, when the body carried one. */

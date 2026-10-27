@@ -109,6 +109,7 @@ describe('routing helpers', async () => {
   it('opens the tab named in ?tab=, only when it is built', () => {
     expect(tabFromUrl('?tab=polls')).toBe('polls');
     expect(tabFromUrl('?tab=calendar')).toBe('calendar');
+    expect(tabFromUrl('?tab=coordinator')).toBe('coordinator');
     expect(tabFromUrl('?tab=progress')).toBe('tonight');
     expect(tabFromUrl('')).toBe('tonight');
   });

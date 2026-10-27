@@ -7,12 +7,16 @@ import {
   volatile,
   when,
 } from '@lushly-dev/fast-element';
+import type { CoordinatorAction } from '@vintage/coordinator/contract';
 import { type Tier, tierAllows } from '@vintage/guild-kit';
 import type { RaidEvent, Schedule, Signup } from '@vintage/raids/contract';
 import type { GuildProfile, Recruiting } from '@vintage/site/contract';
 import {
   type CalendarRaid,
   type CalendarSchedule,
+  type CoordinatorDeskConfig,
+  type CoordinatorDeskEntry,
+  type CoordinatorDeskRaid,
   getCommandClient,
   type PollsDeskPoll,
   type PollsDeskResults,
@@ -29,12 +33,12 @@ const AHEAD_MS = 30 * 86_400_000;
 
 /**
  * The quarters' tabs, by job rather than by module (docs/features/active/role-aware-views).
- * Tonight is built; the rest list what they will hold and stay disabled until they are.
+ * A tab not built yet lists what it will hold and stays disabled until it is.
  */
 const TABS = [
   { id: 'tonight', label: 'Tonight', ready: true, hint: '' },
   { id: 'calendar', label: 'Calendar', ready: true, hint: '' },
-  { id: 'coordinator', label: 'Coordinator', ready: false, hint: 'status, settings, the log' },
+  { id: 'coordinator', label: 'Random', ready: true, hint: '' },
   { id: 'roster', label: 'Roster', ready: false, hint: 'ranks, sync, recruits on trial' },
   { id: 'guild', label: 'Guild', ready: true, hint: '' },
   { id: 'recruiting', label: 'Recruiting', ready: true, hint: '' },
@@ -97,6 +101,31 @@ export function calendarSchedule(s: Schedule): CalendarSchedule {
     durationMinutes: s.durationMinutes,
     timings: { ...s.timings, reminderHours: [...s.timings.reminderHours] },
     active: s.active,
+  };
+}
+
+/** How far back the Random tab reads its log: the raids of the last week, after they started. */
+const LOG_BEHIND_MS = 7 * 86_400_000;
+
+/** `coordinator-status` as the Random tab reads it. */
+interface CoordinatorStatus {
+  config: CoordinatorDeskConfig;
+  upcoming: CoordinatorDeskRaid[];
+}
+
+/** A `coordinator-log` row as the Random tab's log reads it. */
+export function coordinatorEntry(
+  action: CoordinatorAction,
+  raidName: string,
+): CoordinatorDeskEntry {
+  return {
+    id: action.id,
+    eventId: action.eventId,
+    raidName,
+    rule: action.rule,
+    status: action.status,
+    detail: action.detail,
+    at: action.finishedAt ?? action.claimedAt,
   };
 }
 
@@ -172,13 +201,30 @@ const template = html<Page>`
           html<Page>`
             <vintage-calendar-desk
               time-zone="${() => preferredTimeZone() ?? ''}"
-              ?can-edit="${(x) => x.canEditCalendar}"
+              ?can-edit="${(x) => x.canLead}"
               ?loading="${(x) => !x.calendarLoaded}"
               error="${(x) => x.calendarError}"
               :raids="${(x) => x.calendarRaids}"
               :schedules="${(x) => x.calendarSchedules}"
               @calendar-changed="${(x) => x.loadCalendar()}"
             ></vintage-calendar-desk>
+          `,
+        )}
+
+        ${when(
+          (x) => x.tab === 'coordinator',
+          html<Page>`
+            <vintage-coordinator-desk
+              time-zone="${() => preferredTimeZone() ?? ''}"
+              ?can-act="${(x) => x.canLead}"
+              ?can-configure="${(x) => x.canEditRecruiting}"
+              ?loading="${(x) => !x.coordinatorLoaded}"
+              error="${(x) => x.coordinatorError}"
+              :config="${(x) => x.coordinatorConfig}"
+              :upcoming="${(x) => x.coordinatorUpcoming}"
+              :entries="${(x) => x.coordinatorEntries}"
+              @coordinator-changed="${(x) => x.loadCoordinator()}"
+            ></vintage-coordinator-desk>
           `,
         )}
 
@@ -338,7 +384,8 @@ const styles = css`
  * to show the room; every action inside is a command that checks its own tier, so an under-tier
  * caller who got here would be refused anyway. Tonight reads `raid-list`, `signup-list`,
  * `comp-suggest`, and `coordinator-status`; Polls reads `poll-list` and `poll-results`;
- * Recruiting reads `recruiting-get` and saves with `recruiting-set`; Guild reads
+ * Random reads `coordinator-status` and `coordinator-log` and runs the coordinator's leader
+ * commands; Recruiting reads `recruiting-get` and saves with `recruiting-set`; Guild reads
  * `guild-profile-get` and saves with `guild-profile-set` (both officers only to save).
  */
 export class Page extends FASTElement {
@@ -366,11 +413,21 @@ export class Page extends FASTElement {
   @observable calendarLoaded = false;
   /** Bumped per calendar read, so a slow earlier read never lands over a newer one. */
   private calendarRead = 0;
-  /** Every calendar command is leader tier; a preview below that reads it without the buttons. */
-  readonly canEditCalendar = tierAllows((currentSession()?.tier ?? 'public') as Tier, 'leader');
+  @observable coordinatorConfig: CoordinatorDeskConfig | null = null;
+  @observable coordinatorUpcoming: CoordinatorDeskRaid[] = [];
+  @observable coordinatorEntries: CoordinatorDeskEntry[] = [];
+  @observable coordinatorError = '';
+  @observable coordinatorLoaded = false;
+  /** Bumped per Random read, as the calendar's is. */
+  private coordinatorRead = 0;
   /**
-   * `recruiting-set` and `guild-profile-set` are officer tier; raid leaders read the band and
-   * the profile here but can't save them.
+   * Every calendar command is leader tier, as are Random's pause, resume, run, and repost; a
+   * preview below that reads them without the buttons.
+   */
+  readonly canLead = tierAllows((currentSession()?.tier ?? 'public') as Tier, 'leader');
+  /**
+   * `recruiting-set`, `guild-profile-set`, and `coordinator-config-set` are officer tier; raid
+   * leaders read the band, the profile, and Random's settings here but can't save them.
    */
   readonly canEditRecruiting = tierAllows((currentSession()?.tier ?? 'public') as Tier, 'officer');
 
@@ -390,6 +447,7 @@ export class Page extends FASTElement {
     if (this.tab === 'recruiting') void this.loadRecruiting();
     if (this.tab === 'guild') void this.loadProfile();
     if (this.tab === 'calendar') void this.loadCalendar();
+    if (this.tab === 'coordinator') void this.loadCoordinator();
   }
 
   /** Switch tabs and keep the choice in the address, so `/officers?tab=polls` links work. */
@@ -404,6 +462,7 @@ export class Page extends FASTElement {
     if (id === 'recruiting') void this.loadRecruiting();
     if (id === 'guild') void this.loadProfile();
     if (id === 'calendar') void this.loadCalendar();
+    if (id === 'coordinator') void this.loadCoordinator();
   }
 
   /**
@@ -431,6 +490,51 @@ export class Page extends FASTElement {
       if (schedules.success) this.calendarSchedules = (schedules.data ?? []).map(calendarSchedule);
     } finally {
       this.calendarLoaded = true;
+    }
+  }
+
+  /**
+   * Random's status and settings from `coordinator-status`, and its log for the upcoming raids
+   * and the last week's (a raid leaves `upcoming` once it starts, but its final roster is
+   * worth reading after). Only the latest read is kept.
+   */
+  async loadCoordinator(): Promise<void> {
+    const client = getCommandClient();
+    const now = Date.now();
+    const read = ++this.coordinatorRead;
+    try {
+      const [status, recent] = await Promise.all([
+        client.read<CoordinatorStatus>('coordinator-status', {}),
+        client.read<RaidRow[]>('raid-list', {
+          from: now - LOG_BEHIND_MS,
+          to: now,
+          statuses: ['open', 'locked', 'cancelled', 'completed'],
+        }),
+      ]);
+      if (read !== this.coordinatorRead) return;
+      if (!status.success || !status.data) {
+        this.coordinatorError = `Couldn’t ask Random how it’s doing: ${status.error?.message ?? 'the server didn’t answer'}.`;
+        return;
+      }
+      const raids = new Map<string, string>(status.data.upcoming.map((u) => [u.eventId, u.name]));
+      for (const r of recent.success ? (recent.data ?? []) : [])
+        raids.set(r.event.id, r.event.name);
+      const logs = await Promise.all(
+        [...raids].map(async ([eventId, name]) => {
+          const log = await client.read<CoordinatorAction[]>('coordinator-log', {
+            eventId,
+            limit: 50,
+          });
+          return (log.success ? (log.data ?? []) : []).map((a) => coordinatorEntry(a, name));
+        }),
+      );
+      if (read !== this.coordinatorRead) return;
+      this.coordinatorError = '';
+      this.coordinatorConfig = status.data.config;
+      this.coordinatorUpcoming = status.data.upcoming;
+      this.coordinatorEntries = logs.flat();
+    } finally {
+      if (read === this.coordinatorRead) this.coordinatorLoaded = true;
     }
   }
 

@@ -88,7 +88,7 @@ marked **new**.
 |---|---|---|---|
 | **Tonight** | The digest in web form for the next raid: signups by role, comp gaps with reasons, non-responders by name, the queue, late and tentative with notes | Lock and unlock the roster; bench, move, remove; copy the addon import string | `raid-get`, `signup-list`, `comp-suggest`, `roster-lock`, `roster-unlock`, `roster-bench`, `roster-move`, `roster-remove` |
 | **Calendar** | Schedules and one-off raids: an agenda by day (or a month table), the last month folded under Earlier | Add a one-off, move, cancel (preview, then confirm), mark done; add or edit a schedule, pause or resume it, create raids now | `raid-list`, `raid-create`, `raid-reschedule`, `raid-cancel`, `raid-complete`, `schedule-list`, `schedule-create`, `schedule-update`, `schedule-materialize` |
-| **Coordinator** | Status, the channels and expected ranks, DM reminders on or off, and the action log across all raids with the "why" per entry | Pause, resume, run a tick, repost; edit the config (`officer`) | `coordinator-status`, `coordinator-log`, `coordinator-pause`, `coordinator-resume`, `coordinator-run`, `coordinator-repost`, `coordinator-config-set` |
+| **Random** (the coordinator) | Running, paused, or not set up; per upcoming raid what it did, what is due, and who it is still chasing; Random's log for the upcoming raids and the last week's with the "why" per entry; the channels, expected ranks, and DM reminders | Pause, resume, run a check, replace a signup post; edit the settings (`officer`) | `coordinator-status`, `coordinator-log`, `coordinator-pause`, `coordinator-resume`, `coordinator-run`, `coordinator-repost`, `coordinator-config-set` |
 | **Roster** | Members with rank and tier, last sync, who has no character yet, recruits on trial with their start date | Sync from Discord; edit the role-to-rank map (`officer`) | `member-list`, `member-sync`, `guild-roles-get`, `guild-roles-set`; trial start date **new** (identity records when a member became `recruit`) |
 | **Recruiting** | The open roles and the pitch the public band shows | Edit them | `site` module: `recruiting-get` (public) and `recruiting-set` (`officer`); leaders see the tab read-only |
 | **Polls** | Open and closed polls with results | Open, close, cancel, sweep | `poll-list`, `poll-results`, `poll-open`, `poll-close`, `poll-cancel`, `poll-sweep` |
@@ -156,6 +156,7 @@ New jobs for [docs/jtbd](../../../jtbd/README.md), each as a scenario test and a
 | 2026-10-26 | Every value on the public pages is real data or officer-set: the hero's facts and intro, the About page, the Discord invite, and the legal contact are the site module's guild profile (Guild tab); the calendar's raid nights and signup timings come from `schedule-list`. Launch and unlock dates and boss names stay as game facts. |
 | 2026-10-26 | Leaders and officers get "Preview as" on the live site (`src/preview.ts`): the page composes for a lower tier, reads above it answer `COMMAND_NOT_FOUND` from the manifest's tiers, and every action answers `PREVIEW_ONLY`. Reads within the tier still return the officer's own data (their characters and answers). The dev-only fixture switch stays for building without sign-in. |
 | 2026-10-26 | The Calendar tab leads with an agenda by day, with a month view as a plain `<table>` beside it (not an ARIA grid: at two or three raids a week the raids are ordinary buttons and empty days aren't tab stops). Times are in the viewer's zone with the guild's clock alongside; the week the US and Europe change clocks on different dates gets a note. Edits are scoped the way the commands are: a raid on its own (`raid-reschedule`, `raid-cancel`), or the schedule, which changes raids not yet created; no "this and following". Storybook was tried for building it and dropped: the `/ui` gallery and happy-dom tests cover the states without 70-odd new packages. |
+| 2026-10-27 | The Coordinator tab is **Random**, the bot's name in Discord and on the home page ("From Random Raven"), and its log is "Random's log"; the code keeps `coordinator`. The log asks `coordinator-log` once per raid (the upcoming ones and the last week's, since a raid leaves `coordinator-status` when it starts), so no all-raids command was needed. Channels are typed as ids: nothing lists the server's channels yet. |
 | 2026-10-26 | The site module's commands are `recruiting-get` / `recruiting-set`, not `site-recruiting-*`: names say the noun, as `progress-get` and `kill-record` do, not the module. Until an officer saves, `recruiting-get` answers the copy the site shipped with. |
 
 ## Open questions
@@ -167,8 +168,9 @@ New jobs for [docs/jtbd](../../../jtbd/README.md), each as a scenario test and a
    the quarters has the full picture.
 3. Trial length for recruits (the roster tab's clock). The band says "about two weeks"; the GM
    should confirm (vintage-guild/vintage#30).
-4. Whether `raid-leader` rank should see the Coordinator tab's config items. Proposed: no; config
-   is `officer` tier in the manifest already, and the tab hides what the tier can't run.
+4. ~~Whether `raid-leader` rank should see the Coordinator tab's config items.~~ Settled
+   2026-10-27: leaders see Random's settings read-only and run everything else; saving is
+   `officer` tier.
 
 ## Build log
 
@@ -256,7 +258,8 @@ it public would let recruits see the scoreboard (a command change).
 - [x] `/officers` route, tier guard, Tonight tab (digest, non-responders, roster controls, import string)
 - [x] Polls tab: open and closed polls with results, open, close and cancel with confirm, the sweep (#63)
 - [x] Calendar tab (`vintage-calendar-desk`, `vintage-raid-month`, the schedule and raid forms); J24
-- [ ] Coordinator, Progress tabs
+- [x] Random tab, the coordinator (`vintage-coordinator-desk`)
+- [ ] Progress tab
 - [x] `site` module: `recruiting-get` / `recruiting-set`, Recruiting tab (`vintage-recruiting-desk`), band reads it
 - [ ] Trial start date on identity; Roster tab
 - [ ] J19, J20 in `docs/jtbd` and `apps/api/tests/jtbd` (J21 done: `docs/jtbd/recruiting.md`)

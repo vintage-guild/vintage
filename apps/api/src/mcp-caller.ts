@@ -70,7 +70,10 @@ export async function mcpCaller(
   if (!token) return { refused: 'missing' };
   const stored = await ports.accessToken(await hashToken(token));
   if (!stored) return { refused: 'unknown' };
-  if (stored.expiresAt <= ports.now()) return { refused: 'expired' };
+  // No expiry counts as expired, as in the provider's own check.
+  if (typeof stored.expiresAt !== 'number' || stored.expiresAt <= ports.now()) {
+    return { refused: 'expired' };
+  }
   const client = await ports.client(stored.clientId);
   if (!client || client.disabled) return { refused: 'client' };
   if (!stored.scopes.includes(MCP_SCOPE)) return { refused: 'scope' };

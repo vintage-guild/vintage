@@ -13,14 +13,12 @@
 // The Better Auth component is installed locally (convex/betterAuth): after changing options that
 // add tables, run `pnpm --filter @vintage/api auth:schema`.
 
-import { oauthProvider } from '@better-auth/oauth-provider';
 import { type AuthFunctions, createClient, type GenericCtx } from '@convex-dev/better-auth';
 import { convex, crossDomain } from '@convex-dev/better-auth/plugins';
 import { type BetterAuthOptions, betterAuth } from 'better-auth';
-import { APIError, createAuthMiddleware } from 'better-auth/api';
 import { v } from 'convex/values';
 import { fetchGuildMember } from '../src/discord-directory';
-import { allowedResource, hashToken, MCP_SCOPE } from '../src/mcp-caller';
+import { oauthBeforeHook, oauthPlugins } from '../src/oauth-server';
 import { type SignInSync, syncOnSignIn } from '../src/sign-in';
 import { DISCORD_ID_CLAIM } from '../src/web-caller';
 import { components, internal } from './_generated/api';
@@ -42,6 +40,19 @@ export const siteOrigins = () => [
     .map((origin) => origin.trim())
     .filter(Boolean),
 ];
+
+/** Where a sign-in callback may land: the site's origins, and this auth server's own pages. */
+const callbackOrigins = () => {
+  const origins = siteOrigins().map((url) => new URL(url).origin);
+  const self = process.env.CONVEX_SITE_URL;
+  return self ? [...origins, new URL(self).origin] : origins;
+};
+
+const oauthServerOptions = () => ({
+  siteUrl: siteUrl(),
+  mcpUrl: mcpUrl(),
+  callbackOrigins: callbackOrigins(),
+});
 
 /** A Discord account was linked or signed in again: sync the member right away. */
 async function afterSignIn(ctx: MutationCtx, account: { providerId: string; accountId: string }) {
@@ -86,17 +97,9 @@ export const createAuthOptions = (ctx: GenericCtx<DataModel>) =>
   ({
     baseURL: process.env.CONVEX_SITE_URL,
     secret: process.env.BETTER_AUTH_SECRET,
-    hooks: {
-      // Refuse an OAuth authorization for any resource but /mcp up front (src/mcp-caller.ts).
-      before: createAuthMiddleware(async (hook) => {
-        if (hook.path !== '/oauth2/authorize') return;
-        if (allowedResource(hook.query?.resource, [mcpUrl()])) return;
-        throw new APIError('BAD_REQUEST', {
-          error: 'invalid_target',
-          error_description: `This server only issues tokens for ${mcpUrl()}`,
-        });
-      }),
-    },
+    // Guards for the OAuth server (src/oauth-server.ts): sign-in never carries an authorization,
+    // and only /mcp may be requested.
+    hooks: { before: oauthBeforeHook(oauthServerOptions()) },
     trustedOrigins: siteOrigins(),
     database: authComponent.adapter(ctx),
     socialProviders: {
@@ -114,23 +117,9 @@ export const createAuthOptions = (ctx: GenericCtx<DataModel>) =>
       },
     },
     plugins: [
-      // OAuth 2.1 for MCP clients (#9). A client registers itself, the member signs in on the site
-      // and consents, and the token only works at /mcp (the one valid audience). Tokens are
-      // opaque: the convex plugin below owns JWT signing, and the provider can't share it.
-      oauthProvider({
-        loginPage: `${siteUrl()}/oauth/sign-in`,
-        consentPage: `${siteUrl()}/oauth/consent`,
-        validAudiences: [mcpUrl()],
-        scopes: [MCP_SCOPE, 'offline_access'],
-        clientRegistrationDefaultScopes: [MCP_SCOPE, 'offline_access'],
-        grantTypes: ['authorization_code', 'refresh_token'],
-        // MCP clients register themselves without an account (RFC 7591). Registering grants
-        // nothing: a member still has to sign in and consent, and tiers still apply.
-        allowDynamicClientRegistration: true,
-        allowUnauthenticatedClientRegistration: true,
-        disableJwtPlugin: true,
-        storeTokens: { hash: hashToken },
-      }),
+      // OAuth 2.1 for MCP clients (#9), then the callback guard. Order matters: both must come
+      // before crossDomain, whose callback hook appends the session's one-time token.
+      ...oauthPlugins(oauthServerOptions()),
       crossDomain({ siteUrl: siteUrl() }),
       convex({
         authConfig,

@@ -51,8 +51,9 @@ await vintage.oauth.consent(true); // consent page: approve (or false to deny), 
 ```
 
 Don't change the query on those pages: its signature covers every parameter. The helpers pass it
-back as `oauth_query` explicitly, and never attach it to sign-in, which keeps Better Auth from
-finishing the authorization during the Discord callback.
+back as `oauth_query` only to `continue` and `consent`. That's also the only place the server
+accepts it: a sign-in carrying it is refused (`apps/api/src/oauth-server.ts`), so don't add Better
+Auth's own `oauthProviderClient` plugin, which attaches it to every request.
 
 The server side is `apps/api/convex/auth.ts`; the setup steps (Discord redirect URI, Convex env,
 MCP clients) are in `SETUP.md` → Website sign-in.

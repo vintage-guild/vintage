@@ -91,6 +91,9 @@ describe('mcpCaller', () => {
     expect(await mcpCaller(TEST_GUILD_ID, 'other', p)).toEqual({ refused: 'unknown' });
     const expired = await ports('tok', { expiresAt: NOW });
     expect(await mcpCaller(TEST_GUILD_ID, 'tok', expired)).toEqual({ refused: 'expired' });
+    // The schema makes expiresAt optional; a row without one is not valid forever.
+    const noExpiry = await ports('tok', { expiresAt: undefined as unknown as number });
+    expect(await mcpCaller(TEST_GUILD_ID, 'tok', noExpiry)).toEqual({ refused: 'expired' });
   });
 
   it('refuses tokens from a disabled or deleted client', async () => {

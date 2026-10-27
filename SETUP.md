@@ -213,8 +213,12 @@ sign in but stays public. The variables, all in the Convex env and never in the 
 Better Auth also runs an OAuth 2.1 server for MCP clients like Claude and Codex (#9), using
 `@better-auth/oauth-provider`:
 
-1. A client registers itself at `/api/auth/oauth2/register`. Registration is open, as MCP expects,
-   but grants nothing on its own.
+1. A client registers itself at `/api/auth/oauth2/register`. Registration is open, as MCP expects.
+   Because anyone can register a client and start a sign-in, the server refuses any sign-in that
+   carries an authorization (`additionalData` or `oauth_query`). It also never lets a sign-in
+   callback redirect off the site, which is where the session's one-time token is added. Both
+   guards are in `apps/api/src/oauth-server.ts`, with the attack they stop in
+   `apps/api/tests/oauth-server.test.ts`.
 2. The member signs in on the site's `/oauth/sign-in` page and approves on `/oauth/consent`.
 3. The client gets a token that only works at `/mcp`. Scopes are `commands` and `offline_access`.
    Commands run with the member's own tier.

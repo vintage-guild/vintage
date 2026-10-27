@@ -1,9 +1,9 @@
 // The website's half of OAuth for MCP clients (#9). When Claude or another MCP client asks a
 // member to connect, Better Auth sends the browser to the site's sign-in page, then to its consent
-// page, each with a signed query. These helpers read that query and pass it back explicitly. They
-// never attach it to sign-in requests: a sign-in carrying it would make Better Auth finish the
-// authorization during the Discord callback, where the cross-domain plugin also adds a session
-// token to the redirect.
+// page, each with a signed query. These helpers read that query and pass it back explicitly, to
+// /oauth2/continue and /oauth2/consent only. Those are the only endpoints the server accepts it
+// on (apps/api/src/oauth-server.ts): a sign-in carrying an authorization is refused, because the
+// Discord callback would otherwise finish it with the session's one-time token attached.
 
 /** An OAuth authorization waiting on this page. */
 export interface PendingAuthorization {

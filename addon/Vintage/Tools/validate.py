@@ -11,6 +11,7 @@ No packages are installed and no release files are written.
 import argparse
 import fnmatch
 import json
+import os
 from pathlib import Path, PurePosixPath
 import re
 import shutil
@@ -50,6 +51,12 @@ PINNED_LIBRARIES = {
     "Libs/FenCore/Core/FenCore.lua": '"FenCore", 1',
     "Libs/FenUI/Core/FenUI.lua": 'FenUI.VERSION = "3.0.0"',
 }
+
+
+def sibling(root, relative):
+    """A path beside the addon in the monorepo, with .. resolved as text: a missing folder on the
+    way must not change the answer (Windows normalizes lexically, Linux walks real folders)."""
+    return Path(os.path.normpath(root / relative))
 
 
 def read(root, name):
@@ -283,7 +290,7 @@ def check_libraries(root, pinned=None):
 
 def check_theme(root):
     """The shipped theme matches libs/design-tokens' generated file (pnpm tokens:build)."""
-    source = root / REPO_THEME
+    source = sibling(root, REPO_THEME)
     if not source.is_file():
         return []  # a standalone copy of the addon, outside the monorepo
     if not (root / ADDON_THEME).is_file():
@@ -370,7 +377,7 @@ def render_bridge_fixtures(fixtures_dir):
 
 
 def check_bridge_fixtures(root):
-    expected = render_bridge_fixtures(root / REPO_FIXTURES)
+    expected = render_bridge_fixtures(sibling(root, REPO_FIXTURES))
     if expected is None:
         return []
     target = root / ADDON_FIXTURES
@@ -381,7 +388,7 @@ def check_bridge_fixtures(root):
 
 
 def write_bridge_fixtures(root):
-    text = render_bridge_fixtures(root / REPO_FIXTURES)
+    text = render_bridge_fixtures(sibling(root, REPO_FIXTURES))
     if text is None:
         raise RuntimeError("libs/bridge-format/fixtures not found; run this from the monorepo")
     target = root / ADDON_FIXTURES

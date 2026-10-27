@@ -3,9 +3,11 @@
 // main.ts in dev only; production waits on sign-in (#7) and the Convex client.
 import { publicCaller } from '@vintage/guild-kit';
 import { setCommandClient } from '@vintage/ui-kit';
+import { setOAuth } from '../oauth';
 import { type Session, setSession } from '../session';
 import { FIXTURE_TIMEZONE } from './data';
 import { createFixtureHost, createHostClient, type FixtureHost } from './host';
+import { fixtureOAuth } from './oauth';
 import { DEFAULT_PERSONA, FIXTURE_PERSONAS, type FixturePersona } from './persona';
 import { seedFixtures } from './seed';
 
@@ -29,12 +31,16 @@ export function placeholderAvatar(displayName: string): string {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
-/** Seed the example guild and point the command client and session at the persona. */
+/**
+ * Seed the example guild, point the command client and session at the persona, and stand in for
+ * `vintage.oauth` (./oauth.ts).
+ */
 export async function installFixtures(
   persona: FixturePersona = DEFAULT_PERSONA,
 ): Promise<InstalledFixtures> {
   const host = createFixtureHost();
   await seedFixtures(host);
+  setOAuth(fixtureOAuth());
   const name = FIXTURE_PERSONAS[persona];
   if (!name) {
     setCommandClient(createHostClient(host, publicCaller(host.guildId)));

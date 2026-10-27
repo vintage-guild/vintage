@@ -18,6 +18,8 @@ pnpm --filter @vintage/web build   # dist/
 | `/privacy` | What the site keeps, why, and how to have it removed (`pages/privacy.ts`); keep it true when a module stores something new |
 | `/terms` | Ground rules, the Blizzard non-affiliation notice (`pages/terms.ts`); `content/legal.ts` holds the updated date |
 | `/officers` | The officers' quarters, for leaders and officers (others get a sign-in card or a note): the Tonight tab (`vintage-tonight`) over `raid-list`, `signup-list`, `comp-suggest`, `coordinator-status`, the roster commands, and `addon-import-get`; the Calendar tab (`vintage-calendar-desk`, `?tab=calendar`) over `raid-list` (a month back, two ahead, every status) and `schedule-list`, with one-offs, moves, cancel (preview, then confirm), done, and schedules added, edited, paused, and created now; the Random tab (`vintage-coordinator-desk`, `?tab=coordinator`) over `coordinator-status` and `coordinator-log` (upcoming raids and the last week's), with pause, resume, run a check, replace a signup post, and the settings (officers save; leaders read them); the Polls tab (`vintage-polls-desk`, `?tab=polls`) over `poll-list` and `poll-results`, with open, close and cancel (preview, then confirm) and the sweep; the Recruiting tab (`vintage-recruiting-desk`, `?tab=recruiting`) over `recruiting-get`, saving with `recruiting-set` (officers; leaders read it); the Guild tab (`vintage-guild-profile-desk`, `?tab=guild`) over `guild-profile-get`, saving with `guild-profile-set`; the Progress tab (`vintage-progress-desk`, `?tab=progress`) over `progress-get`, recording with `kill-record` (closed until the raids unlock); the Roster tab (`vintage-roster-desk`, `?tab=roster`) over `member-list` and `guild-roles-get`, saving the role map with `guild-roles-set` (officers; preview, then confirm) |
+| `/oauth/sign-in` | Connecting an MCP client (Claude, Codex; #9): Better Auth sends the member here with a signed query (`vintage.oauth` from `@vintage/web-session`). Signed out, the sign-in card starts Discord sign-in, which comes back with the query intact; signed in, "Continue as <name>" (`oauth.continue()`, only on click) goes to consent, or straight back to the app if they approved it before, with "Not you? Sign out". No pending query: a note to start from the app. Errors say to start again from the app |
+| `/oauth/consent` | The app's self-declared name from `oauth.client()` ("An app" without one, never styled as verified), what each scope allows (`commands`: run commands as you at your rank; `offline_access`: stay connected), where the answer goes (the host of the signed `redirect_uri`, or "an app on this computer" for loopback: the part an impostor can't disguise), and Approve / Deny (`oauth.consent()`), each back to the app. Signed out: the sign-in card, and no read. The app's name is the only read before the member acts |
 | `/ui` | Dev only: every ui-kit element (and the theme switch), for checking both themes |
 
 - `index.html` is the shell: the sticky `vintage-logo-header` (the single-color vector logo
@@ -81,6 +83,13 @@ pnpm --filter @vintage/web build   # dist/
   isn't rendered at all, and its header link is removed (`HOME_SECTIONS`): visitors see the hero
   and recruiting, `member` tier everything but the roster. While a read is pending, its section
   says it is loading, so a slow connection never reads as "nothing here".
+- **OAuth pages** (`src/oauth.ts`, `pages/oauth-*.ts`): `connectSite` installs the connection's
+  `vintage.oauth`; in dev the fixtures install a stand-in (`fixtures/oauth.ts`) that accepts any
+  `sig` and walks sign-in → consent → home, so try
+  `/oauth/sign-in?client_id=claude&scope=commands%20offline_access&redirect_uri=https%3A%2F%2Fclaude.ai%2Fcb&sig=x`.
+  The signature covers every query parameter, so the pages never add one, and the shell leaves
+  out the two controls that would (the dev "View as" switch and "Preview as") there. An app
+  connects as who is really signed in. `vercel.json` forbids framing `/oauth/*`.
 - **Preview as** (`src/preview.ts`): leaders and officers get a control at the bottom right, on
   the live site too, to see every page as a visitor, member, recruit, raider, or (for officers)
   raid leader. `?preview=<tier>` picks one and the tab remembers it; `?preview=self` ends it.

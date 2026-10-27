@@ -13,6 +13,7 @@ import type { Progress } from '@vintage/progress/contract';
 import type { RaidEvent, Schedule, Signup } from '@vintage/raids/contract';
 import type { GuildProfile, Recruiting } from '@vintage/site/contract';
 import {
+  type AgentPanelContext,
   type ApplicationsDeskRow,
   type CalendarRaid,
   type CalendarSchedule,
@@ -24,6 +25,7 @@ import {
   type PollsDeskResults,
   type RosterDeskMember,
   type RosterDeskRoles,
+  STARTER_PROMPTS,
   type TonightRaid,
   type TonightSignup,
 } from '@vintage/ui-kit';
@@ -31,6 +33,17 @@ import { formatMonthDay, formatWeekday, preferredTimeZone } from '../dates';
 import { canSignIn, currentSession } from '../session';
 import { currentView } from '../view';
 import { pageStyles } from './page-styles';
+
+/** Whether Random's side panel is open, for this browser tab. */
+const ASSISTANT_KEY = 'vintage:agent-open';
+
+function readAssistantOpen(): boolean {
+  try {
+    return sessionStorage.getItem(ASSISTANT_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
 
 /** How far ahead the raid picker looks. */
 const AHEAD_MS = 30 * 86_400_000;
@@ -148,8 +161,23 @@ interface CompData {
 const template = html<Page>`
   <div class="page wide">
     <header class="head">
-      <span class="eyebrow">Backstage</span>
-      <h1>Officers’ quarters</h1>
+      <div class="title">
+        <span class="eyebrow">Backstage</span>
+        <h1>Officers’ quarters</h1>
+      </div>
+      ${when(
+        (x) => x.allowed,
+        html<Page>`
+          <button
+            type="button"
+            class="ask"
+            aria-expanded="${(x) => String(x.assistantOpen)}"
+            aria-keyshortcuts="Alt+A"
+            title="Alt+A"
+            @click="${(x) => x.toggleAssistant()}"
+          >${(x) => (x.assistantOpen ? 'Hide Random' : 'Ask Random')}</button>
+        `,
+      )}
     </header>
 
     ${when(
@@ -173,6 +201,8 @@ const template = html<Page>`
     ${when(
       (x) => x.allowed,
       html<Page>`
+        <div class="room ${(x) => (x.assistantOpen ? 'with-panel' : '')}">
+        <div class="work">
         <nav class="tabs" aria-label="Officers’ quarters">
           ${repeat(
             () => TABS,
@@ -341,6 +371,22 @@ const template = html<Page>`
             )}
           `,
         )}
+        </div>
+        ${when(
+          (x) => x.assistantOpen,
+          html<Page>`
+            <aside class="assist" aria-label="Random, the guild assistant">
+              <vintage-agent-panel
+                :context="${(x) => x.assistantContext}"
+                :prompts="${(x) => STARTER_PROMPTS[x.tab] ?? []}"
+                :showUsage="${(x) => x.canEditRecruiting}"
+                @agent-changed="${(x) => x.reloadTab()}"
+                @agent-close="${(x) => x.toggleAssistant(false)}"
+              ></vintage-agent-panel>
+            </aside>
+          `,
+        )}
+        </div>
       `,
     )}
   </div>
@@ -370,8 +416,68 @@ const styles = css`
   }
 
   .head {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: var(--space-md);
+  }
+
+  .title {
     display: grid;
     gap: 0.2rem;
+  }
+
+  .ask {
+    min-block-size: var(--desk-control-height);
+    font: var(--font-weight-medium) var(--desk-font-size) var(--font-family-sans);
+    padding: 0 var(--desk-space-md);
+    border-radius: var(--desk-control-radius);
+    border: var(--border-width-thin) solid var(--color-border-strong);
+    background: var(--color-surface-raised);
+    color: var(--color-text-primary);
+    cursor: pointer;
+  }
+
+  .ask[aria-expanded='true'] {
+    box-shadow: inset 0 -2px 0 var(--color-accent-secondary);
+  }
+
+  /* The panel sits beside the work on a wide screen and below it on a narrow one. */
+  .room {
+    display: grid;
+    gap: var(--desk-space-lg);
+  }
+
+  .work {
+    display: grid;
+    gap: var(--desk-space-lg);
+    min-inline-size: 0;
+    align-content: start;
+  }
+
+  /* Narrow: the panel follows the tabs in the page. */
+  .assist {
+    block-size: 36rem;
+  }
+
+  /* Wide: docked to the window's right edge, top to bottom; the site makes room for it
+     (styles.css, html[data-assistant-open]). */
+  @media (min-width: 72rem) {
+    .assist {
+      position: fixed;
+      inset-block: 0;
+      inset-inline-end: 0;
+      inline-size: var(--assistant-panel-width);
+      block-size: auto;
+      z-index: 20;
+    }
+
+    .assist vintage-agent-panel::part(panel) {
+      border-radius: 0;
+      border-block: 0;
+      border-inline-end: 0;
+      min-block-size: 0;
+    }
   }
 
   .head h1 {
@@ -465,6 +571,15 @@ export class Page extends FASTElement {
   @observable applicationsError = '';
   /** The open tab, from `?tab=` (Tonight by default). */
   @observable tab: TabId = tabFromUrl(location.search);
+  /** Random's side panel (#168): open or closed is kept for the browser tab. */
+  @observable assistantOpen = readAssistantOpen();
+  private onAssistantKey = (event: KeyboardEvent) => {
+    // The physical A key: on a Mac, Option+A types å, so event.key would miss it.
+    if (event.altKey && !event.ctrlKey && !event.metaKey && event.code === 'KeyA') {
+      event.preventDefault();
+      this.toggleAssistant();
+    }
+  };
   @observable polls: PollsDeskPoll[] = [];
   @observable pollsError = '';
   @observable recruiting: Recruiting | null = null;
@@ -515,9 +630,51 @@ export class Page extends FASTElement {
       : null;
   }
 
+  /** What the panel sends with a question: this tab, and the raid picked on Tonight. */
+  @volatile
+  get assistantContext(): AgentPanelContext {
+    const label = TABS.find((t) => t.id === this.tab)?.label ?? 'Tonight';
+    const page = `Officers’ quarters · ${label}`;
+    const e = this.raids.find((r) => r.event.id === this.selectedId)?.event;
+    return this.tab === 'tonight' && e
+      ? { page, selection: { kind: 'raid', id: e.id, label: raidOption(e) } }
+      : { page };
+  }
+
+  toggleAssistant(open = !this.assistantOpen): void {
+    this.assistantOpen = open;
+    document.documentElement.toggleAttribute('data-assistant-open', open);
+    try {
+      sessionStorage.setItem(ASSISTANT_KEY, open ? '1' : '0');
+    } catch {
+      // Private mode: the choice lasts as long as the page.
+    }
+  }
+
+  /** After Random ran a confirmed change: read the open tab again so it shows the change. */
+  reloadTab(): void {
+    void this.load();
+    if (this.tab === 'polls') void this.loadPolls();
+    if (this.tab === 'recruiting') void this.loadRecruiting();
+    if (this.tab === 'applications') void this.loadApplications();
+    if (this.tab === 'guild') void this.loadProfile();
+    if (this.tab === 'calendar') void this.loadCalendar();
+    if (this.tab === 'coordinator') void this.loadCoordinator();
+    if (this.tab === 'progress') void this.loadProgress();
+  }
+
+  disconnectedCallback(): void {
+    super.disconnectedCallback();
+    document.removeEventListener('keydown', this.onAssistantKey);
+    // Leaving the quarters gives the site its full width back.
+    document.documentElement.removeAttribute('data-assistant-open');
+  }
+
   connectedCallback(): void {
     super.connectedCallback();
     if (!this.allowed) return;
+    document.addEventListener('keydown', this.onAssistantKey);
+    document.documentElement.toggleAttribute('data-assistant-open', this.assistantOpen);
     void this.load();
     if (this.tab === 'polls') void this.loadPolls();
     if (this.tab === 'recruiting') void this.loadRecruiting();

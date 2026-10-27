@@ -60,7 +60,9 @@ pnpm --filter @vintage/web build   # dist/
   `character-add`, `raid-create`, `signup-set`, `coordinator-config-set` and `coordinator-run`
   (a real tick against a fake Discord, whose logged actions feed the News section),
   `poll-create` and `vote-cast`, and two open `application-submit`s from Discord accounts that
-  are not members, so the quarters’ Applications tab has something to review. It signs in a fixture member chosen by the dev switch
+  are not members, so the quarters’ Applications tab has something to review. Random, the officers’
+  side panel, answers through the real agent commands with a stand-in turn (`src/fixtures/agent.ts`):
+  a progress note, a real read (or a prepared change for "lock"), then the answer, with no OpenAI. It signs in a fixture member chosen by the dev switch
   (`src/fixtures/persona.ts`): `?as=visitor|member|recruit|raider|leader|officer`, remembered
   for the tab and set by the floating "View as" control; the default is Bloodfen, a flex raider,
   and visitor signs in nobody and runs commands as a public caller. No kills are seeded (today

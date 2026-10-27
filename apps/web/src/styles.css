@@ -14,10 +14,36 @@ html {
   }
 }
 
+/* A column: the page fills what the header and footer leave, so a short page still ends with
+   the footer at the bottom of the window, never canvas below it. */
 body {
   margin: 0;
   min-block-size: 100vh;
+  display: flex;
+  flex-direction: column;
   background: var(--color-surface-canvas);
+}
+
+body > main {
+  flex: 1 0 auto;
+}
+
+/* Random's side panel in the officers' quarters (#168) docks to the right edge, the full height
+   of the window. While it is open the whole site (header, page, footer) moves into the space
+   beside it, so only the page scrolls and nothing hides under the panel. */
+:root {
+  --assistant-panel-width: 26rem;
+}
+
+@media (min-width: 72rem) {
+  html[data-assistant-open] body {
+    padding-inline-end: var(--assistant-panel-width);
+  }
+
+  /* "Preview as" keeps to the page side, clear of the panel’s composer. */
+  html[data-assistant-open] .preview-switch {
+    inset-inline-end: calc(var(--assistant-panel-width) + var(--space-sm));
+  }
 }
 
 /* The inline single-color logo takes the text color; vintage-logo-header sizes the link. */

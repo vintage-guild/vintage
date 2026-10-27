@@ -1,6 +1,6 @@
 # Officers' assistant: Random in a side panel
 
-**Status:** proposed (2026-10-26). **Owner modules:** agent (commands and runs), ui-kit (the
+**Status:** active (2026-10-27). Phase 1 (the backend) is built and tested; the panel is next. **Owner modules:** agent (commands and runs), ui-kit (the
 panel), apps/web (the quarters shell). **Epic:** #126, which listed site chat as a later non-goal;
 this is that follow-on.
 
@@ -19,11 +19,11 @@ three tabs.
 | Confirming or dropping a prepared change | `agent-confirm`, `agent-decline` | ✅ checked live in Discord (J26) |
 | Caps, the ledger, the kill switch | `agent-status`, `agent-runs`, `agent-pause` | ✅ |
 | Any officer command as a tool | `afd-discover`, `afd-detail`, `afd-call` over the registry | ✅ tier-checked as the asking member |
-| What a run records per tool call | `AgentToolCall { name, command, success }` | ⚠️ no input, no timing, only after the turn |
-| Progress during a turn | the runtime polls the session | ❌ nothing a surface can show until the answer |
-| Page context | none | ❌ "bench the late ones" can't know which raid |
-| A thread's history | `agent-runs` filters by member and kind | ❌ not by thread, so a reload loses the conversation |
-| Stopping a turn | the runtime can cancel | ❌ no command |
+| What a run records per tool call | `AgentToolCall` | ✅ #167: command, summary, error, started and finished times, written as each call happens |
+| Progress during a turn | `AgentRun.notes`, `AgentRun.draft` | ✅ #167: from the Agents API event stream, while the run runs. Tested with a fake stream that trails the loop, and checked once on the local backend against the live API (2026-10-27); on production in #169 |
+| Page context | `agent-ask { context }` | ✅ #167: stored on the run, sent as header lines |
+| A thread's history | `agent-runs { thread }` | ✅ #167, newest first |
+| Stopping a turn | `agent-cancel` | ✅ #167: tested, and checked once on the local backend (about 9 s from Stop to cancelled, most of it upstream); on production in #169 |
 | Chat UI | `vendor/violet-elements/dist/conversation/` | ✅ vendored, unused: thread, message, message text, reasoning block, tool-call card, tool-result card, approval card, composer, suggestions, source citation, media, status |
 
 ## What the backend gives us
@@ -120,7 +120,7 @@ still stops everything.
 
 | # | Phase | Issue | Touches | Done when |
 |---|---|---|---|---|
-| 1 | Backend: context, history, progress, stop | #167 | agent module, agent-runtime, apps/api, manifest | `agent-ask` takes `context`; `agent-runs` filters by `thread`; runs carry tool calls with input summaries and start and finish times, commentary notes, and partial text, while the turn runs; `agent-cancel` stops a turn |
+| 1 ✅ | Backend: context, history, progress, stop | #167 | agent module, agent-runtime, apps/api, manifest | `agent-ask` takes `context`; `agent-runs` filters by `thread`; runs carry tool calls with input summaries and start and finish times, commentary notes, and partial text, while the turn runs; `agent-cancel` stops a turn |
 | 2 | The panel in the quarters | #168 | ui-kit, apps/web | `<vintage-agent-panel>` from Violet elements, a safe markdown element, the run-to-parts mapper, the shell slot, tab-aware prompts and context chips, happy-dom tests, and the dev fixtures answering through a fake agent |
 | 3 | Live check and the job | #169 | docs/jtbd, apps/api/tests/jtbd | A new JTBD job ("Ask Random beside the work and confirm its changes") with a scenario test, and a live run on production in the test server |
 
@@ -142,4 +142,5 @@ phase 1. Phase 3 needs both.
 | 2026-10-26 | Our own panel on Violet's vendored conversation elements, not ChatKit: ChatKit's server SDK is Python only and assumes the Agents SDK, and its hosted path ends with Agent Builder on 2026-11-30. |
 | 2026-10-26 | Progress reaches the browser through Convex (an action reads the Agents API event stream, the panel reads the run reactively), not a socket or SSE to the browser. |
 | 2026-10-26 | Every change stays confirmed in the panel, one card per change. |
+| 2026-10-27 | The stream replays a session from its start, so a reused session's earlier turns are skipped by id (the previous turn) and by creation time (older ones). After the turn ends, the reader waits up to 1.5 s for the turn's own end event so its last notes land. Stopping drops the session like a failure. |
 | 2026-10-26 | fabric-zero informs behavior only; no code from it. Lushly's panel code may be ported (Bloodfen's). |

@@ -31,7 +31,26 @@ export interface FunctionCall {
   callId: string;
   name: string;
   arguments: unknown;
+  /** When the turn loop first saw the call (ms). Set by `runTurn`, not the runtime. */
+  seenAt?: number;
 }
+
+/**
+ * One event from a session's live stream, reduced to what progress needs. The stream replays the
+ * session from its start, so a reused session's earlier turns arrive too: filter by turn.
+ */
+export type AgentEvent =
+  | { type: 'turn'; turnId: string; status: TurnStatus; createdAt: number | null }
+  | {
+      type: 'message';
+      turnId: string;
+      itemId: string;
+      role: string;
+      phase: 'commentary' | 'final_answer' | null;
+    }
+  | { type: 'delta'; turnId: string; itemId: string; delta: string }
+  | { type: 'text'; turnId: string; itemId: string; text: string }
+  | { type: 'idle' };
 
 export type SessionStatus = 'idle' | 'in_progress' | 'requires_action' | 'failed';
 
@@ -82,4 +101,9 @@ export interface AgentRuntime {
   latestTurnId(sessionId: string): Promise<string | null>;
   cancel(sessionId: string): Promise<void>;
   delete(sessionId: string): Promise<void>;
+  /**
+   * The session's live event stream, for progress only: the turn loop never depends on it, so a
+   * runtime without one, or a stream that drops, still answers. Ends when `signal` aborts.
+   */
+  events?(sessionId: string, signal: AbortSignal): AsyncIterable<AgentEvent>;
 }

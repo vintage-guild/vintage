@@ -75,6 +75,8 @@ export interface RegistryToolExecution extends ToolExecution {
   /** The command a call ran or prepared, for the run ledger. */
   command: string | null;
   confirmation: PendingConfirmation | null;
+  /** `afd-call` only: the command and its input in one readable line, ids left out. */
+  summary?: string | null;
 }
 
 export interface RegistryToolsOptions<Deps> {
@@ -197,32 +199,37 @@ export function createRegistryTools<Deps>(options: RegistryToolsOptions<Deps>) {
     };
   }
 
+  function discover(): RegistryToolExecution {
+    const list = registry
+      .visibleTo(caller)
+      .filter((c) => !hidden(c.name))
+      .map((c) => ({ name: c.name, description: c.description, changesData: c.mutation }));
+    return { success: true, output: clip(list), command: null, confirmation: null };
+  }
+
+  function detail(name: string): RegistryToolExecution {
+    const command = visible(name);
+    if (!command) return notFound(name);
+    const shown = {
+      name: command.name,
+      description: command.description,
+      changesData: command.mutation,
+      needsConfirmation: command.mutation,
+      input: z.toJSONSchema(command.input, { unrepresentable: 'any' }),
+    };
+    return { success: true, output: clip(shown), command: null, confirmation: null };
+  }
+
   return {
     definitions: REGISTRY_TOOLS,
     async execute(toolName: string, rawArgs: unknown): Promise<RegistryToolExecution> {
       const args = argsOf(rawArgs);
-      if (toolName === DISCOVER_TOOL) {
-        const list = registry
-          .visibleTo(caller)
-          .filter((c) => !hidden(c.name))
-          .map((c) => ({ name: c.name, description: c.description, changesData: c.mutation }));
-        return { success: true, output: clip(list), command: null, confirmation: null };
-      }
-      if (toolName === DETAIL_TOOL) {
-        const name = String(args.name ?? '');
-        const command = visible(name);
-        if (!command) return notFound(name);
-        const detail = {
-          name: command.name,
-          description: command.description,
-          changesData: command.mutation,
-          needsConfirmation: command.mutation,
-          input: z.toJSONSchema(command.input, { unrepresentable: 'any' }),
-        };
-        return { success: true, output: clip(detail), command: null, confirmation: null };
-      }
+      if (toolName === DISCOVER_TOOL) return discover();
+      if (toolName === DETAIL_TOOL) return detail(String(args.name ?? ''));
       if (toolName === CALL_TOOL) {
-        return call(String(args.name ?? ''), args.input ?? {});
+        const name = String(args.name ?? '');
+        const result = await call(name, args.input ?? {});
+        return { ...result, summary: result.command ? summarize(name, args.input ?? {}) : null };
       }
       return {
         success: false,

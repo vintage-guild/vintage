@@ -89,6 +89,17 @@ describe('renderAgentReply', () => {
     expect(message.content).toBe("I couldn't answer that. The agent took too long to answer");
     expect(message.components).toEqual([]);
   });
+
+  it('says a stopped question was stopped, not that it failed', () => {
+    const message = renderAgentReply({
+      status: 'cancelled',
+      answer: null,
+      error: 'Stopped',
+      confirmations: [],
+    });
+    expect(message.content).toBe('Stopped before it answered.');
+    expect(message.components).toEqual([]);
+  });
 });
 
 describe('renderChangeResult', () => {

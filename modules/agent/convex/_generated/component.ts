@@ -138,7 +138,10 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           kind?: "ask" | "wording" | "decision";
           memberId?: string;
           since?: number;
-          statuses?: Array<"queued" | "running" | "answered" | "failed">;
+          statuses?: Array<
+            "queued" | "running" | "answered" | "failed" | "cancelled"
+          >;
+          threadKey?: string;
         },
         any,
         Name
@@ -155,8 +158,24 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "internal",
         {
           answer: string | null;
+          cancelRequested?: boolean;
           confirmationIds: Array<string>;
+          context?: {
+            page: string;
+            selection?: {
+              id: string;
+              kind:
+                | "raid"
+                | "application"
+                | "poll"
+                | "member"
+                | "character"
+                | "run";
+              label: string;
+            };
+          } | null;
           createdAt: number;
+          draft?: string | null;
           error: string | null;
           finishedAt: number | null;
           guildId: string;
@@ -165,15 +184,20 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           label: string | null;
           memberId: string | null;
           model: string | null;
+          notes?: Array<string>;
           prompt: string;
           sessionId: string | null;
-          status: "queued" | "running" | "answered" | "failed";
+          status: "queued" | "running" | "answered" | "failed" | "cancelled";
           surface: string;
           threadKey: string | null;
           toolCalls: Array<{
             command: string | null;
+            error?: string | null;
+            finishedAt?: number | null;
             name: string;
+            startedAt?: number | null;
             success: boolean;
+            summary?: string | null;
           }>;
         },
         any,
@@ -188,7 +212,10 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           limit?: number;
           memberId?: string;
           since?: number;
-          statuses?: Array<"queued" | "running" | "answered" | "failed">;
+          statuses?: Array<
+            "queued" | "running" | "answered" | "failed" | "cancelled"
+          >;
+          threadKey?: string;
         },
         any,
         Name
@@ -200,7 +227,23 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           guildId: string;
           patch: {
             answer?: string | null;
+            cancelRequested?: boolean;
             confirmationIds?: Array<string>;
+            context?: {
+              page: string;
+              selection?: {
+                id: string;
+                kind:
+                  | "raid"
+                  | "application"
+                  | "poll"
+                  | "member"
+                  | "character"
+                  | "run";
+                label: string;
+              };
+            } | null;
+            draft?: string | null;
             error?: string | null;
             finishedAt?: number | null;
             inputTokens?: number | null;
@@ -208,15 +251,20 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             label?: string | null;
             memberId?: string | null;
             model?: string | null;
+            notes?: Array<string>;
             prompt?: string;
             sessionId?: string | null;
-            status?: "queued" | "running" | "answered" | "failed";
+            status?: "queued" | "running" | "answered" | "failed" | "cancelled";
             surface?: string;
             threadKey?: string | null;
             toolCalls?: Array<{
               command: string | null;
+              error?: string | null;
+              finishedAt?: number | null;
               name: string;
+              startedAt?: number | null;
               success: boolean;
+              summary?: string | null;
             }>;
           };
           runId: string;

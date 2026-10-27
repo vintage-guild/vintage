@@ -104,7 +104,7 @@ how the pieces fit.
 
 | What | Where | Deploy |
 |---|---|---|
-| Convex production | project `jason-falk/vintage`, deployment `dusty-sardine-902` (`https://dusty-sardine-902.convex.cloud`, HTTP routes on `.convex.site`) | `npx convex deploy` in `apps/api` |
+| Convex production | project `jason-falk/vintage`, deployment `dusty-sardine-902` (`https://dusty-sardine-902.convex.cloud`, HTTP routes on `.convex.site`) | Automatic once `CONVEX_DEPLOY_KEY` is set: the `deploy-convex` CI job on every push to `main` after `ci-ok` passes. By hand: `npx convex deploy` in `apps/api` ([production runbook](docs/operations/production.md)) |
 | Convex dev | `cautious-ant-152` (what `npx convex dev` in `apps/api` pushes to) | `npx convex dev` |
 | Gateway | Vercel project `vintage-gateway` (root directory `apps/gateway`), `https://vintage-gateway.vercel.app` | Automatic: production on every push to `main`, a preview per PR. By hand: `npx --yes vercel deploy --prod --archive=tgz` from the repo root (the archive keeps the upload under Vercel's 15,000-file limit; see the gateway README) |
 | Website | Vercel project `vintage-web` (root directory `apps/web`, Node 24, `apps/web/vercel.json`), `https://vintageguild.gg` (also `https://vintage-web-pi.vercel.app`) | Automatic: production on every push to `main`, a preview per PR. By hand, from the repo root: `VERCEL_ORG_ID=team_XXxAohn4xk9zQOEGH6WsJUSs VERCEL_PROJECT_ID=prj_OTILApEA5n4u7RnslTNgppvt26Zp npx --yes vercel deploy --prod --archive=tgz` (the ids pick the website project; without them the root's link deploys the gateway) |

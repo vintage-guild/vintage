@@ -10,6 +10,7 @@ import {
   type LedgerRaid,
   type ListedCharacter,
   type PollCardOption,
+  type RosterDeskMember,
   type RosterMember,
   SIGNUP_STATUSES,
   type SignupStatus,
@@ -235,6 +236,42 @@ const GALLERY_ROSTER: RosterMember[] = [
   { id: 'm6', displayName: 'Wendeline', rank: 'recruit', main: null },
 ];
 
+const GALLERY_DAY = 86_400_000;
+
+/** The wall's members as `member-list` answers them, with a second recruit and the two dates. */
+const GALLERY_ROSTER_DESK: RosterDeskMember[] = [
+  ...GALLERY_ROSTER,
+  {
+    id: 'm7',
+    displayName: 'Ysolde',
+    rank: 'recruit',
+    main: { name: 'Ysolde', class: 'warlock', spec: 'affliction', role: 'ranged' },
+  },
+].map((m, i) => ({
+  ...m,
+  tier:
+    m.rank === 'raid-leader'
+      ? 'leader'
+      : m.rank === 'flex-raider'
+        ? 'raider'
+        : (m.rank ?? 'public'),
+  rankSince:
+    m.rank === 'recruit'
+      ? CALENDAR_NOW - (m.main ? 9 : 2) * GALLERY_DAY
+      : i % 2
+        ? CALENDAR_NOW - 60 * GALLERY_DAY
+        : null,
+  syncedAt: CALENDAR_NOW - 6 * 60_000,
+}));
+
+const GALLERY_ROLES = {
+  '300000000000000001': 'officer',
+  '300000000000000002': 'raid-leader',
+  '300000000000000003': 'raider',
+  '300000000000000004': 'flex-raider',
+  '300000000000000005': 'recruit',
+};
+
 const GALLERY_TONIGHT_SIGNUPS: TonightSignup[] = [
   ['Stridulent', 'warrior', 'protection', 'tank', 'accepted', null, 1],
   ['Bloodfen Il', 'warrior', 'protection', 'tank', 'late', 'by 8:30', null],
@@ -356,6 +393,36 @@ const template = html<Page>`
         time-zone="America/New_York"
         :config="${() => ({ ...GALLERY_COORDINATOR, signupChannelId: null, opsChannelId: null })}"
       ></vintage-coordinator-desk>
+    </section>
+    <section>
+      <h2>Roster</h2>
+      <p>The quarters' Roster tab: recruits with how long they've been on trial, who has no character, everyone by rank with the date they got it, the last sync, and the role map. Saving the map previews the change first; here it reports the gallery client's answer.</p>
+      <vintage-roster-desk
+        can-configure
+        time-zone="America/New_York"
+        :now="${() => CALENDAR_NOW}"
+        :members="${() => GALLERY_ROSTER_DESK}"
+        :roles="${() => GALLERY_ROLES}"
+      ></vintage-roster-desk>
+    </section>
+    <section>
+      <h2>Progress</h2>
+      <p>The quarters' Progress tab: the ledger with a form to record a kill and what dropped. The summary says whether it becomes the ledger entry. Recording reports the gallery client's refusal.</p>
+      <vintage-progress-desk
+        open
+        can-record
+        time-zone="America/New_York"
+        opens-on="${RAIDS_OPEN_ON}"
+        :raids="${() => LEDGER_RAIDING.raids}"
+        :latest="${() => LEDGER_RAIDING.latest}"
+      ></vintage-progress-desk>
+      <h3>Before the raids unlock</h3>
+      <vintage-progress-desk
+        can-record
+        time-zone="America/New_York"
+        opens-on="${RAIDS_OPEN_ON}"
+        :raids="${() => LEDGER_LOCKED}"
+      ></vintage-progress-desk>
     </section>
     <section>
       <h2>Characters and profile</h2>

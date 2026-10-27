@@ -48,6 +48,9 @@ export default defineSchema({
     tier,
     prefs,
     syncedAt: v.number(),
+    // When the rank last changed. Optional so rows from before it was recorded stay valid;
+    // read as null ("before tracking began") until the rank changes.
+    rankSince: v.optional(v.union(v.number(), v.null())),
   })
     .index('by_guild', ['guildId'])
     .index('by_guild_discord', ['guildId', 'discordId']),

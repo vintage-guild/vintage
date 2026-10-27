@@ -28,10 +28,33 @@
       "Bash(git diff*)",
       "Bash(git log*)"
     ],
+    "ask": [
+      "Bash(npx convex deploy*)",
+      "Bash(npx convex env*)",
+      "Bash(npx convex run*)",
+      "Bash(npx convex import*)",
+      "Bash(npx convex export*)",
+      "Bash(npx convex data*)",
+      "Bash(npx convex@*)",
+      "Bash(npx -y convex*)",
+      "Bash(npx --yes convex*)",
+      "Bash(pnpm convex*)",
+      "Bash(pnpm exec convex*)",
+      "Bash(pnpm --filter @vintage/api exec convex*)",
+      "Bash(pnpm --filter @vintage/api convex*)"
+    ],
     "deny": [
       "Bash(git push --force*)",
       "Bash(git push -f*)",
-      "Bash(git reset --hard*)"
+      "Bash(git reset --hard*)",
+      "Read(./**/.env)",
+      "Read(./**/.env.local)",
+      "Read(./**/.env.*.local)",
+      "Read(./**/.env.production*)",
+      "Read(./**/.env.development*)",
+      "Read(./**/.env.staging*)",
+      "Read(./**/.env.test*)",
+      "Read(~/.convex/**)"
     ]
   }
 }

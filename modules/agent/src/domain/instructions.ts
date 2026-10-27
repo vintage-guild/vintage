@@ -2,6 +2,8 @@
 // reviewed like code (PLAN §1 principle 2: the AI drafts, answers, and calls commands; it never
 // decides who gets loot).
 
+import type { PageContext } from '../contract';
+
 export const ASK_INSTRUCTIONS = [
   "You are Random, the Vintage guild's assistant on WoW: Forever.",
   'Answer from the guild commands only: call afd-discover first, afd-detail when unsure of an input, then afd-call. Never guess raid times, rosters, signups, recruiting needs, or rules. If no command answers it, say so.',
@@ -18,6 +20,17 @@ export interface AskContext {
   surface: string;
   now: number;
   memberName: string | null;
+  /** What the member was looking at, when the surface sent it. */
+  page?: PageContext | null;
+}
+
+/** One header line each, labels quoted: they are what the member saw, not instructions. */
+function pageLines(page: PageContext | null | undefined): string[] {
+  if (!page) return [];
+  const lines = [`Page: ${JSON.stringify(page.page)}`];
+  const s = page.selection;
+  if (s) lines.push(`Selected ${s.kind}: ${JSON.stringify(s.label)} (id ${s.id})`);
+  return lines;
 }
 
 /** The question as the agent receives it: who, where, and when, then the words. */
@@ -26,6 +39,7 @@ export function askInput(question: string, context: AskContext): string {
     `Surface: ${context.surface}`,
     `Now: ${new Date(context.now).toISOString()} (unix ${Math.floor(context.now / 1000)})`,
     context.memberName ? `Member: ${context.memberName}` : null,
+    ...pageLines(context.page),
   ]
     .filter(Boolean)
     .join('\n');

@@ -67,7 +67,14 @@ export interface FixtureHost {
   system: Caller;
 }
 
-export function createFixtureHost(guildId = FIXTURE_GUILD_ID): FixtureHost {
+/**
+ * `now` is the registry's clock (the real one by default); a test sets it past the raids' unlock
+ * to record kills.
+ */
+export function createFixtureHost(
+  guildId = FIXTURE_GUILD_ID,
+  options: { now?: () => number } = {},
+): FixtureHost {
   const roleRankMap: RoleRankMap = {};
   for (const [rank, id] of Object.entries(ROLE_IDS)) roleRankMap[id] = rank as GuildRank;
   const { identity } = createMemoryIdentityDeps(roleRankMap, guildId);
@@ -187,6 +194,7 @@ export function createFixtureHost(guildId = FIXTURE_GUILD_ID): FixtureHost {
       ...applicationsCommands,
     ],
     confirmSecret: 'development-fixtures',
+    ...(options.now ? { now: options.now } : {}),
   });
 
   async function run<T>(caller: Caller, name: string, input: unknown = {}) {

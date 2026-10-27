@@ -21,7 +21,12 @@ const json = (body: unknown, status = 200) =>
 
 const http = httpRouter();
 
-authComponent.registerRoutes(http, createAuth, { cors: { allowedOrigins: siteOrigins() } });
+// Lazy: Better Auth is built on the first /api/auth request, not at load. A hosted deployment
+// missing its sign-in env (src/auth-env.ts) then fails sign-in only, never this whole router.
+authComponent.registerRoutesLazy(http, createAuth, {
+  cors: { allowedOrigins: siteOrigins() },
+  trustedOrigins: siteOrigins(),
+});
 
 /**
  * OAuth authorization server metadata (RFC 8414) for MCP clients (#9). The issuer is Better

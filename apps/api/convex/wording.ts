@@ -36,6 +36,10 @@ export const start = internalMutation({
       toolCalls: [],
       confirmationIds: [],
       inputTokens: null,
+      context: null,
+      notes: [],
+      draft: null,
+      cancelRequested: false,
       createdAt: now,
       finishedAt: null,
     });

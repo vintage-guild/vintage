@@ -24,6 +24,7 @@ const member: Member = {
   displayName: 'Aeryn',
   roleIds: [],
   rank: 'raider',
+  rankSince: NOW,
   tier: 'raider',
   prefs: { dmOptOut: false },
   syncedAt: NOW,

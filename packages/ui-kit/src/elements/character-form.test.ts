@@ -171,6 +171,8 @@ describe('vintage-character-form', () => {
     form.setSpec('fury');
     await settle();
     expect(firstOption()).toBe('Guess from spec (Melee DPS)');
+    // With no pick, the closed select shows the guess, not Violet's "Select an option".
+    expect(roleSelect().getAttribute('placeholder')).toBe('Guess from spec (Melee DPS)');
     expect(form.role).toBe('melee');
     expect(form.input).not.toHaveProperty('role');
 

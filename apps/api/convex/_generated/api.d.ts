@@ -17,6 +17,7 @@ import type * as crons from "../crons.js";
 import type * as decisions from "../decisions.js";
 import type * as discord from "../discord.js";
 import type * as http from "../http.js";
+import type * as insights from "../insights.js";
 import type * as pollPosts from "../pollPosts.js";
 import type * as polls from "../polls.js";
 import type * as roleSync from "../roleSync.js";
@@ -39,6 +40,7 @@ declare const fullApi: ApiFromModules<{
   decisions: typeof decisions;
   discord: typeof discord;
   http: typeof http;
+  insights: typeof insights;
   pollPosts: typeof pollPosts;
   polls: typeof polls;
   roleSync: typeof roleSync;
@@ -82,4 +84,5 @@ export declare const components: {
   site: import("@vintage/site/_generated/component.js").ComponentApi<"site">;
   agent: import("@vintage/agent/_generated/component.js").ComponentApi<"agent">;
   applications: import("@vintage/applications/_generated/component.js").ComponentApi<"applications">;
+  insights: import("@vintage/insights/_generated/component.js").ComponentApi<"insights">;
 };

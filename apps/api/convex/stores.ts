@@ -20,6 +20,8 @@ import { type CoordinatorConfig, defaultConfig } from '@vintage/coordinator/cont
 import type { Caller, CommandResult } from '@vintage/guild-kit';
 import type { IdentityDeps, IdentityStore } from '@vintage/identity/commands';
 import type { Character, GuildRank, Member, RoleRankMap } from '@vintage/identity/contract';
+import type { InsightsDeps, InsightsStore } from '@vintage/insights/commands';
+import type { InsightFinding, InsightRun } from '@vintage/insights/contract';
 import type { PollsDeps, PollsEventSink, PollsStore } from '@vintage/polls/commands';
 import type { Poll } from '@vintage/polls/contract';
 import type { ProgressDeps, ProgressStore } from '@vintage/progress/commands';
@@ -515,6 +517,66 @@ export function applicationsDeps(ctx: Ctx): ApplicationsDeps {
       accepted: later('afterAccept'),
       replied: later('sendReply'),
       changed: later('refreshPost'),
+    },
+  };
+}
+
+const insights = components.insights;
+
+export function insightsStore(ctx: Ctx): InsightsStore {
+  return {
+    insertRun: (run) =>
+      writable(ctx).runMutation(insights.insights.insertRun, run) as Promise<InsightRun>,
+    getRun: (guildId, runId) =>
+      ctx.runQuery(insights.insights.getRun, { guildId, runId }) as Promise<InsightRun | null>,
+    getRunByKey: (guildId, runKey) =>
+      ctx.runQuery(insights.insights.getRunByKey, {
+        guildId,
+        runKey,
+      }) as Promise<InsightRun | null>,
+    listRuns: (guildId, limit) =>
+      ctx.runQuery(insights.insights.listRuns, { guildId, limit }) as Promise<InsightRun[]>,
+    markSent: (guildId, runId, at) =>
+      writable(ctx).runMutation(insights.insights.markSent, {
+        guildId,
+        runId,
+        at,
+      }) as Promise<InsightRun>,
+    insertFindings: async (findings) => {
+      await writable(ctx).runMutation(insights.insights.insertFindings, { findings });
+    },
+    listFindings: (guildId, runId) =>
+      ctx.runQuery(insights.insights.listFindings, { guildId, runId }) as Promise<InsightFinding[]>,
+    getOptIn: (guildId, memberId) =>
+      ctx.runQuery(insights.insights.getOptIn, { guildId, memberId }),
+    setOptIn: (optIn) => writable(ctx).runMutation(insights.insights.setOptIn, optIn),
+    listOptedIn: (guildId) => ctx.runQuery(insights.insights.listOptedIn, { guildId }),
+  };
+}
+
+// Referenced by name to avoid a type cycle between this file and the generated api.
+const sendInsights = makeFunctionReference<'action', { runId: string }>('insights:send');
+
+/** Characters match identity's characters by name (Farsight strips the realm, so does Vintage). */
+export function insightsDeps(ctx: Ctx): InsightsDeps {
+  return {
+    insights: insightsStore(ctx),
+    characterOwners: {
+      ownersOf: async (guildId, names) => {
+        const wanted = new Set(names.map((n) => n.toLowerCase()));
+        const owners = new Map<string, string>();
+        for (const c of await identityStore(ctx).listCharacters(guildId)) {
+          if (!wanted.has(c.name.toLowerCase())) continue;
+          const name = names.find((n) => n.toLowerCase() === c.name.toLowerCase());
+          if (name && !owners.has(name)) owners.set(name, c.memberId);
+        }
+        return owners;
+      },
+    },
+    insightsEffects: {
+      send: async (_guildId, runId) => {
+        await writable(ctx).scheduler.runAfter(0, sendInsights, { runId });
+      },
     },
   };
 }

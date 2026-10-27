@@ -1,0 +1,7 @@
+{
+  "name": "insights",
+  "maturity": "labs",
+  "owners": ["@Falkicon"],
+  "dependsOn": [],
+  "description": "Raid insights (epic #126, #137): import a Farsight Crawler run summary, find what each raider could do better with evidence, and DM the raiders who opted in."
+}

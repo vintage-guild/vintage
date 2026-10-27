@@ -1,0 +1,29 @@
+{
+  "name": "@vintage/insights",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Raid insights from Farsight Crawler run summaries: per-raider findings with evidence, opt-in DMs worded by the agent and gated by Decisions.",
+  "exports": {
+    "./contract": "./src/contract.ts",
+    "./commands": "./src/commands/index.ts",
+    "./testing": "./src/testing.ts",
+    "./convex.config": "./convex/convex.config.ts",
+    "./_generated/component.js": "./convex/_generated/component.ts",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "type-check": "tsc6 -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@vintage/decisions": "workspace:*",
+    "@vintage/guild-kit": "workspace:*",
+    "convex": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@vintage/config": "workspace:*",
+    "@vintage/testing": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

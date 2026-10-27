@@ -882,6 +882,81 @@
       }
     },
     {
+      "name": "insights-get",
+      "description": "One run’s findings (the latest without an id). Officers see every raider’s; members see only their own.",
+      "tier": "member",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    {
+      "name": "insights-optin-set",
+      "description": "Whether you get a private Discord note after a raid with what the log says you could do better. Off until you turn it on.",
+      "tier": "member",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "dms": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "dms"
+        ]
+      }
+    },
+    {
+      "name": "insights-runs",
+      "description": "Imported runs, newest first: zone, when, how long, who was there.",
+      "tier": "member",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "limit": {
+            "default": 10,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        }
+      }
+    },
+    {
+      "name": "insights-send",
+      "description": "Send a run’s notes to the raiders who opted in: one private DM each, at most two findings, worded by the agent when it is on. Shows who would get one first; confirm to send. Each run sends once.",
+      "tier": "officer",
+      "mutation": true,
+      "destructive": true,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "runId"
+        ]
+      }
+    },
+    {
       "name": "kill-record",
       "description": "Record a boss kill: the raid, the boss (ids from progress-get), when (defaults to now), and what dropped with its quality. The guild’s first kill of a boss is what the ledger shows; later kills are kept as the kill log.",
       "tier": "leader",
@@ -2116,6 +2191,833 @@
         },
         "required": [
           "eventId"
+        ]
+      }
+    },
+    {
+      "name": "run-import",
+      "description": "Import one Farsight Crawler run summary (the `farsight.run` v1 upload, never the raw log). Vintage keeps the run, finds what each raider could do better with the evidence, and links characters to members by name. Importing the same run again does nothing.",
+      "tier": "raider",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "upload": {
+            "type": "object",
+            "properties": {
+              "schema": {
+                "type": "string",
+                "const": "farsight.run"
+              },
+              "version": {
+                "type": "number",
+                "const": 1
+              },
+              "parser": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "version": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name",
+                  "version"
+                ]
+              },
+              "run": {
+                "type": "object",
+                "properties": {
+                  "run_key": {
+                    "type": "string"
+                  },
+                  "file": {
+                    "type": "string"
+                  },
+                  "start_ts": {
+                    "type": "number"
+                  },
+                  "end_ts": {
+                    "type": "number"
+                  },
+                  "start_offset": {
+                    "type": "number"
+                  },
+                  "end_offset": {
+                    "type": "number"
+                  },
+                  "zone_id": {
+                    "type": "number"
+                  },
+                  "zone_name": {
+                    "type": "string"
+                  },
+                  "difficulty": {
+                    "type": "number"
+                  },
+                  "is_instance": {
+                    "type": "boolean"
+                  },
+                  "map_id": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "map_name": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "map_bounds": {
+                    "anyOf": [
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "number"
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "build": {
+                    "type": "string"
+                  },
+                  "project": {
+                    "type": "string"
+                  },
+                  "events": {
+                    "type": "number"
+                  },
+                  "duration": {
+                    "type": "number"
+                  },
+                  "in_combat": {
+                    "type": "number"
+                  },
+                  "between_pulls": {
+                    "type": "number"
+                  },
+                  "avg_gap": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "longest_gap": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "before_pull": {
+                            "type": "number"
+                          },
+                          "seconds": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "before_pull",
+                          "seconds"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "tank": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "roster": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "done": {
+                          "type": "number"
+                        },
+                        "heal": {
+                          "type": "number"
+                        },
+                        "taken": {
+                          "type": "number"
+                        },
+                        "deaths": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "done",
+                        "heal",
+                        "taken",
+                        "deaths"
+                      ]
+                    }
+                  },
+                  "pulls": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "idx": {
+                          "type": "number"
+                        },
+                        "start": {
+                          "type": "number"
+                        },
+                        "end": {
+                          "type": "number"
+                        },
+                        "duration": {
+                          "type": "number"
+                        },
+                        "gap_before": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "npcs": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "npc_id": {
+                                "type": "number"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "count": {
+                                "type": "number"
+                              },
+                              "killed": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "npc_id",
+                              "name",
+                              "count",
+                              "killed"
+                            ]
+                          }
+                        },
+                        "centroid": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "x": {
+                                  "type": "number"
+                                },
+                                "y": {
+                                  "type": "number"
+                                },
+                                "map": {
+                                  "type": [
+                                    "number",
+                                    "null"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "x",
+                                "y",
+                                "map"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "taken": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "number"
+                          }
+                        },
+                        "done": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "number"
+                          }
+                        },
+                        "heal": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "number"
+                          }
+                        },
+                        "tank": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "peak_intake": {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "amount": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "name",
+                            "amount"
+                          ]
+                        },
+                        "deaths": {
+                          "type": "array",
+                          "items": {
+                            "type": "number"
+                          }
+                        },
+                        "interrupts": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "t": {
+                                "type": "number"
+                              },
+                              "by": {
+                                "type": "string"
+                              },
+                              "spell": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "target": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "npc_id": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              },
+                              "interrupted": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "interrupted_id": {
+                                "type": [
+                                  "number",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "t",
+                              "by",
+                              "spell",
+                              "target",
+                              "npc_id",
+                              "interrupted",
+                              "interrupted_id"
+                            ]
+                          }
+                        },
+                        "casts": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "number"
+                          }
+                        },
+                        "encounter": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "idx",
+                        "start",
+                        "end",
+                        "duration",
+                        "gap_before",
+                        "npcs",
+                        "centroid",
+                        "taken",
+                        "done",
+                        "heal",
+                        "tank",
+                        "peak_intake",
+                        "deaths",
+                        "interrupts",
+                        "casts",
+                        "encounter"
+                      ]
+                    }
+                  },
+                  "deaths": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "t": {
+                          "type": "number"
+                        },
+                        "player": {
+                          "type": "string"
+                        },
+                        "pull": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "damage_last_10s": {
+                          "type": "number"
+                        },
+                        "killing_blow": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "source": {
+                                  "type": "string"
+                                },
+                                "spell": {
+                                  "type": "string"
+                                },
+                                "amount": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "source",
+                                "spell",
+                                "amount"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "last_hits": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "dt": {
+                                "type": "number"
+                              },
+                              "source": {
+                                "type": "string"
+                              },
+                              "spell": {
+                                "type": "string"
+                              },
+                              "amount": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "dt",
+                              "source",
+                              "spell",
+                              "amount"
+                            ]
+                          }
+                        },
+                        "own_casts_last_8s": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "environment": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "t",
+                        "player",
+                        "pull",
+                        "damage_last_10s",
+                        "killing_blow",
+                        "last_hits",
+                        "own_casts_last_8s",
+                        "environment"
+                      ]
+                    }
+                  },
+                  "interrupts": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "t": {
+                          "type": "number"
+                        },
+                        "by": {
+                          "type": "string"
+                        },
+                        "spell": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "target": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "npc_id": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "interrupted": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "interrupted_id": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "t",
+                        "by",
+                        "spell",
+                        "target",
+                        "npc_id",
+                        "interrupted",
+                        "interrupted_id"
+                      ]
+                    }
+                  },
+                  "kicks": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "player": {
+                          "type": "string"
+                        },
+                        "attempts": {
+                          "type": "number"
+                        },
+                        "landed": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "player",
+                        "attempts",
+                        "landed"
+                      ]
+                    }
+                  },
+                  "abilities": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "npc_id": {
+                          "type": "number"
+                        },
+                        "npc_name": {
+                          "type": "string"
+                        },
+                        "spell_id": {
+                          "type": "number"
+                        },
+                        "spell_name": {
+                          "type": "string"
+                        },
+                        "casts": {
+                          "type": "number"
+                        },
+                        "completed": {
+                          "type": "number"
+                        },
+                        "interrupted": {
+                          "type": "number"
+                        },
+                        "hits": {
+                          "type": "number"
+                        },
+                        "total": {
+                          "type": "number"
+                        },
+                        "max_hit": {
+                          "type": "number"
+                        },
+                        "intervals": {
+                          "type": "array",
+                          "items": {
+                            "type": "number"
+                          }
+                        },
+                        "cast_times": {
+                          "type": "array",
+                          "items": {
+                            "type": "number"
+                          }
+                        },
+                        "kick_times": {
+                          "type": "array",
+                          "items": {
+                            "type": "number"
+                          }
+                        },
+                        "openers": {
+                          "type": "array",
+                          "items": {
+                            "type": "number"
+                          }
+                        },
+                        "aoe_events": {
+                          "type": "number"
+                        },
+                        "aoe_victims": {
+                          "type": "number"
+                        },
+                        "periodic": {
+                          "type": "number"
+                        },
+                        "crits": {
+                          "type": "number"
+                        },
+                        "auras": {
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {
+                            "type": "number"
+                          }
+                        },
+                        "school": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "interval": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "cast_time": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "opener": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        },
+                        "targets": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "npc_id",
+                        "npc_name",
+                        "spell_id",
+                        "spell_name",
+                        "casts",
+                        "completed",
+                        "interrupted",
+                        "hits",
+                        "total",
+                        "max_hit",
+                        "intervals",
+                        "cast_times",
+                        "kick_times",
+                        "openers",
+                        "aoe_events",
+                        "aoe_victims",
+                        "periodic",
+                        "crits",
+                        "auras",
+                        "school",
+                        "interval",
+                        "cast_time",
+                        "opener",
+                        "targets"
+                      ]
+                    }
+                  },
+                  "mobs": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "npc_id": {
+                          "type": "number"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "seen": {
+                          "type": "number"
+                        },
+                        "level": {
+                          "type": "number"
+                        },
+                        "hp": {
+                          "type": "number"
+                        },
+                        "kills": {
+                          "type": "number"
+                        },
+                        "ttk": {
+                          "type": "array",
+                          "items": {
+                            "type": "number"
+                          }
+                        },
+                        "to_group": {
+                          "type": "number"
+                        },
+                        "deaths_caused": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "npc_id",
+                        "name",
+                        "seen",
+                        "level",
+                        "hp",
+                        "kills",
+                        "ttk",
+                        "to_group",
+                        "deaths_caused"
+                      ]
+                    }
+                  },
+                  "encounters": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    }
+                  }
+                },
+                "required": [
+                  "run_key",
+                  "file",
+                  "start_ts",
+                  "end_ts",
+                  "start_offset",
+                  "end_offset",
+                  "zone_id",
+                  "zone_name",
+                  "difficulty",
+                  "is_instance",
+                  "map_id",
+                  "map_name",
+                  "map_bounds",
+                  "build",
+                  "project",
+                  "events",
+                  "duration",
+                  "in_combat",
+                  "between_pulls",
+                  "avg_gap",
+                  "longest_gap",
+                  "tank",
+                  "roster",
+                  "pulls",
+                  "deaths",
+                  "interrupts",
+                  "kicks",
+                  "abilities",
+                  "mobs",
+                  "encounters"
+                ]
+              }
+            },
+            "required": [
+              "schema",
+              "version",
+              "parser",
+              "run"
+            ]
+          }
+        },
+        "required": [
+          "upload"
         ]
       }
     },

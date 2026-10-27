@@ -14,6 +14,7 @@
       "owners": ["@Falkicon"]
     },
     "applications": { "paths": ["modules/applications/"], "owners": ["@Falkicon"] },
+    "insights": { "paths": ["modules/insights/"], "owners": ["@Falkicon"] },
     "ui-kit": { "paths": ["packages/ui-kit/"], "owners": ["@Falkicon"] },
     "api": { "paths": ["apps/api/"], "owners": ["@Falkicon"] },
     "gateway": { "paths": ["apps/gateway/"], "owners": ["@Falkicon"] },

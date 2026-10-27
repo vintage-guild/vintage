@@ -81,6 +81,14 @@ export {
   VintageRecruitingDesk,
 } from './elements/recruiting-desk';
 export { VintageRoleBadge } from './elements/role-badge';
+export {
+  describeRoleDiff,
+  ROLE_SYNC_MINUTES,
+  ROSTER_RANKS,
+  type RosterDeskMember,
+  type RosterDeskRoles,
+  VintageRosterDesk,
+} from './elements/roster-desk';
 export { RANK_GROUPS, type RosterMember, VintageRosterWall } from './elements/roster-wall';
 export { VintageSignInCard } from './elements/sign-in-card';
 export {

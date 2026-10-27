@@ -152,10 +152,12 @@ set `VINTAGE_SITE_URL` in the Convex env so ranked polls link to the website (on
 
 `/random event create` and `/random event pick-night` (Raid Leader and up) run `raid-create` and
 `raid-night-poll` through the same path, for a raid, dungeon, battleground, or other event
-(`kind`, default raid). `size` is 1 to 40, checked per kind (raid 10/20/40, dungeon 5,
-battleground 10/15/40, other 1–40); the optional `tanks`, `healers` and `dps` set the comp, and
-any left out come from the kind's default (dps fills what's left). Times are typed in the guild's
-clock. No new bot permissions.
+(`kind`, default raid). `instance` and `size` are optional options because kind `other` (a
+levelling group anyone can join) may leave them out: no size means open, with no cap and no
+queue. Every other kind still needs both, and the command says so. `size` is checked per kind
+(raid 10/20/40, dungeon 5, battleground 10/15/40, other 1–40 or none); the optional `tanks`,
+`healers` and `dps` set the comp, and any left out come from the kind's default (dps fills
+what's left). Times are typed in the guild's clock. No new bot permissions.
 
 The group was `/random raid` until #151. After deploying Convex and the gateway, re-register the
 commands (`pnpm --filter @vintage/gateway register-commands`), the test server first

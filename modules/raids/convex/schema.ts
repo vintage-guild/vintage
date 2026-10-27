@@ -1,9 +1,10 @@
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 
-// Any size from 1 to 40; which sizes a kind allows is checked by the commands (src/domain/kinds.ts).
+// Any size from 1 to 40, or null for an open `other` event; which sizes a kind allows is checked
+// by the commands (comp-solver kinds.ts).
 // Widened from the 10/20/40 literals, so every existing row still matches.
-export const eventSize = v.number();
+export const eventSize = v.union(v.number(), v.null());
 
 export const eventKind = v.union(
   v.literal('raid'),

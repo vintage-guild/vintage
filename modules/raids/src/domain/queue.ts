@@ -12,8 +12,12 @@ export const GOING: ReadonlySet<SignupStatus> = new Set(['accepted', 'late']);
  */
 export const LOSES_PLACE: ReadonlySet<SignupStatus> = new Set(['tentative', 'bench', 'declined']);
 
-/** Queue position (1-based) for each going signup past the raid size; absent means in or not going. */
-export function queuePositions(signups: Signup[], size: number): Map<string, number> {
+/**
+ * Queue position (1-based) for each going signup past the raid size; absent means in or not
+ * going. An open event (size null, kind `other`) has no cap, so nobody queues.
+ */
+export function queuePositions(signups: Signup[], size: number | null): Map<string, number> {
+  if (size === null) return new Map();
   const going = signups
     .filter((s) => GOING.has(s.status))
     .sort((a, b) => a.signedUpAt - b.signedUpAt || a.id.localeCompare(b.id));

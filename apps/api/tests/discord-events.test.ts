@@ -273,6 +273,31 @@ describe('/random event create', () => {
     expect(tuned?.roleTargets).toEqual({ tank: 3, healer: 10, dps: 27 });
   });
 
+  it('makes an open "other" event with no size or instance, and asks a raid for both', async () => {
+    const reply = said(
+      await handleEventInteraction(
+        slash('rook', 'create', {
+          name: 'Westfall levelling',
+          start: '2026-11-10 8pm',
+          kind: 'other',
+        }),
+        ports,
+      ),
+    );
+    const [event] = await deps.raids.listEvents(GUILD);
+    expect(event).toMatchObject({ kind: 'other', size: null, instance: '' });
+    expect(reply.content).toContain('Made **Westfall levelling** (open event) for');
+    expect(reply.content).toContain('looking for any roles');
+    const raid = said(
+      await handleEventInteraction(
+        slash('rook', 'create', { name: 'Ony', start: '2026-11-10 9pm' }),
+        ports,
+      ),
+    );
+    expect(raid.content).toContain("That raid isn't valid. size: A raid needs a size");
+    expect(await deps.raids.listEvents(GUILD)).toHaveLength(1);
+  });
+
   it('passes a size the kind does not allow back as the command says it', async () => {
     const reply = said(
       await handleEventInteraction(

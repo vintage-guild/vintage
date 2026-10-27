@@ -86,8 +86,10 @@ const weekday = (ms: number) => formatWeekday(ms);
 const monthDay = (ms: number) => formatMonthDay(ms);
 const timeOf = (ms: number) => formatTime(ms);
 /** "40 players" for a raid; other kinds say what they are: "5 players · Dungeon" (#151). */
-const players = (e: RaidEvent) =>
-  kindOf(e) === 'raid' ? `${e.size} players` : `${e.size} players · ${KIND_LABELS[kindOf(e)]}`;
+const players = (e: RaidEvent) => {
+  const size = e.size === null ? 'Open' : `${e.size} players`;
+  return kindOf(e) === 'raid' ? size : `${size} · ${KIND_LABELS[kindOf(e)]}`;
+};
 
 /** "Warrior, Priest, or Shaman": the classes the band marks high, for the members' one-liner. */
 function highNeeds(band: Recruiting): string {
@@ -226,7 +228,7 @@ const template = html<Page>`
                   :counts="${(x) => x.nextCounts}"
                   @signup-changed="${(x) => x.loadRaids().then(() => (x.view === 'officer' ? x.loadOfficer() : undefined))}"
                 >
-                  <p class="note">${(x) => x.next?.event.instance} · ${(x) => (x.next ? players(x.next.event) : '')}</p>
+                  <p class="note">${(x) => (x.next ? [x.next.event.instance, players(x.next.event)].filter(Boolean).join(' · ') : '')}</p>
                   ${when(
                     (x) => !x.signUpAllowed,
                     html`<p class="note">Signups open to recruits and up. Ask an officer about raiding with us.</p>`,

@@ -4,12 +4,14 @@ import {
   defaultRoleTargets,
   EVENT_KINDS,
   type EventKind,
+  instanceOptional,
   KIND_LABELS,
   KIND_SIZES,
   kindNoun,
   MAX_EVENT_SIZE,
   type RoleTargets,
   sizeFits,
+  sizeLabel,
   sizesText,
 } from '@vintage/comp-solver';
 import {
@@ -144,9 +146,11 @@ const kindFields = html<KindedForm>`
     ${when(
       (x) => x.kind === 'other',
       html<KindedForm>`
-        <input id="size" type="number" min="1" max="${MAX_EVENT_SIZE}" step="1" required
-          :value="${(x) => String(x.size)}"
-          @input="${(x, c) => x.setSize(Number((c.event.target as HTMLInputElement).value))}" />
+        <input id="size" type="number" min="1" max="${MAX_EVENT_SIZE}" step="1"
+          placeholder="Open"
+          :value="${(x) => (x.size === null ? '' : String(x.size))}"
+          @input="${(x, c) => x.setSize(sizeFromInput((c.event.target as HTMLInputElement).value))}" />
+        <small>Leave it empty for an open event: no cap, no queue.</small>
       `,
     )}
   </div>
@@ -162,6 +166,9 @@ const kindFields = html<KindedForm>`
     `,
   )}
 `;
+
+/** The size box: empty is an open event (null), anything else a number to check. */
+const sizeFromInput = (value: string): number | null => (value.trim() ? Number(value) : null);
 
 const countsNote = html<KindedForm>`
   <small class="counts-note">${(x) => x.countsNote()}</small>
@@ -187,9 +194,11 @@ export abstract class KindedForm extends FASTElement {
   }
 
   /** Kind, size, and counts from a stored event or schedule, or the defaults for a new one. */
-  loadKind(from: { kind: EventKind; size: number; roleTargets?: RoleTargets | null } | null): void {
+  loadKind(
+    from: { kind: EventKind; size: number | null; roleTargets?: RoleTargets | null } | null,
+  ): void {
     this.kind = from?.kind ?? 'raid';
-    this.size = from?.size ?? 40;
+    this.size = from ? from.size : 40;
     const targets = from?.roleTargets ?? defaultRoleTargets(this.kind, this.size);
     this.tanks = targets.tank;
     this.healers = targets.healer;
@@ -199,13 +208,16 @@ export abstract class KindedForm extends FASTElement {
 
   setKind(kind: EventKind): void {
     this.kind = kind;
-    // Keep the size when the new kind allows it; otherwise its first (a dungeon is 5).
-    if (!sizeFits(kind, this.size)) this.size = kind === 'other' ? this.size : KIND_SIZES[kind][0]!;
+    // Keep the size when the new kind allows it; otherwise its first (a dungeon is 5). Every
+    // size fits `other`, including none.
+    if (!sizeFits(kind, this.size)) {
+      this.size = kind === 'other' ? this.size : KIND_SIZES[kind][0]!;
+    }
     this.refillCounts();
     this.changed();
   }
 
-  setSize(size: number): void {
+  setSize(size: number | null): void {
     this.size = size;
     this.refillCounts();
     this.changed();
@@ -217,11 +229,13 @@ export abstract class KindedForm extends FASTElement {
     this.changed();
   }
 
-  /** "Usual for a 5-player dungeon" or "Set by hand". */
+  /** "Usual for a 5-player dungeon", "Set by hand", or optional for `other`. */
   countsNote(): string {
-    return this.countsTouched
-      ? 'Counts set by hand; they stay when the kind or size changes.'
-      : `The usual comp for a ${this.size}-player ${kindNoun(this.kind)}.`;
+    if (this.countsTouched) return 'Counts set by hand; they stay when the kind or size changes.';
+    if (this.kind === 'other') {
+      return 'Optional: leave them at 0 and the card lists everyone in one column.';
+    }
+    return `The usual comp for a ${sizeLabel(this.kind, this.size)}.`;
   }
 
   private refillCounts(): void {
@@ -232,18 +246,26 @@ export abstract class KindedForm extends FASTElement {
     this.dps = targets.dps;
   }
 
+  /** "Instance", or a free-text "where or what" for `other`, where it's optional. */
+  instanceLabel(): string {
+    return instanceOptional(this.kind) ? 'Where or what (optional)' : 'Instance';
+  }
+
   /** Called after any kind/size/count change, to clear the form's problem line. */
   protected abstract changed(): void;
 
   /** What's wrong with kind, size, or counts, or empty. */
   kindProblem(): string {
-    if (!sizeFits(this.kind, this.size))
-      return `${AKind(this.kind)} is ${sizesText(this.kind)} players.`;
+    if (!sizeFits(this.kind, this.size)) {
+      return this.kind === 'other'
+        ? `An event is 1 to ${MAX_EVENT_SIZE} players, or leave the size empty for an open one.`
+        : `${AKind(this.kind)} is ${sizesText(this.kind)} players.`;
+    }
     const counts = [this.tanks, this.healers, this.dps];
     if (counts.some((n) => !Number.isInteger(n) || n < 0)) {
       return 'Tank, healer, and DPS counts are whole numbers, 0 or more.';
     }
-    if (counts.reduce((a, b) => a + b, 0) > this.size) {
+    if (this.size !== null && counts.reduce((a, b) => a + b, 0) > this.size) {
       return `The counts add up to more than ${this.size} players.`;
     }
     return '';
@@ -277,8 +299,9 @@ const scheduleTemplate = html<VintageScheduleForm>`
           @input="${(x, c) => x.set('name', (c.event.target as HTMLInputElement).value)}" />
       </div>
       <div class="field">
-        <label for="instance">Instance</label>
-        <input id="instance" maxlength="60" required placeholder="Onyxia's Lair"
+        <label for="instance">${(x) => x.instanceLabel()}</label>
+        <input id="instance" maxlength="60" ?required="${(x) => !instanceOptional(x.kind)}"
+          placeholder="${(x) => (instanceOptional(x.kind) ? 'Westfall, levels 10–20' : "Onyxia's Lair")}"
           :value="${(x) => x.instance}"
           @input="${(x, c) => x.set('instance', (c.event.target as HTMLInputElement).value)}" />
       </div>
@@ -425,7 +448,7 @@ export class VintageScheduleForm extends KindedForm {
   /** What's wrong with the fields, in the order they appear, or empty. */
   check(): string {
     if (!this.name.trim()) return 'Give the schedule a name.';
-    if (!this.instance.trim()) return 'Say which instance it runs.';
+    if (!this.instance.trim() && !instanceOptional(this.kind)) return 'Say which instance it runs.';
     const kindProblem = this.kindProblem();
     if (kindProblem) return kindProblem;
     if (this.weekdays.length === 0) return 'Pick at least one raid night.';
@@ -517,8 +540,9 @@ const raidTemplate = html<VintageRaidForm>`
               @input="${(x, c) => x.set('name', (c.event.target as HTMLInputElement).value)}" />
           </div>
           <div class="field">
-            <label for="instance">Instance</label>
-            <input id="instance" maxlength="60" required placeholder="Barrow Deeps"
+            <label for="instance">${(x) => x.instanceLabel()}</label>
+            <input id="instance" maxlength="60" ?required="${(x) => !instanceOptional(x.kind)}"
+              placeholder="${(x) => (instanceOptional(x.kind) ? 'Westfall, levels 10–20' : 'Barrow Deeps')}"
               :value="${(x) => x.instance}"
               @input="${(x, c) => x.set('instance', (c.event.target as HTMLInputElement).value)}" />
           </div>
@@ -607,7 +631,7 @@ export class VintageRaidForm extends KindedForm {
       this.problem = `Give the ${kindNoun(this.kind)} a name.`;
       return;
     }
-    if (!this.raid && !this.instance.trim()) {
+    if (!this.raid && !this.instance.trim() && !instanceOptional(this.kind)) {
       this.problem = 'Say which instance it runs.';
       return;
     }

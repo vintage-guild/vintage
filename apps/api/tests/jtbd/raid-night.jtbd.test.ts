@@ -608,6 +608,44 @@ describe('JTBD: raid night', () => {
     expect(edited).toMatch(/Queue 1\n1\. .*Rookwood/);
   });
 
+  it('J32 · an open levelling group takes everyone who answers, with no cap and no queue', async () => {
+    await g.host.configureCoordinator();
+    const made = await g.host.eventUi.slash(g.rook.discordId!, 'create', {
+      name: 'Westfall levelling',
+      start: '2026-10-28 7pm',
+      kind: 'other',
+    });
+    const reply = (made as { data?: { content?: string } }).data?.content ?? '';
+    expect(reply).toContain('Made **Westfall levelling** (open event)');
+    const raids = await g.host.ok<{ event: RaidEvent }[]>(g.aeryn, 'raid-list', {});
+    const group = raids.find((r) => r.event.name === 'Westfall levelling')!.event;
+    expect(group).toMatchObject({ kind: 'other', size: null, instance: '' });
+
+    // Six answer, more than any dungeon holds: all six are in, nobody queues.
+    for (const [who, key] of [
+      [g.aeryn, 'aeryn'],
+      [g.bram, 'bram'],
+      [g.cade, 'cade'],
+      [g.dara, 'dara'],
+      [g.ana, 'ana'],
+      [g.rook, 'rook'],
+    ] as const) {
+      g.host.clock.advance(60 * 1000);
+      await answer(g, who, key, group.id, 'accepted');
+    }
+    const last = await g.host.ok<Signup | null>(g.rook, 'signup-get', { eventId: group.id });
+    expect(last?.queued).toBe(false);
+    await g.host.tick();
+    const card = g.host
+      .sentTo(SIGNUP_CHANNEL)
+      .find((m) => m.message.embeds?.[0]?.title?.includes('Westfall levelling'))!.message;
+    expect(card.embeds?.[0]?.title).toBe('Event · Westfall levelling');
+    const text = messageText(card);
+    expect(text).toContain('Going 6');
+    expect(text).not.toMatch(/Going 6\/|queued|Tanks/);
+    expect(text).toContain('**Comp** no gaps');
+  });
+
   it('J24 · a raid leader keeps the calendar right from the quarters: one-offs, moves, pauses, done', async () => {
     const { wed } = await scheduleRaidNights(g);
     const schedules = await g.host.ok<{ id: string }[]>(g.rook, 'schedule-list', {});

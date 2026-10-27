@@ -1668,7 +1668,7 @@
     },
     {
       "name": "raid-create",
-      "description": "Create a one-off event (not from a schedule), open for signups: a raid (10, 20 or 40), a dungeon (5), a battleground (10, 15 or 40), or another event (1 to 40). roleTargets default to the kind: raid comps by size, 1 tank/1 healer/3 dps for dungeons, no tank for battlegrounds, none for other.",
+      "description": "Create a one-off event (not from a schedule), open for signups: a raid (10, 20 or 40), a dungeon (5), a battleground (10, 15 or 40), or another event (kind other, e.g. a levelling group: size 1 to 40 or none for open with no cap or queue; instance optional). roleTargets default to the kind: raid comps by size, 1 tank/1 healer/3 dps for dungeons, no tank for battlegrounds, none for other.",
       "tier": "leader",
       "mutation": true,
       "destructive": false,
@@ -1682,8 +1682,8 @@
             "maxLength": 60
           },
           "instance": {
+            "default": "",
             "type": "string",
-            "minLength": 1,
             "maxLength": 60
           },
           "kind": {
@@ -1697,9 +1697,16 @@
             ]
           },
           "size": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 40
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 40
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "startsAt": {
             "anyOf": [
@@ -1769,8 +1776,6 @@
         },
         "required": [
           "name",
-          "instance",
-          "size",
           "startsAt"
         ]
       }
@@ -1859,7 +1864,7 @@
     },
     {
       "name": "raid-night-poll",
-      "description": "Ask the raid which night works: post a poll of 2–10 start times for a one-off raid (or another kind: dungeon, battleground, other, with optional roleTargets). When the poll closes, the coordinator creates the event at the winning time; a tie, a missed quorum, or no votes goes to the ops channel instead. Labels use timeZone (New York by default); the post shows each time in every reader’s own zone.",
+      "description": "Ask the raid which night works: post a poll of 2–10 start times for a one-off raid (or another kind: dungeon, battleground, other, with optional roleTargets; other may leave out size for an open event and instance). When the poll closes, the coordinator creates the event at the winning time; a tie, a missed quorum, or no votes goes to the ops channel instead. Labels use timeZone (New York by default); the post shows each time in every reader’s own zone.",
       "tier": "leader",
       "mutation": true,
       "destructive": false,
@@ -1873,8 +1878,8 @@
             "maxLength": 60
           },
           "instance": {
+            "default": "",
             "type": "string",
-            "minLength": 1,
             "maxLength": 60
           },
           "kind": {
@@ -1888,9 +1893,16 @@
             ]
           },
           "size": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 40
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 40
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "roleTargets": {
             "default": null,
@@ -2001,8 +2013,6 @@
         },
         "required": [
           "name",
-          "instance",
-          "size",
           "startTimes",
           "closesAt"
         ]
@@ -3054,7 +3064,7 @@
     },
     {
       "name": "schedule-create",
-      "description": "Create a recurring raid night, e.g. Molten Core every Tuesday and Thursday at 20:00 New York time, or a weekly dungeon or battleground with kind (default raid). Events are created ahead of time by schedule-materialize.",
+      "description": "Create a recurring raid night, e.g. Molten Core every Tuesday and Thursday at 20:00 New York time, or a weekly dungeon, battleground, or other event with kind (default raid; other may leave out size and instance). Events are created ahead of time by schedule-materialize.",
       "tier": "leader",
       "mutation": true,
       "destructive": false,
@@ -3068,8 +3078,8 @@
             "maxLength": 60
           },
           "instance": {
+            "default": "",
             "type": "string",
-            "minLength": 1,
             "maxLength": 60
           },
           "kind": {
@@ -3083,9 +3093,17 @@
             ]
           },
           "size": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 40
+            "default": null,
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 40
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "weekdays": {
             "minItems": 1,
@@ -3188,8 +3206,6 @@
         },
         "required": [
           "name",
-          "instance",
-          "size",
           "weekdays",
           "time",
           "timeZone"
@@ -3251,7 +3267,6 @@
           },
           "instance": {
             "type": "string",
-            "minLength": 1,
             "maxLength": 60
           },
           "kind": {
@@ -3264,9 +3279,16 @@
             ]
           },
           "size": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 40
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 40
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "weekdays": {
             "minItems": 1,

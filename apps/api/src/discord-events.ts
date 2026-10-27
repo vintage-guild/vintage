@@ -23,6 +23,7 @@ import {
   type RaidEvent,
   type RoleTargets,
   type Schedule,
+  sizeLabel,
   targetsOf,
 } from '@vintage/raids/contract';
 import {
@@ -127,11 +128,13 @@ function roleTargetsFrom(values: OptionValues, kind: EventKind): RoleTargets | u
   const given = (name: string) => (typeof values[name] === 'number' ? Number(values[name]) : null);
   const [tanks, healers, dps] = [given('tanks'), given('healers'), given('dps')];
   if (tanks === null && healers === null && dps === null) return undefined;
-  const size = typeof values.size === 'number' ? values.size : 0;
+  const size = typeof values.size === 'number' ? values.size : null;
   const base = defaultRoleTargets(kind, size);
   const tank = tanks ?? base.tank;
   const healer = healers ?? base.healer;
-  return { tank, healer, dps: dps ?? Math.max(0, size - tank - healer) };
+  // An open event has no size to fill, so dps left out is just the default (0 for other).
+  const rest = size === null ? base.dps : Math.max(0, size - tank - healer);
+  return { tank, healer, dps: dps ?? rest };
 }
 
 /** The kind, and roleTargets only when the member set some. */
@@ -142,6 +145,10 @@ function kindInput(values: OptionValues) {
 }
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/** "Westfall, open event" or "5-player dungeon": the instance (when given) and the size. */
+const whatText = (e: Pick<RaidEvent, 'instance' | 'kind' | 'size'>) =>
+  [e.instance, sizeLabel(e.kind, e.size)].filter(Boolean).join(', ');
 
 /** "1 tank · 1 healer · 3 DPS", or a note that anyone fills any slot. */
 function rolesText(targets: RoleTargets): string {
@@ -174,7 +181,7 @@ async function create(ports: EventPorts, caller: Caller, values: OptionValues) {
   await ports.afterChange();
   const raid = result.data as RaidEvent;
   return ephemeral(
-    `Made **${raid.name}** (${raid.instance}, ${raid.size}-player ${kindNoun(raid.kind)}) for ` +
+    `Made **${raid.name}** (${whatText(raid)}) for ` +
       `${when(raid.startsAt)}, looking for ${rolesText(targetsOf(raid))}. ` +
       'Its signup card goes up in the signup channel in a moment.',
   );
@@ -214,7 +221,6 @@ async function pickNight(ports: EventPorts, caller: Caller, values: OptionValues
     poll: { closesAt: number | null };
     raidNight: Pick<RaidEvent, 'kind' | 'size' | 'roleTargets'>;
   };
-  const what = kindNoun(raidNight.kind);
   const sorted = [...startTimes].sort((a, b) => a - b);
   const closes = poll.closesAt
     ? ` Voting closes ${discordTimestamp(poll.closesAt, TimestampStyle.RELATIVE)}.`
@@ -222,7 +228,7 @@ async function pickNight(ports: EventPorts, caller: Caller, values: OptionValues
   return ephemeral(
     `The vote on **${String(values.name)}**’s night is up in the signup channel.${closes}\n` +
       `${sorted.map((t) => `• ${when(t)}`).join('\n')}\n` +
-      `The winning time becomes the ${raidNight.size}-player ${what}, looking for ` +
+      `The winning time becomes the ${sizeLabel(raidNight.kind, raidNight.size)}, looking for ` +
       `${rolesText(targetsOf(raidNight))}; a tie or too few votes goes to the officers instead.`,
   );
 }

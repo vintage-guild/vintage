@@ -6,6 +6,8 @@ import { isValidTime, isValidTimeZone, occurrences } from '../domain/recurrence'
 import { command } from '../store';
 import {
   eventSizeSchema,
+  instanceForKind,
+  kindRules,
   kindSchema,
   scheduleNotFound,
   sizeForKind,
@@ -31,9 +33,10 @@ const reminderHoursSchema = z
 
 const scheduleFields = {
   name: z.string().trim().min(1).max(60),
-  instance: z.string().trim().min(1).max(60),
+  // Empty and null only for kind `other` (kindRules on create, the merged check on update).
+  instance: z.string().trim().max(60),
   kind: kindSchema,
-  size: eventSizeSchema,
+  size: eventSizeSchema.nullable(),
   weekdays: weekdaysSchema,
   time: timeSchema,
   timeZone: timeZoneSchema,
@@ -53,20 +56,24 @@ export const scheduleCreate = command({
   name: 'schedule-create',
   description:
     'Create a recurring raid night, e.g. Molten Core every Tuesday and Thursday at 20:00 New York ' +
-    'time, or a weekly dungeon or battleground with kind (default raid). Events are created ' +
-    'ahead of time by schedule-materialize.',
+    'time, or a weekly dungeon, battleground, or other event with kind (default raid; other may ' +
+    'leave out size and instance). Events are created ahead of time by schedule-materialize.',
   tier: 'leader',
   mutation: true,
-  input: z.object({
-    ...scheduleFields,
-    kind: scheduleFields.kind.default('raid'),
-    durationMinutes: scheduleFields.durationMinutes.default(180),
-    leadDays: scheduleFields.leadDays.default(7),
-    reminderHours: scheduleFields.reminderHours.default([72, 24]),
-    lockHours: scheduleFields.lockHours.default(2),
-    roleTargets: scheduleFields.roleTargets.default(null),
-    lootMethodId: scheduleFields.lootMethodId.default(null),
-  }),
+  input: z
+    .object({
+      ...scheduleFields,
+      instance: scheduleFields.instance.default(''),
+      kind: scheduleFields.kind.default('raid'),
+      size: scheduleFields.size.default(null),
+      durationMinutes: scheduleFields.durationMinutes.default(180),
+      leadDays: scheduleFields.leadDays.default(7),
+      reminderHours: scheduleFields.reminderHours.default([72, 24]),
+      lockHours: scheduleFields.lockHours.default(2),
+      roleTargets: scheduleFields.roleTargets.default(null),
+      lootMethodId: scheduleFields.lootMethodId.default(null),
+    })
+    .superRefine(kindRules),
   handler: async (input, { guildId, deps }) => {
     const invalid =
       sizeForKind(input.kind, input.size) ?? targetsTooBig(input.size, input.roleTargets);
@@ -110,9 +117,12 @@ export const scheduleUpdate = command({
   handler: async ({ scheduleId, ...input }, { guildId, deps }) => {
     const current = await deps.raids.getSchedule(guildId, scheduleId);
     if (!current) return scheduleNotFound();
-    const size = input.size ?? current.size;
+    // The merged schedule must still make sense: null size means open, so it isn't `??`.
+    const kind = input.kind ?? current.kind;
+    const size = input.size === undefined ? current.size : input.size;
     const invalid =
-      sizeForKind(input.kind ?? current.kind, size) ??
+      sizeForKind(kind, size) ??
+      instanceForKind(kind, input.instance ?? current.instance) ??
       targetsTooBig(
         size,
         input.roleTargets === undefined ? current.roleTargets : input.roleTargets,

@@ -5,8 +5,8 @@ import { type EventKind, KIND_LABELS, RAID_SIZES, type RoleTargets } from '@vint
 import { offsetMinutes, type WallWeekday, wallClock } from '../zoned';
 
 export type CalendarRaidStatus = 'open' | 'locked' | 'cancelled' | 'completed';
-/** Players in an event: 1 to 40, allowed per kind (`sizeFits` in comp-solver). */
-export type CalendarRaidSize = number;
+/** Players in an event: 1 to 40, allowed per kind (`sizeFits` in comp-solver); null is open. */
+export type CalendarRaidSize = number | null;
 /** A raid's sizes; other kinds have their own (`KIND_SIZES`). */
 export const CALENDAR_SIZES: readonly number[] = RAID_SIZES;
 
@@ -128,10 +128,19 @@ export function describeScheduleTimings(s: CalendarSchedule): string {
 
 /**
  * "40-player Onyxia's Lair" for a raid; other kinds lead with theirs: "Dungeon · 5-player
- * Scarlet Monastery". Raids are the default, so they stay as they read before kinds.
+ * Scarlet Monastery". Raids are the default, so they stay as they read before kinds. An open
+ * `other` event reads "Event · Open · Westfall", or just "Event · Open" with no instance.
  */
-export function describeWhat(r: { kind: EventKind; size: number; instance: string }): string {
-  const what = `${r.size}-player ${r.instance}`;
+export function describeWhat(r: {
+  kind: EventKind;
+  size: number | null;
+  instance: string;
+}): string {
+  const size = r.size === null ? 'Open' : `${r.size}-player`;
+  const what =
+    r.size === null
+      ? [size, r.instance].filter(Boolean).join(' · ')
+      : `${size} ${r.instance}`.trim();
   return r.kind === 'raid' ? what : `${KIND_LABELS[r.kind]} · ${what}`;
 }
 
@@ -140,7 +149,7 @@ export function describeCounts(r: CalendarRaid): string {
   const c = r.counts;
   if (!c) return '';
   const going = c.accepted + c.late;
-  const parts = [`${going} of ${r.size} going`];
+  const parts = [r.size === null ? `${going} going` : `${going} of ${r.size} going`];
   if (c.tentative) parts.push(`${c.tentative} tentative`);
   if (c.bench) parts.push(`${c.bench} bench`);
   return going + c.tentative + c.bench === 0 ? 'No signups yet' : parts.join(' · ');

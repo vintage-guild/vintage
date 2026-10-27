@@ -9,17 +9,21 @@ export type { RaidSize, RoleTargets, SignupStatus } from '@vintage/comp-solver';
 export {
   AKind,
   aKind,
+  compSize,
   defaultRoleTargets,
   EVENT_KINDS,
   type EventKind,
   eventTemplate,
   hasRoleTargets,
+  instanceOptional,
   KIND_LABELS,
   KIND_SIZES,
   kindNoun,
   kindOf,
   MAX_EVENT_SIZE,
   sizeFits,
+  sizeLabel,
+  sizeOptional,
   sizesText,
   targetsOf,
 } from './domain/kinds';
@@ -50,12 +54,12 @@ export interface Schedule {
   id: string;
   guildId: string;
   name: string;
-  /** Instance or activity, e.g. "Molten Core". */
+  /** Instance or activity, e.g. "Molten Core"; empty for an `other` event that names none. */
   instance: string;
   /** What kind of event; rows from before kinds existed read as `raid`. */
   kind: EventKind;
-  /** Players; allowed sizes depend on the kind (`sizeFits`). */
-  size: number;
+  /** Players; allowed sizes depend on the kind (`sizeFits`). Null: an open `other` event. */
+  size: number | null;
   recurrence: Recurrence;
   durationMinutes: number;
   timings: ScheduleTimings;
@@ -78,11 +82,12 @@ export interface RaidEvent {
   /** The schedule this raid came from; null for one-off raids. */
   scheduleId: string | null;
   name: string;
+  /** Where or what, e.g. "Molten Core"; empty for an `other` event that names none. */
   instance: string;
   /** What kind of event; rows from before kinds existed read as `raid`. */
   kind: EventKind;
-  /** Players; allowed sizes depend on the kind (`sizeFits`). */
-  size: number;
+  /** Players; allowed sizes depend on the kind (`sizeFits`). Null: an open `other` event. */
+  size: number | null;
   /** Epoch ms. */
   startsAt: number;
   durationMinutes: number;

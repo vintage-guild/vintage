@@ -2,7 +2,7 @@ import { type CompSignup, solveComp } from '@vintage/comp-solver';
 import { success } from '@vintage/guild-kit';
 import type { GuildRank } from '@vintage/identity/contract';
 import { z } from 'zod';
-import { eventTemplate, RANK_PRIORITY } from '../contract';
+import { compSize, eventTemplate, RANK_PRIORITY } from '../contract';
 import { command } from '../store';
 import { eventNotFound } from './shared';
 
@@ -37,10 +37,14 @@ export const compSuggest = command({
     });
     // The kind's targets, and raid buffs only for raids.
     const template = eventTemplate(event);
-    const result = solveComp({ raidSize: event.size, template, signups: compSignups });
+    // An open event plays everyone going: no cap, so nobody sits for size.
+    const going = compSignups.filter((s) => s.status !== 'declined').length;
+    const raidSize = compSize(event, going);
+    const result = solveComp({ raidSize, template, signups: compSignups });
+    const of = event.size === null ? '' : `/${event.size}`;
     const reasoning = result.gaps.length
       ? result.gaps.map((g) => g.reason).join(' · ')
-      : `${result.counts.selected}/${event.size}, no gaps`;
+      : `${result.counts.selected}${of}, no gaps`;
     return success({ event, ...result }, { reasoning });
   },
 });

@@ -23,7 +23,7 @@ import {
 } from '@vintage/raids/contract';
 import type { TickEvent, TickMember } from '../store';
 import { EMOJI_IDS } from './emoji-ids';
-import { eventTitle, sizeWords } from './kind-words';
+import { cardTitle, countOf, eventTitle, sizeWords } from './kind-words';
 import { compFor, finalRoster } from './render';
 
 type CompRoleName = 'tank' | 'healer' | 'dps';
@@ -183,7 +183,7 @@ export function renderSignupPost(tick: TickEvent, members: TickMember[]): Messag
       })
     : [
         {
-          name: `Going ${going.length}/${event.size}`,
+          name: `Going ${countOf(going.length, event)}`,
           value: value(capped(going.map((s) => line(s, place.get(s.id))))),
         },
       ];
@@ -224,7 +224,7 @@ export function renderSignupPost(tick: TickEvent, members: TickMember[]): Messag
   return {
     embeds: [
       embed({
-        title: `${eventTitle(event)} · ${event.instance}`,
+        title: cardTitle(event),
         // When; the lock and size as quieter subtext; then the counts with room around them.
         description: [
           `${emoji('info_calendar')} ${when(event.startsAt)}`,
@@ -343,7 +343,7 @@ export function renderFinalRoster(tick: TickEvent, members: TickMember[]): Messa
     embeds: [
       embed({
         title: `Final roster · ${eventTitle(tick.event)}`,
-        description: `${emoji('info_calendar')} ${when(tick.event.startsAt)}  ${emoji('info_locked')} Signups locked · ${going.length}/${tick.event.size}`,
+        description: `${emoji('info_calendar')} ${when(tick.event.startsAt)}  ${emoji('info_locked')} Signups locked · ${countOf(going.length, tick.event)}`,
         color: discordColor('color.border.strong'),
         fields,
       }),

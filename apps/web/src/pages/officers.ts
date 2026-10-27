@@ -324,7 +324,7 @@ export function siteReadError(what: string, error?: { code?: string; message?: s
 }
 
 const raidOption = (e: RaidEvent) =>
-  `${formatWeekday(e.startsAt)} ${formatMonthDay(e.startsAt)} · ${e.name} (${e.size})`;
+  `${formatWeekday(e.startsAt)} ${formatMonthDay(e.startsAt)} · ${e.name} (${e.size ?? 'open'})`;
 
 const styles = css`
   .page.wide {

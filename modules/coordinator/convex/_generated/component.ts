@@ -121,7 +121,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           pollId: string;
           raidEventId: string | null;
           roleTargets?: { dps: number; healer: number; tank: number } | null;
-          size: number;
+          size: number | null;
         },
         any,
         Name

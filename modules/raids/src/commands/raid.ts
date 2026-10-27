@@ -1,14 +1,16 @@
 import { roleTargetsSchema, type SignupStatus } from '@vintage/comp-solver';
 import { error, success, tierAllows } from '@vintage/guild-kit';
 import { z } from 'zod';
-import { kindNoun, RAID_STATUSES, type Signup } from '../contract';
+import { RAID_STATUSES, type Signup, sizeLabel } from '../contract';
 import { command } from '../store';
 import {
   eventNotFound,
-  eventSizeSchema,
   instantSchema,
   isLive,
+  kindRules,
   kindSchema,
+  optionalInstanceSchema,
+  optionalSizeSchema,
   raidClosed,
   sizeForKind,
   targetsTooBig,
@@ -33,26 +35,29 @@ export const raidCreate = command({
   name: 'raid-create',
   description:
     'Create a one-off event (not from a schedule), open for signups: a raid (10, 20 or 40), a ' +
-    'dungeon (5), a battleground (10, 15 or 40), or another event (1 to 40). roleTargets ' +
-    'default to the kind: raid comps by size, 1 tank/1 healer/3 dps for dungeons, no tank ' +
-    'for battlegrounds, none for other.',
+    'dungeon (5), a battleground (10, 15 or 40), or another event (kind other, e.g. a ' +
+    'levelling group: size 1 to 40 or none for open with no cap or queue; instance optional). ' +
+    'roleTargets default to the kind: raid comps by size, 1 tank/1 healer/3 dps for dungeons, ' +
+    'no tank for battlegrounds, none for other.',
   tier: 'leader',
   mutation: true,
-  input: z.object({
-    name: z.string().trim().min(1).max(60),
-    instance: z.string().trim().min(1).max(60),
-    kind: kindSchema.default('raid'),
-    size: eventSizeSchema,
-    startsAt: instantSchema,
-    durationMinutes: z
-      .number()
-      .int()
-      .min(30)
-      .max(8 * 60)
-      .default(180),
-    roleTargets: roleTargetsSchema.nullable().default(null),
-    lootMethodId: z.string().min(1).nullable().default(null),
-  }),
+  input: z
+    .object({
+      name: z.string().trim().min(1).max(60),
+      instance: optionalInstanceSchema,
+      kind: kindSchema.default('raid'),
+      size: optionalSizeSchema,
+      startsAt: instantSchema,
+      durationMinutes: z
+        .number()
+        .int()
+        .min(30)
+        .max(8 * 60)
+        .default(180),
+      roleTargets: roleTargetsSchema.nullable().default(null),
+      lootMethodId: z.string().min(1).nullable().default(null),
+    })
+    .superRefine(kindRules),
   handler: async (input, { guildId, deps, now }) => {
     const invalid =
       sizeForKind(input.kind, input.size) ?? targetsTooBig(input.size, input.roleTargets);
@@ -66,7 +71,7 @@ export const raidCreate = command({
       configVersion: 1,
     });
     return success(event, {
-      reasoning: `${event.name} (${event.size}-player ${kindNoun(event.kind)}) is open for signups`,
+      reasoning: `${event.name} (${sizeLabel(event.kind, event.size)}) is open for signups`,
     });
   },
 });

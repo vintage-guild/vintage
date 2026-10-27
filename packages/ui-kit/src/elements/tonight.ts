@@ -21,7 +21,8 @@ export interface TonightRaid {
   name: string;
   /** Epoch ms. */
   startsAt: number;
-  size: number;
+  /** Null for an open event (kind `other` with no cap). */
+  size: number | null;
   status: string;
 }
 
@@ -619,7 +620,9 @@ export class VintageTonight extends FASTElement {
     if (!this.raid) return '';
     const count = (pred: (s: TonightSignup) => boolean) => this.signups.filter(pred).length;
     const going = count((s) => (s.status === 'accepted' || s.status === 'late') && !s.queued);
-    const parts = [`${going} / ${this.raid.size} going`];
+    const parts = [
+      this.raid.size === null ? `${going} going` : `${going} / ${this.raid.size} going`,
+    ];
     const late = count((s) => s.status === 'late');
     const tentative = count((s) => s.status === 'tentative');
     const queued = count((s) => s.queued);
@@ -643,7 +646,9 @@ export class VintageTonight extends FASTElement {
 
   /** 1–2 for tens, 1–4 for twenties, 1–8 for forties: five to a group. */
   get groupNumbers(): number[] {
-    const groups = Math.max(1, Math.ceil((this.raid?.size ?? 5) / 5));
+    // An open event can still be split into groups; offer all eight.
+    const size = this.raid ? (this.raid.size ?? 40) : 5;
+    const groups = Math.max(1, Math.ceil(size / 5));
     return Array.from({ length: groups }, (_, i) => i + 1);
   }
 

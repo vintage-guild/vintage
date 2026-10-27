@@ -688,6 +688,82 @@ describe('raids commands', () => {
       expect(data.gaps.some((g) => g.kind === 'requirement')).toBe(false);
     });
 
+    it('an open "other" event has no size, no instance, no cap, and no queue', async () => {
+      const open = await createRaid({
+        kind: 'other',
+        name: 'Westfall levelling',
+        instance: undefined,
+        size: undefined,
+      });
+      expect(open).toMatchObject({ kind: 'other', size: null, instance: '' });
+      // A one-size cap would queue the second; an open event takes all four.
+      for (const [who, char] of [
+        ['aeryn', 'aeryn'],
+        ['bram', 'bramble'],
+        ['cade', 'cade'],
+        ['dara', 'dara'],
+      ] as const) {
+        await ok(
+          'signup-set',
+          { eventId: open.id, characterId: char, status: 'accepted' },
+          as(who),
+        );
+        clock.advance(HOUR);
+      }
+      const signups = await ok<Signup[]>('signup-list', { eventId: open.id }, leader);
+      expect(signups.map((s) => s.queued)).toEqual([false, false, false, false]);
+      const comp = (await run('comp-suggest', { eventId: open.id }, as('aeryn'))).data as {
+        selected: unknown[];
+        bench: unknown[];
+        gaps: unknown[];
+      };
+      expect([comp.selected.length, comp.bench.length, comp.gaps]).toEqual([4, 0, []]);
+    });
+
+    it('only "other" may leave out the size or the instance', async () => {
+      const base = { name: 'Run', startsAt: clock.now() + DAY };
+      const issues = async (input: Record<string, unknown>) => {
+        const result = await run('raid-create', { ...base, ...input }, leader);
+        expect(result).toMatchObject({ error: { code: 'VALIDATION_ERROR' } });
+        const { issues } = result.error!.details as { issues: { path: string[] }[] };
+        return issues.map((i) => i.path.join('.'));
+      };
+      expect(await issues({ instance: 'Molten Core' })).toEqual(['size']);
+      expect(await issues({ kind: 'dungeon', size: 5 })).toEqual(['instance']);
+      expect(await issues({ kind: 'battleground' })).toEqual(['size', 'instance']);
+      expect((await run('raid-create', { ...base, kind: 'other', size: 8 }, leader)).success).toBe(
+        true,
+      );
+    });
+
+    it('schedule-update can open an "other" schedule but not a raid', async () => {
+      const weekly = {
+        name: 'Levelling',
+        kind: 'other',
+        size: 5,
+        weekdays: ['sat'],
+        time: '14:00',
+        timeZone: 'America/New_York',
+      };
+      const schedule = await ok<Schedule>('schedule-create', weekly, leader);
+      expect(schedule).toMatchObject({ kind: 'other', instance: '', size: 5 });
+      expect(
+        await ok<Schedule>('schedule-update', { scheduleId: schedule.id, size: null }, leader),
+      ).toMatchObject({ size: null });
+      expect(
+        await run('schedule-update', { scheduleId: schedule.id, kind: 'raid' }, leader),
+      ).toMatchObject({ error: { code: 'SIZE_NOT_ALLOWED' } });
+      expect(
+        await run('schedule-update', { scheduleId: schedule.id, kind: 'raid', size: 10 }, leader),
+      ).toMatchObject({ error: { code: 'INSTANCE_REQUIRED' } });
+      const { created } = await ok<{ created: RaidEvent[] }>(
+        'schedule-materialize',
+        { scheduleId: schedule.id },
+        leader,
+      );
+      expect(created.map((e) => [e.kind, e.size, e.instance])).toEqual([['other', null, '']]);
+    });
+
     it('a battleground has no tank target; other has none at all', async () => {
       const bg = await createRaid({ kind: 'battleground', size: 10, instance: 'Warsong Gulch' });
       const bgComp = (await run('comp-suggest', { eventId: bg.id }, as('aeryn'))).data as {

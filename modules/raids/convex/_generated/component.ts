@@ -44,7 +44,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           name: string;
           roleTargets: { dps: number; healer: number; tank: number } | null;
           scheduleId: string | null;
-          size: number;
+          size: number | null;
           startsAt: number;
           status: "open" | "locked" | "cancelled" | "completed";
         },
@@ -79,7 +79,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             name?: string;
             roleTargets?: { dps: number; healer: number; tank: number } | null;
             scheduleId?: string | null;
-            size?: number;
+            size?: number | null;
             startsAt?: number;
             status?: "open" | "locked" | "cancelled" | "completed";
           };
@@ -116,7 +116,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             >;
           };
           roleTargets: { dps: number; healer: number; tank: number } | null;
-          size: number;
+          size: number | null;
           timings: {
             leadDays: number;
             lockHours: number;
@@ -154,7 +154,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               >;
             };
             roleTargets?: { dps: number; healer: number; tank: number } | null;
-            size?: number;
+            size?: number | null;
             timings?: {
               leadDays: number;
               lockHours: number;

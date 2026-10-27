@@ -2,7 +2,15 @@
 // turn the winner into the raid. The poll itself is made by polls' poll-create, run as this leader.
 import { groupSizeSchema, roleTargetsSchema } from '@vintage/comp-solver';
 import { error, success, TIERS, type Tier, tierAllows } from '@vintage/guild-kit';
-import { AKind, aKind, EVENT_KINDS, sizeFits, sizesText } from '@vintage/raids/contract';
+import {
+  AKind,
+  aKind,
+  EVENT_KINDS,
+  instanceOptional,
+  sizeFits,
+  sizeOptional,
+  sizesText,
+} from '@vintage/raids/contract';
 import { z } from 'zod';
 import { RAID_NIGHT_TAG } from '../contract';
 import { candidateLines, startLabel } from '../domain/raid-night';
@@ -32,34 +40,56 @@ export const raidNightPoll = command({
   name: 'raid-night-poll',
   description:
     'Ask the raid which night works: post a poll of 2–10 start times for a one-off raid (or ' +
-    'another kind: dungeon, battleground, other, with optional roleTargets). When the poll ' +
-    'closes, the coordinator creates the event at the winning time; a tie, a missed ' +
-    'quorum, or no votes goes to the ops channel instead. Labels use timeZone (New York by ' +
-    'default); the post shows each time in every reader’s own zone.',
+    'another kind: dungeon, battleground, other, with optional roleTargets; other may leave out ' +
+    'size for an open event and instance). When the poll closes, the coordinator creates the ' +
+    'event at the winning time; a tie, a missed quorum, or no votes goes to the ops channel ' +
+    'instead. Labels use timeZone (New York by default); the post shows each time in every ' +
+    'reader’s own zone.',
   tier: 'leader',
   mutation: true,
-  input: z.object({
-    name: z.string().trim().min(1).max(60),
-    instance: z.string().trim().min(1).max(60),
-    kind: z.enum(EVENT_KINDS).default('raid'),
-    size: groupSizeSchema,
-    roleTargets: roleTargetsSchema.nullable().default(null),
-    durationMinutes: z
-      .number()
-      .int()
-      .min(30)
-      .max(8 * 60)
-      .default(180),
-    startTimes: z.array(instantSchema).min(2).max(10),
-    closesAt: instantSchema,
-    timeZone: timeZoneSchema.default('America/New_York'),
-    question: z.string().trim().min(1).max(300).optional(),
-    eligibleTier: z
-      .enum(TIERS)
-      .refine((t: Tier) => tierAllows(t, 'member'))
-      .default('raider'),
-    quorum: z.number().int().min(1).nullable().default(null),
-  }),
+  input: z
+    .object({
+      name: z.string().trim().min(1).max(60),
+      // Both optional only for kind `other`, as raid-create has them (checked below).
+      instance: z.string().trim().max(60).default(''),
+      kind: z.enum(EVENT_KINDS).default('raid'),
+      size: groupSizeSchema
+        .nullable()
+        .optional()
+        .transform((v) => v ?? null),
+      roleTargets: roleTargetsSchema.nullable().default(null),
+      durationMinutes: z
+        .number()
+        .int()
+        .min(30)
+        .max(8 * 60)
+        .default(180),
+      startTimes: z.array(instantSchema).min(2).max(10),
+      closesAt: instantSchema,
+      timeZone: timeZoneSchema.default('America/New_York'),
+      question: z.string().trim().min(1).max(300).optional(),
+      eligibleTier: z
+        .enum(TIERS)
+        .refine((t: Tier) => tierAllows(t, 'member'))
+        .default('raider'),
+      quorum: z.number().int().min(1).nullable().default(null),
+    })
+    .superRefine((input, ctx) => {
+      if (input.size === null && !sizeOptional(input.kind)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['size'],
+          message: `${AKind(input.kind)} needs a size (${sizesText(input.kind)})`,
+        });
+      }
+      if (!input.instance && !instanceOptional(input.kind)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['instance'],
+          message: `${AKind(input.kind)} needs an instance, e.g. Molten Core`,
+        });
+      }
+    }),
   handler: async (input, { caller, guildId, deps, now }) => {
     // The same checks raid-create makes, so the raid made from the winner can't be refused.
     if (!sizeFits(input.kind, input.size)) {
@@ -69,7 +99,11 @@ export const raidNightPoll = command({
       });
     }
     const targets = input.roleTargets;
-    if (targets && targets.tank + targets.healer + targets.dps > input.size) {
+    if (
+      targets &&
+      input.size !== null &&
+      targets.tank + targets.healer + targets.dps > input.size
+    ) {
       return error('ROLE_TARGETS_TOO_BIG', `Role targets add up to more than ${input.size}`, {
         suggestion: 'Lower the tank, healer, or dps targets so they fit the size',
         retryable: false,

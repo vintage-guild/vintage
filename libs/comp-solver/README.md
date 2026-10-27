@@ -25,9 +25,10 @@ the raids commands, the coordinator card, and the site's forms:
 | `raid` | 10, 20, 40 | `defaultTemplate(size)` | yes |
 | `dungeon` | 5 | 1 tank, 1 healer, 3 dps | no |
 | `battleground` | 10, 15, 40 | no tank; 2, 3 or 8 healers; the rest dps | no |
-| `other` | 1–40 | none (anyone fills any slot) | no |
+| `other` | 1–40, or none (open: no cap, no queue) | none (anyone fills any slot) | no |
 
-`sizeFits(kind, size)`, `defaultRoleTargets(kind, size)`, and `eventTemplate(event)` (the
+`sizeFits(kind, size)`, `defaultRoleTargets(kind, size)`, `compSize(event, going)` (an open
+event solves with everyone going), and `eventTemplate(event)` (the
 template to solve with: the event's targets or the kind's, raid buffs only for raids).
 
 ## How it picks

@@ -358,6 +358,25 @@ const template = html<Page>`
       ></vintage-coordinator-desk>
     </section>
     <section>
+      <h2>Progress</h2>
+      <p>The quarters' Progress tab: the ledger with a form to record a kill and what dropped. The summary says whether it becomes the ledger entry. Recording reports the gallery client's refusal.</p>
+      <vintage-progress-desk
+        open
+        can-record
+        time-zone="America/New_York"
+        opens-on="${RAIDS_OPEN_ON}"
+        :raids="${() => LEDGER_RAIDING.raids}"
+        :latest="${() => LEDGER_RAIDING.latest}"
+      ></vintage-progress-desk>
+      <h3>Before the raids unlock</h3>
+      <vintage-progress-desk
+        can-record
+        time-zone="America/New_York"
+        opens-on="${RAIDS_OPEN_ON}"
+        :raids="${() => LEDGER_LOCKED}"
+      ></vintage-progress-desk>
+    </section>
+    <section>
       <h2>Characters and profile</h2>
       <p>The member's characters (Characters page) and their raid settings (Profile).</p>
       <vintage-character-list :characters="${() => GALLERY_CHARACTERS}"></vintage-character-list>

@@ -110,7 +110,8 @@ describe('routing helpers', async () => {
     expect(tabFromUrl('?tab=polls')).toBe('polls');
     expect(tabFromUrl('?tab=calendar')).toBe('calendar');
     expect(tabFromUrl('?tab=coordinator')).toBe('coordinator');
-    expect(tabFromUrl('?tab=progress')).toBe('tonight');
+    expect(tabFromUrl('?tab=progress')).toBe('progress');
+    expect(tabFromUrl('?tab=roster')).toBe('tonight');
     expect(tabFromUrl('')).toBe('tonight');
   });
 });

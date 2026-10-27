@@ -68,6 +68,12 @@ export {
   type PollsDeskResults,
   VintagePollsDesk,
 } from './elements/polls-desk';
+export {
+  LOOT_QUALITIES,
+  type LootQuality,
+  MAX_DROPS,
+  VintageProgressDesk,
+} from './elements/progress-desk';
 export { VintageRaidMonth } from './elements/raid-month';
 export {
   type RecruitingDeskBand,

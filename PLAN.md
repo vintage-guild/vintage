@@ -729,7 +729,7 @@ Phase 0 has about ten days and one maintainer, so it is cut to the minimum that 
 
 ### Phase 2 — In-game + loot (→ 2026-12-09)
 
-- [ ] `libs/bridge-format` + Lua side with shared fixtures (TS side and fixtures done, #23; Lua side waits for the addon scaffold)
+- [x] `libs/bridge-format` + Lua side with shared fixtures (#23: TS side #49; Lua side `addon/Vintage/Core/BridgeFormat`, 2026-10-27)
 - [ ] Addon: import roster → invite all → arrange groups (FenUI), attendance snapshot, loot capture, item data capture, export string; `vintage-addon` skill
 - [ ] CurseForge project **Vintage**; `release-addon.yml` with `BigWigsMods/packager@v2 -t addon/Vintage`
 - [ ] `loot` host module + `libs/loot-core`; first two methods (likely soft-reserve + council, per Q5)

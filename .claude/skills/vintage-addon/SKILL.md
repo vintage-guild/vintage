@@ -43,8 +43,11 @@ old step, and never put `schemaVersion` in AceDB defaults.
 
 - `python Tools/validate.py --lua lua5.1` is the CI `addon` lane; `--static` on a machine
   without Lua. Watch any new check fail once.
-- Bridge format changes bump `v` on both sides and regenerate the fixtures (`pnpm
-  fixtures:bridge`; the busted suite rewrites `lua-made.json` under Lua 5.1).
+- Bridge format changes bump `v` on both sides (`schemas.ts` and `Core/BridgeFormat/schema.lua`)
+  and regenerate the fixtures in the order in `libs/bridge-format/README.md` (Fixtures):
+  `pnpm fixtures:bridge`, `--write-fixtures`, the busted run with `VINTAGE_WRITE_FIXTURES=1`
+  under Lua 5.1, `--write-fixtures` again. Pasted strings are untrusted: keep the TS limits and
+  error codes, and bound work before reading a value (see `Core/BridgeFormat/schema.lua`).
 - Libraries: change them only through `libs.sync`, then update `PINNED_LIBRARIES` in
   `Tools/validate.py`. The theme copy: `pnpm tokens:build`, never by hand.
 - Review lane: `vintage-addon-reviewer`.

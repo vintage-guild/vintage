@@ -18,10 +18,10 @@ shows, and what `libs/bridge-format` already fixed. Forever is the only target.
 
 | Piece | Where | State |
 |---|---|---|
-| Bridge format, TS side: schemas, codec, errors, golden fixtures | `libs/bridge-format` (#49) | ✅ `raid-import` and `raid-export` v1; `fixtures/lua-made.json` made under Lua 5.4 |
+| Bridge format, TS side: schemas, codec, errors, golden fixtures | `libs/bridge-format` (#49) | ✅ `raid-import` and `raid-export` v1; `fixtures/lua-made.json` written by the addon's busted suite (the strings were produced on the Lua 5.4 stand-in; CI's Lua 5.1 run checks they are what 5.1 encodes) |
 | Import string from the coordinator | `modules/coordinator` `addon-import-get` and the officer-channel post after lock (J07) | ✅ roster and groups; `loot.mode` is `group` and `candidates` is empty until the loot module lands |
 | Addon scaffold (PR1) | `addon/Vintage` | ✅ Core, Bridge, View, lifecycle, settings, minimap button, Mechanic tests; 57 busted specs and the validator. Specs and lint ran locally only on stand-ins (Lua 5.4 under wasmoon, a luaparse lint); CI's Lua 5.1 run is the first real one |
-| Bridge format, Lua side | `addon/Vintage/Core` | ❌ PR2 |
+| Bridge format, Lua side (PR2) | `addon/Vintage/Core/BridgeFormat` | ✅ codec and schemas; 50 busted specs over the golden fixtures (both directions), the envelope limits, and every schema rule. Ran locally on the Lua 5.4 stand-in; CI's Lua 5.1 run is the check that `lua-made.json` is what 5.1 encodes |
 | CI addon lane | `.github/workflows/ci.yml` `addon` job, selected on `addon/**`, `libs/bridge-format/**`, and `libs/design-tokens/generated/lua/**` | 🚧 wired: installs Lua 5.1, busted, and luacheck, then runs `Tools/validate.py` (no longer skips). First CI run pending |
 | Release workflow | `release-addon.yml` | ❌ |
 | FenUI theme from the design tokens | `libs/design-tokens/generated/lua/VintageTokens.lua` | ✅ generated; `pnpm tokens:build` also writes the addon's `Theme/VintageTokens.lua`, which registers both themes with FenUI at login (and again before a window opens, since every embedded FenUI copy resets its tables when it loads) |
@@ -29,7 +29,7 @@ shows, and what `libs/bridge-format` already fixed. Forever is the only target.
 | Forever client | `C:\Program Files (x86)\World of Warcraft\_forever_` | ✅ installed, `Wow.exe` 1.60.1.70532, 50 addons; Forever addons (Attune, WTFix) declare `## Interface: 16001` |
 | Blizzard UI source for Forever | `_dev_/wow-ui-source-live`, `_dev_/12.0.1.64889` | ⚠️ Retail (Mainline) sources only; the Forever export (`/console exportInterfaceFiles code`) waits for the client to log in (#21) |
 | Reference addons | `_dev_/Weekly`, `ActionHud`, `ClassyMap`, `Flightsim`, `FenUX` | ✅ all run on Forever through junctions into `_forever_/Interface/AddOns` |
-| Shared libraries | `_dev_/Libs`: Ace3, FenCore, FenUI (120001), LibDeflate 1.0.2, LibStub, MechanicLib, LibDBIcon, LibDataBroker, SharedMedia | ⚠️ **no LibSerialize** (only copies inside WeakAuras forks). ⚠️ The Ace3 working copy carries an uncommitted AceEvent fork (MINOR 9); the addon embeds Ace3 from its git HEAD instead (MINOR 4) |
+| Shared libraries | `_dev_/Libs`: Ace3, FenCore, FenUI (120001), LibDeflate 1.0.2, LibStub, MechanicLib, LibDBIcon, LibDataBroker, SharedMedia | ✅ LibSerialize: `_dev_/Libs/LibSerialize` is a clone of rossnichols/LibSerialize at v1.2.3 (MINOR 7), embedded since PR2. ⚠️ The Ace3 working copy carries an uncommitted AceEvent fork (MINOR 9); the addon embeds Ace3 from its git HEAD instead (MINOR 4) |
 | Local Lua tooling on this machine | `mech`, `lua5.1`, `busted`, `luacheck`, `stylua` | ❌ none on PATH; Mechanic MCP not connected in this session; pypi blocked. Python works through the main checkout's botcore venv, so `validate.py --static` runs locally |
 
 ## Scope
@@ -179,8 +179,8 @@ The string is `!VIN:1!` + `EncodeForPrint(CompressDeflate(SerializeEx({ stable =
 | Size | `#text > 1000000` → `TOO_LARGE` | same cap as `DEFAULT_DECODE_LIMITS.maxEncodedLength` |
 | Print decoding | `LibDeflate:DecodeForPrint` | nil → `CORRUPT` |
 | Inflate | `LibDeflate:DecompressDeflate` | nil → `CORRUPT`; `#out > 2 MiB` → `TOO_LARGE` (LibDeflate cannot stop mid-stream; the cap is checked after, which is acceptable for strings that come from the guild's own site) |
-| Deserialize | `LibSerialize:Deserialize` | failure → `CORRUPT`; then depth ≤ 32 and node count ≤ 200k walked by the validator → `TOO_LARGE` |
-| Schema | `Core/Schemas/bridge.lua` | `v > 1` → `UNSUPPORTED_VERSION`; unknown `kind` → `UNKNOWN_KIND`; the wrong kind for the call → `WRONG_KIND`; field problems → `INVALID_PAYLOAD` with `details.issues[] = { path, message }` |
+| Deserialize | `LibSerialize:Deserialize` | failure → `CORRUPT`; then a walk refuses cycles, depth > 32, and more than 200k values → `CORRUPT`, as the TS deserializer does |
+| Schema | `Core/BridgeFormat/schema.lua` | `v > 1` → `UNSUPPORTED_VERSION`; unknown `kind` → `UNKNOWN_KIND`; the wrong kind for the call → `WRONG_KIND`; field problems → `INVALID_PAYLOAD` with `details.issues[] = { path, message }` |
 
 The validator mirrors `schemas.ts` field for field, including the cross-reference rules (unique
 ids, groups and candidates only name rostered characters, nobody in two groups, at most 5 per
@@ -189,11 +189,26 @@ compressed bytes differ, so tests compare decoded values. Changing a payload bum
 and updates the fixtures (`pnpm fixtures:bridge` for TS; the busted suite regenerates
 `lua-made.json` under Lua 5.1).
 
-**Fixtures without a JSON parser:** `scripts/build-bridge-fixtures.mjs` also writes
-`addon/Vintage/Tests/fixtures/bridge_fixtures.lua` (a Lua table of every fixture: description,
-payload, encoded, error). The busted spec loops over it; `validate.py` fails when the Lua file is
-older than the JSON. The spec writes `lua-made.json` with a 40-line JSON writer (strings only) when
-`VINTAGE_WRITE_FIXTURES=1`.
+**Fixtures without a JSON parser:** `Tools/validate.py --write-fixtures` renders
+`libs/bridge-format/fixtures/*.json` (and `lua-made.json`'s strings) as
+`addon/Vintage/Tests/fixtures/bridge_fixtures.lua`, and its static check fails while that file is
+stale, so one renderer owns it. The codec spec writes `lua-made.json` (`Tests/support/lua_made.lua`)
+when `VINTAGE_WRITE_FIXTURES=1`, and otherwise fails while a committed string differs from what this
+Lua encodes. Codec files live in `Core/BridgeFormat/` (not `Core/Bridge/`, to keep "Bridge" for
+the game adapter); the codec takes LibSerialize and LibDeflate as arguments, so Core never calls
+LibStub, and `Bridge/BridgeStrings.lua` hands it the embedded copies. `wow-data.json` carries
+`libs/wow-data`'s class and role lists, and the Lua spec fails when the schema's copies drift.
+
+**Parity with the TS side (PR2 review).** Same error codes for the same input (a huge `v` reads as a newer version on both sides), including invalid
+UTF-8 anywhere, integers past 2^53, non-string/number keys, and a second serialized value; both sides
+keep a leading byte order mark in a string (the TS decoder uses `ignoreBOM`); values
+are counted the TS way (the smallest `maxNodes` that decodes each fixture matches on both sides).
+Untrusted strings are bounded before they are read: a string longer than 3 × its limit in bytes is
+refused without scanning, each distinct string is UTF-8-checked once, and the trim is linear and
+also strips the no-break spaces and byte order marks JavaScript's `trim` does. Known differences,
+all on crafted input only: LibDeflate inflates fully before the 2 MiB cap is checked; a sequence
+written into LibSerialize's map part, or an array with a trailing nil, decodes in Lua but is
+refused by the TS deserializer; other Unicode spaces that JavaScript trims are kept.
 
 ### Bridge layer rules (from ActionHud, Flightsim, FenUX)
 
@@ -315,7 +330,7 @@ risk is a red `addon` lane on the first push, which doubles as the lane's watche
 | Core | busted (`Tests/core/*_spec.lua`) and Mechanic `sandbox.test` | Codec: every fixture decodes to its payload or fails with its error; own encode → decode round-trips; limits. Schemas: each `schemas.ts` rule has a failing case. Roster: matching with realms, ordering, missing and extra. Groups: plan reaches the target with ≤ N ops, swaps when full, stable when already arranged. Session: every transition, snapshot dedupe, loot with and without a source, export payload validates against the export schema. Loot: `CHAT_MSG_LOOT` patterns for self, others, multiples |
 | Bridge | busted on a fake host (`Tests/support/wow.lua`, modeled on ActionHud's host and ClassyMap's `wow_mock`: events, timers, frames, `InCombatLockdown`, a secret-value factory) | Invite queue converts to raid after the second member; arrange issues one op per roster update and times out cleanly; loot capture on `LOOT_OPENED` records items and asks for item data; attendance after `ENCOUNTER_END`; secret fields dropped; nothing mutates in combat |
 | Lifecycle | busted, loading the real TOC order (ActionHud's `load_addon.lua`) with the embedded libraries | `OnInitialize` → `OnEnable` → `/reload` keeps the session; migrations run once; profile copy and reset |
-| Fixtures | `Tests/fixtures/bridge_fixtures.lua` generated from `libs/bridge-format/fixtures` | Freshness checked by `validate.py`; `lua-made.json` regenerated under Lua 5.1 and decoded by the TS tests (`pnpm exec vitest run libs/bridge-format`) |
+| Fixtures | `Tests/fixtures/bridge_fixtures.lua` rendered by `validate.py --write-fixtures` from `libs/bridge-format/fixtures` | Freshness checked by `validate.py`; `lua-made.json` regenerated under Lua 5.1 and decoded by the TS tests (`pnpm exec vitest run libs/bridge-format`) |
 | JTBD | `Tests/jtbd/*_spec.lua` (scenario specs on the fake host, one per job) and the web half in `apps/api/tests/jtbd/raid-night.jtbd.test.ts` | See the jobs below |
 | Gate | `Tools/validate.py --lua lua5.1` (Weekly's, minus the season checks): toolchain versions, literal locale keys, TOC/XML references, `.pkgmeta` exclusions, Luacheck, busted, diff whitespace, fixture freshness, TOC version ↔ CHANGELOG | Run by CI's `addon` lane and listed in `docs/operations/local-validation.md` |
 | In game | Mechanic tests tab and the spike table | Visuals, event timing, combat, the hand-out |
@@ -346,7 +361,7 @@ verified live from Nov 4.
 | PR | Issue | Delivers | Done when |
 |---|---|---|---|
 | **PR1 Scaffold** | #21 (scaffold part), #24 (skill) | `addon/Vintage` skeleton (TOC, embeds, Libs via `libs.sync`, Core/Bridge/View stubs, `Vintage.lua`, Config, Settings, Mechanic.lua, Locales), `Tools/validate.py` + toolchain, `.luacheckrc`, `.pkgmeta`, `Tests/support/wow.lua`, one lifecycle spec, `Theme/VintageTokens.lua` wired to `pnpm tokens:build` with a freshness check, `addon/Vintage/AGENTS.md`, the `vintage-addon` skill, the `_dev_/Vintage` junction, PLAN §3.6 and architecture.md rows updated, this doc moved to `active/` | `/vintage` opens an empty themed window on the Forever client (after Nov 4); CI `addon` lane runs validate.py and was watched failing once; `pnpm check:agent-docs` green. **Built 2026-10-27.** Differences from this row: `Bridge/Game.lua` waits for the first game mutation (PR4) and `Dev/` for the fixture loader (PR3); LibDeflate and LibSerialize arrive with the codec (PR2); no theme setting yet, since only the border would change (Q13). The window has not been opened in the game |
-| **PR2 Bridge codec** | #23 | `Core/Bridge/codec.lua`, `Core/Schemas/bridge.lua`, `bridge_fixtures.lua` from `build-bridge-fixtures.mjs`, busted spec over every fixture, `lua-made.json` regenerated under 5.1, the vitest suite still decodes it | Both sides decode each other's fixtures; #23 closed; PLAN §8 Phase 2 first box ticked |
+| **PR2 Bridge codec** | #23 | `Core/BridgeFormat/codec.lua` and `schema.lua`, `bridge_fixtures.lua` from `validate.py --write-fixtures`, busted spec over every fixture, `lua-made.json` checked against what Lua encodes, the vitest suite still decodes it | Both sides decode each other's fixtures; #23 closed; PLAN §8 Phase 2 first box ticked. **Built 2026-10-27**, plus LibSerialize v1.2.3 and LibDeflate embedded and an in-game Mechanic test that decodes a website-made string |
 | **PR3 Session and import** | #24 | `Core/Session.lua`, `Core/Roster.lua`, `raid-import`, `raid-status`, Import dialog, Roster tab with match status, `session-clear` | Pasting the coordinator's string from `#vintage-ops` shows the roster with who is already in the group |
 | **PR4 Invite and arrange** | #24 | `raid-invite` queue with `ConvertToRaid`, `raid-arrange` move plan with swaps, `loot-mode-set` with confirm, Groups tab | On the fake host: a 25-name import forms a raid in ≤ 26 roster updates and arranges into the planned groups; live: a 5-person test after Nov 4 |
 | **PR5 Attendance, loot, items, export** | #24 | `attendance-snapshot` on form / `ENCOUNTER_END` / export / manual, `loot-capture`, `item-record`, `raid-export`, Loot and Export tabs | The export string decodes on the website side (`decodeRaidExport`) with the attendance, loot, and items the fake host produced; the J-job spec passes |

@@ -11,11 +11,33 @@ Load.CORE = {
 	"Core/Session.lua",
 	"Core/Migrations.lua",
 	"Core/Actions/session.lua",
+	"Core/BridgeFormat/schema.lua",
+	"Core/BridgeFormat/codec.lua",
 }
+
+-- The bridge string libraries, as embeds.xml loads them (LibStub first).
+Load.BRIDGE_LIBRARIES = {
+	"Libs/LibStub/LibStub.lua",
+	"Libs/LibDeflate/LibDeflate.lua",
+	"Libs/LibSerialize/LibSerialize.lua",
+}
+
+--- A codec over the real LibSerialize and LibDeflate, plus the ns it was built in. LibStub
+--- needs the game's string globals (strmatch), so this starts a fake client first.
+---@return table codec, table ns
+function Load.codec()
+	dofile("Tests/support/wow.lua").New()
+	for _, path in ipairs(Load.BRIDGE_LIBRARIES) do
+		assert(loadfile(path))()
+	end
+	local ns = Load.files(Load.CORE)
+	return ns.Core.BridgeFormat.Codec.New(LibStub("LibSerialize"), LibStub("LibDeflate")), ns
+end
 
 -- Bridge in TOC order, after Core.
 Load.BRIDGE = {
 	"Bridge/Secrets.lua",
+	"Bridge/BridgeStrings.lua",
 	"Bridge/Context.lua",
 	"Bridge/Events.lua",
 	"Bridge/Executor.lua",

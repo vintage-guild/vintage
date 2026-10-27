@@ -220,7 +220,7 @@ describe("Mechanic", function()
 			assert.is_true(result.passed, test.id .. ": " .. tostring(result.message))
 		end
 		assert.are.equal(total, passed)
-		assert.truthy(total >= 5)
+		assert.truthy(total >= 6)
 		assert.is_not_nil(ns)
 	end)
 

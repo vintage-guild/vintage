@@ -18,9 +18,12 @@ Core\init.lua
 Core\Session.lua
 Core\Migrations.lua
 Core\Actions\session.lua
+Core\BridgeFormat\schema.lua
+Core\BridgeFormat\codec.lua
 
 # Bridge: the only layer that calls WoW APIs
 Bridge\Secrets.lua
+Bridge\BridgeStrings.lua
 Bridge\Context.lua
 Bridge\Events.lua
 Bridge\Executor.lua

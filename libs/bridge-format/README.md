@@ -59,9 +59,20 @@ repeated table references (200k), and rejects cyclic tables.
 
 `fixtures/*.json` hold `{ description, payload, encoded, error? }`. Edit `src/fixtures.ts`, then
 `pnpm fixtures:bridge`; the tests fail when a committed fixture is stale.
-`fixtures/lua-made.json` holds the same payloads encoded by the real LibSerialize and
-LibDeflate (Lua 5.4), which the TS tests decode. When you change a fixture payload, delete its
-entry there until the addon's busted suite regenerates it.
+`fixtures/lua-made.json` holds the same payloads encoded by the addon's Lua codec (the real
+LibSerialize and LibDeflate it ships), which the TS tests decode. The addon's busted suite fails
+while a committed string differs from what its Lua encodes, so CI's Lua 5.1 run keeps the file
+honest.
 
-The addon's Lua codec should, for every fixture: decode `encoded` to `payload` (or fail with
-`error`), and decode its own encoding of `payload` back to `payload`.
+The Lua side is `addon/Vintage/Core/BridgeFormat` (codec and schemas, the same limits and error
+codes, except that its inflated-size cap is checked after inflating). For every fixture it decodes `encoded` to `payload` (or fails with `error`), decodes the
+Lua-made string the same way, and round-trips its own encoding. After changing a fixture:
+
+1. `pnpm fixtures:bridge` (these JSON files, and `wow-data.json` with the class and role lists).
+2. `python addon/Vintage/Tools/validate.py --write-fixtures` renders them as the Lua table the
+   busted specs read (`Tests/fixtures/bridge_fixtures.lua`).
+3. In `addon/Vintage`: `VINTAGE_WRITE_FIXTURES=1 busted Tests/core/bridge_codec_spec.lua`
+   rewrites `lua-made.json` under Lua 5.1 (the comparisons with the old Lua-made strings skip in
+   this run).
+4. `--write-fixtures` again, so the Lua table carries the new Lua-made strings. The addon gate
+   fails while that table is stale.

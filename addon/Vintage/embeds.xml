@@ -14,6 +14,10 @@
 	<Script file="Libs\LibDataBroker-1.1\LibDataBroker-1.1.lua"/>
 	<Include file="Libs\LibDBIcon-1.0\lib.xml"/>
 
+	<!-- Bridge strings: compression and serialization -->
+	<Include file="Libs\LibDeflate\lib.xml"/>
+	<Include file="Libs\LibSerialize\lib.xml"/>
+
 	<!-- Fen ecosystem: pure logic, then widgets -->
 	<Include file="Libs\FenCore\Core\FenCore.xml"/>
 	<Include file="Libs\FenUI\FenUI.xml"/>

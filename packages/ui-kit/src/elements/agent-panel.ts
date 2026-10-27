@@ -345,11 +345,18 @@ export class VintageAgentPanel extends FASTElement {
   @observable thread = storedThread();
   private poller: ReturnType<typeof setInterval> | null = null;
   private clock: ReturnType<typeof setInterval> | null = null;
+  /**
+   * Escape stops a running question wherever focus is (sending can leave focus outside the
+   * panel), but steps aside for whatever else used the key: an open menu that already handled
+   * it, an open dialog, or text composition.
+   */
   private onKey = (event: KeyboardEvent) => {
-    if (event.key === 'Escape' && this.active && !event.isComposing) {
-      event.preventDefault();
-      void this.stop();
+    if (event.key !== 'Escape' || !this.active || event.isComposing || event.defaultPrevented) {
+      return;
     }
+    if (this.ownerDocument.querySelector('dialog[open]')) return;
+    event.preventDefault();
+    void this.stop();
   };
 
   @volatile
@@ -377,14 +384,14 @@ export class VintageAgentPanel extends FASTElement {
 
   connectedCallback(): void {
     super.connectedCallback();
-    this.addEventListener('keydown', this.onKey);
+    this.ownerDocument.addEventListener('keydown', this.onKey);
     void this.loadHistory();
     if (this.showUsage) void this.loadUsage();
   }
 
   disconnectedCallback(): void {
     super.disconnectedCallback();
-    this.removeEventListener('keydown', this.onKey);
+    this.ownerDocument.removeEventListener('keydown', this.onKey);
     this.stopPolling();
   }
 

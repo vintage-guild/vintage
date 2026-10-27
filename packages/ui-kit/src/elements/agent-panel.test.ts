@@ -269,6 +269,20 @@ describe('<vintage-agent-panel>', () => {
     expect(panel.active).toBe(false);
   });
 
+  it('stops on Escape wherever focus is, but not when something else used the key', async () => {
+    const client = useAgentClient([run()]);
+    restore = client.restore;
+    const panel = await mount<VintageAgentPanel>('<vintage-agent-panel></vintage-agent-panel>');
+    await panel.ask('Long one');
+    const handled = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true });
+    handled.preventDefault();
+    document.dispatchEvent(handled);
+    expect(client.calls.some((c) => c.name === 'agent-cancel')).toBe(false);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+    await settle();
+    expect(client.calls).toContainEqual({ name: 'agent-cancel', input: { runId: 'run-1' } });
+  });
+
   it('reloads the conversation for this browser tab, oldest first', async () => {
     const older = run({ id: 'run-0', prompt: 'First?', status: 'answered', answer: 'One.' });
     const newer = run({ id: 'run-1', prompt: 'Second?', status: 'answered', answer: 'Two.' });

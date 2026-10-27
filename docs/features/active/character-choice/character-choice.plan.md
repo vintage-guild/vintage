@@ -95,9 +95,11 @@ filled in.
 
 **As built (#148):**
 
-- Custom ids: `signup-char:<event>` and `signup-spec:<event>` (the choice is the menu's value),
-  and the reason form's `signup-note:<event>:<status>:<character>:<spec>` carries the guessed
-  spec (the old four-part form still parses). Ids and values must match `[A-Za-z0-9_-]{1,64}`.
+- Custom ids: `signup-char:<event>` and `signup-spec:<event>` (the choice is the menu's value).
+  The reason form keeps `signup-note:<event>:<status>:<character>`: a spec would push it past
+  Discord's 100 characters, so on submit the guess is read again and its spec used when the
+  character matches. Ids parse by exact segment count; ids and values must match
+  `[A-Za-z0-9_-]{1,64}`.
 - "Needed" means fewer going (accepted or late, not queued) than the event's role targets
   (raids `rolesNeeded`), not counting the member's own signup, so a raid's only healer still
   sees "healers needed" on the healer spec.

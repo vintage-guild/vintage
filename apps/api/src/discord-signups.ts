@@ -4,8 +4,9 @@
 //                                                       reason form first for late/tentative),
 //                                                       or the picker when there's no guess
 //   select  signup-pick:<eventId>:<status>             → the chosen character, then as above
-//   modal   signup-note:<eventId>:<status>:<ch>[:<sp>] → answer with the typed reason as the note
-//                                                       (the spec rides along when guessed)
+//   modal   signup-note:<eventId>:<status>:<ch>        → answer with the typed reason as the note
+//                                                       (and the guessed spec, when <ch> is the
+//                                                       guess; no spec in the id keeps it ≤ 100)
 //   select  signup-char:<eventId>                      → Switch character: same answer, another
 //                                                       character (any spec for the raid clears)
 //   select  signup-spec:<eventId>                      → Change spec: same character, another
@@ -85,7 +86,6 @@ type Parsed =
       eventId: string;
       status: SignupStatus;
       characterId: string;
-      spec: string | undefined;
       note: string | null;
     }
   | { kind: 'switch'; eventId: string; characterId: string }
@@ -118,24 +118,24 @@ function parseMenu(interaction: Interaction, parts: string[]): Parsed | null {
 /** The signup interaction this is, or null when it isn't one of ours. */
 export function parseSignupInteraction(interaction: Interaction): Parsed | null {
   const parts = (interaction.data?.custom_id ?? '').split(':');
-  const [prefix, eventId, status, characterId, spec] = parts;
+  const [prefix, eventId, status, characterId] = parts;
   if (prefix === 'signup-char' || prefix === 'signup-spec') return parseMenu(interaction, parts);
   const component = interaction.type === InteractionType.MESSAGE_COMPONENT;
   const picked = interaction.data?.values?.[0];
   if (!isToken(eventId) || !isStatus(status)) return null;
-  if (prefix === 'signup' && component) return { kind: 'button', eventId, status };
-  if (prefix === 'signup-pick' && component && isToken(picked)) {
+  if (prefix === 'signup' && parts.length === 3 && component)
+    return { kind: 'button', eventId, status };
+  if (prefix === 'signup-pick' && parts.length === 3 && component && isToken(picked)) {
     return { kind: 'pick', eventId, status, characterId: picked };
   }
   if (
     prefix === 'signup-note' &&
     interaction.type === InteractionType.MODAL_SUBMIT &&
     isToken(characterId) &&
-    (spec === undefined || isToken(spec)) &&
-    parts.length <= 5
+    parts.length === 4
   ) {
     const note = modalValues(interaction).note?.trim();
-    return { kind: 'note', eventId, status, characterId, spec, note: note ? note : null };
+    return { kind: 'note', eventId, status, characterId, note: note ? note : null };
   }
   return null;
 }
@@ -219,17 +219,10 @@ function specOptions(signup: Signup, needed: CompRole[]): SelectOption[] {
   }));
 }
 
-function reasonForm(
-  eventId: string,
-  status: SignupStatus,
-  characterId: string,
-  spec: string | undefined,
-  raid: string,
-) {
+function reasonForm(eventId: string, status: SignupStatus, characterId: string, raid: string) {
   const late = status === 'late';
-  const id = [`signup-note:${eventId}:${status}:${characterId}`, spec].filter(Boolean).join(':');
   return modal(
-    id,
+    `signup-note:${eventId}:${status}:${characterId}`,
     (late ? `Late for ${raid}` : `Tentative for ${raid}`).slice(0, 45),
     textInput('note', late ? 'How late, and why? (optional)' : 'What might stop you? (optional)', {
       style: TextInputStyle.SHORT,
@@ -389,7 +382,7 @@ async function onButton(flow: Flow, status: SignupStatus): Promise<InteractionRe
     return characterPicker(event.id, status, characters, needed);
   }
   if (ASKS_REASON.has(status)) {
-    return reasonForm(event.id, status, guessed.characterId, guessed.spec, event.name);
+    return reasonForm(event.id, status, guessed.characterId, event.name);
   }
   return flow.run({ status, characterId: guessed.characterId, spec: guessed.spec }, guessed.reason);
 }
@@ -435,15 +428,19 @@ async function handleSignup(
 
   switch (parsed.kind) {
     case 'note': {
-      const { status, characterId, spec, note } = parsed;
-      // The form came from the guess when it carries the guessed character: say why again.
+      const { status, characterId, note } = parsed;
+      // The form came from the guess when it carries the guessed character: play the guessed
+      // spec and say why again. (The id has no room for the spec within Discord's 100.)
       const guessed = await guess(ports, caller, event.id);
-      const reason = guessed?.characterId === characterId ? guessed.reason : null;
-      return flow.run({ status, characterId, note, ...(spec ? { spec } : {}) }, reason);
+      const fromGuess = guessed?.characterId === characterId ? guessed : null;
+      return flow.run(
+        { status, characterId, note, ...(fromGuess ? { spec: fromGuess.spec } : {}) },
+        fromGuess?.reason ?? null,
+      );
     }
     case 'pick':
       if (ASKS_REASON.has(parsed.status)) {
-        return reasonForm(event.id, parsed.status, parsed.characterId, undefined, event.name);
+        return reasonForm(event.id, parsed.status, parsed.characterId, event.name);
       }
       return flow.run(
         { status: parsed.status, characterId: parsed.characterId },

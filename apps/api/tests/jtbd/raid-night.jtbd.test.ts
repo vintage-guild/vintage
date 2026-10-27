@@ -460,11 +460,11 @@ describe('JTBD: raid night', () => {
     const form = await ui.click(g.bram.discordId!, `signup:${wed.id}:late`);
     expect(form).toMatchObject({
       type: 9,
-      data: { custom_id: `signup-note:${wed.id}:late:${g.chars.bram}:holy` },
+      data: { custom_id: `signup-note:${wed.id}:late:${g.chars.bram}` },
     });
     const late = await ui.submit(
       g.bram.discordId!,
-      `signup-note:${wed.id}:late:${g.chars.bram}:holy`,
+      `signup-note:${wed.id}:late:${g.chars.bram}`,
       'after work',
     );
     expect(await g.host.ok<Signup>(g.bram, 'signup-get', { eventId: wed.id })).toMatchObject({
@@ -584,9 +584,9 @@ describe('JTBD: raid night', () => {
     expect(saved.find((c) => c.id === bark)?.spec).toBe('feral-tank');
     // Going late keeps the spec; switching back to her warrior clears it.
     expect(await ui.click(g.aeryn.discordId!, `signup:${thu.id}:late`)).toMatchObject({
-      data: { custom_id: `signup-note:${thu.id}:late:${bark}:feral` },
+      data: { custom_id: `signup-note:${thu.id}:late:${bark}` },
     });
-    await ui.submit(g.aeryn.discordId!, `signup-note:${thu.id}:late:${bark}:feral`, 'ten min');
+    await ui.submit(g.aeryn.discordId!, `signup-note:${thu.id}:late:${bark}`, 'ten min');
     expect(await g.host.ok<Signup>(g.aeryn, 'signup-get', { eventId: thu.id })).toMatchObject({
       status: 'late',
       spec: 'feral',

@@ -229,6 +229,25 @@ describe('signup-suggest and a spec for one raid', () => {
       expect(await suggest(raid.id)).toMatchObject({ characterId: 'oak' });
     });
 
+    it("falls through to the series when this raid's signup character was deleted", async () => {
+      const raid = await event();
+      await night(7, 'elm');
+      await ok(
+        'signup-set',
+        { eventId: raid.id, characterId: 'oak', status: 'accepted' },
+        as('fen'),
+      );
+      deps.members = {
+        ...deps.members,
+        listCharacters: async (g, memberId) =>
+          CHARACTERS.filter((c) => c.guildId === g && c.memberId === memberId && c.id !== 'oak'),
+      };
+      expect(await suggest(raid.id)).toMatchObject({
+        characterId: 'elm',
+        reason: 'your last Molten Core night',
+      });
+    });
+
     it('for a one-off raid, looks at raids in the same instance', async () => {
       const oneOff = await event({ scheduleId: null });
       await night(7, 'elm', { event: { scheduleId: null } });

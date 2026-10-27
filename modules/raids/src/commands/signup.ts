@@ -183,8 +183,10 @@ export const signupSuggest = command({
     const characters = await deps.members.listCharacters(guildId, memberId);
     const existing = await deps.raids.getSignupByMember(guildId, eventId, memberId);
 
+    // The series only matters when this raid's signup can't answer: none, or its character
+    // was deleted since.
     let window: PastSignup[] = [];
-    if (!existing) {
+    if (!existing || !characters.some((c) => c.id === existing.characterId)) {
       const recent = await deps.raids.listSignupsByMember(guildId, memberId, HISTORY_LIMIT);
       const events = new Map<string, RaidEvent | null>();
       const past: PastSignup[] = [];

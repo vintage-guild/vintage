@@ -100,17 +100,43 @@ describe('discord signups', () => {
     expect(JSON.stringify(res)).toContain('Feral Druid, melee DPS): 3 of your last 5');
   });
 
-  it('carries the guessed spec through the reason form', async () => {
-    const { p, sets } = ports(null);
-    const submit = interaction(
-      'signup-note:raid1:tentative:oak:feral',
-      { components: [{ type: 1, components: [{ type: 4, custom_id: 'note', value: 'maybe' }] }] },
-      InteractionType.MODAL_SUBMIT,
-    );
-    await handleSignupInteraction(submit, p);
+  it('plays the guessed spec through the reason form, and only for the guessed character', async () => {
+    const { p, sets } = ports(guessOak);
+    const submit = (characterId: string) =>
+      handleSignupInteraction(
+        interaction(
+          `signup-note:raid1:tentative:${characterId}`,
+          {
+            components: [{ type: 1, components: [{ type: 4, custom_id: 'note', value: 'maybe' }] }],
+          },
+          InteractionType.MODAL_SUBMIT,
+        ),
+        p,
+      );
+    expect(JSON.stringify(await submit('oak'))).toContain('3 of your last 5');
+    await submit('elm');
     expect(sets).toEqual([
       { eventId: 'raid1', characterId: 'oak', status: 'tentative', note: 'maybe', spec: 'feral' },
+      { eventId: 'raid1', characterId: 'elm', status: 'tentative', note: 'maybe' },
     ]);
+  });
+
+  it('keeps every custom id within Discord’s 100 characters with real-length ids', async () => {
+    // Convex ids are 32 characters; Beast Mastery and Assassination are the longest specs.
+    const id = (c: string) => c.repeat(32);
+    const { p } = ports({ ...guessOak, characterId: id('c'), spec: 'beast-mastery' });
+    p.event = async () => ({ ...raid, id: id('e') });
+    p.characters = async () => [
+      { ...oak, id: id('c') },
+      { ...oak, id: id('d'), isMain: false },
+    ];
+    const form = await handleSignupInteraction(interaction(`signup:${id('e')}:tentative`), p);
+    expect(form).toMatchObject({ type: 9 });
+    const reply = await handleSignupInteraction(interaction(`signup:${id('e')}:accepted`), p);
+    const ids = JSON.stringify([form, reply]).match(/"custom_id":"[^"]*"/g) ?? [];
+    expect(ids.length).toBeGreaterThan(2);
+    for (const customId of ids)
+      expect(customId.length - '"custom_id":""'.length).toBeLessThanOrEqual(100);
   });
 
   it("marks a role as needed without counting the member's own signup", async () => {
@@ -171,9 +197,12 @@ describe('discord signups', () => {
           InteractionType.MODAL_SUBMIT,
         ),
       );
-    expect(note('signup-note:raid1:late:oak')).toMatchObject({ spec: undefined, note: 'x' });
-    expect(note('signup-note:raid1:late:oak:feral')).toMatchObject({ spec: 'feral' });
-    expect(note('signup-note:raid1:late:oak:feral:more')).toBeNull();
-    expect(note('signup-note:raid1:late:oak:fer al')).toBeNull();
+    expect(note('signup-note:raid1:late:oak')).toMatchObject({ characterId: 'oak', note: 'x' });
+    expect(note('signup-note:raid1:late:oak:feral')).toBeNull();
+    expect(note('signup-note:raid1:late:o k')).toBeNull();
+    const click = (id: string) => parseSignupInteraction(interaction(id, { component_type: 2 }));
+    expect(click('signup:raid1:accepted')).toMatchObject({ kind: 'button' });
+    expect(click('signup:raid1:accepted:junk')).toBeNull();
+    expect(pick('signup-pick:raid1:accepted:x', 'oak')).toBeNull();
   });
 });

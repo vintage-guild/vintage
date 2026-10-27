@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type AuthFetch, oauthActions, pendingAuthorization } from '../src/oauth';
+import { type AuthFetch, oauthActions, pendingAuthorization, safeNextUrl } from '../src/oauth';
 
 const SIGNED =
   'response_type=code&client_id=claude&scope=commands+offline_access&state=xyz&exp=123&sig=abc';
@@ -34,6 +34,36 @@ function fakeAuth(replies: { data?: unknown; error?: { message?: string; status?
   return { calls, visited, authFetch, location, setSearch: (s: string) => (search = s) };
 }
 
+describe('safeNextUrl', () => {
+  it('allows https, loopback http, and native app schemes', () => {
+    for (const ok of [
+      'https://claude.ai/api/mcp/auth_callback?code=c',
+      'http://127.0.0.1:33418/callback',
+      'http://localhost:6274/oauth/callback',
+      'http://[::1]:8080/cb',
+      'cursor://anysphere.cursor-mcp/oauth/callback',
+      'vscode://vscode.github-authentication/did-authenticate',
+    ]) {
+      expect(safeNextUrl(ok), ok).toBe(true);
+    }
+  });
+
+  it('refuses schemes that run in the page, plain http off loopback, and junk', () => {
+    for (const bad of [
+      'javascript:alert(1)',
+      'JavaScript:alert(1)',
+      'data:text/html,x',
+      'vbscript:x',
+      'blob:https://site/x',
+      'file:///etc/passwd',
+      'http://evil.example/cb',
+      'not a url',
+    ]) {
+      expect(safeNextUrl(bad), bad).toBe(false);
+    }
+  });
+});
+
 describe('oauthActions', () => {
   it('continue passes the signed query back with selected, then follows the next step', async () => {
     const f = fakeAuth([{ data: { redirect: true, url: 'https://site/oauth/consent?x=1' } }]);
@@ -62,6 +92,14 @@ describe('oauthActions', () => {
     f.setSearch('');
     await expect(actions.consent(true)).rejects.toThrow('No authorization is waiting');
     expect(f.visited).toEqual([]);
+  });
+
+  it('refuses to navigate to a next step that would run in the site (javascript:, data:)', async () => {
+    for (const url of ['javascript:alert(document.cookie)', 'data:text/html,<script>1</script>']) {
+      const f = fakeAuth([{ data: { url } }]);
+      await expect(oauthActions(f.authFetch, f.location).consent(true)).rejects.toThrow('unsafe');
+      expect(f.visited).toEqual([]);
+    }
   });
 
   it('client returns the public name and links for the consent screen', async () => {

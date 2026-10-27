@@ -53,10 +53,32 @@ export interface OAuthActions {
   client(clientId: string): Promise<OAuthClientInfo | null>;
 }
 
+/** Schemes that run or embed content in the site's origin, where the session lives. */
+const UNSAFE_SCHEMES = new Set(['javascript:', 'data:', 'vbscript:', 'blob:', 'file:', 'about:']);
+const LOOPBACK = new Set(['127.0.0.1', 'localhost', '[::1]']);
+
+/**
+ * Whether a next-step URL is safe to navigate to: https, http only on loopback (RFC 8252 native
+ * apps), or a native app's own scheme (cursor:, vscode:). Never a scheme that runs in this page.
+ * Better Auth already refuses such redirect URIs; this doesn't rely on it.
+ */
+export function safeNextUrl(url: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
+  if (UNSAFE_SCHEMES.has(parsed.protocol)) return false;
+  if (parsed.protocol === 'http:') return LOOPBACK.has(parsed.hostname);
+  return true;
+}
+
 const nextUrl = (data: unknown): string => {
   const url = (data as { url?: unknown } | null)?.url;
   if (typeof url !== 'string' || !url)
     throw new Error('The authorization server sent no next step');
+  if (!safeNextUrl(url)) throw new Error('The authorization server sent an unsafe next step');
   return url;
 };
 

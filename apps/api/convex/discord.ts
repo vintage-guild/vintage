@@ -2,18 +2,22 @@
 // forwards component and modal interactions, `/random poll`, `/random event`, and the rest of
 // FORWARDED_GROUPS to the HTTP route in http.ts, which calls `interaction` here. The flows live in
 // src/discord-*.ts. Help goes first: `/random poll help` would otherwise reach the poll flow.
+// Autocomplete (`/random character` spec and name, #149) runs in `autocomplete`, a query: two
+// indexed reads, no writes, so it answers well inside Discord's 3 seconds.
 import type { Interaction } from '@vintage/discord-kit';
 import type { Caller, CommandResult } from '@vintage/guild-kit';
+import type { Character } from '@vintage/identity/contract';
 import type { Signup, SignupGuess } from '@vintage/raids/contract';
 import { v } from 'convex/values';
 import { handleAgentInteraction } from '../src/discord-agent';
 import { handleApplicationInteraction } from '../src/discord-applications';
+import { handleCharacterAutocomplete, handleCharacterInteraction } from '../src/discord-characters';
 import { handleEventInteraction } from '../src/discord-events';
 import { handleHelpInteraction } from '../src/discord-help';
 import { handlePollInteraction } from '../src/discord-polls';
 import { handleSignupInteraction } from '../src/discord-signups';
 import { internal } from './_generated/api';
-import { internalMutation } from './_generated/server';
+import { internalMutation, internalQuery } from './_generated/server';
 import { askAs, GUILD_ID, runCommandAs } from './commands';
 import { REFRESH_DELAY_MS } from './pollPosts';
 import { coordinatorScheduler, identityStore, raidsStore } from './stores';
@@ -54,6 +58,15 @@ export const interaction = internalMutation({
     });
     if (application) return application;
 
+    const character = await handleCharacterInteraction(incoming, {
+      discordGuildId,
+      guildId: GUILD_ID,
+      memberByDiscordId,
+      run: (caller, name, input, confirmToken) =>
+        runCommandAs(ctx, caller, name, input, confirmToken),
+    });
+    if (character) return character;
+
     const raids = raidsStore(ctx);
     const signup = await handleSignupInteraction(incoming, {
       discordGuildId,
@@ -71,6 +84,8 @@ export const interaction = internalMutation({
         >,
       signupSet: (caller: Caller, input) =>
         runCommandAs(ctx, caller, 'signup-set', input) as Promise<CommandResult<Signup>>,
+      characterAdd: (caller: Caller, input) =>
+        runCommandAs(ctx, caller, 'character-add', input) as Promise<CommandResult<Character>>,
       afterChange: () => coordinatorScheduler(ctx).runTickNow(GUILD_ID),
     });
     if (signup) return signup;
@@ -100,5 +115,19 @@ export const interaction = internalMutation({
       now: () => Date.now(),
     });
     return poll ?? null;
+  },
+});
+
+/** Autocomplete for `/random character`: suggestions only, so a query (no command runs). */
+export const autocomplete = internalQuery({
+  args: { interaction: v.any() },
+  handler: async (ctx, args) => {
+    const people = identityStore(ctx);
+    return handleCharacterAutocomplete(args.interaction as Interaction, {
+      discordGuildId: process.env.DISCORD_GUILD_ID,
+      guildId: GUILD_ID,
+      memberByDiscordId: (discordId) => people.getMemberByDiscordId(GUILD_ID, discordId),
+      characters: (memberId) => people.listCharacters(GUILD_ID, { memberId }),
+    });
   },
 });

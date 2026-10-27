@@ -336,7 +336,7 @@ The agent is a member-facing assistant, not an autonomous actor. It runs where t
 
 | Module | Entities (key fields) |
 |---|---|
-| identity | `Guild`; `Member` (discordId, roles, tier, prefs: dmOptOut, defaultCharacterId, timezone); `Character` (memberId, name, class, spec, role, isMain) |
+| identity | `Guild`; `Member` (discordId, roles, tier, prefs: dmOptOut, timezone); `Character` (memberId, name, class, spec, role, rolePicked, isMain; the main is the default character) |
 | raids | `Schedule` (recurrence, lead times, reminder offsets, lockOffset, lootMethodId, configVersion); `RaidEvent` (scheduleId?, startsAt, status, lootMethodId, configVersion); `Signup` (eventId, characterId, status, note); `RosterSlot` (eventId, characterId, group, role) |
 | coordinator | `CoordinatorAction` (eventId, rule, target, sentAt, discordMessageId) — the audit log behind "why did the bot ping me?" |
 | loot | `Item` (itemId, name, quality, slot, source, discovered); `Drop` (eventId, itemId, boss, lootedBy); `Award` (dropId, characterId, methodId, methodVersion, configVersion, reason, awardedBy); `MethodState` (scope, methodId, state) |

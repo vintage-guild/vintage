@@ -9,7 +9,7 @@ holds the guild-specific pieces (PLAN §3.9).
 | `vintage-logo-header` | Sticky site header: the logo (slot), nav, a section context block with its action, the signed-in member (slot), actions, and a scroll-progress line |
 | `vintage-tonight` | The officers' Tonight tab: the raid, counts, comp gaps, non-responders, and signups by role, with lock and unlock, group, bench, remove (preview, then confirm), and copy the addon import, each an `@command` |
 | `vintage-officer-strip` | Leaders' and officers' glance at the next raid: who hasn't answered (`coordinator-status` → `waiting`), comp gaps (`comp-suggest`), the coordinator's state, and a link to the quarters once it exists |
-| `vintage-character-list` | The member's characters, main first, with Make main (`character-update`) and Remove (`character-remove`, the server's preview, then confirm) |
+| `vintage-character-list` | The member's characters, main first (a picked role marked "picked"), with Edit (emits `character-edit` for the page's form), Make main (`character-update`) and Remove (`character-remove`, the server's preview, then confirm) |
 | `vintage-member-prefs` | The member's main character, time zone, and reminder DMs (`character-update`, `member-prefs-set`); emits `prefs-changed` |
 | `vintage-member-menu` | The signed-in member: round avatar (Discord's, or the initial), name, rank, and a menu with Profile and Characters, plus anything slotted (the app adds Sign out) |
 | `vintage-roster-wall` | Every member grouped by rank, each as their main's name in its class color with spec and role; the signed-in member's row marked. Fed from `member-list` |
@@ -25,9 +25,9 @@ holds the guild-specific pieces (PLAN §3.9).
 | `vintage-hero` | The home page opener: full-bleed art under a dark fade, with slots for eyebrow pills, the heading, a standfirst, actions, and figures; `compact` makes it a band for signed-in members (heading and figures only), `art-phone-src` a portrait for phones |
 | `vintage-figure` | One big tabular number with a unit and caption; rows of them sit in the hero |
 | `vintage-class-badge` / `vintage-role-badge` | Class (and spec) or raid role with its color token, from `@vintage/wow-data` |
-| `vintage-character-form` | Name, class, spec, main; submits through the `vintage.character-add` command |
+| `vintage-character-form` | Name, class, spec, role ("Guess from spec (Tank)" or a pick), main; submits through the `vintage.character-add` command, or with `character` set edits it through `vintage.character-update` (only the changed fields; `role: null` guesses again) |
 | `vintage-boss-ledger` | The progression ledger: one row per raid, one slot per boss. Killed slots are gold with a check and the first-kill date, the next target is dashed verdigris, closed rows say "unlocks Dec 9"; boss names show on hover/focus with a datamined note; a "first kill" card above names the latest kill with its loot in `--color-quality-*`. Fed from `progress-get` |
-| `vintage-signup-card` | One raid: its counts (statuses from `raid-list`, roles from `signup-list`) and the member's own answer. Going / Late / Tentative / Can't run the `vintage.signup-set` command → server `signup-set` with the member's character |
+| `vintage-signup-card` | One raid: its counts (statuses from `raid-list`, roles from `signup-list`) and the member's own answer. Going / Late / Tentative / Can't run the `vintage.signup-set` command → server `signup-set` with the member's character. Switch character, Change spec and Role (`play-role`: a role for this raid only, or guess from the spec) change it for this raid |
 | `vintage-sign-in-card` | What member pages show when signed out; with `available`, its button raises `sign-in-requested` and the app starts Discord sign-in (ui-kit never sees the auth client) |
 | `vintage-theme-switch` | Dark / parchment switch (`data-theme` on `<html>`), also the `vintage.theme-toggle` command. Shown in the `/ui` gallery; the site header no longer carries it |
 

@@ -29,8 +29,9 @@ header points there, so MCP clients find the sign-in flow.
 ## Signup buttons
 
 Clicks on the coordinator's signup posts (`signup:…`), the character picker (`signup-pick:…`), the
-reason form (`signup-note:…`) and the reply's Switch character and Change spec menus
-(`signup-char:…`, `signup-spec:…`) are verified here, then forwarded to Convex at
+reason form (`signup-note:…`), the reply's Switch character, Change spec and Role menus
+(`signup-char:…`, `signup-spec:…`, `signup-role:…`), the New character form (`signup-new:…`) and
+the character remove confirm (`char-rm:…`) are verified here, then forwarded to Convex at
 `POST /gateway/interaction` with `Authorization: Bearer $VINTAGE_GATEWAY_SECRET`. Convex runs the
 flow (`apps/api/src/discord-signups.ts`) and returns the response this endpoint sends back to
 Discord. Without the two variables, members get a private "not set up yet" reply.
@@ -75,6 +76,17 @@ global). From `apps/gateway`, with the token from `apps/api/.env.local`:
 ```bash
 DISCORD_GUILD_ID=<server id> node --env-file=../api/.env.local --import tsx scripts/register-commands.ts --prune
 ```
+
+### Autocomplete
+
+Options with `autocomplete: true` make Discord send `APPLICATION_COMMAND_AUTOCOMPLETE` (type 4)
+while the member types. For groups in `AUTOCOMPLETED_GROUPS` (`/random character`, #149) the
+endpoint forwards it to Convex's `/gateway/interaction` like any other interaction (Convex runs it
+as a query) and returns its type 8 answer. It waits at most `AUTOCOMPLETE_TIMEOUT_MS` (2 seconds);
+when Convex is slow, down, not deployed yet, or answers anything but type 8, it answers with no
+suggestions, and the member types the value themselves. Autocomplete for any other `/random`
+group gets no suggestions without a call. Suggestions are only hints: the command checks what's
+sent.
 
 ### Help pages follow the definitions
 

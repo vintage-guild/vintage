@@ -13,6 +13,11 @@ export interface ApplicationCommandOption {
   /** STRING options: the allowed length, checked by Discord. */
   min_length?: number;
   max_length?: number;
+  /**
+   * STRING options: Discord asks the endpoint for suggestions as the member types (an
+   * APPLICATION_COMMAND_AUTOCOMPLETE interaction). Not allowed together with `choices`.
+   */
+  autocomplete?: boolean;
   options?: ApplicationCommandOption[];
 }
 

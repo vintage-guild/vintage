@@ -45,9 +45,17 @@ export function seriesWindow(event: RaidEvent, past: PastSignup[]): PastSignup[]
     .slice(0, SERIES_WINDOW);
 }
 
+/**
+ * The role a character plays in `spec`: its saved role for its saved spec (which may be a role
+ * the member picked, like a Fury warrior who tanks), otherwise the spec's own role.
+ */
+export function roleForSpec(character: Character, spec: string): Role | undefined {
+  return spec === character.spec ? character.role : roleFor(character.class, spec);
+}
+
 /** The spec to play: `spec` when it belongs to the character's class, else the saved one. */
 function specFor(character: Character, spec: string) {
-  const role = roleFor(character.class, spec);
+  const role = roleForSpec(character, spec);
   return role ? { spec, role } : { spec: character.spec, role: character.role };
 }
 
@@ -84,8 +92,10 @@ function mostBrought(window: PastSignup[], byId: Map<string, Character>) {
 }
 
 /**
- * The guess, in order: this raid's own signup, the character used most in the series window (a
- * tie goes to the most recent), the main, the only character. Null when none of those apply.
+ * The guess, in order: this raid's own signup (its spec and role), the main, then only when
+ * there's no main the character used most in the series window (a tie goes to the most
+ * recent), then the only character. Null when none of those apply. The main beats history
+ * because members set it on purpose on the Characters page (Bloodfen, 2026-10-27, #149).
  */
 export function guessCharacter(
   event: RaidEvent,
@@ -95,15 +105,24 @@ export function guessCharacter(
 ): SignupGuess | null {
   const byId = new Map(characters.map((c) => [c.id, c]));
   const signedUp = existing && byId.get(existing.characterId);
-  if (existing && signedUp) return guessOf(signedUp, existing.spec, 'your signup for this raid');
+  if (existing && signedUp) {
+    return {
+      characterId: signedUp.id,
+      characterName: signedUp.name,
+      spec: existing.spec,
+      role: existing.role,
+      reason: 'your signup for this raid',
+    };
+  }
+
+  const main = characters.find((c) => c.isMain);
+  if (main) return guessOf(main, main.spec, 'your main');
 
   const best = mostBrought(window, byId);
   if (best) {
     return guessOf(best.character, best.spec, seriesReason(event, best.count, window.length));
   }
 
-  const main = characters.find((c) => c.isMain);
-  if (main) return guessOf(main, main.spec, 'your main');
   if (characters.length === 1) {
     const only = characters[0]!;
     return guessOf(only, only.spec, 'your only character');

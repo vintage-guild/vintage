@@ -31,7 +31,18 @@ export const role = v.union(
   v.literal('ranged'),
 );
 
+/** Member preferences as commands write them. */
 export const prefs = v.object({
+  dmOptOut: v.boolean(),
+  timezone: v.optional(v.string()),
+});
+
+/**
+ * Stored preferences. `defaultCharacterId` was dropped (#149: the main is the default) but stays
+ * optional here so rows written before then still validate; nothing reads it, the members mapper
+ * strips it, and the next prefs write leaves it out.
+ */
+const storedPrefs = v.object({
   dmOptOut: v.boolean(),
   defaultCharacterId: v.optional(v.string()),
   timezone: v.optional(v.string()),
@@ -46,7 +57,7 @@ export default defineSchema({
     // Optional so rows written before ranks existed stay valid; read as null until the next sync.
     rank: v.optional(rank),
     tier,
-    prefs,
+    prefs: storedPrefs,
     syncedAt: v.number(),
     // When the rank last changed. Optional so rows from before it was recorded stay valid;
     // read as null ("before tracking began") until the rank changes.
@@ -62,6 +73,9 @@ export default defineSchema({
     class: v.string(),
     spec: v.string(),
     role,
+    // True when the member picked the role; otherwise it follows the spec. Optional so rows
+    // from before #149 stay valid; read as false (guessed).
+    rolePicked: v.optional(v.boolean()),
     isMain: v.boolean(),
   })
     .index('by_guild', ['guildId'])

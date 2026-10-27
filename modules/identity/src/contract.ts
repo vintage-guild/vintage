@@ -52,9 +52,9 @@ export interface Member {
   rankSince: number | null;
 }
 
+/** The main (`Character.isMain`) is the default character; there is no separate pref (#149). */
 export interface MemberPrefs {
   dmOptOut: boolean;
-  defaultCharacterId?: string;
   timezone?: string;
 }
 
@@ -66,6 +66,11 @@ export interface Character {
   class: WowClass;
   spec: string;
   role: Role;
+  /**
+   * True when the member picked the role (a Fury warrior who tanks); absent or false means it
+   * is guessed from the spec, and a spec change re-guesses it.
+   */
+  rolePicked?: boolean;
   isMain: boolean;
 }
 

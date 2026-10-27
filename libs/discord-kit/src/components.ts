@@ -6,6 +6,8 @@ export const ComponentType = {
   BUTTON: 2,
   STRING_SELECT: 3,
   TEXT_INPUT: 4,
+  /** A labelled field in a modal, holding a text input or a select menu. */
+  LABEL: 18,
 } as const;
 
 export const ButtonStyle = {
@@ -49,6 +51,8 @@ export interface StringSelect {
   min_values?: number;
   max_values?: number;
   disabled?: boolean;
+  /** In a modal: whether a choice must be made (Discord's default is true). */
+  required?: boolean;
 }
 
 export const TextInputStyle = {
@@ -68,6 +72,43 @@ export interface TextInput {
   min_length?: number;
   max_length?: number;
   value?: string;
+}
+
+/**
+ * A modal field with its label (type 18): wraps one text input or string select. It's how a
+ * modal holds a select menu; Discord reads the label here, so the inner text input has none.
+ */
+export interface Label {
+  type: typeof ComponentType.LABEL;
+  label: string;
+  description?: string;
+  component: Omit<TextInput, 'label'> | StringSelect;
+}
+
+/** A text field for inside a Label: the same as textInput, with the label left to the Label. */
+export function labelledTextInput(
+  customId: string,
+  extra: Omit<TextInput, 'type' | 'custom_id' | 'label' | 'style'> & {
+    style?: TextInputStyle;
+  } = {},
+): Omit<TextInput, 'label'> {
+  assertCustomId(customId);
+  const { style = TextInputStyle.SHORT, ...rest } = extra;
+  return { type: ComponentType.TEXT_INPUT, custom_id: customId, style, ...rest };
+}
+
+/** A labelled modal field. Labels are 1-45 characters, descriptions up to 100. */
+export function label(text: string, component: Label['component'], description?: string): Label {
+  if (text.length === 0 || text.length > 45) throw new Error('a label is 1-45 characters');
+  if (description !== undefined && description.length > 100) {
+    throw new Error('a label description is up to 100 characters');
+  }
+  return {
+    type: ComponentType.LABEL,
+    label: text,
+    ...(description ? { description } : {}),
+    component,
+  };
 }
 
 export type Component = Button | StringSelect | TextInput;

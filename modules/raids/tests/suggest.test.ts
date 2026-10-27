@@ -1,4 +1,5 @@
-// signup-suggest's guess and signup-set's spec for one raid (#148, character-choice §1–2).
+// signup-suggest's guess and signup-set's spec and role for one raid (#148, #149,
+// character-choice §1–2).
 import type { Caller } from '@vintage/guild-kit';
 import type { Character, Member } from '@vintage/identity/contract';
 import { fixedClock, makeCaller, TEST_GUILD_ID, testRegistry } from '@vintage/testing';
@@ -48,11 +49,15 @@ const character = (
   isMain,
 });
 
-const MEMBERS = ['fen', 'solo', 'pair', 'none'].map(member);
+// fen has no main, so the series decides; held has a main, which beats the series (#149).
+const MEMBERS = ['fen', 'held', 'solo', 'pair', 'none'].map(member);
 const CHARACTERS = [
   character('oak', 'fen', 'druid', 'feral-tank', 'tank'),
-  character('ash', 'fen', 'priest', 'holy', 'healer', true),
+  character('ash', 'fen', 'priest', 'holy', 'healer'),
   character('elm', 'fen', 'mage', 'frost', 'ranged'),
+  character('birch', 'held', 'paladin', 'holy', 'healer', true),
+  // A Fury warrior saved as a tank: the role was picked, not guessed.
+  { ...character('pine', 'held', 'warrior', 'fury', 'tank'), rolePicked: true },
   character('lone', 'solo', 'rogue', 'combat', 'melee'),
   character('left', 'pair', 'warrior', 'arms', 'melee'),
   character('right', 'pair', 'hunter', 'survival', 'ranged'),
@@ -132,13 +137,14 @@ describe('signup-suggest and a spec for one raid', () => {
   describe('signup-suggest', () => {
     it('falls back to the main, then the only character, then no guess', async () => {
       const raid = await event();
-      expect(await suggest(raid.id)).toEqual({
-        characterId: 'ash',
-        characterName: 'Ash',
+      expect(await suggest(raid.id, 'held')).toEqual({
+        characterId: 'birch',
+        characterName: 'Birch',
         spec: 'holy',
         role: 'healer',
         reason: 'your main',
       });
+      expect(await suggest(raid.id)).toBeNull();
       expect(await suggest(raid.id, 'solo')).toMatchObject({
         characterId: 'lone',
         reason: 'your only character',
@@ -161,6 +167,17 @@ describe('signup-suggest and a spec for one raid', () => {
         spec: 'feral',
         role: 'melee',
         reason: 'your signup for this raid',
+      });
+    });
+
+    it('the main beats the series: history only counts for a member with no main', async () => {
+      const raid = await event();
+      await night(7, 'pine');
+      await night(14, 'pine');
+      await night(21, 'pine');
+      expect(await suggest(raid.id, 'held')).toMatchObject({
+        characterId: 'birch',
+        reason: 'your main',
       });
     });
 
@@ -255,7 +272,7 @@ describe('signup-suggest and a spec for one raid', () => {
       expect(await suggest(oneOff.id)).toMatchObject({ characterId: 'elm' });
       const open = await event({ scheduleId: null, instance: '', kind: 'other', size: null });
       await night(3, 'elm', { event: { scheduleId: null, instance: '', kind: 'other' } });
-      expect(await suggest(open.id)).toMatchObject({ reason: 'your main' });
+      expect(await suggest(open.id)).toBeNull();
     });
 
     it('needs a signed-in recruit and a real raid', async () => {
@@ -354,6 +371,74 @@ describe('signup-suggest and a spec for one raid', () => {
         as('fen'),
       );
       expect(deps.events.emitted).toHaveLength(1);
+    });
+  });
+
+  describe('signup-set with a role', () => {
+    const set = (eventId: string, input: Record<string, unknown>, who = 'pair') =>
+      ok<Signup>('signup-set', { eventId, ...input }, as(who));
+
+    it('a picked role stays through a spec change; null and switching character clear it', async () => {
+      const raid = await event();
+      // A Fury warrior tanking a dungeon.
+      expect(
+        await set(raid.id, { characterId: 'left', status: 'accepted', role: 'tank' }),
+      ).toMatchObject({ spec: 'arms', role: 'tank', rolePicked: true });
+      expect(
+        await set(raid.id, { characterId: 'left', status: 'accepted', spec: 'fury' }),
+      ).toMatchObject({ spec: 'fury', role: 'tank', rolePicked: true });
+      expect(await set(raid.id, { characterId: 'left', status: 'late' })).toMatchObject({
+        status: 'late',
+        role: 'tank',
+      });
+      expect(await set(raid.id, { characterId: 'left', status: 'late', role: null })).toMatchObject(
+        { spec: 'fury', role: 'melee', rolePicked: false },
+      );
+      // A guessed role follows the spec.
+      expect(
+        await set(raid.id, { characterId: 'left', status: 'late', spec: 'protection' }),
+      ).toMatchObject({ role: 'tank', rolePicked: false });
+      await set(raid.id, { characterId: 'left', status: 'late', role: 'healer' });
+      expect(await set(raid.id, { characterId: 'right', status: 'late' })).toMatchObject({
+        spec: 'survival',
+        role: 'ranged',
+        rolePicked: false,
+      });
+      // The saved characters never change.
+      expect(await deps.members.getCharacter(G, 'left')).toMatchObject({
+        spec: 'arms',
+        role: 'melee',
+      });
+    });
+
+    it("starts from the character's saved role, even a picked one, and re-guesses on a new spec", async () => {
+      const raid = await event();
+      expect(await set(raid.id, { characterId: 'pine', status: 'accepted' }, 'held')).toMatchObject(
+        {
+          spec: 'fury',
+          role: 'tank',
+        },
+      );
+      expect(
+        await set(raid.id, { characterId: 'pine', status: 'accepted', spec: 'arms' }, 'held'),
+      ).toMatchObject({ role: 'melee' });
+      expect(
+        await set(raid.id, { characterId: 'pine', status: 'accepted', spec: 'fury' }, 'held'),
+      ).toMatchObject({ role: 'tank' });
+    });
+
+    it('a role change alone is a change: signup-changed goes out, and the needed hints count it', async () => {
+      const raid = await event({
+        size: 5,
+        kind: 'dungeon',
+        roleTargets: { tank: 1, healer: 1, dps: 3 },
+      });
+      await set(raid.id, { characterId: 'left', status: 'accepted' });
+      expect(rolesNeeded(raid, await deps.raids.listSignups(G, raid.id))).toContain('tank');
+      deps.events.emitted.length = 0;
+      await set(raid.id, { characterId: 'left', status: 'accepted', role: 'tank' });
+      expect(deps.events.emitted.map((e) => e.type)).toEqual(['signup-changed']);
+      expect(rolesNeeded(raid, await deps.raids.listSignups(G, raid.id))).not.toContain('tank');
     });
   });
 

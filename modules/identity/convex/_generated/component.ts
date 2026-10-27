@@ -41,6 +41,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           memberId: string;
           name: string;
           role: "tank" | "healer" | "melee" | "ranged";
+          rolePicked?: boolean;
           spec: string;
         },
         any,
@@ -71,6 +72,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             isMain?: boolean;
             name?: string;
             role?: "tank" | "healer" | "melee" | "ranged";
+            rolePicked?: boolean;
             spec?: string;
           };
         },
@@ -107,7 +109,6 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           guildId: string;
           memberId: string;
           prefs: {
-            defaultCharacterId?: string;
             dmOptOut: boolean;
             timezone?: string;
           };

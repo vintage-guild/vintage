@@ -11,6 +11,7 @@ import {
 } from '@vintage/discord-kit';
 import type { Caller, CommandResult } from '@vintage/guild-kit';
 import type { Member } from '@vintage/identity/contract';
+import type { Role } from '@vintage/wow-data';
 
 /** The bot's slash command; the same name as RANDOM_COMMAND in apps/gateway/src/commands.ts. */
 export const SLASH_COMMAND = 'random';
@@ -59,6 +60,28 @@ export function failureText(
   }
   return [error.message, error.suggestion].filter(Boolean).join('. ');
 }
+
+/** `beast-mastery` → "Beast Mastery". */
+export const titleCase = (id: string) =>
+  id
+    .split('-')
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+
+/** `feral-tank` → "Feral": the tank version of a spec reads as the spec, with its role beside. */
+export const specName = (spec: string) => titleCase(spec.replace(/-tank$/, ''));
+
+export const ROLE_WORDS: Record<Role, string> = {
+  tank: 'tank',
+  healer: 'healer',
+  melee: 'melee DPS',
+  ranged: 'ranged DPS',
+};
+
+/** "Protection Warrior, tank" */
+export const playing = (s: { spec: string; class: string; role: Role }) =>
+  `${specName(s.spec)} ${titleCase(s.class)}, ${ROLE_WORDS[s.role]}`;
 
 export interface MemberPorts {
   /** The guild's Discord server id; interactions from any other server are refused. */

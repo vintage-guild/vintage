@@ -104,27 +104,18 @@ export const memberSync = command({
 
 export const memberPrefsSet = command({
   name: 'member-prefs-set',
-  description: 'Update your preferences: DM opt-out, default character, timezone.',
+  description:
+    'Update your preferences: DM opt-out and timezone. Your main (character-update isMain) is your default character.',
   tier: 'member',
   mutation: true,
   input: z.object({
     dmOptOut: z.boolean().optional(),
-    defaultCharacterId: z.string().optional(),
     timezone: z.string().optional(),
   }),
   handler: async (patch, { caller, guildId, deps }) => {
     if (!caller.memberId) return notSignedIn();
     const member = await deps.identity.getMember(guildId, caller.memberId);
     if (!member) return notSignedIn();
-    if (patch.defaultCharacterId) {
-      const character = await deps.identity.getCharacter(guildId, patch.defaultCharacterId);
-      if (!character || character.memberId !== member.id) {
-        return error('CHARACTER_NOT_FOUND', 'That character is not one of yours', {
-          suggestion: 'Use character-list to see your characters',
-          retryable: false,
-        });
-      }
-    }
     const definedPatch = Object.fromEntries(
       Object.entries(patch).filter(([, v]) => v !== undefined),
     );

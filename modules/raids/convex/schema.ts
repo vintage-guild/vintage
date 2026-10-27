@@ -101,6 +101,8 @@ export const signupFields = {
   class: v.string(),
   spec: v.string(),
   role,
+  // True when a role was picked for this raid (#149); optional so older rows stay valid.
+  rolePicked: v.optional(v.boolean()),
   status: signupStatus,
   note: v.union(v.string(), v.null()),
   signedUpAt: v.number(),

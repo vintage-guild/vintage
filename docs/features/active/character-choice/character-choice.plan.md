@@ -1,7 +1,7 @@
 # Character choice: which character a raider brings
 
-**Status:** active (2026-10-27): §1–2 built and tested (#148), not yet deployed; §3–4 to do
-(#149). **Owner modules:** raids (signups), identity (characters).
+**Status:** active (2026-10-27): §1–3 built and tested (#148, #149), not yet deployed; §4 to
+do. **Owner modules:** raids (signups), identity (characters).
 
 Raiders and flex raiders often bring a different character, class or spec from one raid to the next: a
 main on Molten Core, an alt on the Rage Fire Chasm run, or the same druid as a tank one night and
@@ -12,12 +12,13 @@ for this raid only.
 
 | Piece | Where | State |
 |---|---|---|
-| Characters (name, class, spec, role, `isMain`) | identity: `character-add/update/remove/list` | ✅ commands, and the site's `/characters` page |
-| `prefs.defaultCharacterId` | identity: `member-prefs-set` | ⚠️ stored but nothing reads it |
+| Characters (name, class, spec, role, `isMain`) | identity: `character-add/update/remove/list` | ✅ commands, and the site's `/characters` page with Edit (#149) |
+| A picked role (`rolePicked`) | identity characters, raids signups | ✅ optional `role` on `character-add/update` and `signup-set` (#149) |
+| `prefs.defaultCharacterId` | identity: `member-prefs-set` | ✅ removed (#149): the main is the default |
 | Signup copies of the character | raids `Signup.characterName/class/spec/role` | ✅ posts and comp read the copy |
 | Discord signup buttons | `apps/api/src/discord-signups.ts` | ✅ sign up with `signup-suggest`'s guess and say why; Switch character and Change spec in the reply (#148) |
 | Site signup card | `vintage-signup-card` (ui-kit) on the home page | ✅ the guess and its reason, with the same two menus (#148) |
-| Characters from Discord | none | ❌ "Register a character first (character-add)", but there's no way to do that in Discord (#149) |
+| Characters from Discord | `/random character`, `apps/api/src/discord-characters.ts` | ✅ add, list, main, remove, with autocomplete, and **New character…** in the picker (#149) |
 | Spec for one raid | raids `signup-set` `spec` | ✅ on the signup only; the saved character keeps its spec (#148) |
 
 ## How other bots do it
@@ -53,19 +54,20 @@ There's a new read-only command, **`signup-suggest`** (tier: recruit), in the ra
 is `{ eventId }` and it returns `{ characterId, spec, reason }`, or `null` when there's no good
 guess. Discord, the site and the agent all use it. The guess, in order:
 
-1. **Already signed up for this raid:** that character and spec.
-2. **Same series:** the character used most often in the member's last 5 signups for raids from the
-   same schedule (`scheduleId`), newest raid first and declines left out. For a one-off, it's
-   raids in the same instance (an event with no instance has no series). A tie goes to the most
-   recent, and the spec comes from the newest of those nights.
-3. **Main:** the character marked `isMain`.
+1. **Already signed up for this raid:** that character, spec and role.
+2. **Main:** the character marked `isMain`. Members set it on purpose on the Characters page (or
+   with `/random character main`), so it beats history (Bloodfen, 2026-10-27, #149).
+3. **Same series, only when there's no main:** the character used most often in the member's
+   last 5 signups for raids from the same schedule (`scheduleId`), newest raid first and declines
+   left out. For a one-off, it's raids in the same instance (an event with no instance has no
+   series). A tie goes to the most recent, and the spec comes from the newest of those nights.
 4. **Only character:** if they have just one.
 5. Otherwise there's no guess, and Discord shows the picker.
 
 `reason` is a short line the member sees, such as "you brought Aeryn to your last 3 Molten Core
 nights" or "your main". It makes the guess easy to check and explains why it was made.
 
-**Learning** means reading signup history; there's no model to train. That keeps it predictable,
+**Learning** means reading signup history (for members with no main); there's no model to train. That keeps it predictable,
 easy to explain, and right for a guild whose members switch characters on purpose. It needs one new
 store query in raids, **`listSignupsByMember(guildId, memberId, limit)`**, backed by a
 `by_guild_member` index. The raids module gets the member's characters through the identity
@@ -109,6 +111,14 @@ filled in.
   status change keeps a spec chosen for the raid. A changed saved spec reaches an existing
   signup only through Change spec or switching character.
 
+**Role for one raid (#149):** the reply also has a **Role** menu (`signup-role:<event>`): "Guess
+from the spec (Melee DPS)" or a pick of Tank, Healer, Melee DPS or Ranged DPS. It runs
+`signup-set` with the optional `role` (`null` to follow the spec again), kept on the signup's copy
+with `rolePicked`. Changing the spec re-guesses the role unless a role was picked for the signup;
+switching character clears both. A character can carry a picked role too (`character-add` and
+`character-update` `role`), which its signups start from. The site's signup card has the same
+Role control.
+
 ### 3. Managing characters from Discord
 
 A new `/random character` group is forwarded to Convex like `poll` and `raid`:
@@ -130,6 +140,30 @@ in the same step.
 Convex and answer with type 8 within 3 seconds. Today those get a 400. It's a small, separate
 gateway change, and it's what the `spec` and `name` options need.
 
+**As built (#149):**
+
+- `/random character add name class spec [role] [main]`, `list`, `main name`, `remove name`, all
+  private. `class` and `role` are Discord choices; `spec` and `name` are autocompleted. Names
+  match in any capitalization; remove shows a preview with a `char-rm:<character>` button that
+  takes a fresh preview and confirms it, like the poll close button.
+- Autocomplete: the gateway forwards type 4 for `AUTOCOMPLETED_GROUPS` only and waits 2 seconds;
+  any failure or a slow answer is "no suggestions". Convex answers from a query (the member and
+  their characters, no command). Spec suggestions follow the class chosen so far (every spec once
+  when none is); name suggestions are the member's own characters. Nothing is suggested outside
+  the guild server or to someone Random doesn't know.
+- **New character…** (value `new`) ends the picker and Switch character, which now shows with one
+  character too. A member with no characters gets the form straight from the button. discord-kit
+  gained Discord's Label component, so the form has a name field and **class, spec and role
+  selects**, plus the note field for late or tentative. A modal can't filter one list by another,
+  so the spec list has every spec once (25, Discord's most) with the classes that have it, and
+  `character-add` refuses a wrong one ("Pick New character… again"). The id is
+  `signup-new:<event>:<status>` (at most 53 characters with Convex ids). Submitting runs
+  `character-add`, then `signup-set` in the same Convex mutation; an existing signup is updated in
+  place, so its place in line is kept. If `signup-set` fails after the add, the character stays.
+- `prefs.defaultCharacterId` is gone from the contract, `member-prefs-set` and the component's
+  args. The stored prefs validator keeps it optional so existing rows still validate; the members
+  mapper strips it and the next prefs write drops it.
+
 ### 4. The agent
 
 `/random ask "I'm bringing my priest Thursday"` works once the agent's tool list includes these
@@ -140,7 +174,7 @@ commands (`signup-suggest`, and `signup-set` with `spec`). The intent router sen
 
 | # | Decision | Why |
 |---|---|---|
-| 1 | Guess from signup history with fixed rules, not a learned model | Easy to explain, has no failures nobody can see, and a wrong guess costs one click to fix |
+| 1 | Guess with fixed rules, not a learned model: this raid's signup, the main, then (no main) signup history, then the only character | Easy to explain, has no failures nobody can see, and a wrong guess costs one click to fix. The main beats history: decided by Bloodfen, 2026-10-27 (#149) |
 | 2 | A spec for one raid lives on the signup, not on the character | Changing a saved character for one night is how saved data drifts out of date |
 | 3 | `isMain` is the default; drop `prefs.defaultCharacterId` | Two meanings of "default" would compete. Removing the field changes `member-prefs-set`'s input, so the PR needs the `breaking-contract` label |
 | 4 | Keep real characters, not class-only signups like Raid-Helper | Addon exports, invites and attendance need character names |
@@ -148,6 +182,8 @@ commands (`signup-suggest`, and `signup-set` with `spec`). The intent router sen
 | 6 | Discord and the site both ship Switch character and Change spec in #148 | Decided by Bloodfen, 2026-10-27 |
 | 7 | Flex raiders get a "needed" hint in the picker and nothing more | Decided by Bloodfen, 2026-10-27 |
 | 8 | Addon attendance correcting the history is out of scope | Decided by Bloodfen, 2026-10-27; follow-up #185 |
+| 9 | Role is optional and separate from spec, on characters and on signups | A Fury warrior can tank a dungeon with a shield. Decided by Bloodfen, 2026-10-27 (#149) |
+| 10 | Characters are edited on the site's Characters page (name, class, spec, role, main) | That page is where characters are managed. Decided by Bloodfen, 2026-10-27 (#149) |
 
 ## Open questions
 
@@ -159,6 +195,9 @@ None open; the four from the proposal are decisions 5–8.
   `listSignupsByMember` with its index, optional `spec` on `signup-set`, the private reply with
   Switch character and Change spec, the site's signup form, and J05 and J15 extended plus a new job
   for "brings a different character" (J39).
-- [ ] **Characters from Discord** (#149) (gateway, apps/api, identity): the `/random character` group,
-  autocomplete forwarding, **➕ New character…** in the picker, and removing
-  `defaultCharacterId` (`breaking-contract`).
+- [x] **Characters from Discord** (#149) (gateway, apps/api, identity, raids, web): the
+  `/random character` group, autocomplete forwarding, **➕ New character…** in the picker,
+  removing `defaultCharacterId` (`breaking-contract`), an optional role on characters and
+  signups (Role menu and site control), Edit on the Characters page, the main before history in
+  `signup-suggest`, and jobs J40 and J41.
+- [ ] **The agent** (§4): `signup-suggest` and `signup-set` with `spec` and `role` in the agent's tools.

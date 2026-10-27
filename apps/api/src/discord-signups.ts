@@ -11,6 +11,14 @@
 //                                                       character (any spec for the raid clears)
 //   select  signup-spec:<eventId>                      → Change spec: same character, another
 //                                                       spec of its class, for this raid only
+//   select  signup-role:<eventId>                      → Role: same character and spec, another
+//                                                       role for this raid (or back to the
+//                                                       spec's), e.g. a Fury warrior tanking
+//   modal   signup-new:<eventId>:<status>              → New character (#149): ➕ in the picker
+//                                                       or Switch character (or a button click
+//                                                       with no characters yet) opens it; the
+//                                                       submit runs character-add, then
+//                                                       signup-set with the new character
 // Every reply is ephemeral: only the person who clicked sees it. The post itself is refreshed by
 // the coordinator tick that `afterChange` starts.
 
@@ -42,7 +50,15 @@ import {
   type SignupGuess,
   type SignupStatus,
 } from '@vintage/raids/contract';
-import { CLASSES, type Role } from '@vintage/wow-data';
+import { CLASSES, ROLES, type Role, roleFor } from '@vintage/wow-data';
+import {
+  GUESS_ROLE,
+  NEW_CHARACTER,
+  type NoteField,
+  newCharacterForm,
+  readNewCharacter,
+} from './discord-characters';
+import { failureText, playing, ROLE_WORDS, specName, titleCase } from './discord-common';
 
 const STATUSES: readonly SignupStatus[] = ['accepted', 'late', 'tentative', 'bench', 'declined'];
 /** Answers that open the reason form. */
@@ -54,6 +70,16 @@ export interface SignupInput {
   status: SignupStatus;
   note?: string | null;
   spec?: string;
+  /** A role for this raid; null follows the spec again. */
+  role?: Role | null;
+}
+
+/** What character-add takes, from the New character form. */
+export interface NewCharacterInput {
+  name: string;
+  class: string;
+  spec: string;
+  role?: Role;
 }
 
 export interface SignupPorts {
@@ -74,6 +100,8 @@ export interface SignupPorts {
   ): Promise<CommandResult<SignupGuess | null>>;
   /** Runs `signup-set` through the registry as this caller. */
   signupSet(caller: Caller, input: SignupInput): Promise<CommandResult<Signup>>;
+  /** Runs `character-add` through the registry as this caller (the New character form). */
+  characterAdd(caller: Caller, input: NewCharacterInput): Promise<CommandResult<Character>>;
   /** A signup changed: refresh the post soon (starts a coordinator tick). */
   afterChange(): Promise<void>;
 }
@@ -89,7 +117,11 @@ type Parsed =
       note: string | null;
     }
   | { kind: 'switch'; eventId: string; characterId: string }
-  | { kind: 'spec'; eventId: string; spec: string };
+  | { kind: 'spec'; eventId: string; spec: string }
+  | { kind: 'role'; eventId: string; role: Role | null }
+  | { kind: 'new'; eventId: string; status: SignupStatus };
+
+const MENUS = new Set(['signup-char', 'signup-spec', 'signup-role']);
 
 const isStatus = (s: string | undefined): s is SignupStatus =>
   !!s && (STATUSES as readonly string[]).includes(s);
@@ -104,7 +136,10 @@ export function parseRosterInteraction(interaction: Interaction): string | null 
     : null;
 }
 
-/** The reply's menus (`signup-char:<event>`, `signup-spec:<event>`): the choice is the value. */
+/**
+ * The reply's menus (`signup-char:<event>`, `signup-spec:<event>`, `signup-role:<event>`): the
+ * choice is the value.
+ */
 function parseMenu(interaction: Interaction, parts: string[]): Parsed | null {
   const [prefix, eventId] = parts;
   const picked = interaction.data?.values?.[0];
@@ -112,17 +147,30 @@ function parseMenu(interaction: Interaction, parts: string[]): Parsed | null {
   if (interaction.type !== InteractionType.MESSAGE_COMPONENT) return null;
   if (prefix === 'signup-char') return { kind: 'switch', eventId, characterId: picked };
   if (prefix === 'signup-spec') return { kind: 'spec', eventId, spec: picked };
+  if (prefix === 'signup-role') {
+    if (picked === GUESS_ROLE) return { kind: 'role', eventId, role: null };
+    return isRole(picked) ? { kind: 'role', eventId, role: picked } : null;
+  }
   return null;
 }
+
+const isRole = (s: string): s is Role => (ROLES as readonly string[]).includes(s);
 
 /** The signup interaction this is, or null when it isn't one of ours. */
 export function parseSignupInteraction(interaction: Interaction): Parsed | null {
   const parts = (interaction.data?.custom_id ?? '').split(':');
   const [prefix, eventId, status, characterId] = parts;
-  if (prefix === 'signup-char' || prefix === 'signup-spec') return parseMenu(interaction, parts);
+  if (prefix && MENUS.has(prefix)) return parseMenu(interaction, parts);
   const component = interaction.type === InteractionType.MESSAGE_COMPONENT;
   const picked = interaction.data?.values?.[0];
   if (!isToken(eventId) || !isStatus(status)) return null;
+  if (
+    prefix === 'signup-new' &&
+    parts.length === 3 &&
+    interaction.type === InteractionType.MODAL_SUBMIT
+  ) {
+    return { kind: 'new', eventId, status };
+  }
   if (prefix === 'signup' && parts.length === 3 && component)
     return { kind: 'button', eventId, status };
   if (prefix === 'signup-pick' && parts.length === 3 && component && isToken(picked)) {
@@ -142,6 +190,9 @@ export function parseSignupInteraction(interaction: Interaction): Parsed | null 
 
 const ephemeral = (content: string) => reply(content, { ephemeral: true });
 
+const NEEDS_MEMBER_FOR_CHARACTERS =
+  'Adding a character needs the Member rank or higher in this server. Ask an officer if that seems wrong.';
+
 const NEEDS_RECRUIT =
   'Signing up needs the Recruit rank or higher in this server. Ask an officer if that seems wrong.';
 
@@ -153,31 +204,11 @@ const LABEL: Record<SignupStatus, string> = {
   declined: 'Declined',
 };
 
-const titleCase = (id: string) =>
-  id
-    .split('-')
-    .filter(Boolean)
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
-
-/** `feral-tank` → "Feral": the tank version of a spec reads as the spec, with its role beside. */
-const specName = (spec: string) => titleCase(spec.replace(/-tank$/, ''));
-
-const ROLE_WORDS: Record<Role, string> = {
-  tank: 'tank',
-  healer: 'healer',
-  melee: 'melee DPS',
-  ranged: 'ranged DPS',
-};
 const NEEDED_WORDS: Record<CompRole, string> = {
   tank: 'tanks needed',
   healer: 'healers needed',
   dps: 'DPS needed',
 };
-
-/** "Protection Warrior, tank" */
-const playing = (s: Pick<Signup, 'spec' | 'class' | 'role'>) =>
-  `${specName(s.spec)} ${titleCase(s.class)}, ${ROLE_WORDS[s.role]}`;
 
 /** " · healers needed" when the raid is short of this role, else nothing. */
 const neededHint = (role: Role, needed: CompRole[]) =>
@@ -193,10 +224,18 @@ const rolesShort = (event: RaidEvent, signups: Signup[], member: Member) =>
     signups.filter((s) => s.memberId !== member.id),
   );
 
+/** The last entry in the picker and Switch character: opens the New character form (#149). */
+const NEW_OPTION: SelectOption = {
+  label: 'New character…',
+  value: NEW_CHARACTER,
+  description: 'Add it and sign up with it in one go',
+  emoji: { name: '➕' },
+};
+
 function characterOptions(characters: Character[], needed: CompRole[], current?: string) {
   // Main first (identity already sorts so; keep it true whatever the port returns).
   const sorted = [...characters].sort((a, b) => Number(b.isMain) - Number(a.isMain));
-  return sorted.slice(0, 25).map(
+  const own = sorted.slice(0, 24).map(
     (c): SelectOption => ({
       label: c.name,
       value: c.id,
@@ -207,6 +246,7 @@ function characterOptions(characters: Character[], needed: CompRole[], current?:
       ...(c.id === current ? { default: true } : {}),
     }),
   );
+  return [...own, NEW_OPTION];
 }
 
 function specOptions(signup: Signup, needed: CompRole[]): SelectOption[] {
@@ -219,17 +259,68 @@ function specOptions(signup: Signup, needed: CompRole[]): SelectOption[] {
   }));
 }
 
+/**
+ * The Role menu's choices: "Guess from the spec (Tank)" first, then each role. The guess is the
+ * character's saved role for its saved spec (which may itself be picked), else the spec's.
+ */
+function roleOptions(signup: Signup, character: Character | undefined, needed: CompRole[]) {
+  const guess =
+    character && character.spec === signup.spec
+      ? character.role
+      : roleFor(signup.class, signup.spec);
+  const options: SelectOption[] = [
+    {
+      label: `Guess from the spec${guess ? ` (${titleCase(ROLE_WORDS[guess])})` : ''}`,
+      value: GUESS_ROLE,
+      ...(signup.rolePicked ? {} : { default: true }),
+    },
+  ];
+  for (const role of ROLES) {
+    options.push({
+      label: titleCase(ROLE_WORDS[role]),
+      value: role,
+      ...(neededHint(role, needed) ? { description: neededHint(role, needed).slice(3) } : {}),
+      ...(signup.rolePicked && signup.role === role ? { default: true } : {}),
+    });
+  }
+  return options;
+}
+
+const noteField = (status: SignupStatus): NoteField =>
+  status === 'late'
+    ? { label: 'How late, and why? (optional)', placeholder: 'About 20 min, after work' }
+    : { label: 'What might stop you? (optional)', placeholder: 'Might have to work' };
+
 function reasonForm(eventId: string, status: SignupStatus, characterId: string, raid: string) {
   const late = status === 'late';
+  const field = noteField(status);
   return modal(
     `signup-note:${eventId}:${status}:${characterId}`,
     (late ? `Late for ${raid}` : `Tentative for ${raid}`).slice(0, 45),
-    textInput('note', late ? 'How late, and why? (optional)' : 'What might stop you? (optional)', {
+    textInput('note', field.label, {
       style: TextInputStyle.SHORT,
       required: false,
       max_length: 200,
-      placeholder: late ? 'About 20 min, after work' : 'Might have to work',
+      placeholder: field.placeholder,
     }),
+  );
+}
+
+/**
+ * The New character form for this raid. `signup-new:<event>:<status>` stays well inside Discord's
+ * 100 characters with 32-character Convex ids (at most 10 + 32 + 9 + 2). A late or tentative
+ * answer asks for its note in the same form, since a modal can't open another.
+ */
+function newCharacterFormFor(
+  eventId: string,
+  status: SignupStatus,
+  raid: string,
+  withNote: boolean,
+) {
+  return newCharacterForm(
+    `signup-new:${eventId}:${status}`,
+    `New character for ${raid}`,
+    withNote && ASKS_REASON.has(status) ? noteField(status) : undefined,
   );
 }
 
@@ -255,8 +346,8 @@ function characterPicker(
 }
 
 /**
- * The private reply after signup-set: what was used and why, with Switch character and Change
- * spec menus (none for a decline; Switch only when there's another character to switch to).
+ * The private reply after signup-set: what was used and why, with Switch character (which also
+ * offers New character…), Change spec and Role menus. A decline gets none.
  */
 async function outcome(
   ports: SignupPorts,
@@ -288,7 +379,8 @@ async function outcome(
   ]);
   const needed = rolesShort(event, signups, member);
   const components = [];
-  if (characters.length > 1) {
+  // Switch character always shows now: with one character it still offers New character….
+  if (characters.length > 0) {
     components.push(
       actionRow(
         stringSelect(
@@ -306,6 +398,17 @@ async function outcome(
       stringSelect(`signup-spec:${event.id}`, specOptions(s, needed), {
         placeholder: 'Change spec',
       }),
+    ),
+    actionRow(
+      stringSelect(
+        `signup-role:${event.id}`,
+        roleOptions(
+          s,
+          characters.find((c) => c.id === s.characterId),
+          needed,
+        ),
+        { placeholder: 'Role' },
+      ),
     ),
   );
   return { content, components };
@@ -369,15 +472,16 @@ interface Flow {
   ): Promise<InteractionResponse>;
 }
 
-/** A signup button: answer with the guess, or ask which character when there's none. */
+/**
+ * A signup button: answer with the guess, or ask which character when there's none (straight to
+ * the New character form when they have no characters yet).
+ */
 async function onButton(flow: Flow, status: SignupStatus): Promise<InteractionResponse> {
   const { ports, caller, member, event } = flow;
   const guessed = await guess(ports, caller, event.id);
   if (!guessed) {
     const characters = await ports.characters(member.id);
-    if (characters.length === 0) {
-      return ephemeral('Register a character first (character-add), then answer again.');
-    }
+    if (characters.length === 0) return newCharacterFormFor(event.id, status, event.name, true);
     const needed = rolesShort(event, await ports.signups(event.id), member);
     return characterPicker(event.id, status, characters, needed);
   }
@@ -387,24 +491,57 @@ async function onButton(flow: Flow, status: SignupStatus): Promise<InteractionRe
   return flow.run({ status, characterId: guessed.characterId, spec: guessed.spec }, guessed.reason);
 }
 
-/** Switch character or Change spec on the reply: the same answer, changed for this raid. */
+/**
+ * Switch character, Change spec or Role on the reply: the same answer, changed for this raid.
+ * New character… in Switch character opens the form, keeping the answer (and the note) as is.
+ */
 async function onMenu(
   flow: Flow,
-  parsed: Extract<Parsed, { kind: 'switch' | 'spec' }>,
+  parsed: Extract<Parsed, { kind: 'switch' | 'spec' | 'role' }>,
 ): Promise<InteractionResponse> {
   const existing = await flow.ports.signup(flow.event.id, flow.member.id);
   if (!existing) {
     return replaceReply({ content: 'Answer the raid first, then switch.', components: [] });
   }
+  if (parsed.kind === 'switch' && parsed.characterId === NEW_CHARACTER) {
+    return newCharacterFormFor(flow.event.id, existing.status, flow.event.name, false);
+  }
+  const same = { status: existing.status, characterId: existing.characterId };
   const input =
     parsed.kind === 'switch'
       ? { status: existing.status, characterId: parsed.characterId }
-      : { status: existing.status, characterId: existing.characterId, spec: parsed.spec };
+      : parsed.kind === 'spec'
+        ? { ...same, spec: parsed.spec }
+        : { ...same, role: parsed.role };
   return flow.run(input, null, replaceReply);
+}
+
+/**
+ * The New character form was sent: save the character, then sign up with it in the same step.
+ * An existing signup is updated in place by signup-set, so they keep their place in line.
+ */
+async function onNewCharacter(
+  flow: Flow,
+  interaction: Interaction,
+  status: SignupStatus,
+): Promise<InteractionResponse> {
+  const { input, note } = readNewCharacter(interaction);
+  const added = await flow.ports.characterAdd(flow.caller, input);
+  if (!added.success) {
+    const why = failureText(added, NEEDS_MEMBER_FOR_CHARACTERS, 'That character isn’t valid.');
+    return ephemeral(`${why}\nPick **New character…** again to fix it.`);
+  }
+  const character = added.data!;
+  // Only a form that asked for a note sets one; the Switch character form keeps the old note.
+  return flow.run(
+    { status, characterId: character.id, ...(note === undefined ? {} : { note }) },
+    character.isMain ? 'your new character, now your main' : 'your new character',
+  );
 }
 
 /** A signup button, picker, reason form, or reply menu, once the member and raid are known. */
 async function handleSignup(
+  interaction: Interaction,
   parsed: Parsed,
   member: Member,
   event: RaidEvent,
@@ -439,6 +576,9 @@ async function handleSignup(
       );
     }
     case 'pick':
+      if (parsed.characterId === NEW_CHARACTER) {
+        return newCharacterFormFor(event.id, parsed.status, event.name, true);
+      }
       if (ASKS_REASON.has(parsed.status)) {
         return reasonForm(event.id, parsed.status, parsed.characterId, event.name);
       }
@@ -449,7 +589,10 @@ async function handleSignup(
       );
     case 'switch':
     case 'spec':
+    case 'role':
       return onMenu(flow, parsed);
+    case 'new':
+      return onNewCharacter(flow, interaction, parsed.status);
     case 'button':
       return onButton(flow, parsed.status);
   }
@@ -470,5 +613,5 @@ export async function handleSignupInteraction(
   if (roster) {
     return reply(renderRosterReply(event, await ports.signups(event.id)), { ephemeral: true });
   }
-  return handleSignup(parsed!, who.member, event, ports);
+  return handleSignup(interaction, parsed!, who.member, event, ports);
 }

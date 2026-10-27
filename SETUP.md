@@ -163,6 +163,20 @@ The group was `/random raid` until #151. After deploying Convex and the gateway,
 commands (`pnpm --filter @vintage/gateway register-commands`), the test server first
 (`DISCORD_DEV_GUILD_ID`). Until then a stale `/random raid` gets the private "can't do that yet".
 
+### Characters from Discord
+
+`/random character add|list|main|remove` (Member and up) run the `character-*` commands through
+the same path (#149). `spec` and `name` are autocompleted: the gateway forwards Discord's
+autocomplete interactions for this group to Convex, which answers from a query, and the gateway
+gives up after 2 seconds with no suggestions (Discord's limit is 3). The signup picker and Switch
+character gain **New character…**, a form with select menus (Discord's Label component) that
+saves the character and signs up with it. No new bot permissions.
+
+After merging: deploy Convex, then the gateway, then re-register the commands
+(`pnpm --filter @vintage/gateway register-commands`), the test server first
+(`DISCORD_DEV_GUILD_ID`). Until then `/random character` isn't offered, and a stale client gets
+the private "can't do that yet".
+
 ### Help in Discord
 
 `/random help` (an overview, or one `topic`) and `/random poll help` / `/random event help` answer

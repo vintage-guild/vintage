@@ -3,7 +3,7 @@
 // PING) stays in apps/gateway.
 import { oauthProviderAuthServerMetadata } from '@better-auth/oauth-provider';
 import { httpRouter } from 'convex/server';
-import { json, refuseUnlessGateway } from '../src/gateway-auth';
+import { isAutocomplete, json, refuseUnlessGateway } from '../src/gateway-auth';
 import { createMcpGatewayRoutes } from '../src/mcp-gateway';
 import { internal } from './_generated/api';
 import { httpAction } from './_generated/server';
@@ -34,7 +34,7 @@ http.route({
 /**
  * POST /gateway/interaction: a verified Discord component or modal interaction from the gateway.
  * Answers with the interaction response for the gateway to return to Discord, or 404 when it
- * isn't one Vintage handles (signups, polls).
+ * isn't one Vintage handles (signups, polls). Autocomplete runs as a query, the rest as a mutation.
  */
 http.route({
   path: '/gateway/interaction',
@@ -48,7 +48,10 @@ http.route({
     } catch {
       return json({ error: 'invalid JSON' }, 400);
     }
-    const response = await ctx.runMutation(internal.discord.interaction, { interaction });
+    // Autocomplete only reads (a query); everything else may change data (a mutation).
+    const response = isAutocomplete(interaction)
+      ? await ctx.runQuery(internal.discord.autocomplete, { interaction })
+      : await ctx.runMutation(internal.discord.interaction, { interaction });
     return response ? json(response) : json({ error: 'not a Vintage interaction' }, 404);
   }),
 });

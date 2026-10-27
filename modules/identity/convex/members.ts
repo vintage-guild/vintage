@@ -6,8 +6,16 @@ import { mutation, query } from './_generated/server';
 import { prefs, rank, tier } from './schema';
 
 const toMember = (doc: Doc<'members'>) => {
-  const { _id, _creationTime, rank, rankSince, ...rest } = doc;
-  return { id: _id as string, rank: rank ?? null, rankSince: rankSince ?? null, ...rest };
+  const { _id, _creationTime, rank, rankSince, prefs, ...rest } = doc;
+  // defaultCharacterId was dropped (#149); older rows may still carry it.
+  const { defaultCharacterId: _dropped, ...kept } = prefs;
+  return {
+    id: _id as string,
+    rank: rank ?? null,
+    rankSince: rankSince ?? null,
+    prefs: kept,
+    ...rest,
+  };
 };
 
 export const get = query({

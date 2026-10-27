@@ -126,9 +126,9 @@ without leaving Discord.
 - [ ] With one character: Accept answers right away with a private reply that names the
   character, spec, role, and why ("**Accepted** for Raid night as **Aeryn** (Protection Warrior,
   tank): your main."), and the post shows me within seconds.
-- [ ] The reply has a **Change spec** menu (the class's specs, each with its role, and "tanks
-  needed" style marks for what the raid is short of); with two or more characters, a **Switch
-  character** menu too (main first). A decline has no menus.
+- [ ] The reply has a **Switch character** menu (main first, ending with **New character…**), a
+  **Change spec** menu (the class's specs, each with its role, and "tanks needed" style marks for
+  what the raid is short of), and a **Role** menu. A decline has no menus.
 - [ ] Late or Tentative opens a short reason form; the reason shows on the post, and the reply
   still says why that character was used.
 - [ ] With several characters and no main to guess: a private picker asks which one, marking the
@@ -145,9 +145,12 @@ changing my saved characters.
 - [ ] Aeryn (warrior main, druid alt Aerbark) presses Accept on Wednesday: the reply says "as
   **Aeryn** … your main". **Switch character** → Aerbark: the reply now says "as **Aerbark**
   (Feral Druid, tank)", and her place in line is kept.
-- [ ] On Thursday (the same schedule) Accept uses Aerbark: "your last Molten Core night". After a
-  few weeks it reads "your last 3 Molten Core nights" or "3 of your last 5 …" (the last 5
-  signups for the schedule; a one-off uses the same instance).
+- [ ] On Thursday (the same schedule) Accept still uses her main, "your main": the main beats
+  history (Bloodfen, 2026-10-27). She switches to Aerbark again.
+- [ ] History decides only with no main: Cade removes his main and keeps two alts. Wednesday the
+  picker asks and he picks Cadebark; Thursday Accept uses Cadebark: "your last Molten Core
+  night". After a few weeks it reads "your last 3 Molten Core nights" or "3 of your last 5 …"
+  (the last 5 signups for the schedule; a one-off uses the same instance).
 - [ ] **Change spec** lists Feral twice, as a tank and as DPS. Picking the DPS one makes the
   signup melee DPS; `character-list` still shows Aerbark as Feral Tank.
 - [ ] Late keeps the chosen spec. Switching back to Aeryn clears it: Protection, tank.
@@ -155,6 +158,41 @@ changing my saved characters.
   from …" under it, and has the same two menus; once answered, either menu saves right away.
   (The scenario test covers Discord; `signup-card.test.ts` and `home-signup.test.ts` cover the
   site.)
+
+### J40 · Manage my characters from Discord, and sign up with a new alt
+**When** I make an alt or change my main, **I (raider) want** to do it from Discord, **so I can**
+keep my characters right and sign up with a new one without going to the site.
+- [ ] `/random character add`: `class` is a list, and `spec` suggests the chosen class's specs
+  as I type (Hunter: Beast Mastery, Marksmanship, Survival). The private reply names the
+  character, spec and role. A spec typed past the suggestions is still checked ("\"holy\" is not
+  a hunter spec").
+- [ ] `/random character list` shows my characters privately, main marked. `main` and `remove`
+  suggest my own characters' names; `main` makes one my main.
+- [ ] `/random character remove` asks first, privately, with a **Remove** button; pressing it
+  removes the character. Anyone else pressing the same button removes nothing.
+- [ ] On a raid's card, **Switch character → New character…** opens a form: name, then class,
+  spec and role from lists. Sending it saves the character and signs me up with it in one step
+  ("your new character"), keeping my place in line. A spec of the wrong class is refused and
+  nothing is saved.
+- [ ] With no characters at all, the signup button opens the same form straight away; for Late or
+  Tentative it asks for the note too.
+- [ ] On the site, `/characters` has **Edit** for each character (name, class, spec, role, main).
+  (`character-form.test.ts` and `member-pages.test.ts` cover it.)
+- [ ] A Discord-only Friend gets "needs the Member rank"; someone the bot doesn't know is told to
+  wait for the role sync.
+
+### J41 · A Fury warrior signs up to tank a dungeon
+**When** I'm tanking in a DPS spec (a Fury warrior with a shield), **I (raider) want** to sign up
+as a tank, **so I can** fill the slot the group needs without pretending to be Protection.
+- [ ] Rook makes a 5-player dungeon (1 tank). Aeryn switches to her Fury warrior Aerfury; the
+  **Role** menu reads "Guess from the spec (Melee DPS)". She picks **Tank**: the reply says
+  "as **Aerfury** (Fury Warrior, tank)".
+- [ ] **Change spec** to Arms keeps Tank (it was picked); the saved Aerfury is still melee DPS.
+  Picking "Guess from the spec" goes back to following the spec.
+- [ ] The card counts her as the tank (Tanks 1/1), and "tanks needed" no longer shows.
+- [ ] Thorg saves his Fury warrior as a tank once (`/random character add … role:tank`, or Role
+  on the Characters page); his signups start as a tank.
+- [ ] On the site, the signup card has the same Role control. (`signup-card.test.ts` covers it.)
 
 ### J28 · Make a raid from Discord
 **When** a run comes together in chat, **I (raid leader) want** to make the raid with a slash

@@ -79,6 +79,27 @@ describe('the home signup card', () => {
     expect(page.nextNeeded).toEqual(['tank', 'dps']);
   });
 
+  it('hands the card a role picked for the raid, and nothing when the role follows the spec', async () => {
+    let picked = true;
+    client((name) =>
+      name === 'signup-list'
+        ? {
+            success: true,
+            data: [{ ...signup('m1', 'tank'), rolePicked: picked }, signup('m2', 'healer')],
+          }
+        : reader(name),
+    );
+    setSession({ memberId: 'm1', tier: 'raider', rank: 'raider' } as never);
+    const page = document.createElement('vintage-home-page') as HomePage & {
+      mySignup: Signup | null;
+    };
+    await page.loadRaids();
+    expect(page.mySignup).toMatchObject({ memberId: 'm1', role: 'tank', rolePicked: true });
+    picked = false;
+    await page.loadRaids();
+    expect(page.mySignup?.rolePicked).toBe(false);
+  });
+
   it('asks for no guess when the viewer cannot sign up', async () => {
     const reads = client(reader);
     setSession({ memberId: 'm9', tier: 'member', rank: 'member' } as never);

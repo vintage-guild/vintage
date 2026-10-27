@@ -36,7 +36,16 @@ Members, characters, and Discord roles → guild rank → permission tier (PLAN 
   rank role are `public`; being in the Discord server alone grants nothing.
 - Rank and tier are separate on purpose: Raider and Flex Raider share the `raider` tier, but the
   coordinator gives Raiders priority.
-- A member's first character becomes their main; setting a new main clears the old one.
+- A member's first character becomes their main; setting a new main clears the old one. The main
+  is the default character everywhere (signup guesses, Discord); there's no separate default
+  pref (`prefs.defaultCharacterId` was removed in #149). The schema still allows it on stored
+  prefs so old rows validate; the members mapper strips it and the next prefs write drops it.
+- A character's `role` is guessed from its spec unless the member picked one (`role` on
+  `character-add`/`character-update`, stored with `rolePicked`; a Fury warrior who tanks). A
+  guessed role follows a spec change, a picked one stays, `role: null` goes back to guessing,
+  and a class change starts over. Rows from before #149 have no `rolePicked` and read as false.
+- `character-update` edits name (unique, normalized), class (with a spec of that class), spec,
+  role, and main. Discord's `/random character` and the site's Characters page both use it.
 - Members edit only their own characters; officers can edit anyone's.
 - Character names are unique per guild, stored capitalized.
 - When you change a component function, keep `src/testing.ts` behaving the same way, and run

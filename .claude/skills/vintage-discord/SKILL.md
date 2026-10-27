@@ -31,6 +31,8 @@ commands). Everything runs serverless: no always-on gateway process.
   modals, and the subcommand groups in `FORWARDED_GROUPS` (`/random poll`, `/random raid`, `/random ask`) go to
   Convex, where `src/discord-signups.ts`, `discord-polls.ts`, `discord-raids.ts`, and
   `discord-agent.ts` run them (shared helpers in `discord-common.ts`). Re-register after changing commands.
+  A `/random` subcommand or click that the gateway or Convex doesn't know yet (registered before
+  both deploys landed) gets a private "can't do that yet", never a timeout.
 - **Least privilege for the bot.** It's invited with View Channels, Send Messages, Embed Links,
   Read Message History, Add Reactions, and Mention Everyone (permissions integer `216128`). Add a
   permission only when a feature needs it, and say which in the PR. Never request Administrator

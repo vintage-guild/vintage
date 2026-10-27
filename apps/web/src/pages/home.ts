@@ -31,6 +31,7 @@ import {
   type LedgerKill,
   type LedgerRaid,
   type RosterMember,
+  ruleWords,
   type SignupCounts,
   titleCase,
 } from '@vintage/ui-kit';
@@ -330,7 +331,8 @@ const template = html<Page>`
                   (x) => x.profile.discordInvite,
                   html<Page>`<a class="btn primary" href="${(x) => x.profile.discordInvite ?? ''}" rel="noopener">Join the Discord</a>`,
                 )}
-                <a class="btn ${(x) => (x.profile.discordInvite ? '' : 'primary')}" href="/about">How we raid</a>
+                <a class="btn ${(x) => (x.profile.discordInvite ? '' : 'primary')}" href="/apply">Apply to raid</a>
+                <a class="btn" href="/about">How we raid</a>
                 <a class="btn" href="/#roster" data-section-link="roster">Who’s in</a>
               </p>
               ${when(
@@ -509,23 +511,6 @@ interface FeedItem {
   detail: string;
 }
 
-/** The coordinator's rule kinds (modules/coordinator tick.ts), in words. */
-const RULE_LABELS: [prefix: string, label: string][] = [
-  ['post', 'Posted the signups'],
-  ['refresh', 'Updated the signup post'],
-  ['remind', 'Reminded the people who haven’t answered'],
-  ['dm', 'Sent reminder DMs'],
-  ['digest', 'Sent officers the comp digest'],
-  ['lock', 'Locked the roster'],
-  ['final', 'Posted the final roster'],
-  ['promote', 'Told the next in line a spot opened'],
-];
-
-/** "Reminded the people who haven’t answered", or the rule's own name for one we don't know. */
-function ruleWords(rule: string): string {
-  return RULE_LABELS.find(([prefix]) => rule.startsWith(prefix))?.[1] ?? titleCase(rule);
-}
-
 /** The slice of `coordinator-status` the officer strip reads. */
 interface CoordinatorStatusData {
   config: { paused: boolean; signupChannelId: string | null };
@@ -543,8 +528,7 @@ interface CompSuggestData {
 }
 
 function describeAction(action: CoordinatorAction, row: RaidRow): FeedItem {
-  const match = RULE_LABELS.find(([prefix]) => action.rule.startsWith(prefix));
-  const what = match ? match[1] : titleCase(action.rule);
+  const what = ruleWords(action.rule);
   const status =
     action.status === 'sent'
       ? ''
@@ -1418,7 +1402,7 @@ export class Page extends FASTElement {
     const due = mine?.dueNow[0];
     const last = mine?.done.filter((d) => d.status === 'sent').at(-1);
     const detail = due
-      ? `due now: ${ruleWords(due).toLowerCase()}`
+      ? `due now: ${ruleWords(due, 'todo').toLowerCase()}`
       : last
         ? `last: ${ruleWords(last.rule).toLowerCase()}`
         : '';

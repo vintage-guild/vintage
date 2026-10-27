@@ -1,8 +1,9 @@
 # applications module
 
-Guild applications (epic #126, #134, #135): raiders and flex raiders apply from Discord (or the
-site, next); one Decisions request labels each application; officers accept, reply, or decline
-from the review post in the recruitment channel. Maturity: **official**.
+Guild applications (epic #126, #134, #135): raiders and flex raiders apply from Discord or the
+site (`/apply`, `vintage-apply-form`); one Decisions request labels each application; officers
+accept, reply, or decline from the review post in the recruitment channel or the quarters'
+Applications tab (`vintage-applications-desk`). Maturity: **official**.
 
 ## Shape
 

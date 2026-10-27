@@ -3,10 +3,20 @@
 // checks what members would see in Discord. Extend these when the raid night changes.
 import { decodeRaidImport } from '@vintage/bridge-format';
 import { buttonLabels, messageText } from '@vintage/coordinator/testing';
+import { ScheduledEventStatus } from '@vintage/discord-kit';
 import type { Caller } from '@vintage/guild-kit';
 import type { RaidEvent, Signup } from '@vintage/raids/contract';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createHost, DAY, HOUR, type Host, OPS_CHANNEL, ROLES, SIGNUP_CHANNEL } from './host';
+import {
+  createHost,
+  DAY,
+  DISCORD_GUILD,
+  HOUR,
+  type Host,
+  OPS_CHANNEL,
+  ROLES,
+  SIGNUP_CHANNEL,
+} from './host';
 
 /** Wed 28 Oct 2026, 20:00 New York (EDT). */
 const WED = Date.UTC(2026, 9, 29, 0);
@@ -486,6 +496,17 @@ describe('JTBD: raid night', () => {
         .some((m) => messageText(m.message).includes('Onyxia run')),
     ).toBe(true);
 
+    // With server events on, the raid made from Discord also shows in the Events list.
+    await g.host.configureCoordinator({ serverEvents: true });
+    await g.host.tick();
+    const listed = [...g.host.discord.serverEvents.values()].find(
+      (e) => e.data.name === 'Onyxia run',
+    );
+    expect(listed?.data).toMatchObject({
+      scheduled_start_time: new Date(tue8pm).toISOString(),
+      entity_metadata: { location: "Onyxia's Lair" },
+    });
+
     // A raider can't; a time it can't read says how to write one.
     const raider = await ui.slash(g.aeryn.discordId!, 'create', {
       name: 'Sneaky',
@@ -507,6 +528,10 @@ describe('JTBD: raid night', () => {
     const { wed } = await scheduleRaidNights(g);
     const schedules = await g.host.ok<{ id: string }[]>(g.rook, 'schedule-list', {});
     const scheduleId = schedules[0]!.id;
+    // Server events are on (as in the test server first): each posted raid shows in Events.
+    await g.host.configureCoordinator({ serverEvents: true });
+    const serverEvent = (name: string) =>
+      [...g.host.discord.serverEvents.values()].find((e) => e.data.name === name);
 
     // A one-off on Saturday, then moved an hour later: Aeryn's answer comes along.
     const saturday = Date.UTC(2026, 9, 31, 22); // Sat 31 Oct, 18:00 New York
@@ -523,6 +548,31 @@ describe('JTBD: raid night', () => {
     expect((await g.host.ok<Signup>(g.aeryn, 'signup-get', { eventId: alt.id })).status).toBe(
       'accepted',
     );
+
+    // Its server event follows: made after the card, moved with the raid, cancelled with it.
+    await g.host.tick(); // the card
+    await g.host.tick(); // the server event, linking to the card
+    expect(serverEvent('Alt run')).toMatchObject({
+      status: ScheduledEventStatus.SCHEDULED,
+      data: {
+        scheduled_start_time: new Date(saturday + HOUR).toISOString(),
+        entity_metadata: { location: 'Barrow Deeps' },
+        description: expect.stringContaining(
+          `https://discord.com/channels/${DISCORD_GUILD}/${SIGNUP_CHANNEL}/`,
+        ),
+      },
+    });
+    expect(serverEvent('Raid night')).toBeDefined();
+    await g.host.ok(g.rook, 'raid-reschedule', { eventId: alt.id, startsAt: saturday + 2 * HOUR });
+    await g.host.tick();
+    expect(serverEvent('Alt run')!.data.scheduled_start_time).toBe(
+      new Date(saturday + 2 * HOUR).toISOString(),
+    );
+    await g.host.ok(g.rook, 'raid-cancel', { eventId: alt.id });
+    await g.host.tick();
+    await g.host.tick();
+    expect(serverEvent('Alt run')!.status).toBe(ScheduledEventStatus.CANCELED);
+    expect(g.host.discord.eventCalls.filter((c) => c.data.status)).toHaveLength(1);
 
     // A week on, a paused schedule creates nothing; resumed, its next two nights appear.
     g.host.clock.advance(7 * DAY);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createDiscordRest, DiscordRestError, type FetchLike } from './rest';
+import { createDiscordRest, DiscordRestError, type FetchLike, ScheduledEventStatus } from './rest';
 
 interface Call {
   url: string;
@@ -117,6 +117,40 @@ describe('createDiscordRest', () => {
       'https://discord.com/api/v10/applications/app1/guilds/g1/commands',
       'https://discord.com/api/v10/applications/app1/commands',
     ]);
+  });
+
+  it('creates, edits, and deletes an EXTERNAL scheduled event, retrying a 429', async () => {
+    const { fetch, calls } = fakeFetch(
+      json(429, { retry_after: 0.5 }),
+      json(200, { id: 'ev1' }),
+      json(200, { id: 'ev1' }),
+      () => new Response(null, { status: 204 }),
+    );
+    const { waits, sleep } = recordingSleep();
+    const rest = createDiscordRest({ token: 't', fetch, sleep });
+    const data = {
+      name: 'Molten Core',
+      scheduled_start_time: '2026-11-01T02:00:00.000Z',
+      scheduled_end_time: '2026-11-01T05:00:00.000Z',
+      description: 'Sign up',
+      entity_metadata: { location: 'Molten Core' },
+    };
+    expect(await rest.createScheduledEvent('g1', data)).toEqual({ id: 'ev1' });
+    await rest.editScheduledEvent('g1', 'ev1', { status: ScheduledEventStatus.CANCELED });
+    await rest.deleteScheduledEvent('g1', 'ev1');
+    expect(waits).toEqual([500]);
+    expect(calls.map((c) => `${c.init.method} ${c.url}`)).toEqual([
+      'POST https://discord.com/api/v10/guilds/g1/scheduled-events',
+      'POST https://discord.com/api/v10/guilds/g1/scheduled-events',
+      'PATCH https://discord.com/api/v10/guilds/g1/scheduled-events/ev1',
+      'DELETE https://discord.com/api/v10/guilds/g1/scheduled-events/ev1',
+    ]);
+    expect(JSON.parse(String(calls[1]!.init.body))).toEqual({
+      entity_type: 3,
+      privacy_level: 2,
+      ...data,
+    });
+    expect(JSON.parse(String(calls[2]!.init.body))).toEqual({ status: 4 });
   });
 
   it('requires a token for bot-auth routes and handles 204', async () => {

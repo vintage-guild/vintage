@@ -7,12 +7,17 @@ import {
   volatile,
   when,
 } from '@lushly-dev/fast-element';
+import type { CoordinatorAction } from '@vintage/coordinator/contract';
 import { type Tier, tierAllows } from '@vintage/guild-kit';
 import type { RaidEvent, Schedule, Signup } from '@vintage/raids/contract';
 import type { GuildProfile, Recruiting } from '@vintage/site/contract';
 import {
+  type ApplicationsDeskRow,
   type CalendarRaid,
   type CalendarSchedule,
+  type CoordinatorDeskConfig,
+  type CoordinatorDeskEntry,
+  type CoordinatorDeskRaid,
   getCommandClient,
   type PollsDeskPoll,
   type PollsDeskResults,
@@ -29,15 +34,16 @@ const AHEAD_MS = 30 * 86_400_000;
 
 /**
  * The quarters' tabs, by job rather than by module (docs/features/active/role-aware-views).
- * Tonight is built; the rest list what they will hold and stay disabled until they are.
+ * A tab not built yet lists what it will hold and stays disabled until it is.
  */
 const TABS = [
   { id: 'tonight', label: 'Tonight', ready: true, hint: '' },
   { id: 'calendar', label: 'Calendar', ready: true, hint: '' },
-  { id: 'coordinator', label: 'Coordinator', ready: false, hint: 'status, settings, the log' },
+  { id: 'coordinator', label: 'Random', ready: true, hint: '' },
   { id: 'roster', label: 'Roster', ready: false, hint: 'ranks, sync, recruits on trial' },
   { id: 'guild', label: 'Guild', ready: true, hint: '' },
   { id: 'recruiting', label: 'Recruiting', ready: true, hint: '' },
+  { id: 'applications', label: 'Applications', ready: true, hint: '' },
   { id: 'polls', label: 'Polls', ready: true, hint: '' },
   { id: 'progress', label: 'Progress', ready: false, hint: 'record a kill and its loot' },
 ] as const;
@@ -97,6 +103,31 @@ export function calendarSchedule(s: Schedule): CalendarSchedule {
     durationMinutes: s.durationMinutes,
     timings: { ...s.timings, reminderHours: [...s.timings.reminderHours] },
     active: s.active,
+  };
+}
+
+/** How far back the Random tab reads its log: the raids of the last week, after they started. */
+const LOG_BEHIND_MS = 7 * 86_400_000;
+
+/** `coordinator-status` as the Random tab reads it. */
+interface CoordinatorStatus {
+  config: CoordinatorDeskConfig;
+  upcoming: CoordinatorDeskRaid[];
+}
+
+/** A `coordinator-log` row as the Random tab's log reads it. */
+export function coordinatorEntry(
+  action: CoordinatorAction,
+  raidName: string,
+): CoordinatorDeskEntry {
+  return {
+    id: action.id,
+    eventId: action.eventId,
+    raidName,
+    rule: action.rule,
+    status: action.status,
+    detail: action.detail,
+    at: action.finishedAt ?? action.claimedAt,
   };
 }
 
@@ -172,13 +203,30 @@ const template = html<Page>`
           html<Page>`
             <vintage-calendar-desk
               time-zone="${() => preferredTimeZone() ?? ''}"
-              ?can-edit="${(x) => x.canEditCalendar}"
+              ?can-edit="${(x) => x.canLead}"
               ?loading="${(x) => !x.calendarLoaded}"
               error="${(x) => x.calendarError}"
               :raids="${(x) => x.calendarRaids}"
               :schedules="${(x) => x.calendarSchedules}"
               @calendar-changed="${(x) => x.loadCalendar()}"
             ></vintage-calendar-desk>
+          `,
+        )}
+
+        ${when(
+          (x) => x.tab === 'coordinator',
+          html<Page>`
+            <vintage-coordinator-desk
+              time-zone="${() => preferredTimeZone() ?? ''}"
+              ?can-act="${(x) => x.canLead}"
+              ?can-configure="${(x) => x.canEditRecruiting}"
+              ?loading="${(x) => !x.coordinatorLoaded}"
+              error="${(x) => x.coordinatorError}"
+              :config="${(x) => x.coordinatorConfig}"
+              :upcoming="${(x) => x.coordinatorUpcoming}"
+              :entries="${(x) => x.coordinatorEntries}"
+              @coordinator-changed="${(x) => x.loadCoordinator()}"
+            ></vintage-coordinator-desk>
           `,
         )}
 
@@ -192,6 +240,17 @@ const template = html<Page>`
               :error="${(x) => x.recruitingError}"
               @recruiting-changed="${(x) => x.loadRecruiting()}"
             ></vintage-recruiting-desk>
+          `,
+        )}
+
+        ${when(
+          (x) => x.tab === 'applications',
+          html<Page>`
+            <vintage-applications-desk
+              :applications="${(x) => x.applications}"
+              error="${(x) => x.applicationsError}"
+              @applications-changed="${(x) => x.loadApplications()}"
+            ></vintage-applications-desk>
           `,
         )}
 
@@ -338,7 +397,8 @@ const styles = css`
  * to show the room; every action inside is a command that checks its own tier, so an under-tier
  * caller who got here would be refused anyway. Tonight reads `raid-list`, `signup-list`,
  * `comp-suggest`, and `coordinator-status`; Polls reads `poll-list` and `poll-results`;
- * Recruiting reads `recruiting-get` and saves with `recruiting-set`; Guild reads
+ * Random reads `coordinator-status` and `coordinator-log` and runs the coordinator's leader
+ * commands; Recruiting reads `recruiting-get` and saves with `recruiting-set`; Guild reads
  * `guild-profile-get` and saves with `guild-profile-set` (both officers only to save).
  */
 export class Page extends FASTElement {
@@ -352,6 +412,8 @@ export class Page extends FASTElement {
   @observable loadError = '';
   /** The first load has settled; later re-reads keep showing the last answer. */
   @observable loaded = false;
+  @observable applications: ApplicationsDeskRow[] = [];
+  @observable applicationsError = '';
   /** The open tab, from `?tab=` (Tonight by default). */
   @observable tab: TabId = tabFromUrl(location.search);
   @observable polls: PollsDeskPoll[] = [];
@@ -366,11 +428,21 @@ export class Page extends FASTElement {
   @observable calendarLoaded = false;
   /** Bumped per calendar read, so a slow earlier read never lands over a newer one. */
   private calendarRead = 0;
-  /** Every calendar command is leader tier; a preview below that reads it without the buttons. */
-  readonly canEditCalendar = tierAllows((currentSession()?.tier ?? 'public') as Tier, 'leader');
+  @observable coordinatorConfig: CoordinatorDeskConfig | null = null;
+  @observable coordinatorUpcoming: CoordinatorDeskRaid[] = [];
+  @observable coordinatorEntries: CoordinatorDeskEntry[] = [];
+  @observable coordinatorError = '';
+  @observable coordinatorLoaded = false;
+  /** Bumped per Random read, as the calendar's is. */
+  private coordinatorRead = 0;
   /**
-   * `recruiting-set` and `guild-profile-set` are officer tier; raid leaders read the band and
-   * the profile here but can't save them.
+   * Every calendar command is leader tier, as are Random's pause, resume, run, and repost; a
+   * preview below that reads them without the buttons.
+   */
+  readonly canLead = tierAllows((currentSession()?.tier ?? 'public') as Tier, 'leader');
+  /**
+   * `recruiting-set`, `guild-profile-set`, and `coordinator-config-set` are officer tier; raid
+   * leaders read the band, the profile, and Random's settings here but can't save them.
    */
   readonly canEditRecruiting = tierAllows((currentSession()?.tier ?? 'public') as Tier, 'officer');
 
@@ -388,8 +460,10 @@ export class Page extends FASTElement {
     void this.load();
     if (this.tab === 'polls') void this.loadPolls();
     if (this.tab === 'recruiting') void this.loadRecruiting();
+    if (this.tab === 'applications') void this.loadApplications();
     if (this.tab === 'guild') void this.loadProfile();
     if (this.tab === 'calendar') void this.loadCalendar();
+    if (this.tab === 'coordinator') void this.loadCoordinator();
   }
 
   /** Switch tabs and keep the choice in the address, so `/officers?tab=polls` links work. */
@@ -402,8 +476,10 @@ export class Page extends FASTElement {
     history.replaceState(history.state, '', url);
     if (id === 'polls') void this.loadPolls();
     if (id === 'recruiting') void this.loadRecruiting();
+    if (id === 'applications') void this.loadApplications();
     if (id === 'guild') void this.loadProfile();
     if (id === 'calendar') void this.loadCalendar();
+    if (id === 'coordinator') void this.loadCoordinator();
   }
 
   /**
@@ -435,6 +511,51 @@ export class Page extends FASTElement {
   }
 
   /**
+   * Random's status and settings from `coordinator-status`, and its log for the upcoming raids
+   * and the last week's (a raid leaves `upcoming` once it starts, but its final roster is
+   * worth reading after). Only the latest read is kept.
+   */
+  async loadCoordinator(): Promise<void> {
+    const client = getCommandClient();
+    const now = Date.now();
+    const read = ++this.coordinatorRead;
+    try {
+      const [status, recent] = await Promise.all([
+        client.read<CoordinatorStatus>('coordinator-status', {}),
+        client.read<RaidRow[]>('raid-list', {
+          from: now - LOG_BEHIND_MS,
+          to: now,
+          statuses: ['open', 'locked', 'cancelled', 'completed'],
+        }),
+      ]);
+      if (read !== this.coordinatorRead) return;
+      if (!status.success || !status.data) {
+        this.coordinatorError = `Couldn’t ask Random how it’s doing: ${status.error?.message ?? 'the server didn’t answer'}.`;
+        return;
+      }
+      const raids = new Map<string, string>(status.data.upcoming.map((u) => [u.eventId, u.name]));
+      for (const r of recent.success ? (recent.data ?? []) : [])
+        raids.set(r.event.id, r.event.name);
+      const logs = await Promise.all(
+        [...raids].map(async ([eventId, name]) => {
+          const log = await client.read<CoordinatorAction[]>('coordinator-log', {
+            eventId,
+            limit: 50,
+          });
+          return (log.success ? (log.data ?? []) : []).map((a) => coordinatorEntry(a, name));
+        }),
+      );
+      if (read !== this.coordinatorRead) return;
+      this.coordinatorError = '';
+      this.coordinatorConfig = status.data.config;
+      this.coordinatorUpcoming = status.data.upcoming;
+      this.coordinatorEntries = logs.flat();
+    } finally {
+      if (read === this.coordinatorRead) this.coordinatorLoaded = true;
+    }
+  }
+
+  /**
    * Every draft, open, and closed poll the caller may see. Closed polls carry their frozen
    * result; open ones get their live tally from `poll-results`, which officers always see and
    * which answers `RESULTS_HIDDEN` to a leader when the poll keeps it back.
@@ -462,6 +583,23 @@ export class Page extends FASTElement {
   }
 
   /** The band as it reads now, for the editor. */
+  /** Officers' applications; raid leaders see why the desk is empty. */
+  async loadApplications(): Promise<void> {
+    const result = await getCommandClient().read<ApplicationsDeskRow[]>('application-list', {
+      limit: 100,
+    });
+    if (result.success) {
+      this.applications = result.data ?? [];
+      this.applicationsError = '';
+    } else {
+      this.applications = [];
+      this.applicationsError =
+        result.error?.code === 'COMMAND_NOT_FOUND'
+          ? 'Officers review applications. Raid leaders see them in the recruitment channel if an officer shares it.'
+          : (result.error?.message ?? 'Could not read the applications');
+    }
+  }
+
   async loadRecruiting(): Promise<void> {
     const result = await getCommandClient().read<Recruiting>('recruiting-get');
     this.recruitingError = result.success ? '' : siteReadError('recruiting band', result.error);

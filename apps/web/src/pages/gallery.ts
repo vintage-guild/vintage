@@ -3,6 +3,9 @@ import { LAUNCH_RAIDS, RAIDS_OPEN_ON } from '@vintage/progress/contract';
 import {
   type CalendarRaid,
   type CalendarSchedule,
+  type CoordinatorDeskConfig,
+  type CoordinatorDeskEntry,
+  type CoordinatorDeskRaid,
   type LedgerKill,
   type LedgerRaid,
   type ListedCharacter,
@@ -82,6 +85,60 @@ const GALLERY_RAIDS: CalendarRaid[] = [
   }),
   calendarRaid({ id: 'r4', startsAt: nyEvening(10, 5), counts: null }),
 ];
+
+/** Random's settings in the gallery: both channels set, the four raiding ranks chased. */
+const GALLERY_COORDINATOR: CoordinatorDeskConfig = {
+  signupChannelId: '1300000000000000001',
+  opsChannelId: '1300000000000000002',
+  expectedRanks: ['officer', 'raid-leader', 'raider', 'flex-raider'],
+  dmReminders: true,
+  paused: false,
+};
+
+/** Two raids this week: Wednesday's locked tonight, Thursday's still chasing answers. */
+const GALLERY_COORDINATOR_RAIDS: CoordinatorDeskRaid[] = [
+  {
+    eventId: 'r1',
+    name: 'Raid night',
+    startsAt: nyEvening(9, 28),
+    status: 'locked',
+    done: ['post', 'remind-72h', 'digest', 'remind-24h', 'dm-24h', 'dm-24h', 'lock'].map(
+      (rule, i) => ({ rule, status: 'sent', at: nyEvening(9, 25) + i * 3_600_000 }),
+    ),
+    dueNow: ['final-roster', 'import-string'],
+    waiting: [],
+  },
+  {
+    eventId: 'r2',
+    name: 'Raid night',
+    startsAt: nyEvening(9, 29),
+    status: 'open',
+    done: [{ rule: 'post', status: 'sent', at: nyEvening(9, 22) }],
+    dueNow: ['remind-72h'],
+    waiting: ['Elowen', 'Fenwick', 'Thistle'].map((displayName, i) => ({
+      memberId: `m${i}`,
+      displayName,
+    })),
+  },
+];
+
+/** Random's log for those raids: a skip and a failure among the sends, each with its reason. */
+const GALLERY_COORDINATOR_LOG: CoordinatorDeskEntry[] = [
+  ['post', 'sent', null, 22],
+  ['remind-72h', 'sent', null, 25],
+  ['digest', 'sent', null, 25],
+  ['dm-24h', 'skipped', 'Thistle turned reminder DMs off', 27],
+  ['dm-24h', 'failed', 'Discord refused the DM: Elowen doesn’t accept DMs from server members', 27],
+  ['lock', 'sent', null, 28],
+].map(([rule, status, detail, day], i) => ({
+  id: `a${i}`,
+  eventId: 'r1',
+  raidName: 'Raid night',
+  rule: rule as string,
+  status: status as string,
+  detail: detail as string | null,
+  at: nyEvening(9, day as number) - 3 * 3_600_000,
+}));
 
 const firstSpec = (c: WowClass) => Object.keys(CLASSES[c])[0] ?? '';
 
@@ -257,6 +314,31 @@ const template = html<Page>`
           :raids="${() => GALLERY_RAIDS}"
         ></vintage-raid-month>
       </div>
+    </section>
+    <section>
+      <h2>Random</h2>
+      <p>The quarters' Random tab: what the coordinator did and will do for each raid, who it's chasing, its log with the reason for each entry, and its settings. Actions report the gallery client's refusal.</p>
+      <vintage-coordinator-desk
+        can-act
+        can-configure
+        time-zone="America/New_York"
+        :config="${() => GALLERY_COORDINATOR}"
+        :upcoming="${() => GALLERY_COORDINATOR_RAIDS}"
+        :entries="${() => GALLERY_COORDINATOR_LOG}"
+      ></vintage-coordinator-desk>
+      <h3>Paused, as a raid leader sees it</h3>
+      <vintage-coordinator-desk
+        can-act
+        time-zone="America/New_York"
+        :config="${() => ({ ...GALLERY_COORDINATOR, paused: true })}"
+      ></vintage-coordinator-desk>
+      <h3>Not set up</h3>
+      <vintage-coordinator-desk
+        can-act
+        can-configure
+        time-zone="America/New_York"
+        :config="${() => ({ ...GALLERY_COORDINATOR, signupChannelId: null, opsChannelId: null })}"
+      ></vintage-coordinator-desk>
     </section>
     <section>
       <h2>Characters and profile</h2>

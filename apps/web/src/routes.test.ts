@@ -29,6 +29,8 @@ describe('VintageRoutes', () => {
     ['polls/j971cqgtxed9zmwk9nfvwafby18h1hwn', 'Polls'],
     ['officers', 'Officers’ quarters'],
     ['apply', 'Apply'],
+    ['oauth/sign-in', 'Connect an app'],
+    ['oauth/consent', 'Connect an app'],
     ['ui', 'Components'],
   ])('maps /%s', async (path, title) => {
     expect(await titleOf(path)).toBe(title);

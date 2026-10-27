@@ -10,6 +10,7 @@ import '@vintage/ui-kit/violet-bridge.css';
 import './styles.css';
 import '@vintage/ui-kit';
 import { fastRouterRegistration } from '@microsoft/fast-router';
+import { isOAuthPage } from './oauth';
 import { VintageRoutes } from './routes';
 import { canSignIn, currentPreview, currentSession, realSession, signIn, signOut } from './session';
 import { installSectionLinks, trackScrollProgress } from './site-context';
@@ -41,13 +42,15 @@ if (import.meta.env.DEV) {
     const { installFixtures } = await import('./fixtures');
     await installFixtures(choice);
   }
-  installPersonaSwitch(choice);
+  // Changing it adds `?as=`, which would break the OAuth pages' signed query.
+  if (!isOAuthPage(location.pathname)) installPersonaSwitch(choice);
 } else {
   await connectLive();
 }
 
-// Leaders and officers can preview the site as a lower tier (src/preview.ts).
-if (['leader', 'officer'].includes(realSession()?.tier ?? '')) {
+// Leaders and officers can preview the site as a lower tier (src/preview.ts), except on the OAuth
+// pages: an app connects as who is really signed in, and the control would rewrite the signed query.
+if (['leader', 'officer'].includes(realSession()?.tier ?? '') && !isOAuthPage(location.pathname)) {
   await (await import('./preview')).installPreview();
 }
 

@@ -139,6 +139,7 @@ export function createFixtureHost(
     raids,
     members: {
       getCharacter: (g, id) => identity.getCharacter(g, id),
+      listCharacters: (g, memberId) => identity.listCharacters(g, { memberId }),
       getMember: (g, id) => identity.getMember(g, id),
     },
     events: createRecordingEventSink(),

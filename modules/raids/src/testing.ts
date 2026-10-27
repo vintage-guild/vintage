@@ -90,6 +90,12 @@ export function createMemoryRaidsStore(): RaidsStore & {
         ) ?? null
       );
     },
+    async listSignupsByMember(guildId, memberId, limit) {
+      return [...signups.values()]
+        .filter((s) => s.guildId === guildId && s.memberId === memberId)
+        .sort((a, b) => b.signedUpAt - a.signedUpAt)
+        .slice(0, limit);
+    },
     async insertSignup(input) {
       const signup = { ...input, id: id('signup') };
       signups.set(signup.id, signup);
@@ -114,6 +120,8 @@ export function createMemoryRaidsMembers(
   return {
     getCharacter: async (guildId, characterId) =>
       characters.find((c) => c.guildId === guildId && c.id === characterId) ?? null,
+    listCharacters: async (guildId, memberId) =>
+      characters.filter((c) => c.guildId === guildId && c.memberId === memberId),
     getMember: async (guildId, memberId) =>
       members.find((m) => m.guildId === guildId && m.id === memberId) ?? null,
   };

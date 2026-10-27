@@ -213,6 +213,13 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         any,
         Name
       >;
+      listByMember: FunctionReference<
+        "query",
+        "internal",
+        { guildId: string; limit: number; memberId: string },
+        any,
+        Name
+      >;
       remove: FunctionReference<
         "mutation",
         "internal",

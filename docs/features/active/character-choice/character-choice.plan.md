@@ -1,6 +1,7 @@
 # Character choice: which character a raider brings
 
-**Status:** proposed (2026-10-26). **Owner modules:** raids (signups), identity (characters).
+**Status:** active (2026-10-27): §1–2 built and tested (#148), not yet deployed; §3–4 to do
+(#149). **Owner modules:** raids (signups), identity (characters).
 
 Raiders and flex raiders often bring a different character, class or spec from one raid to the next: a
 main on Molten Core, an alt on the Rage Fire Chasm run, or the same druid as a tank one night and
@@ -14,9 +15,10 @@ for this raid only.
 | Characters (name, class, spec, role, `isMain`) | identity: `character-add/update/remove/list` | ✅ commands, and the site's `/characters` page |
 | `prefs.defaultCharacterId` | identity: `member-prefs-set` | ⚠️ stored but nothing reads it |
 | Signup copies of the character | raids `Signup.characterName/class/spec/role` | ✅ posts and comp read the copy |
-| Discord signup buttons | `apps/api/src/discord-signups.ts` `defaultCharacter` | ⚠️ uses this raid's signup, else the only character, else a picker. Ignores the main and any history |
-| Characters from Discord | none | ❌ "Register a character first (character-add)", but there's no way to do that in Discord |
-| Spec for one raid | none | ❌ the spec is the character's saved spec |
+| Discord signup buttons | `apps/api/src/discord-signups.ts` | ✅ sign up with `signup-suggest`'s guess and say why; Switch character and Change spec in the reply (#148) |
+| Site signup card | `vintage-signup-card` (ui-kit) on the home page | ✅ the guess and its reason, with the same two menus (#148) |
+| Characters from Discord | none | ❌ "Register a character first (character-add)", but there's no way to do that in Discord (#149) |
+| Spec for one raid | raids `signup-set` `spec` | ✅ on the signup only; the saved character keeps its spec (#148) |
 
 ## How other bots do it
 
@@ -53,8 +55,9 @@ guess. Discord, the site and the agent all use it. The guess, in order:
 
 1. **Already signed up for this raid:** that character and spec.
 2. **Same series:** the character used most often in the member's last 5 signups for raids from the
-   same schedule (`scheduleId`). For a one-off, it's raids in the same instance. A tie goes to the
-   most recent.
+   same schedule (`scheduleId`), newest raid first and declines left out. For a one-off, it's
+   raids in the same instance (an event with no instance has no series). A tie goes to the most
+   recent, and the spec comes from the newest of those nights.
 3. **Main:** the character marked `isMain`.
 4. **Only character:** if they have just one.
 5. Otherwise there's no guess, and Discord shows the picker.
@@ -89,6 +92,20 @@ still ask for a reason first). The private reply names what was used:
 
 On the site, the raid's signup form gets the same two controls, with the guess and its reason
 filled in.
+
+**As built (#148):**
+
+- Custom ids: `signup-char:<event>` and `signup-spec:<event>` (the choice is the menu's value),
+  and the reason form's `signup-note:<event>:<status>:<character>:<spec>` carries the guessed
+  spec (the old four-part form still parses). Ids and values must match `[A-Za-z0-9_-]{1,64}`.
+- "Needed" means fewer going (accepted or late, not queued) than the event's role targets
+  (raids `rolesNeeded`), not counting the member's own signup, so a raid's only healer still
+  sees "healers needed" on the healer spec.
+- Switch character appears only with two or more characters; a decline gets no menus. A menu
+  used before answering says "Answer the raid first".
+- With the same character and no `spec`, `signup-set` keeps the signup's spec and role, so a
+  status change keeps a spec chosen for the raid. A changed saved spec reaches an existing
+  signup only through Change spec or switching character.
 
 ### 3. Managing characters from Discord
 
@@ -125,22 +142,21 @@ commands (`signup-suggest`, and `signup-set` with `spec`). The intent router sen
 | 2 | A spec for one raid lives on the signup, not on the character | Changing a saved character for one night is how saved data drifts out of date |
 | 3 | `isMain` is the default; drop `prefs.defaultCharacterId` | Two meanings of "default" would compete. Removing the field changes `member-prefs-set`'s input, so the PR needs the `breaking-contract` label |
 | 4 | Keep real characters, not class-only signups like Raid-Helper | Addon exports, invites and attendance need character names |
+| 5 | Series window: the member's last 5 signups for the same schedule; one-offs, the same instance | Decided by Bloodfen, 2026-10-27 (#148) |
+| 6 | Discord and the site both ship Switch character and Change spec in #148 | Decided by Bloodfen, 2026-10-27 |
+| 7 | Flex raiders get a "needed" hint in the picker and nothing more | Decided by Bloodfen, 2026-10-27 |
+| 8 | Addon attendance correcting the history is out of scope | Decided by Bloodfen, 2026-10-27; follow-up #185 |
 
 ## Open questions
 
-1. **Series window:** is 5 recent signups right, or should it count the last 30 days?
-2. **Spec for one raid on the site:** in the first release, or Discord first?
-3. **Flex raiders:** should "needed" hints in the picker lean them toward the role the raid is short
-   of, beyond the hint itself?
-4. **Addon attendance:** later, the addon could report which character actually showed up and use
-   that to correct the history. Is that in scope for this feature?
+None open; the four from the proposal are decisions 5–8.
 
 ## Tasks
 
-- [ ] **Signups guess and switch** (#148) (raids, apps/api, web): `signup-suggest`,
+- [x] **Signups guess and switch** (#148) (raids, apps/api, web): `signup-suggest`,
   `listSignupsByMember` with its index, optional `spec` on `signup-set`, the private reply with
   Switch character and Change spec, the site's signup form, and J05 and J15 extended plus a new job
-  for "brings a different character".
+  for "brings a different character" (J39).
 - [ ] **Characters from Discord** (#149) (gateway, apps/api, identity): the `/random character` group,
   autocomplete forwarding, **➕ New character…** in the picker, and removing
   `defaultCharacterId` (`breaking-contract`).

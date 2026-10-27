@@ -44,8 +44,20 @@ directly. Maturity: **core**.
   holds, the earliest are in and the rest are `queued`. Every signup change and removal re-runs
   `syncQueue`; a queued person whose turn comes gets `promotedAt` and a `signup-promoted` event.
   Queued people count as bench in `comp-suggest`.
-- **Identity is read through `RaidsMembers`**, never its tables. Signups snapshot the
-  character's name, class, spec, and role at signup time.
+- **Identity is read through `RaidsMembers`** (`getCharacter`, `listCharacters`, `getMember`),
+  never its tables. Signups snapshot the character's name, class, spec, and role at signup time.
+- **A spec for one raid** (#148): `signup-set`'s optional `spec` must be one of the character's
+  class's specs (`INVALID_SPEC`); the role follows it. It changes the signup's copy only, never
+  the saved character. Without `spec`, the same character keeps the signup's spec and role
+  (changing status keeps a chosen spec); a different character starts from its saved spec
+  (switching clears it). A spec change alone is a change: `signup-changed` goes out.
+- **`signup-suggest`** (recruit, read-only) guesses the character in `domain/guess.ts`: this
+  raid's signup, then the one brought most in the member's last `SERIES_WINDOW` (5) signups for
+  the same schedule (one-offs: the same instance; declines don't count; a tie goes to the most
+  recent raid), then the main, then the only character; else null. `reason` is shown to members,
+  so keep it short and plain. It reads `listSignupsByMember` (the component's `by_guild_member`
+  index, latest `signedUpAt` first). `rolesNeeded` (contract) is what the surfaces' "needed"
+  hints use.
 - **Leaders override** (tier `leader`): signing up anyone's character, changing locked raids,
   and every `roster-*` command. `raid-cancel` and `roster-remove` are destructive (confirm flow).
 - **Events:** `signup-changed` on every real change (not on a no-op re-answer) and on removal

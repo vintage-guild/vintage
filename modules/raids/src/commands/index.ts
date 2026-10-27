@@ -2,7 +2,7 @@ import { compSuggest } from './comp';
 import { raidCancel, raidComplete, raidCreate, raidGet, raidList, raidReschedule } from './raid';
 import { rosterBench, rosterLock, rosterMove, rosterRemove, rosterUnlock } from './roster';
 import { scheduleCreate, scheduleList, scheduleMaterialize, scheduleUpdate } from './schedule';
-import { signupGet, signupList, signupSet } from './signup';
+import { signupGet, signupList, signupSet, signupSuggest } from './signup';
 
 export {
   isValidTimeZone,
@@ -26,6 +26,7 @@ export const raidsCommands = [
   raidGet,
   raidList,
   signupSet,
+  signupSuggest,
   signupGet,
   signupList,
   rosterLock,

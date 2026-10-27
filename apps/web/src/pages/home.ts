@@ -17,11 +17,14 @@ import {
   RAIDS_OPEN_ON,
 } from '@vintage/progress/contract';
 import {
+  type CompRole,
   KIND_LABELS,
   kindOf,
   type RaidEvent,
+  rolesNeeded,
   type Schedule,
   type Signup,
+  type SignupGuess,
   type SignupStatus,
 } from '@vintage/raids/contract';
 import {
@@ -222,8 +225,12 @@ const template = html<Page>`
                   starts-at="${(x) => x.next?.event.startsAt}"
                   lock-label="${(x) => x.lockLabel}"
                   status="${(x) => x.next?.myStatus ?? 'none'}"
-                  character-id="${(x) => (x.signUpAllowed ? (x.main?.id ?? '') : '')}"
+                  character-id="${(x) => (x.signUpAllowed ? (x.guess?.characterId ?? x.main?.id ?? '') : '')}"
                   character-label="${(x) => x.mainLabel}"
+                  spec="${(x) => x.guess?.spec ?? ''}"
+                  reason="${(x) => x.guess?.reason ?? ''}"
+                  :characters="${(x) => (x.signUpAllowed ? x.characters : [])}"
+                  :needed="${(x) => x.nextNeeded}"
                   time-zone="${() => preferredTimeZone() ?? ''}"
                   :counts="${(x) => x.nextCounts}"
                   @signup-changed="${(x) => x.loadRaids().then(() => (x.view === 'officer' ? x.loadOfficer() : undefined))}"
@@ -1128,6 +1135,12 @@ export class Page extends FASTElement {
   @observable raids: RaidRow[] = [];
   @observable nextCounts: SignupCounts = EMPTY_COUNTS;
   @observable main: Character | null = null;
+  /** The member's characters (`character-list`), for the signup card's Switch character. */
+  @observable characters: Character[] = [];
+  /** `signup-suggest` for the next raid: who they're likely bringing, and why. */
+  @observable guess: SignupGuess | null = null;
+  /** Roles the next raid is short of, not counting the member (the card marks them). */
+  @observable nextNeeded: CompRole[] = [];
   @observable progress: Progress | null = null;
   /** `recruiting-get`; null until it answers, so the band never shows text it then replaces. */
   @observable recruiting: Recruiting | null = null;
@@ -1474,6 +1487,7 @@ export class Page extends FASTElement {
   async loadMain(): Promise<void> {
     const result = await getCommandClient().read<Character[]>('character-list');
     const characters = result.success ? (result.data ?? []) : [];
+    this.characters = characters;
     this.main = characters.find((c) => c.isMain) ?? characters[0] ?? null;
   }
 
@@ -1539,10 +1553,22 @@ export class Page extends FASTElement {
     const next = this.next;
     if (!next) {
       this.nextCounts = EMPTY_COUNTS;
+      this.guess = null;
+      this.nextNeeded = [];
       return;
     }
-    const signups = await client.read<Signup[]>('signup-list', { eventId: next.event.id });
+    const [signups, guess] = await Promise.all([
+      client.read<Signup[]>('signup-list', { eventId: next.event.id }),
+      this.signUpAllowed
+        ? client.read<SignupGuess | null>('signup-suggest', { eventId: next.event.id })
+        : null,
+    ]);
+    this.guess = guess?.success ? (guess.data ?? null) : null;
     const rows = signups.success ? (signups.data ?? []) : [];
+    this.nextNeeded = rolesNeeded(
+      next.event,
+      rows.filter((s) => s.memberId !== this.meId),
+    );
     const going = rows.filter((s) => (s.status === 'accepted' || s.status === 'late') && !s.queued);
     this.nextCounts = {
       ...next.counts,

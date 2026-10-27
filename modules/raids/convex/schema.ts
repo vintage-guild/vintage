@@ -120,5 +120,7 @@ export default defineSchema({
     .index('by_guild_schedule_start', ['guildId', 'scheduleId', 'startsAt']),
   signups: defineTable(signupFields)
     .index('by_guild_event', ['guildId', 'eventId'])
-    .index('by_guild_event_member', ['guildId', 'eventId', 'memberId']),
+    .index('by_guild_event_member', ['guildId', 'eventId', 'memberId'])
+    // A member's history across raids, for signup-suggest's series guess.
+    .index('by_guild_member', ['guildId', 'memberId', 'signedUpAt']),
 });

@@ -3542,7 +3542,7 @@
     },
     {
       "name": "signup-set",
-      "description": "Sign up for a raid with one of your characters, or change your answer (accepted, late, tentative, bench, declined). One signup per member per raid. Raid leaders may sign up anyone's character and may change locked raids.",
+      "description": "Sign up for a raid with one of your characters, or change your answer (accepted, late, tentative, bench, declined). One signup per member per raid. Raid leaders may sign up anyone's character and may change locked raids. spec plays the character as another of its class's specs for this raid only (the role follows); the saved character doesn't change. Switching character clears it; changing your answer keeps it.",
       "tier": "recruit",
       "mutation": true,
       "destructive": false,
@@ -3578,12 +3578,37 @@
                 "type": "null"
               }
             ]
+          },
+          "spec": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
           }
         },
         "required": [
           "eventId",
           "characterId",
           "status"
+        ]
+      }
+    },
+    {
+      "name": "signup-suggest",
+      "description": "Which of your characters you are likely bringing to a raid, with the spec and a short reason: this raid’s signup, else the one you brought most to your last 5 raids from the same schedule (one-offs: the same instance), else your main, else your only character. Null when there is no good guess; pick with character-list then.",
+      "tier": "recruit",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "eventId"
         ]
       }
     },

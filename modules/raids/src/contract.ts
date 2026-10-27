@@ -7,6 +7,13 @@ import type { EventKind } from './domain/kinds';
 
 export type { RaidSize, RoleTargets, SignupStatus } from '@vintage/comp-solver';
 export {
+  type CompRole,
+  compRole,
+  rolesNeeded,
+  SERIES_WINDOW,
+  type SignupGuess,
+} from './domain/guess';
+export {
   AKind,
   aKind,
   compSize,
@@ -161,6 +168,7 @@ export const RAIDS_COMMANDS = [
   'raid-get',
   'raid-list',
   'signup-set',
+  'signup-suggest',
   'signup-get',
   'signup-list',
   'roster-lock',

@@ -2,7 +2,7 @@
 // columns), our own outline status icons, and class-colored squares, all as the app's own emoji.
 // Columns cap at a few names so a 40-person card keeps its height; the Roster button shows the full
 // list privately. Pure: data in, MessageData out. Ideas from docs/research/raid-helper.md.
-import { type CompGap, compRoleOf, defaultTemplate } from '@vintage/comp-solver';
+import { type CompGap, compRoleOf } from '@vintage/comp-solver';
 import { discordColor } from '@vintage/design-tokens';
 import {
   actionRow,
@@ -14,9 +14,16 @@ import {
   type MessageData,
   TimestampStyle,
 } from '@vintage/discord-kit';
-import type { RaidEvent, Signup } from '@vintage/raids/contract';
+import {
+  hasRoleTargets,
+  kindOf,
+  type RaidEvent,
+  type Signup,
+  targetsOf,
+} from '@vintage/raids/contract';
 import type { TickEvent, TickMember } from '../store';
 import { EMOJI_IDS } from './emoji-ids';
+import { eventTitle, sizeWords } from './kind-words';
 import { compFor, finalRoster } from './render';
 
 type CompRoleName = 'tank' | 'healer' | 'dps';
@@ -88,17 +95,17 @@ const value = (lines: string[]) => (lines.length ? lines.join('\n') : '—').sli
 const when = (ms: number) =>
   `${discordTimestamp(ms, TimestampStyle.LONG_DATE_TIME)} · ${discordTimestamp(ms, TimestampStyle.RELATIVE)}`;
 
-const targetsFor = (event: RaidEvent) => event.roleTargets ?? defaultTemplate(event.size).targets;
-
 const BUFF_SHORT: Record<string, string> = {
   'Mark of the Wild': 'MotW',
   'Power Word: Fortitude': 'Fort',
   'Arcane Intellect': 'Int',
 };
 
-/** "2 tanks · 7 healers · MotW · Fort". */
-function missing(gaps: CompGap[]): string {
+/** "2 tanks · 7 healers · MotW · Fort". Buffs only count for raids. */
+function missing(event: RaidEvent, gaps: CompGap[]): string {
+  const raid = kindOf(event) === 'raid';
   return gaps
+    .filter((g) => raid || g.kind !== 'requirement')
     .map((g) =>
       g.kind === 'requirement' ? (BUFF_SHORT[g.label] ?? g.label) : g.reason.replace(/^need /, ''),
     )
@@ -152,7 +159,7 @@ const SIGNUP_BUTTONS = [
 export function renderSignupPost(tick: TickEvent, members: TickMember[]): MessageData {
   const { event, signups, timings } = tick;
   const locked = event.status === 'locked';
-  const targets = targetsFor(event);
+  const targets = targetsOf(event);
   const place = places(signups);
   const going = signups.filter(inRaid);
   const queue = signups.filter((s) => s.queued).sort((a, b) => a.signedUpAt - b.signedUpAt);
@@ -163,14 +170,23 @@ export function renderSignupPost(tick: TickEvent, members: TickMember[]): Messag
   const lock = locked
     ? `${emoji('info_locked')} Signups locked`
     : `${emoji('info_open')} Signups open · lock ${timings.lockHours}h before`;
-  const fields: EmbedField[] = ROLES.map(([role, label]) => {
-    const inRole = going.filter((s) => compRoleOf(s.role) === role);
-    return {
-      name: header(role, label, `${inRole.length}/${targets[role]}`),
-      value: value(capped(inRole.map((s) => line(s, place.get(s.id))))),
-      inline: true,
-    };
-  });
+  // An event with no role targets (kind `other` by default) lists everyone going in one column:
+  // three columns of "0/0" would say nothing.
+  const fields: EmbedField[] = hasRoleTargets(targets)
+    ? ROLES.map(([role, label]) => {
+        const inRole = going.filter((s) => compRoleOf(s.role) === role);
+        return {
+          name: header(role, label, `${inRole.length}/${targets[role]}`),
+          value: value(capped(inRole.map((s) => line(s, place.get(s.id))))),
+          inline: true,
+        };
+      })
+    : [
+        {
+          name: `Going ${going.length}/${event.size}`,
+          value: value(capped(going.map((s) => line(s, place.get(s.id))))),
+        },
+      ];
   if (queue.length) {
     fields.push({
       name: `Queue ${queue.length}`,
@@ -200,7 +216,7 @@ export function renderSignupPost(tick: TickEvent, members: TickMember[]): Messag
   fields.push({
     name: BLANK,
     value: comp.gaps.length
-      ? `${emoji('info_missing')} **Missing** ${missing(comp.gaps)}`
+      ? `${emoji('info_missing')} **Missing** ${missing(event, comp.gaps)}`
       : '**Comp** no gaps',
   });
 
@@ -208,11 +224,11 @@ export function renderSignupPost(tick: TickEvent, members: TickMember[]): Messag
   return {
     embeds: [
       embed({
-        title: `${event.name} · ${event.instance}`,
+        title: `${eventTitle(event)} · ${event.instance}`,
         // When; the lock and size as quieter subtext; then the counts with room around them.
         description: [
           `${emoji('info_calendar')} ${when(event.startsAt)}`,
-          `-# ${lock} · ${event.size}-person`,
+          `-# ${lock} · ${sizeWords(event)}`,
           '',
           statusLine(signups),
           BLANK,
@@ -296,7 +312,7 @@ export function renderRosterReply(event: RaidEvent, signups: Signup[]): MessageD
   return {
     embeds: [
       embed({
-        title: `Roster · ${event.name}`,
+        title: `Roster · ${eventTitle(event)}`,
         description: `${emoji('info_calendar')} ${when(event.startsAt)}\n\n${statusLine(signups)}\n${BLANK}`,
         fields: fields.slice(0, 25),
         ...(footer ? { footer: { text: footer } } : {}),
@@ -326,7 +342,7 @@ export function renderFinalRoster(tick: TickEvent, members: TickMember[]): Messa
   return {
     embeds: [
       embed({
-        title: `Final roster · ${tick.event.name}`,
+        title: `Final roster · ${eventTitle(tick.event)}`,
         description: `${emoji('info_calendar')} ${when(tick.event.startsAt)}  ${emoji('info_locked')} Signups locked · ${going.length}/${tick.event.size}`,
         color: discordColor('color.border.strong'),
         fields,

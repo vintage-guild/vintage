@@ -29,13 +29,14 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
   {
     key: 'events',
     title: 'Events',
-    summary: 'Raids and runs the guild signs up for; see Signups for joining one.',
-    group: 'raid',
-    runs: { 'raid create': 'raid-create', 'raid pick-night': 'raid-night-poll' },
+    summary:
+      'Raids, dungeons, battlegrounds, and other events the guild signs up for; see Signups for joining one.',
+    group: 'event',
+    runs: { 'event create': 'raid-create', 'event pick-night': 'raid-night-poll' },
     examples: [
-      '/random raid create name:Onyxia run instance:Onyxia’s Lair size:40 start:2026-11-10 8pm',
-      '/random raid create name:Molten Core instance:Molten Core size:40 start:2026-11-12 20:00 hours:4',
-      '/random raid pick-night name:Zul’Gurub instance:Zul’Gurub size:20 times:2026-11-10 20:00; 2026-11-12 20:00',
+      '/random event create name:Scarlet Monastery instance:Scarlet Monastery kind:dungeon size:5 start:2026-11-03 8pm',
+      '/random event create name:Molten Core instance:Molten Core size:40 start:2026-11-12 20:00 hours:4',
+      '/random event pick-night name:Zul’Gurub instance:Zul’Gurub size:20 times:2026-11-10 20:00; 2026-11-12 20:00',
     ],
   },
   {

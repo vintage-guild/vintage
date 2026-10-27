@@ -1,19 +1,23 @@
 // What the officers' calendar reads (the raids module's `RaidEvent` and `Schedule`, the slices
 // the elements use) and the wording they share. ui-kit can't import modules, so the shapes are
 // restated here; the page maps `raid-list` and `schedule-list` onto them.
+import { type EventKind, KIND_LABELS, RAID_SIZES, type RoleTargets } from '@vintage/comp-solver';
 import { offsetMinutes, type WallWeekday, wallClock } from '../zoned';
 
 export type CalendarRaidStatus = 'open' | 'locked' | 'cancelled' | 'completed';
-export type CalendarRaidSize = 10 | 20 | 40;
-export const CALENDAR_SIZES: readonly CalendarRaidSize[] = [10, 20, 40];
+/** Players in an event: 1 to 40, allowed per kind (`sizeFits` in comp-solver). */
+export type CalendarRaidSize = number;
+/** A raid's sizes; other kinds have their own (`KIND_SIZES`). */
+export const CALENDAR_SIZES: readonly number[] = RAID_SIZES;
 
-/** One raid on the calendar, with its signup counts when the page has them. */
+/** One raid (or dungeon, battleground, other event) on the calendar, with its signup counts. */
 export interface CalendarRaid {
   id: string;
   /** The schedule it came from; null for a one-off. */
   scheduleId: string | null;
   name: string;
   instance: string;
+  kind: EventKind;
   size: CalendarRaidSize;
   /** Epoch ms. */
   startsAt: number;
@@ -27,7 +31,10 @@ export interface CalendarSchedule {
   id: string;
   name: string;
   instance: string;
+  kind: EventKind;
   size: CalendarRaidSize;
+  /** The schedule's own comp; null means the kind's default for the size. */
+  roleTargets: RoleTargets | null;
   recurrence: { weekdays: WallWeekday[]; time: string; timeZone: string };
   durationMinutes: number;
   timings: { leadDays: number; reminderHours: number[]; lockHours: number };
@@ -117,6 +124,15 @@ export function describeScheduleTimings(s: CalendarSchedule): string {
     ? `; reminders at ${list(t.reminderHours.map((h) => `${h}h`))}`
     : '; no reminders';
   return `Signups post ${t.leadDays} day${t.leadDays === 1 ? '' : 's'} ahead and lock ${t.lockHours}h before${reminders}`;
+}
+
+/**
+ * "40-player Onyxia's Lair" for a raid; other kinds lead with theirs: "Dungeon · 5-player
+ * Scarlet Monastery". Raids are the default, so they stay as they read before kinds.
+ */
+export function describeWhat(r: { kind: EventKind; size: number; instance: string }): string {
+  const what = `${r.size}-player ${r.instance}`;
+  return r.kind === 'raid' ? what : `${KIND_LABELS[r.kind]} · ${what}`;
 }
 
 /** "12 going · 3 tentative · 1 bench", or "No signups yet". */

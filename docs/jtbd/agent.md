@@ -74,9 +74,9 @@ Live checklist:
 
 - [ ] As a raider, `/random help` answers privately: polls, ask, signups, and recruiting I can
       use, and one line saying raid leaders and officers can make events.
-- [ ] As a raider, `/random raid help` says my rank can't use these yet and who can.
-- [ ] As a raid leader, `/random help topic:Events` lists `/random raid create` and
-      `pick-night` with their options and examples, on one screen.
+- [ ] As a raider, `/random event help` says my rank can't use these yet and who can.
+- [ ] As a raid leader, `/random help topic:Events` lists `/random event create` and
+      `pick-night` with their options (kind, role counts) and examples, on one screen.
 - [ ] `/random poll help` links the website's polls page (with `VINTAGE_SITE_URL` set).
 - [ ] From an account Random hasn't synced yet, `/random help` starts with the role-sync note
       and shows only what anyone can do.

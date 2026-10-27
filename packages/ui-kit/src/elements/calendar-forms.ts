@@ -1,5 +1,18 @@
 import { attr, css, FASTElement, html, observable, repeat, when } from '@lushly-dev/fast-element';
 import {
+  AKind,
+  defaultRoleTargets,
+  EVENT_KINDS,
+  type EventKind,
+  KIND_LABELS,
+  KIND_SIZES,
+  kindNoun,
+  MAX_EVENT_SIZE,
+  type RoleTargets,
+  sizeFits,
+  sizesText,
+} from '@vintage/comp-solver';
+import {
   browserTimeZone,
   dayKey,
   instantFromInputs,
@@ -8,7 +21,6 @@ import {
   type WallWeekday,
 } from '../zoned';
 import {
-  CALENDAR_SIZES,
   type CalendarRaid,
   type CalendarRaidSize,
   type CalendarSchedule,
@@ -94,6 +106,157 @@ const zoneField = html<VintageScheduleForm | VintageRaidForm>`
   </div>
 `;
 
+const COUNT_FIELDS = [
+  ['tanks', 'Tanks'],
+  ['healers', 'Healers'],
+  ['dps', 'DPS'],
+] as const;
+
+/**
+ * Kind and size, then the tank, healer and DPS counts. The counts start at the kind's usual comp
+ * for the size and follow kind and size changes until the officer types one (#151).
+ */
+const kindFields = html<KindedForm>`
+  <div class="field">
+    <label for="kind">Kind</label>
+    <select id="kind" :value="${(x) => x.kind}"
+      @change="${(x, c) => x.setKind((c.event.target as HTMLSelectElement).value as EventKind)}">
+      ${repeat(
+        () => EVENT_KINDS,
+        html<EventKind>`<option value="${(k) => k}">${(k) => KIND_LABELS[k]}</option>`,
+      )}
+    </select>
+  </div>
+  <div class="field">
+    <label for="size">Size</label>
+    ${when(
+      (x) => x.kind !== 'other',
+      html<KindedForm>`
+        <select id="size" :value="${(x) => String(x.size)}"
+          @change="${(x, c) => x.setSize(Number((c.event.target as HTMLSelectElement).value))}">
+          ${repeat(
+            (x) => x.sizeChoices(),
+            html<number>`<option value="${(n) => n}">${(n) => n}-player</option>`,
+          )}
+        </select>
+      `,
+    )}
+    ${when(
+      (x) => x.kind === 'other',
+      html<KindedForm>`
+        <input id="size" type="number" min="1" max="${MAX_EVENT_SIZE}" step="1" required
+          :value="${(x) => String(x.size)}"
+          @input="${(x, c) => x.setSize(Number((c.event.target as HTMLInputElement).value))}" />
+      `,
+    )}
+  </div>
+  ${repeat(
+    () => COUNT_FIELDS,
+    html<(typeof COUNT_FIELDS)[number], KindedForm>`
+      <div class="field">
+        <label for="${(f) => f[0]}">${(f) => f[1]}</label>
+        <input id="${(f) => f[0]}" type="number" min="0" max="${MAX_EVENT_SIZE}" step="1" required
+          :value="${(f, c) => String(c.parent[f[0]])}"
+          @input="${(f, c) => c.parent.setCount(f[0], Number((c.event.target as HTMLInputElement).value))}" />
+      </div>
+    `,
+  )}
+`;
+
+const countsNote = html<KindedForm>`
+  <small class="counts-note">${(x) => x.countsNote()}</small>
+`;
+
+/**
+ * What both forms share: the event's kind, its size, and its tank/healer/DPS counts. Commands
+ * keep "null means the kind's default", so the counts go out as roleTargets only when they differ
+ * from that default.
+ */
+export abstract class KindedForm extends FASTElement {
+  @observable kind: EventKind = 'raid';
+  @observable size: CalendarRaidSize = 40;
+  @observable tanks = 0;
+  @observable healers = 0;
+  @observable dps = 0;
+  /** True once the officer typed a count; then kind and size changes leave the counts alone. */
+  @observable countsTouched = false;
+
+  /** The sizes the size picker offers for the kind (`other` types one instead). */
+  sizeChoices(): readonly number[] {
+    return this.kind === 'other' ? [] : KIND_SIZES[this.kind];
+  }
+
+  /** Kind, size, and counts from a stored event or schedule, or the defaults for a new one. */
+  loadKind(from: { kind: EventKind; size: number; roleTargets?: RoleTargets | null } | null): void {
+    this.kind = from?.kind ?? 'raid';
+    this.size = from?.size ?? 40;
+    const targets = from?.roleTargets ?? defaultRoleTargets(this.kind, this.size);
+    this.tanks = targets.tank;
+    this.healers = targets.healer;
+    this.dps = targets.dps;
+    this.countsTouched = !!from?.roleTargets;
+  }
+
+  setKind(kind: EventKind): void {
+    this.kind = kind;
+    // Keep the size when the new kind allows it; otherwise its first (a dungeon is 5).
+    if (!sizeFits(kind, this.size)) this.size = kind === 'other' ? this.size : KIND_SIZES[kind][0]!;
+    this.refillCounts();
+    this.changed();
+  }
+
+  setSize(size: number): void {
+    this.size = size;
+    this.refillCounts();
+    this.changed();
+  }
+
+  setCount(field: 'tanks' | 'healers' | 'dps', value: number): void {
+    this[field] = value;
+    this.countsTouched = true;
+    this.changed();
+  }
+
+  /** "Usual for a 5-player dungeon" or "Set by hand". */
+  countsNote(): string {
+    return this.countsTouched
+      ? 'Counts set by hand; they stay when the kind or size changes.'
+      : `The usual comp for a ${this.size}-player ${kindNoun(this.kind)}.`;
+  }
+
+  private refillCounts(): void {
+    if (this.countsTouched || !sizeFits(this.kind, this.size)) return;
+    const targets = defaultRoleTargets(this.kind, this.size);
+    this.tanks = targets.tank;
+    this.healers = targets.healer;
+    this.dps = targets.dps;
+  }
+
+  /** Called after any kind/size/count change, to clear the form's problem line. */
+  protected abstract changed(): void;
+
+  /** What's wrong with kind, size, or counts, or empty. */
+  kindProblem(): string {
+    if (!sizeFits(this.kind, this.size))
+      return `${AKind(this.kind)} is ${sizesText(this.kind)} players.`;
+    const counts = [this.tanks, this.healers, this.dps];
+    if (counts.some((n) => !Number.isInteger(n) || n < 0)) {
+      return 'Tank, healer, and DPS counts are whole numbers, 0 or more.';
+    }
+    if (counts.reduce((a, b) => a + b, 0) > this.size) {
+      return `The counts add up to more than ${this.size} players.`;
+    }
+    return '';
+  }
+
+  /** The counts as roleTargets, or null when they are the kind's default (the command's null). */
+  roleTargets(): RoleTargets | null {
+    const typed = { tank: this.tanks, healer: this.healers, dps: this.dps };
+    const usual = defaultRoleTargets(this.kind, this.size);
+    return JSON.stringify(typed) === JSON.stringify(usual) ? null : typed;
+  }
+}
+
 const durationField = html<VintageScheduleForm | VintageRaidForm>`
   <div class="field">
         <label for="duration">Length (minutes)</label>
@@ -119,14 +282,13 @@ const scheduleTemplate = html<VintageScheduleForm>`
           :value="${(x) => x.instance}"
           @input="${(x, c) => x.set('instance', (c.event.target as HTMLInputElement).value)}" />
       </div>
-      <div class="field">
-        <label for="size">Size</label>
-        <select id="size" :value="${(x) => String(x.size)}"
-          @change="${(x, c) => x.set('size', Number((c.event.target as HTMLSelectElement).value))}">
-          ${repeat(() => CALENDAR_SIZES, html<number>`<option value="${(n) => n}">${(n) => n}-player</option>`)}
-        </select>
-      </div>
     </div>
+
+    <fieldset>
+      <legend>Kind and comp</legend>
+      <div class="grid">${kindFields}</div>
+      ${countsNote}
+    </fieldset>
 
     <fieldset>
       <legend>Raid nights</legend>
@@ -196,14 +358,13 @@ const scheduleTemplate = html<VintageScheduleForm>`
  *
  * @tagname vintage-schedule-form
  */
-export class VintageScheduleForm extends FASTElement {
+export class VintageScheduleForm extends KindedForm {
   /** The schedule being edited; null adds a new one. */
   @observable schedule: CalendarSchedule | null = null;
   /** The zone a new schedule starts in. */
   @attr({ attribute: 'default-zone' }) defaultZone = '';
   @observable name = '';
   @observable instance = '';
-  @observable size: CalendarRaidSize = 40;
   @observable weekdays: WallWeekday[] = [];
   @observable time = '20:00';
   @observable zone = '';
@@ -222,7 +383,7 @@ export class VintageScheduleForm extends FASTElement {
     const s = this.schedule;
     this.name = s?.name ?? '';
     this.instance = s?.instance ?? '';
-    this.size = s?.size ?? 40;
+    this.loadKind(s);
     this.weekdays = [...(s?.recurrence.weekdays ?? [])];
     this.time = s?.recurrence.time ?? '20:00';
     this.zone = s?.recurrence.timeZone ?? (this.defaultZone || browserTimeZone());
@@ -235,6 +396,10 @@ export class VintageScheduleForm extends FASTElement {
 
   set(field: string, value: string | number): void {
     (this as unknown as Record<string, unknown>)[field] = value;
+    this.problem = '';
+  }
+
+  protected changed(): void {
     this.problem = '';
   }
 
@@ -261,6 +426,8 @@ export class VintageScheduleForm extends FASTElement {
   check(): string {
     if (!this.name.trim()) return 'Give the schedule a name.';
     if (!this.instance.trim()) return 'Say which instance it runs.';
+    const kindProblem = this.kindProblem();
+    if (kindProblem) return kindProblem;
     if (this.weekdays.length === 0) return 'Pick at least one raid night.';
     if (!/^\d{2}:\d{2}$/.test(this.time)) return 'Pick a start time.';
     if (!isTimeZone(this.zone.trim()))
@@ -281,7 +448,9 @@ export class VintageScheduleForm extends FASTElement {
     return {
       name: this.name.trim(),
       instance: this.instance.trim(),
+      kind: this.kind,
       size: this.size,
+      roleTargets: this.roleTargets(),
       weekdays: [...this.weekdays].sort((a, b) => order.indexOf(a) - order.indexOf(b)),
       time: this.time,
       timeZone: this.zone.trim(),
@@ -305,7 +474,9 @@ export class VintageScheduleForm extends FASTElement {
     const before: Record<string, unknown> = {
       name: s.name,
       instance: s.instance,
+      kind: s.kind,
       size: s.size,
+      roleTargets: s.roleTargets,
       weekdays: WEEK.map((w) => w.day).filter((d) => s.recurrence.weekdays.includes(d)),
       time: s.recurrence.time,
       timeZone: s.recurrence.timeZone,
@@ -330,7 +501,7 @@ export class VintageScheduleForm extends FASTElement {
 
 const raidTemplate = html<VintageRaidForm>`
   <form part="form" @submit="${(x, c) => x.submit(c.event)}" novalidate>
-    <h3>${(x) => (x.raid ? `Move ${x.raid.name}` : 'One-off raid')}</h3>
+    <h3>${(x) => (x.raid ? `Move ${x.raid.name}` : 'One-off event')}</h3>
     ${when(
       (x) => x.raid,
       html<VintageRaidForm>`<p class="note">Now ${(x) => (x.raid ? formatWhen(x.raid.startsAt, x.zone) : '')}. Signups and the roster come along.</p>`,
@@ -351,14 +522,12 @@ const raidTemplate = html<VintageRaidForm>`
               :value="${(x) => x.instance}"
               @input="${(x, c) => x.set('instance', (c.event.target as HTMLInputElement).value)}" />
           </div>
-          <div class="field">
-            <label for="size">Size</label>
-            <select id="size" :value="${(x) => String(x.size)}"
-              @change="${(x, c) => x.set('size', Number((c.event.target as HTMLSelectElement).value))}">
-              ${repeat(() => CALENDAR_SIZES, html<number>`<option value="${(n) => n}">${(n) => n}-player</option>`)}
-            </select>
-          </div>
         </div>
+        <fieldset>
+          <legend>Kind and comp</legend>
+          <div class="grid">${kindFields}</div>
+          ${countsNote}
+        </fieldset>
       `,
     )}
     <div class="grid">
@@ -382,7 +551,7 @@ const raidTemplate = html<VintageRaidForm>`
     </div>
     <p class="status error" role="alert">${(x) => x.problem}</p>
     <p class="actions">
-      <button type="submit" class="primary">${(x) => (x.raid ? 'Move the raid' : 'Add the raid')}</button>
+      <button type="submit" class="primary">${(x) => (x.raid ? 'Move the raid' : `Add the ${kindNoun(x.kind)}`)}</button>
       <button type="button" @click="${(x) => x.$emit('form-cancel')}">Close</button>
     </p>
   </form>
@@ -394,7 +563,7 @@ const raidTemplate = html<VintageRaidForm>`
  *
  * @tagname vintage-raid-form
  */
-export class VintageRaidForm extends FASTElement {
+export class VintageRaidForm extends KindedForm {
   /** The raid being moved; null adds a one-off. */
   @observable raid: CalendarRaid | null = null;
   @attr({ attribute: 'default-zone' }) defaultZone = '';
@@ -402,7 +571,6 @@ export class VintageRaidForm extends FASTElement {
   @observable now = Date.now();
   @observable name = '';
   @observable instance = '';
-  @observable size: CalendarRaidSize = 40;
   @observable date = '';
   @observable time = '20:00';
   @observable zone = '';
@@ -411,7 +579,12 @@ export class VintageRaidForm extends FASTElement {
 
   connectedCallback(): void {
     super.connectedCallback();
+    this.loadKind(null);
     this.raidChanged();
+  }
+
+  protected changed(): void {
+    this.problem = '';
   }
 
   raidChanged(): void {
@@ -431,11 +604,16 @@ export class VintageRaidForm extends FASTElement {
     event.preventDefault();
     const zone = this.zone.trim();
     if (!this.raid && !this.name.trim()) {
-      this.problem = 'Give the raid a name.';
+      this.problem = `Give the ${kindNoun(this.kind)} a name.`;
       return;
     }
     if (!this.raid && !this.instance.trim()) {
       this.problem = 'Say which instance it runs.';
+      return;
+    }
+    const kindProblem = this.raid ? '' : this.kindProblem();
+    if (kindProblem) {
+      this.problem = kindProblem;
       return;
     }
     if (!isTimeZone(zone)) {
@@ -443,7 +621,7 @@ export class VintageRaidForm extends FASTElement {
       return;
     }
     if (!this.raid && !okDuration(this.durationMinutes)) {
-      this.problem = 'A raid runs 30 to 480 minutes.';
+      this.problem = `${AKind(this.kind)} runs 30 to 480 minutes.`;
       return;
     }
     const startsAt = instantFromInputs(this.date, this.time, zone);
@@ -471,7 +649,9 @@ export class VintageRaidForm extends FASTElement {
       input: {
         name: this.name.trim(),
         instance: this.instance.trim(),
+        kind: this.kind,
         size: this.size,
+        roleTargets: this.roleTargets(),
         startsAt,
         durationMinutes: this.durationMinutes,
       },

@@ -19,6 +19,7 @@ const event = (id: string, startsAt: number): RaidEvent => ({
   scheduleId: null,
   name: 'Molten Core',
   instance: 'Molten Core',
+  kind: 'raid',
   size: 10,
   startsAt,
   durationMinutes: 180,

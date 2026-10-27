@@ -211,14 +211,37 @@ describe('interactions endpoint', () => {
       expect(bodies).toEqual([pollCreate]);
     });
 
-    it('forwards the raid group to Convex', async () => {
+    it('answers a stale /random raid privately instead of forwarding it (#151 renamed it)', async () => {
+      const bodies: unknown[] = [];
+      const fakeFetch = (async (_url: string, init: RequestInit) => {
+        bodies.push(JSON.parse(init.body as string));
+        return new Response('{}');
+      }) as typeof fetch;
+      const handle = createInteractionHandler({
+        publicKey,
+        convex: { siteUrl: 'https://x.convex.site', secret: 's', fetch: fakeFetch },
+      });
+      const stale = {
+        ...pollCreate,
+        data: {
+          name: 'random',
+          options: [{ name: 'raid', type: 2, options: [{ name: 'create', type: 1 }] }],
+        },
+      };
+      expect(await (await handle(await signedRequest(stale))).json()).toMatchObject({
+        data: { content: expect.stringContaining("can't do that yet"), flags: 64 },
+      });
+      expect(bodies).toEqual([]);
+    });
+
+    it('forwards the event group to Convex', async () => {
       const raidCreate = {
         ...pollCreate,
         data: {
           name: 'random',
           options: [
             {
-              name: 'raid',
+              name: 'event',
               type: 2,
               options: [
                 {

@@ -91,6 +91,15 @@ describe('raid-night-poll', () => {
     expect(code(await ask({}, makeCaller('raider')))).toBe('COMMAND_NOT_FOUND');
   });
 
+  it('checks the size and role targets against the kind, like raid-create', async () => {
+    expect(code(await ask({ kind: 'dungeon', size: 10 }))).toBe('SIZE_NOT_ALLOWED');
+    expect(code(await ask({ size: 15 }))).toBe('SIZE_NOT_ALLOWED');
+    expect(
+      code(await ask({ kind: 'dungeon', size: 5, roleTargets: { tank: 2, healer: 1, dps: 3 } })),
+    ).toBe('ROLE_TARGETS_TOO_BIG');
+    expect(code(await ask({ kind: 'battleground', size: 15 }))).toBe('OK');
+  });
+
   it('refuses times before the poll closes, a past close, and one distinct time', async () => {
     expect(code(await ask({ closesAt: TUE + HOUR }))).toBe('INVALID_TIME');
     expect(code(await ask({ closesAt: NOW - 1 }))).toBe('INVALID_TIME');
@@ -165,6 +174,31 @@ describe('the tick settles raid nights', () => {
 
     await tick();
     expect(ports.raids.created).toHaveLength(1);
+  });
+
+  it('carries the kind and role targets to the event it makes', async () => {
+    const poll = await pollFor({
+      name: 'SM run',
+      instance: 'Scarlet Monastery',
+      kind: 'dungeon',
+      size: 5,
+      roleTargets: { tank: 1, healer: 1, dps: 3 },
+    });
+    expect(poll.description).toContain('The winning time becomes the dungeon.');
+    close(poll, { winners: ['o2'] });
+    await tick();
+    expect(ports.raids.requests[0]).toMatchObject({
+      kind: 'dungeon',
+      size: 5,
+      roleTargets: { tank: 1, healer: 1, dps: 3 },
+    });
+  });
+
+  it('a raid night from before kinds still makes a raid', async () => {
+    const poll = await pollFor();
+    close(poll, { winners: ['o2'] });
+    await tick();
+    expect(ports.raids.requests[0]).toMatchObject({ kind: 'raid', size: 40, roleTargets: null });
   });
 
   it.each([

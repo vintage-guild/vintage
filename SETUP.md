@@ -150,13 +150,20 @@ set `VINTAGE_SITE_URL` in the Convex env so ranked polls link to the website (on
 
 ### Raids from Discord
 
-`/random raid create` and `/random raid pick-night` (Raid Leader and up) run `raid-create` and
-`raid-night-poll` through the same path. Times are typed in the guild's clock. No new bot
-permissions; re-register the commands after deploying.
+`/random event create` and `/random event pick-night` (Raid Leader and up) run `raid-create` and
+`raid-night-poll` through the same path, for a raid, dungeon, battleground, or other event
+(`kind`, default raid). `size` is 1 to 40, checked per kind (raid 10/20/40, dungeon 5,
+battleground 10/15/40, other 1–40); the optional `tanks`, `healers` and `dps` set the comp, and
+any left out come from the kind's default (dps fills what's left). Times are typed in the guild's
+clock. No new bot permissions.
+
+The group was `/random raid` until #151. After deploying Convex and the gateway, re-register the
+commands (`pnpm --filter @vintage/gateway register-commands`), the test server first
+(`DISCORD_DEV_GUILD_ID`). Until then a stale `/random raid` gets the private "can't do that yet".
 
 ### Help in Discord
 
-`/random help` (an overview, or one `topic`) and `/random poll help` / `/random raid help` answer
+`/random help` (an overview, or one `topic`) and `/random poll help` / `/random event help` answer
 privately through the same path, fitted to the member's rank by `help-get`. The pages come from
 `apps/gateway/src/commands.ts`, so after a command change: deploy Convex and the gateway, then
 register the commands again, in the test server first. Topic pages link `VINTAGE_SITE_URL` when it

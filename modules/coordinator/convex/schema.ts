@@ -44,7 +44,15 @@ export const raidNightFields = {
   pollId: v.string(),
   name: v.string(),
   instance: v.string(),
-  size: v.union(v.literal(10), v.literal(20), v.literal(40)),
+  // Optional so nights from before event kinds (#151) stay valid; read as 'raid' and null.
+  kind: v.optional(
+    v.union(v.literal('raid'), v.literal('dungeon'), v.literal('battleground'), v.literal('other')),
+  ),
+  // Any size from 1 to 40, checked per kind by raid-night-poll. Widened from 10/20/40.
+  size: v.number(),
+  roleTargets: v.optional(
+    v.union(v.object({ tank: v.number(), healer: v.number(), dps: v.number() }), v.null()),
+  ),
   durationMinutes: v.number(),
   createdBy: v.string(),
   createdAt: v.number(),

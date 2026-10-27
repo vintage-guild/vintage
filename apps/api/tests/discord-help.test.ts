@@ -88,10 +88,10 @@ describe('/random help', () => {
     expect(page.description).toContain('**`/random poll create`** · Post a poll in this channel');
   });
 
-  it('/random raid help opens the events page, with the commands a raid leader can use', async () => {
-    const page = embedOf(await handleHelpInteraction(slash(groupHelp('raid'), 'd-rook'), ports));
+  it('/random event help opens the events page, with the commands a raid leader can use', async () => {
+    const page = embedOf(await handleHelpInteraction(slash(groupHelp('event'), 'd-rook'), ports));
     expect(page.title).toBe('Random help: Events');
-    expect(page.description).toContain('**`/random raid create`**');
+    expect(page.description).toContain('**`/random event create`**');
   });
 
   it('someone Random does not know yet gets the role-sync note and what anyone can do', async () => {

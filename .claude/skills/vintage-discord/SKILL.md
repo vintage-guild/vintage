@@ -33,8 +33,8 @@ commands). Everything runs serverless: no always-on gateway process.
   `convex/discord.ts`.
 - **Commands, not logic, in the endpoint.** Interactions translate to guild-kit commands through
   the registry; the endpoint never holds business rules. `/random ping` answers locally; buttons,
-  modals, and the subcommand groups in `FORWARDED_GROUPS` (`/random poll`, `/random raid`, `/random ask`) go to
-  Convex, where `src/discord-signups.ts`, `discord-polls.ts`, `discord-raids.ts`, and
+  modals, and the subcommand groups in `FORWARDED_GROUPS` (`/random poll`, `/random event`, `/random ask`) go to
+  Convex, where `src/discord-signups.ts`, `discord-polls.ts`, `discord-events.ts`, and
   `discord-agent.ts` run them (shared helpers in `discord-common.ts`). Re-register after changing commands.
   A `/random` subcommand or click that the gateway or Convex doesn't know yet (registered before
   both deploys landed) gets a private "can't do that yet", never a timeout.

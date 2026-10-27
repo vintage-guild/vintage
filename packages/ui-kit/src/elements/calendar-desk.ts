@@ -23,6 +23,7 @@ import {
   describeCounts,
   describeRecurrence,
   describeScheduleTimings,
+  describeWhat,
   formatClock,
   formatDay,
   formatDuration,
@@ -138,7 +139,7 @@ const scheduleCard = html<CalendarSchedule, VintageCalendarDesk>`
     <div>
       <strong>${(s) => s.name}</strong>
       ${when((s) => !s.active, html`<span class="badge cancelled">Paused</span>`)}
-      <p class="meta">${(s) => describeRecurrence(s)} · ${(s) => `${s.size}-player ${s.instance}`} · ${(s) => formatDuration(s.durationMinutes)}</p>
+      <p class="meta">${(s) => describeRecurrence(s)} · ${(s) => describeWhat(s)} · ${(s) => formatDuration(s.durationMinutes)}</p>
       <p class="meta">${(s) => describeScheduleTimings(s)}.</p>
     </div>
     ${when(
@@ -606,7 +607,7 @@ export class VintageCalendarDesk extends FASTElement {
         guildClock === viewerClock
           ? ''
           : `${guildDay ? formatWhen(raid.startsAt, guild) : guildClock} for the guild`,
-      what: `${raid.size}-player ${raid.instance} · ${formatDuration(raid.durationMinutes)}`,
+      what: `${describeWhat(raid)} · ${formatDuration(raid.durationMinutes)}`,
       source: raid.scheduleId ? (schedule?.name ?? 'Scheduled') : 'One-off',
       counts: describeCounts(raid),
       warnings,

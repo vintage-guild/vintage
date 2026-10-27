@@ -12,7 +12,6 @@ import {
   type Exclusion,
   inputIssues,
   type Provider,
-  type RaidSize,
   type Requirement,
   type RoleTargets,
   type SelectionCode,
@@ -108,7 +107,7 @@ class Roster {
   readonly counts: Record<CompRole, number> = { tank: 0, healer: 0, dps: 0 };
 
   constructor(
-    readonly raidSize: RaidSize,
+    readonly raidSize: number,
     readonly targets: RoleTargets,
   ) {}
 

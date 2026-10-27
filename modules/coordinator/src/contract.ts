@@ -1,7 +1,7 @@
 // Public surface of the coordinator module. Other modules import only this file.
 
 import type { GuildRank } from '@vintage/identity/contract';
-import type { RaidSize } from '@vintage/raids/contract';
+import type { EventKind, RoleTargets } from '@vintage/raids/contract';
 
 /** Guild-wide coordinator settings. Timings live on each raids schedule (PLAN §6.2). */
 export interface CoordinatorConfig {
@@ -108,7 +108,11 @@ export interface RaidNight {
   pollId: string;
   name: string;
   instance: string;
-  size: RaidSize;
+  /** The kind of event the winner becomes; nights from before kinds existed are raids. */
+  kind: EventKind;
+  size: number;
+  /** Carried to the event; null means the kind's default. */
+  roleTargets: RoleTargets | null;
   durationMinutes: number;
   createdBy: string;
   createdAt: number;

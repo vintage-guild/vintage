@@ -158,16 +158,16 @@ describe('Guild agent', () => {
     expect(raider.embeds[0]?.title).toBe('Random help');
     expect(raider.embeds[0]?.description).toContain('You can use `/random poll create`.');
     expect(raider.embeds[0]?.description).toContain(
-      '-# Raid leaders and officers can: `/random raid create`, `/random raid pick-night`.',
+      '-# Raid leaders and officers can: `/random event create`, `/random event pick-night`.',
     );
-    const raiderEvents = page(await g.host.helpUi.slash(AERYN, { group: 'raid' }));
+    const raiderEvents = page(await g.host.helpUi.slash(AERYN, { group: 'event' }));
     expect(raiderEvents.embeds[0]?.description).toContain('Your rank can’t use these yet.');
 
     // A raid leader: the event commands, their options, and examples.
     const leader = page(await g.host.helpUi.slash(ROOK, { topic: 'events' }));
     expect(leader.embeds[0]?.title).toBe('Random help: Events');
     expect(leader.embeds[0]?.description).toContain(
-      '**`/random raid create`** · Make a one-off raid, open for signups',
+      '**`/random event create`** · Make a one-off event, open for signups',
     );
     expect(leader.embeds[0]?.description).toContain('**Examples**');
 
@@ -182,11 +182,11 @@ describe('Guild agent', () => {
     await g.host.agentUi.answer(
       runId,
       [{ tool: 'afd-call', args: { name: 'help-get', input: { topic: 'events' } } }],
-      'Raid leaders and officers make events with /random raid create.',
+      'Raid leaders and officers make events with /random event create.',
     );
     const read = await g.host.deps.agent.getToolResult('guild-test', runId, 'call-0');
     expect(read?.output).toContain('Your rank can’t use these yet.');
-    expect(read?.output).toContain('Raid leaders and officers can: `/random raid create`');
+    expect(read?.output).toContain('Raid leaders and officers can: `/random event create`');
   });
 });
 

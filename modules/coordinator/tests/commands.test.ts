@@ -20,6 +20,7 @@ describe('coordinator commands', () => {
     scheduleId: null,
     name: 'MC',
     instance: 'Molten Core',
+    kind: 'raid',
     size: 40,
     startsAt: clock.now() + 50 * 3600 * 1000,
     durationMinutes: 180,

@@ -81,8 +81,8 @@ export const rosterBench = command({
   },
 });
 
-/** Raid groups available for a raid size: 8 for 40, 4 for 20, 2 for 10. */
-const groupCount = (event: RaidEvent) => event.size / GROUP_SIZE;
+/** Groups available for a size: 8 for 40, 4 for 20, 3 for 15, 2 for 10, 1 for a dungeon. */
+const groupCount = (event: RaidEvent) => Math.ceil(event.size / GROUP_SIZE);
 
 export const rosterMove = command({
   name: 'roster-move',

@@ -11,6 +11,8 @@ export interface ListedCharacter {
   class: string;
   spec: string;
   role: string;
+  /** True when the member picked the role rather than letting the spec decide it. */
+  rolePicked?: boolean;
   isMain: boolean;
 }
 
@@ -34,10 +36,16 @@ const template = html<VintageCharacterList>`
           <li class="row ${(c) => (c.isMain ? 'main' : '')}">
             <span class="who">
               <b style="color: var(--color-class-${(c) => c.class})">${(c) => c.name}</b>
-              <small>${(c) => titleCase(c.class)} · ${(c) => roleLabel(c.role)} · ${(c) => titleCase(c.spec)}</small>
+              <small>${(c) => titleCase(c.class)} · ${(c) => roleLabel(c.role)}${(c) => (c.rolePicked ? ' (picked)' : '')} · ${(c) => titleCase(c.spec)}</small>
             </span>
             ${when((c) => c.isMain, html`<span class="badge" part="main-badge">Main</span>`)}
             <span class="controls">
+              <button
+                type="button"
+                class="btn"
+                ?disabled="${(_, c) => c.parent.busy}"
+                @click="${(ch, c) => c.parent.edit(ch.id)}"
+              >Edit</button>
               ${when(
                 (c) => !c.isMain,
                 html<ListedCharacter, VintageCharacterList>`<button
@@ -215,12 +223,14 @@ const styles = css`
 `;
 
 /**
- * The member's characters, main first, with "Make main" (`character-update`) and Remove
- * (`character-remove`: the server's preview, then confirm with its token). Feed it
- * `member-me`'s characters; it emits `characters-changed` after a change so the page re-reads.
+ * The member's characters, main first, with Edit (the page opens the character form),
+ * "Make main" (`character-update`) and Remove (`character-remove`: the server's preview, then
+ * confirm with its token). Feed it `member-me`'s characters; it emits `characters-changed` after
+ * a change so the page re-reads.
  *
  * @tagname vintage-character-list
- * @summary The member's characters, with make-main and remove.
+ * @summary The member's characters, with edit, make-main and remove.
+ * @fires character-edit - Edit was pressed; `detail` is the character.
  * @fires characters-changed - After a main change or a removal succeeds.
  * @csspart list - The whole list.
  * @csspart empty - Shown when there are no characters.
@@ -240,6 +250,12 @@ export class VintageCharacterList extends FASTElement {
     return [...this.characters].sort(
       (a, b) => Number(b.isMain) - Number(a.isMain) || a.name.localeCompare(b.name),
     );
+  }
+
+  /** Ask the page to open this character in the form (`character-edit`, detail: the character). */
+  edit(characterId: string): void {
+    const character = this.characters.find((c) => c.id === characterId);
+    if (character) this.$emit('character-edit', character);
   }
 
   @command('vintage.character-main-set', {

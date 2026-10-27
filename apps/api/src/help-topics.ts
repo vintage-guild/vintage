@@ -46,7 +46,7 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
     runs: {},
     buttons: [
       {
-        text: 'Press **Accept**, **Late**, **Tentative**, **Standby**, or **Decline** on an event’s card. Random signs you up with the character you usually bring (or your main) and says why; **Switch character** and **Change spec** in its reply change it for that event only. Late and Tentative ask for a note.',
+        text: 'Press **Accept**, **Late**, **Tentative**, **Standby**, or **Decline** on an event’s card. Random signs you up with your main (or, with no main, the character you usually bring) and says why; **Switch character**, **Change spec** and **Role** in its reply change it for that event only, and **New character…** adds one and signs up with it. Late and Tentative ask for a note.',
         label: 'sign up with the buttons on event cards',
         command: 'signup-set',
       },
@@ -55,6 +55,26 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
       'Press **Accept** on the Onyxia card, then pick your healer.',
       'Changed your mind? Press **Decline** on the same card.',
     ],
+  },
+  {
+    key: 'characters',
+    title: 'Characters',
+    summary:
+      'Your mains and alts: signups use your main unless you pick another. Specs and names are suggested as you type.',
+    group: 'character',
+    runs: {
+      'character add': 'character-add',
+      'character list': 'character-list',
+      'character main': 'character-update',
+      'character remove': 'character-remove',
+    },
+    examples: [
+      '/random character add name:Thorg class:warrior spec:fury role:tank',
+      '/random character list',
+      '/random character main name:Thorg',
+      '/random character remove name:Aeryn',
+    ],
+    sitePath: '/characters',
   },
   {
     key: 'polls',

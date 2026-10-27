@@ -20,6 +20,7 @@ import {
 } from '@vintage/discord-kit';
 import type { Caller, CommandResult } from '@vintage/guild-kit';
 import { systemCaller } from '@vintage/guild-kit';
+import type { Character } from '@vintage/identity/contract';
 import { createMemoryIdentityDeps } from '@vintage/identity/testing';
 import { createMemoryInsightsStore } from '@vintage/insights/testing';
 import { buildPollCard, renderPollPost } from '@vintage/polls/commands';
@@ -36,6 +37,10 @@ import { createMemorySiteStore } from '@vintage/site/testing';
 import { fixedClock, testRegistry } from '@vintage/testing';
 import { handleAgentInteraction } from '../../src/discord-agent';
 import { handleApplicationInteraction } from '../../src/discord-applications';
+import {
+  handleCharacterAutocomplete,
+  handleCharacterInteraction,
+} from '../../src/discord-characters';
 import { handleEventInteraction } from '../../src/discord-events';
 import { handleHelpInteraction } from '../../src/discord-help';
 import { handlePollInteraction } from '../../src/discord-polls';
@@ -314,6 +319,10 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
         registry.execute({ name: 'signup-set', input, caller }, deps) as Promise<
           CommandResult<Signup>
         >,
+      characterAdd: (caller, input) =>
+        registry.execute({ name: 'character-add', input, caller }, deps) as Promise<
+          CommandResult<Character>
+        >,
       afterChange: () => deps.scheduler.runTickNow(GUILD),
     });
   }
@@ -330,6 +339,34 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
         {
           custom_id: customId,
           components: [{ type: 1, components: [{ type: 4, custom_id: 'note', value: note }] }],
+        },
+        InteractionType.MODAL_SUBMIT,
+      ),
+    /** Sending the New character form: a name, then class, spec and role from its lists. */
+    submitNewCharacter: (
+      discordId: string,
+      customId: string,
+      fields: { name: string; class: string; spec?: string; role?: string; note?: string },
+    ) =>
+      interact(
+        discordId,
+        {
+          custom_id: customId,
+          components: [
+            { type: 18, component: { type: 4, custom_id: 'name', value: fields.name } },
+            { type: 18, component: { type: 3, custom_id: 'class', values: [fields.class] } },
+            {
+              type: 18,
+              component: { type: 3, custom_id: 'spec', values: fields.spec ? [fields.spec] : [] },
+            },
+            {
+              type: 18,
+              component: { type: 3, custom_id: 'role', values: fields.role ? [fields.role] : [] },
+            },
+            ...(fields.note === undefined
+              ? []
+              : [{ type: 18, component: { type: 4, custom_id: 'note', value: fields.note } }]),
+          ],
         },
         InteractionType.MODAL_SUBMIT,
       ),
@@ -489,6 +526,88 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
           run: (caller, name, input) => registry.execute({ name, input, caller }, deps),
           afterChange: () => deps.scheduler.runTickNow(GUILD),
           now: clock.now,
+        },
+      ),
+  };
+
+  /** A `/random character …` interaction from a member, as convex/discord.ts builds it. */
+  const characterInteraction = (
+    discordId: string,
+    type: Interaction['type'],
+    sub: string,
+    options: CommandInteractionOption[],
+  ): Interaction => ({
+    id: 'i',
+    application_id: 'app',
+    token: 'token',
+    type,
+    guild_id: DISCORD_GUILD,
+    channel_id: SIGNUP_CHANNEL,
+    member: { user: { id: discordId, username: discordId }, roles: [] },
+    data: {
+      name: 'random',
+      options: [{ name: 'character', type: 2, options: [{ name: sub, type: 1, options }] }],
+    },
+  });
+  const characterPorts = {
+    discordGuildId: DISCORD_GUILD,
+    guildId: GUILD,
+    memberByDiscordId,
+    run: (caller: Caller, name: string, input: unknown, confirmToken?: string) =>
+      registry.execute({ name, input, caller, ...(confirmToken ? { confirmToken } : {}) }, deps),
+  };
+  const asOptions = (options: Record<string, string | boolean>) =>
+    Object.entries(options).map(([name, value]) => ({
+      name,
+      value,
+      type: typeof value === 'boolean' ? 5 : 3,
+    })) as CommandInteractionOption[];
+
+  /**
+   * `/random character add|list|main|remove`, the remove confirm button, and autocomplete, run
+   * through src/discord-characters.ts.
+   */
+  const characterUi = {
+    slash: (discordId: string, sub: string, options: Record<string, string | boolean> = {}) =>
+      handleCharacterInteraction(
+        characterInteraction(
+          discordId,
+          InteractionType.APPLICATION_COMMAND,
+          sub,
+          asOptions(options),
+        ),
+        characterPorts,
+      ),
+    click: (discordId: string, customId: string) =>
+      handleCharacterInteraction(
+        {
+          id: 'i',
+          application_id: 'app',
+          token: 'token',
+          type: InteractionType.MESSAGE_COMPONENT,
+          guild_id: DISCORD_GUILD,
+          member: { user: { id: discordId, username: discordId }, roles: [] },
+          data: { custom_id: customId, component_type: 2 },
+        },
+        characterPorts,
+      ),
+    /** Typing `focused` into `/random character <sub>`, with the other options chosen so far. */
+    autocomplete: (
+      discordId: string,
+      sub: string,
+      focused: { name: string; value: string },
+      chosen: Record<string, string> = {},
+    ) =>
+      handleCharacterAutocomplete(
+        characterInteraction(discordId, InteractionType.APPLICATION_COMMAND_AUTOCOMPLETE, sub, [
+          ...asOptions(chosen),
+          { name: focused.name, type: 3, value: focused.value, focused: true },
+        ]),
+        {
+          discordGuildId: DISCORD_GUILD,
+          guildId: GUILD,
+          memberByDiscordId,
+          characters: (memberId) => identity.listCharacters(GUILD, { memberId }),
         },
       ),
   };
@@ -735,6 +854,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     applicationEffects,
     insightsSent,
     discordUi,
+    characterUi,
     eventUi,
     pollUi,
     clock,

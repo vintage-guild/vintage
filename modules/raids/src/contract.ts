@@ -121,6 +121,11 @@ export interface Signup {
   class: WowClass;
   spec: string;
   role: Role;
+  /**
+   * True when a role was picked for this raid (signup-set `role`): a spec change keeps it.
+   * Absent or false: the role follows the spec. Switching character clears it.
+   */
+  rolePicked?: boolean;
   status: SignupStatus;
   note: string | null;
   /** First answer, epoch ms; keeps their place in line when they change their answer. */

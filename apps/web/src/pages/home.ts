@@ -229,6 +229,7 @@ const template = html<Page>`
                   character-label="${(x) => x.mainLabel}"
                   spec="${(x) => x.guess?.spec ?? ''}"
                   reason="${(x) => x.guess?.reason ?? ''}"
+                  play-role="${(x) => (x.mySignup?.rolePicked ? x.mySignup.role : '')}"
                   :characters="${(x) => (x.signUpAllowed ? x.characters : [])}"
                   :needed="${(x) => x.nextNeeded}"
                   time-zone="${() => preferredTimeZone() ?? ''}"
@@ -1139,6 +1140,8 @@ export class Page extends FASTElement {
   @observable characters: Character[] = [];
   /** `signup-suggest` for the next raid: who they're likely bringing, and why. */
   @observable guess: SignupGuess | null = null;
+  /** The member's own signup for the next raid, so the card shows a role picked for it. */
+  @observable mySignup: Signup | null = null;
   /** Roles the next raid is short of, not counting the member (the card marks them). */
   @observable nextNeeded: CompRole[] = [];
   @observable progress: Progress | null = null;
@@ -1554,6 +1557,7 @@ export class Page extends FASTElement {
     if (!next) {
       this.nextCounts = EMPTY_COUNTS;
       this.guess = null;
+      this.mySignup = null;
       this.nextNeeded = [];
       return;
     }
@@ -1565,6 +1569,7 @@ export class Page extends FASTElement {
     ]);
     this.guess = guess?.success ? (guess.data ?? null) : null;
     const rows = signups.success ? (signups.data ?? []) : [];
+    this.mySignup = rows.find((s) => s.memberId === this.meId) ?? null;
     this.nextNeeded = rolesNeeded(
       next.event,
       rows.filter((s) => s.memberId !== this.meId),

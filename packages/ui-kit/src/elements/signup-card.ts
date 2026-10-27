@@ -10,9 +10,9 @@ import {
 } from '@lushly-dev/fast-element';
 import { command, failure } from '@lushly-dev/fast-element/command.js';
 import { SIGNUP_STATUSES, type SignupStatus } from '@vintage/comp-solver';
-import { CLASSES, type Role, type WowClass } from '@vintage/wow-data';
+import { CLASSES, ROLES, type Role, type WowClass } from '@vintage/wow-data';
 import { getCommandClient } from '../client';
-import { roleLabel, titleCase } from '../labels';
+import { isRole, roleLabel, titleCase } from '../labels';
 import '../primitives';
 import { describeError, type ElementResult, toElementResult } from '../result';
 
@@ -44,6 +44,14 @@ const neededFor = (role: Role, needed: readonly string[]): string => {
 
 /** `feral-tank` → "Feral": the tank version of a spec reads as the spec, its role beside it. */
 const specName = (spec: string) => titleCase(spec.replace(/-tank$/, ''));
+
+/** The card's choice for the raid, put back when the server refuses a change. */
+interface Choice {
+  characterId: string;
+  spec: string;
+  playRole: string;
+  reason: string;
+}
 
 type FieldElement = HTMLElement & { value: string };
 const fieldValue = (event: Event) => (event.currentTarget as FieldElement).value;
@@ -178,6 +186,20 @@ const template = html<VintageSignupCard>`
             >
               ${repeat(
                 (x) => x.specChoices,
+                html<
+                  [string, string]
+                >`<violet-option value="${(o) => o[0]}">${(o) => o[1]}</violet-option>`,
+              )}
+            </violet-select>
+            <violet-select
+              label="Role"
+              name="role"
+              :value="${(x) => x.playRole}"
+              ?disabled="${(x) => !x.changeSpecCanExecute}"
+              @change="${(x, c) => x.changeRole(fieldValue(c.event))}"
+            >
+              ${repeat(
+                (x) => x.roleChoices,
                 html<
                   [string, string]
                 >`<violet-option value="${(o) => o[0]}">${(o) => o[1]}</violet-option>`,
@@ -378,8 +400,8 @@ const styles = css`
  *
  * @tagname vintage-signup-card
  * @summary A raid's signups and the member's answer, backed by `signup-set`.
- * @fires signup-changed - The server accepted the answer, character, or spec; `detail` is the
- *   stored signup.
+ * @fires signup-changed - The server accepted the answer, character, spec, or role; `detail`
+ *   is the stored signup.
  * @slot - Extra content between the time and the counts, such as the raid's notes.
  * @csspart card - The surface.
  * @csspart eyebrow - The label above the title.
@@ -389,7 +411,7 @@ const styles = css`
  * @csspart answer - The member's answer block.
  * @csspart character - The character the answer is for.
  * @csspart reason - Why that character was guessed.
- * @csspart switch - The Switch character and Change spec menus.
+ * @csspart switch - The Switch character, Change spec and Role menus.
  * @csspart status - The result line (`role="status"`).
  */
 export class VintageSignupCard extends FASTElement {
@@ -415,6 +437,11 @@ export class VintageSignupCard extends FASTElement {
   @attr spec = '';
   /** Why this character was picked (`signup-suggest`'s reason), e.g. "your main". */
   @attr reason = '';
+  /**
+   * A role picked for this raid only (a Fury warrior tanking); empty follows the spec. (Not
+   * `role`: that's the host's ARIA role.)
+   */
+  @attr({ attribute: 'play-role' }) playRole = '';
 
   /** The member's characters. With them the card offers Switch character and Change spec. */
   @observable characters: SignupCharacter[] = [];
@@ -488,13 +515,40 @@ export class VintageSignupCard extends FASTElement {
     return this.spec || this.current?.spec || '';
   }
 
+  /**
+   * The role the spec gives, as the server guesses it: the character's saved role for its saved
+   * spec (which may be one the member picked), otherwise the spec's own role.
+   */
+  @volatile
+  get specRole(): Role | '' {
+    const c = this.current;
+    if (!c) return '';
+    if (this.activeSpec === c.spec) return c.role;
+    return (CLASSES[c.class] as Record<string, Role>)[this.activeSpec] ?? c.role;
+  }
+
+  /** The role being played: the one picked for this raid, else the spec's. */
+  @volatile
+  get activeRole(): Role | '' {
+    return isRole(this.playRole) ? this.playRole : this.specRole;
+  }
+
   /** "Aerbark · Feral Druid · Tank", or the `character-label` attribute without characters. */
   @volatile
   get asLabel(): string {
     const c = this.current;
     if (!c) return this.characterLabel;
-    const role = (CLASSES[c.class] as Record<string, Role>)[this.activeSpec] ?? c.role;
-    return `${c.name} · ${specName(this.activeSpec)} ${titleCase(c.class)} · ${roleLabel(role)}`;
+    return `${c.name} · ${specName(this.activeSpec)} ${titleCase(c.class)} · ${roleLabel(this.activeRole)}`;
+  }
+
+  /** Role's [value, label] options: guess from the spec (naming its role), then each role. */
+  @volatile
+  get roleChoices(): [string, string][] {
+    const guessed = this.specRole;
+    return [
+      ['', guessed ? `Guess from spec (${roleLabel(guessed)})` : 'Guess from spec'],
+      ...ROLES.map((r): [string, string] => [r, `${roleLabel(r)}${neededFor(r, this.needed)}`]),
+    ];
   }
 
   /** Switch character's [id, label] options: main first, each marked when the raid needs it. */
@@ -554,11 +608,22 @@ export class VintageSignupCard extends FASTElement {
     if (!this.switchCharacterCanExecute) {
       return failure({ code: 'COMMAND_DISABLED', message: 'Nothing to switch to right now' });
     }
-    const before = { characterId: this.characterId, spec: this.spec, reason: this.reason };
+    const before = this.choice;
     this.characterId = next.id;
     this.spec = '';
+    this.playRole = '';
     this.reason = '';
     return this.resend({ characterId: next.id }, before);
+  }
+
+  /** What a refused switch puts back. */
+  private get choice(): Choice {
+    return {
+      characterId: this.characterId,
+      spec: this.spec,
+      playRole: this.playRole,
+      reason: this.reason,
+    };
   }
 
   @command('vintage.signup-change-spec', {
@@ -577,9 +642,30 @@ export class VintageSignupCard extends FASTElement {
     if (!this.changeSpecCanExecute) {
       return failure({ code: 'COMMAND_DISABLED', message: 'Already sending an answer' });
     }
-    const before = { characterId: this.characterId, spec: this.spec, reason: this.reason };
+    const before = this.choice;
     this.spec = spec;
     return this.resend({ characterId: c.id, spec }, before);
+  }
+
+  @command('vintage.signup-change-role', {
+    label: 'Change role',
+    description:
+      'Play another role for this raid only (a Fury warrior tanking), or an empty role to ' +
+      'guess it from the spec again. A picked role stays when the spec changes.',
+    category: 'Raids',
+    parameters: { type: 'object', properties: { role: { type: 'string' } }, required: ['role'] },
+  })
+  async changeRole(role: unknown): Promise<ElementResult<unknown>> {
+    const c = this.current;
+    if (!c || typeof role !== 'string' || (role !== '' && !isRole(role))) {
+      return failure({ code: 'INVALID_PARAMETERS', message: 'Pick a role, or guess from spec' });
+    }
+    if (!this.changeSpecCanExecute) {
+      return failure({ code: 'COMMAND_DISABLED', message: 'Already sending an answer' });
+    }
+    const before = this.choice;
+    this.playRole = role;
+    return this.resend({ characterId: c.id, role: isRole(role) ? role : null }, before);
   }
 
   /**
@@ -587,8 +673,8 @@ export class VintageSignupCard extends FASTElement {
    * it now with the same status. A refusal puts the previous choice back.
    */
   private async resend(
-    input: { characterId: string; spec?: string },
-    before: { characterId: string; spec: string; reason: string },
+    input: { characterId: string; spec?: string; role?: Role | null },
+    before: Choice,
   ): Promise<ElementResult<unknown>> {
     const status = this.answered;
     if (!status) return { success: true, data: null };
@@ -637,6 +723,7 @@ export class VintageSignupCard extends FASTElement {
           characterId: this.characterId,
           status,
           ...(this.spec ? { spec: this.spec } : {}),
+          ...(isRole(this.playRole) ? { role: this.playRole } : {}),
         }),
       );
       this.report(result, status);

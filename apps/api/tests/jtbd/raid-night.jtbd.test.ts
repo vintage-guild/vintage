@@ -435,10 +435,15 @@ describe('JTBD: raid night', () => {
       /\*\*Accepted\*\* for Raid night as \*\*Aeryn\*\* \(Protection Warrior, tank\): your main\./,
     );
     expect(flags(accepted)).toBe(64);
-    // Change spec lists the warrior's specs with their roles; with one character there's no
-    // Switch character menu.
-    expect(menus(accepted).map((m) => m.custom_id)).toEqual([`signup-spec:${wed.id}`]);
-    expect(menus(accepted)[0]!.options.map((o) => `${o.label}: ${o.description}`)).toEqual([
+    // Switch character (with one character, it still offers New character…), Change spec (the
+    // warrior's specs with their roles), and Role.
+    expect(menus(accepted).map((m) => m.custom_id)).toEqual([
+      `signup-char:${wed.id}`,
+      `signup-spec:${wed.id}`,
+      `signup-role:${wed.id}`,
+    ]);
+    expect(menus(accepted)[0]!.options.map((o) => o.label)).toEqual(['Aeryn', 'New character…']);
+    expect(menus(accepted)[1]!.options.map((o) => `${o.label}: ${o.description}`)).toEqual([
       'Arms: Melee DPS · DPS needed',
       'Fury: Melee DPS · DPS needed',
       'Protection: Tank · tanks needed',
@@ -486,6 +491,7 @@ describe('JTBD: raid night', () => {
     expect(menus(picker)[0]!.options.map((o) => o.description)).toEqual([
       'Fire Mage, ranged DPS · DPS needed',
       'Holy Priest, healer · healers needed',
+      'Add it and sign up with it in one go',
     ]);
     const daraChars = await g.host.ok<{ id: string; name: string }[]>(g.dara, 'character-list', {});
     const alt = daraChars.find((c) => c.name === 'Daraheal')!;
@@ -495,6 +501,7 @@ describe('JTBD: raid night', () => {
     expect(menus(picked).map((m) => m.custom_id)).toEqual([
       `signup-char:${wed.id}`,
       `signup-spec:${wed.id}`,
+      `signup-role:${wed.id}`,
     ]);
     // Next time, their signed-up character is used without asking.
     const again = await ui.click(g.dara.discordId!, `signup:${wed.id}:bench`);
@@ -560,11 +567,13 @@ describe('JTBD: raid night', () => {
       signedUpAt: first.signedUpAt,
     });
 
-    // Thursday, the same schedule: the guess is the druid, and the reply says why.
-    const thursday = await ui.click(g.aeryn.discordId!, `signup:${thu.id}:accepted`);
-    expect(content(thursday)).toMatch(
-      /as \*\*Aerbark\*\* \(Feral Druid, tank\): your last Molten Core night\./,
+    // Thursday, the same schedule: her main still wins over last night (the main is set on
+    // purpose; Bloodfen, 2026-10-27), so she switches again.
+    expect(content(await ui.click(g.aeryn.discordId!, `signup:${thu.id}:accepted`))).toMatch(
+      /as \*\*Aeryn\*\* .*: your main\./,
     );
+    const thursday = await ui.pick(g.aeryn.discordId!, `signup-char:${thu.id}`, bark);
+    expect(content(thursday)).toMatch(/as \*\*Aerbark\*\* \(Feral Druid, tank\)\./);
     // Change spec offers Feral twice, as a tank and as DPS.
     const specs = menus(thursday).find((m) => m.custom_id === `signup-spec:${thu.id}`)!;
     expect(specs.options.filter((o) => o.label === 'Feral').map((o) => o.value)).toEqual([
@@ -597,6 +606,218 @@ describe('JTBD: raid night', () => {
       spec: 'protection',
       role: 'tank',
       status: 'late',
+    });
+
+    // With no main, history decides: Cade removed his main and keeps two alts. Wednesday he
+    // picks one; Thursday (the same schedule) Accept uses it and says why.
+    const cadebark = (
+      await g.host.ok<{ id: string }>(g.cade, 'character-add', {
+        name: 'Cadebark',
+        class: 'druid',
+        spec: 'balance',
+      })
+    ).id;
+    await g.host.ok(g.cade, 'character-add', {
+      name: 'Cadeshot',
+      class: 'hunter',
+      spec: 'survival',
+    });
+    await g.host.ok(g.cade, 'character-remove', { characterId: g.chars.cade });
+    expect(content(await ui.click(g.cade.discordId!, `signup:${wed.id}:accepted`))).toMatch(
+      /Which character/,
+    );
+    await ui.pick(g.cade.discordId!, `signup-pick:${wed.id}:accepted`, cadebark);
+    expect(content(await ui.click(g.cade.discordId!, `signup:${thu.id}:accepted`))).toMatch(
+      /as \*\*Cadebark\*\* \(Balance Druid, ranged DPS\): your last Molten Core night\./,
+    );
+  });
+
+  it('J40 · a raider manages their characters from Discord and signs up with a new alt', async () => {
+    const { wed } = await scheduleRaidNights(g);
+    const chars = g.host.characterUi;
+    const ui = g.host.discordUi;
+    const dara = g.dara.discordId!;
+    const content = (r: unknown) => (r as { data?: { content?: string } }).data?.content ?? '';
+    const choices = (r: unknown) =>
+      ((r as { data?: { choices?: { name: string; value: string }[] } }).data?.choices ?? []).map(
+        (c) => c.value,
+      );
+
+    // Spec suggestions follow the class chosen so far; names come from her own characters.
+    expect(
+      choices(
+        await chars.autocomplete(dara, 'add', { name: 'spec', value: 'm' }, { class: 'hunter' }),
+      ),
+    ).toEqual(['beast-mastery', 'marksmanship']);
+    expect(choices(await chars.autocomplete(dara, 'main', { name: 'name', value: '' }))).toEqual([
+      'Daralis',
+    ]);
+
+    // add, list, main: private replies in the commands' words. A typed spec is still checked.
+    expect(
+      content(
+        await chars.slash(dara, 'add', { name: 'darashot', class: 'hunter', spec: 'Survival' }),
+      ),
+    ).toBe('Added **Darashot** (Survival Hunter, ranged DPS). It shows in the signup picker now.');
+    expect(
+      content(await chars.slash(dara, 'add', { name: 'Darax', class: 'hunter', spec: 'holy' })),
+    ).toMatch(/"holy" is not a hunter spec/);
+    const listed = await chars.slash(dara, 'list');
+    expect(content(listed)).toContain('**Daralis** · Combat Rogue, melee DPS · main');
+    expect(content(listed)).toContain('**Darashot** · Survival Hunter, ranged DPS');
+    expect(listed).toMatchObject({ data: { flags: 64 } });
+    expect(content(await chars.slash(dara, 'main', { name: 'darashot' }))).toMatch(
+      /\*\*Darashot\*\* is your main now/,
+    );
+    expect(content(await chars.slash(dara, 'main', { name: 'Anarra' }))).toMatch(
+      /no character called/,
+    );
+
+    // remove asks first, privately, with a Remove button; the click removes it.
+    const preview = await chars.slash(dara, 'remove', { name: 'Daralis' });
+    expect(content(preview)).toMatch(/Remove \*\*Daralis\*\*.*can't be undone/);
+    const confirm = JSON.stringify(preview).match(/"custom_id":"(char-rm:[^"]+)"/)![1]!;
+    expect(confirm).toBe(`char-rm:${g.chars.dara}`);
+    expect(await g.host.ok<unknown[]>(g.dara, 'character-list', {})).toHaveLength(2);
+    // Someone else's click finds nothing of theirs to remove.
+    expect(content(await chars.click(g.cade.discordId!, confirm))).toMatch(/No such character/);
+    expect(content(await chars.click(dara, confirm))).toBe('Removed **Daralis**.');
+    expect(await g.host.ok<unknown[]>(g.dara, 'character-list', {})).toHaveLength(1);
+
+    // She answers Wednesday with her main, then brings a new alt from Switch character: the
+    // form saves it and signs up with it in one step, keeping her place in line.
+    expect(content(await ui.click(dara, `signup:${wed.id}:accepted`))).toMatch(
+      /as \*\*Darashot\*\* .*: your main\./,
+    );
+    const first = await g.host.ok<Signup>(g.dara, 'signup-get', { eventId: wed.id });
+    g.host.clock.advance(HOUR);
+    const form = await ui.pick(dara, `signup-char:${wed.id}`, 'new');
+    expect(form).toMatchObject({ type: 9, data: { custom_id: `signup-new:${wed.id}:accepted` } });
+    const made = await ui.submitNewCharacter(dara, `signup-new:${wed.id}:accepted`, {
+      name: 'darafury',
+      class: 'warrior',
+      spec: 'fury',
+    });
+    expect(content(made)).toMatch(
+      /\*\*Accepted\*\* for Raid night as \*\*Darafury\*\* \(Fury Warrior, melee DPS\): your new character\./,
+    );
+    expect(await g.host.ok<Signup>(g.dara, 'signup-get', { eventId: wed.id })).toMatchObject({
+      id: first.id,
+      characterName: 'Darafury',
+      signedUpAt: first.signedUpAt,
+    });
+    // A wrong spec for the class is refused by the command, and nothing is saved.
+    const wrong = await ui.submitNewCharacter(dara, `signup-new:${wed.id}:accepted`, {
+      name: 'Daraheal',
+      class: 'mage',
+      spec: 'holy',
+    });
+    expect(content(wrong)).toMatch(/"holy" is not a mage spec.*\n.*New character…/s);
+    expect(await g.host.ok<unknown[]>(g.dara, 'character-list', {})).toHaveLength(2);
+
+    // Someone with no characters goes straight to the form; Late asks for its note there too.
+    const newcomer = await g.host.discordMember('500000000000000099', 'Newt', [ROLES.raider]);
+    const straight = await ui.click(newcomer.discordId!, `signup:${wed.id}:late`);
+    expect(straight).toMatchObject({ type: 9, data: { custom_id: `signup-new:${wed.id}:late` } });
+    await ui.submitNewCharacter(newcomer.discordId!, `signup-new:${wed.id}:late`, {
+      name: 'Newt',
+      class: 'priest',
+      spec: 'holy',
+      note: 'after work',
+    });
+    expect(await g.host.ok<Signup>(newcomer, 'signup-get', { eventId: wed.id })).toMatchObject({
+      characterName: 'Newt',
+      status: 'late',
+      note: 'after work',
+    });
+
+    // Friends can't manage characters; someone Random doesn't know is told to wait for the sync.
+    const friend = await g.host.discordMember('500000000000000098', 'Pal', [ROLES.friend]);
+    expect(content(await chars.slash(friend.discordId!, 'list'))).toMatch(/Member rank/);
+    expect(content(await chars.slash('999', 'list'))).toMatch(/I don't know you yet/);
+  });
+
+  it('J41 · a Fury warrior signs up to tank a dungeon', async () => {
+    await g.host.configureCoordinator();
+    const chars = g.host.characterUi;
+    const ui = g.host.discordUi;
+    const aeryn = g.aeryn.discordId!;
+    const content = (r: unknown) => (r as { data?: { content?: string } }).data?.content ?? '';
+    await g.host.eventUi.slash(g.rook.discordId!, 'create', {
+      name: 'Cathedral run',
+      instance: 'Scarlet Monastery',
+      size: 5,
+      start: '2026-10-28 7pm',
+      kind: 'dungeon',
+      tanks: 1,
+      healers: 1,
+      dps: 3,
+    });
+    const raids = await g.host.ok<{ event: RaidEvent }[]>(g.aeryn, 'raid-list', {});
+    const sm = raids.find((r) => r.event.name === 'Cathedral run')!.event;
+
+    // Her Fury warrior is a guessed melee DPS. She brings it, then picks Tank for this run.
+    await chars.slash(aeryn, 'add', { name: 'Aerfury', class: 'warrior', spec: 'fury' });
+    await ui.click(aeryn, `signup:${sm.id}:accepted`);
+    const fury = (
+      await g.host.ok<{ id: string; name: string }[]>(g.aeryn, 'character-list', {})
+    ).find((c) => c.name === 'Aerfury')!;
+    const switched = await ui.pick(aeryn, `signup-char:${sm.id}`, fury.id);
+    const role = menus(switched).find((m) => m.custom_id === `signup-role:${sm.id}`)!;
+    expect(role.options.find((o) => o.default)?.label).toBe('Guess from the spec (Melee DPS)');
+    const tanking = await ui.pick(aeryn, `signup-role:${sm.id}`, 'tank');
+    expect(content(tanking)).toMatch(/as \*\*Aerfury\*\* \(Fury Warrior, tank\)/);
+    expect(
+      menus(tanking)
+        .find((m) => m.custom_id === `signup-role:${sm.id}`)!
+        .options.find((o) => o.default)?.label,
+    ).toBe('Tank');
+
+    // A spec change keeps the picked role; the saved warrior stays a melee DPS.
+    await ui.pick(aeryn, `signup-spec:${sm.id}`, 'arms');
+    expect(await g.host.ok<Signup>(g.aeryn, 'signup-get', { eventId: sm.id })).toMatchObject({
+      spec: 'arms',
+      role: 'tank',
+      rolePicked: true,
+    });
+    expect(
+      (await g.host.ok<{ id: string; role: string }[]>(g.aeryn, 'character-list', {})).find(
+        (c) => c.id === fury.id,
+      ),
+    ).toMatchObject({ role: 'melee' });
+
+    // The card counts her as the tank, and the next person's picker no longer says tanks needed.
+    await g.host.tick();
+    const card = g.host
+      .sentTo(SIGNUP_CHANNEL)
+      .concat(g.host.editsTo(SIGNUP_CHANNEL))
+      .filter((m) => m.message.embeds?.[0]?.title?.includes('Cathedral run'))
+      .at(-1)!.message;
+    expect(messageText(card)).toMatch(/Tanks 1\/1/);
+
+    // Thorg saves his Fury warrior as a tank once; every signup then starts as a tank.
+    const thorg = await g.host.discordMember('500000000000000097', 'Thorg', [ROLES.raider]);
+    expect(
+      content(
+        await chars.slash(thorg.discordId!, 'add', {
+          name: 'Thorg',
+          class: 'warrior',
+          spec: 'fury',
+          role: 'tank',
+        }),
+      ),
+    ).toBe('Added **Thorg** (Fury Warrior, tank) as your main. It shows in the signup picker now.');
+    const thorgReply = await ui.click(thorg.discordId!, `signup:${sm.id}:accepted`);
+    expect(content(thorgReply)).toMatch(/as \*\*Thorg\*\* \(Fury Warrior, tank\): your main\./);
+    // Aeryn is the dungeon's tank, so Thorg's menus don't call for one.
+    expect(JSON.stringify(menus(thorgReply))).not.toContain('tanks needed');
+
+    // "Guess from the spec" puts Aeryn back to following Arms: melee DPS.
+    await ui.pick(aeryn, `signup-role:${sm.id}`, 'guess');
+    expect(await g.host.ok<Signup>(g.aeryn, 'signup-get', { eventId: sm.id })).toMatchObject({
+      spec: 'arms',
+      role: 'melee',
+      rolePicked: false,
     });
   });
 

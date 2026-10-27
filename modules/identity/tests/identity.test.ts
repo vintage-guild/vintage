@@ -265,7 +265,7 @@ describe('identity commands', () => {
     expect(member).toMatchObject({ success: false });
   });
 
-  it('member-prefs-set only accepts your own character as default', async () => {
+  it('member-prefs-set has no default character: the main is the default', async () => {
     const added = await run(
       'character-add',
       { name: 'Aeryn', class: 'druid', spec: 'balance' },
@@ -277,9 +277,71 @@ describe('identity commands', () => {
       asAeryn,
     );
     expect(ok).toMatchObject({ success: true, data: { dmOptOut: true } });
+    expect(ok.data).not.toHaveProperty('defaultCharacterId');
+    expect(deps.identity.members.get(aeryn.id)?.prefs).toEqual({ dmOptOut: true });
+  });
 
-    const bad = await run('member-prefs-set', { defaultCharacterId: 'character_999' }, asAeryn);
-    expect(bad).toMatchObject({ success: false, error: { code: 'CHARACTER_NOT_FOUND' } });
+  it('a role is guessed from the spec unless picked; a picked role survives a spec change', async () => {
+    const guessed = await run(
+      'character-add',
+      { name: 'Brakk', class: 'warrior', spec: 'fury' },
+      asAeryn,
+    );
+    expect(guessed).toMatchObject({ data: { role: 'melee', rolePicked: false } });
+    const { id } = guessed.data as Character;
+
+    // A guessed role follows the spec.
+    const prot = await run('character-update', { characterId: id, spec: 'protection' }, asAeryn);
+    expect(prot).toMatchObject({ data: { role: 'tank', rolePicked: false } });
+
+    // A Fury warrior who tanks: the pick stays through a spec change.
+    const picked = await run(
+      'character-update',
+      { characterId: id, spec: 'fury', role: 'tank' },
+      asAeryn,
+    );
+    expect(picked).toMatchObject({ data: { spec: 'fury', role: 'tank', rolePicked: true } });
+    const arms = await run('character-update', { characterId: id, spec: 'arms' }, asAeryn);
+    expect(arms).toMatchObject({ data: { role: 'tank', rolePicked: true } });
+
+    // null goes back to guessing.
+    const back = await run('character-update', { characterId: id, role: null }, asAeryn);
+    expect(back).toMatchObject({ data: { role: 'melee', rolePicked: false } });
+
+    const addPicked = await run(
+      'character-add',
+      { name: 'Shieldy', class: 'warrior', spec: 'fury', role: 'tank' },
+      asAeryn,
+    );
+    expect(addPicked).toMatchObject({ data: { role: 'tank', rolePicked: true } });
+  });
+
+  it('character-update edits name and class, checking names and the spec of a new class', async () => {
+    const added = await run(
+      'character-add',
+      { name: 'Kol', class: 'shaman', spec: 'elemental', role: 'healer' },
+      asAeryn,
+    );
+    await run('character-add', { name: 'Taken', class: 'mage', spec: 'frost' }, asAeryn);
+    const { id } = added.data as Character;
+
+    const renamed = await run('character-update', { characterId: id, name: 'kol ash' }, asAeryn);
+    expect(renamed).toMatchObject({ data: { name: 'Kol Ash' } });
+    const clash = await run('character-update', { characterId: id, name: 'TAKEN' }, asAeryn);
+    expect(clash).toMatchObject({ success: false, error: { code: 'CHARACTER_EXISTS' } });
+
+    // A new class needs one of its specs; the old spec doesn't carry over.
+    const noSpec = await run('character-update', { characterId: id, class: 'priest' }, asAeryn);
+    expect(noSpec).toMatchObject({ success: false, error: { code: 'INVALID_SPEC' } });
+    const priest = await run(
+      'character-update',
+      { characterId: id, class: 'priest', spec: 'shadow' },
+      asAeryn,
+    );
+    // ...and starts the role over: the picked healer belonged to the shaman.
+    expect(priest).toMatchObject({
+      data: { class: 'priest', spec: 'shadow', role: 'ranged', rolePicked: false },
+    });
   });
 
   it('every command scopes to the caller guild', async () => {

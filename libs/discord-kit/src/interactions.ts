@@ -1,6 +1,6 @@
 // Interaction payloads and the responses Discord accepts for them.
 // Only the fields Vintage reads are typed; everything else passes through untouched.
-import { type ActionRow, actionRow, type TextInput } from './components';
+import { type ActionRow, actionRow, ComponentType, type Label, type TextInput } from './components';
 import type { Embed } from './embeds';
 import type { LayoutComponent } from './layout';
 
@@ -19,6 +19,8 @@ export const InteractionResponseType = {
   DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE: 5,
   DEFERRED_UPDATE_MESSAGE: 6,
   UPDATE_MESSAGE: 7,
+  /** The answer to APPLICATION_COMMAND_AUTOCOMPLETE: up to 25 choices. */
+  APPLICATION_COMMAND_AUTOCOMPLETE_RESULT: 8,
   MODAL: 9,
 } as const;
 export type InteractionResponseType =
@@ -50,7 +52,17 @@ export interface CommandInteractionOption {
   name: string;
   type: ApplicationCommandOptionType;
   value?: string | number | boolean;
+  /** Autocomplete: the option the member is typing in (its value is the text so far). */
+  focused?: boolean;
   options?: CommandInteractionOption[];
+}
+
+/** A submitted modal field: a text input's value or a select's values. */
+export interface SubmittedField {
+  type: number;
+  custom_id: string;
+  value?: string;
+  values?: string[];
 }
 
 export interface DiscordUser {
@@ -77,10 +89,14 @@ export interface Interaction {
     custom_id?: string;
     component_type?: number;
     values?: string[];
-    /** Modal submits: one row per text input, each carrying its value. */
+    /**
+     * Modal submits: action rows of text inputs (each carrying its value), or labels (type 18)
+     * holding one text input or select (carrying its values).
+     */
     components?: {
       type: number;
-      components: { type: number; custom_id: string; value?: string }[];
+      components?: SubmittedField[];
+      component?: SubmittedField;
     }[];
   };
   /** The message a component is attached to (Discord sends the whole message). */
@@ -137,9 +153,19 @@ export type InteractionResponse =
     }
   | { type: typeof InteractionResponseType.DEFERRED_UPDATE_MESSAGE }
   | {
+      type: typeof InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT;
+      data: { choices: AutocompleteChoice[] };
+    }
+  | {
       type: typeof InteractionResponseType.MODAL;
-      data: { custom_id: string; title: string; components: ActionRow[] };
+      data: { custom_id: string; title: string; components: (ActionRow | Label)[] };
     };
+
+/** One autocomplete suggestion: the name shown (1-100 characters) and the value sent. */
+export interface AutocompleteChoice {
+  name: string;
+  value: string;
+}
 
 export interface ReplyOptions {
   /** Only the invoking user sees the message. */
@@ -181,27 +207,82 @@ export function updateMessage(data: MessageData): InteractionResponse {
   return { type: InteractionResponseType.UPDATE_MESSAGE, data };
 }
 
-/** Open a modal (type 9): the answer to a component or slash command, never to a modal submit. */
+/**
+ * Open a modal (type 9): the answer to a component or slash command, never to a modal submit.
+ * Plain text inputs go one per action row; labels (which can hold a select menu) go as they are.
+ */
 export function modal(
   customId: string,
   title: string,
-  ...inputs: TextInput[]
+  ...inputs: (TextInput | Label)[]
 ): InteractionResponse {
   if (customId.length === 0 || customId.length > 100)
     throw new Error('custom_id must be 1-100 characters');
   if (title.length === 0 || title.length > 45) throw new Error('a modal title is 1-45 characters');
-  if (inputs.length === 0 || inputs.length > 5) throw new Error('a modal holds 1-5 text inputs');
+  if (inputs.length === 0 || inputs.length > 5) throw new Error('a modal holds 1-5 fields');
   return {
     type: InteractionResponseType.MODAL,
-    data: { custom_id: customId, title, components: inputs.map((input) => actionRow(input)) },
+    data: {
+      custom_id: customId,
+      title,
+      components: inputs.map((input) =>
+        input.type === ComponentType.LABEL ? input : actionRow(input),
+      ),
+    },
   };
 }
 
-/** The values a modal submit carried, by text input custom_id. */
+/** Every field a modal submit carried, from action rows and labels alike. */
+function submittedFields(interaction: Interaction): SubmittedField[] {
+  return (interaction.data?.components ?? []).flatMap((row) => [
+    ...(row.components ?? []),
+    ...(row.component ? [row.component] : []),
+  ]);
+}
+
+/** The text a modal submit carried, by text input custom_id. */
 export function modalValues(interaction: Interaction): Record<string, string> {
   const values: Record<string, string> = {};
-  for (const row of interaction.data?.components ?? []) {
-    for (const field of row.components) values[field.custom_id] = field.value ?? '';
+  for (const field of submittedFields(interaction)) {
+    if (field.values === undefined) values[field.custom_id] = field.value ?? '';
   }
   return values;
+}
+
+/** The choices a modal submit carried, by select menu custom_id (empty when none was picked). */
+export function modalSelections(interaction: Interaction): Record<string, string[]> {
+  const values: Record<string, string[]> = {};
+  for (const field of submittedFields(interaction)) {
+    if (field.values !== undefined) values[field.custom_id] = field.values;
+  }
+  return values;
+}
+
+/** Answer an autocomplete interaction (type 8). Discord shows at most 25 choices. */
+export function autocompleteResult(choices: AutocompleteChoice[]): InteractionResponse {
+  return {
+    type: InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT,
+    data: {
+      choices: choices
+        .slice(0, 25)
+        .map((c) => ({ name: c.name.slice(0, 100), value: c.value.slice(0, 100) })),
+    },
+  };
+}
+
+/** The option an autocomplete interaction is for, and the text typed into it so far. */
+export function focusedOption(
+  interaction: Interaction,
+): { name: string; value: string } | undefined {
+  const walk = (
+    options: CommandInteractionOption[] | undefined,
+  ): { name: string; value: string } | undefined => {
+    for (const o of options ?? []) {
+      if (o.focused) return { name: o.name, value: String(o.value ?? '') };
+      const inner = walk(o.options);
+      if (inner) return inner;
+    }
+    return undefined;
+  };
+  return walk(interaction.data?.options);
 }

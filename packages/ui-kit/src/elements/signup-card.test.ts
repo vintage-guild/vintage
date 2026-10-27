@@ -233,10 +233,101 @@ describe('vintage-signup-card', () => {
       const el = await card();
       el.characters = [{ ...CHARS[0] }];
       await settle();
-      expect(selects(el).map((s) => s.getAttribute('label'))).toEqual(['Change spec']);
+      expect(selects(el).map((s) => s.getAttribute('label'))).toEqual(['Change spec', 'Role']);
       el.characters = [];
       await settle();
       expect(selects(el)).toEqual([]);
+    });
+  });
+
+  describe('Role for one raid (#149)', () => {
+    // A Fury warrior saved as a tank (the role was picked on the Characters page).
+    const CHARS = [
+      { id: 'w', name: 'Brakk', class: 'warrior', spec: 'fury', role: 'tank', isMain: true },
+      { id: 'p', name: 'Ash', class: 'priest', spec: 'holy', role: 'healer', isMain: false },
+    ] as const;
+    const card = async (attrs = '') => {
+      const el = await mount<VintageSignupCard>(
+        `<vintage-signup-card event-id="e1" character-id="w" ${attrs}></vintage-signup-card>`,
+      );
+      el.characters = CHARS.map((c) => ({ ...c }));
+      el.needed = ['tank'];
+      await settle();
+      return el;
+    };
+    const roleSelect = (el: Element) =>
+      [...el.shadowRoot!.querySelectorAll('violet-select')].find(
+        (s) => s.getAttribute('label') === 'Role',
+      );
+
+    it('offers a guess from the spec, then each role, and shows the role played', async () => {
+      const el = await card();
+      expect(
+        [...roleSelect(el)!.querySelectorAll('violet-option')].map((o) => o.textContent?.trim()),
+      ).toEqual([
+        'Guess from spec (Tank)',
+        'Tank · tanks needed',
+        'Healer',
+        'Melee DPS',
+        'Ranged DPS',
+      ]);
+      // The saved role goes with the saved spec; another spec plays its own role.
+      expect(el.asLabel).toBe('Brakk · Fury Warrior · Tank');
+      el.spec = 'arms';
+      expect(el.asLabel).toBe('Brakk · Arms Warrior · Melee DPS');
+      el.playRole = 'tank';
+      expect(el.asLabel).toBe('Brakk · Arms Warrior · Tank');
+    });
+
+    it('answers with the picked role, and once answered stores a role or the guess again', async () => {
+      const client = useClient(() => ({ success: true, data: { status: 'accepted' } }));
+      const el = await card('play-role="healer"');
+      await el.answer('accepted');
+      expect(client.run).toHaveBeenLastCalledWith('signup-set', {
+        eventId: 'e1',
+        characterId: 'w',
+        status: 'accepted',
+        role: 'healer',
+      });
+      await el.changeRole('');
+      expect(client.run).toHaveBeenLastCalledWith('signup-set', {
+        eventId: 'e1',
+        characterId: 'w',
+        role: null,
+        status: 'accepted',
+      });
+      await el.changeRole('melee');
+      expect(client.run).toHaveBeenLastCalledWith('signup-set', {
+        eventId: 'e1',
+        characterId: 'w',
+        role: 'melee',
+        status: 'accepted',
+      });
+      expect(await el.changeRole('wizard')).toMatchObject({
+        success: false,
+        error: { code: 'INVALID_PARAMETERS' },
+      });
+    });
+
+    it('switching character clears the picked role; a refusal puts it back', async () => {
+      useClient(() => ({
+        success: false,
+        error: { code: 'RAID_CLOSED', message: 'Locked', retryable: false },
+      }));
+      const el = await card('status="accepted" play-role="healer"');
+      await el.switchCharacter('p');
+      expect(el.playRole).toBe('healer');
+      // `restore` still holds the original client from useClient.
+      setCommandClient({
+        read: vi.fn(),
+        run: vi.fn(async () => ({
+          success: true,
+          data: { status: 'accepted' },
+        })) as CommandClient['run'],
+      });
+      await el.switchCharacter('p');
+      expect(el.playRole).toBe('');
+      expect(el.asLabel).toBe('Ash · Holy Priest · Healer');
     });
   });
 

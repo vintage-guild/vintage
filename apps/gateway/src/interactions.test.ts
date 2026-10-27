@@ -357,4 +357,96 @@ describe('interactions endpoint', () => {
       expect(calls).toEqual([]);
     });
   });
+
+  describe('/random character and its autocomplete (#149)', () => {
+    const typing = (group = 'character') => ({
+      ...base,
+      type: InteractionType.APPLICATION_COMMAND_AUTOCOMPLETE,
+      guild_id: 'g1',
+      data: {
+        name: 'random',
+        options: [
+          {
+            name: group,
+            type: 2,
+            options: [
+              {
+                name: 'add',
+                type: 1,
+                options: [
+                  { name: 'class', type: 3, value: 'druid' },
+                  { name: 'spec', type: 3, value: 'fe', focused: true },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    });
+    const suggestions = { type: 8, data: { choices: [{ name: 'Feral', value: 'feral' }] } };
+    const withFetch = (fakeFetch: typeof fetch, autocompleteTimeoutMs?: number) =>
+      createInteractionHandler({
+        publicKey,
+        now: () => NOW,
+        convex: { siteUrl: 'https://x.convex.site', secret: 's', fetch: fakeFetch },
+        ...(autocompleteTimeoutMs ? { autocompleteTimeoutMs } : {}),
+      });
+
+    it('forwards the character group and its autocomplete to Convex', async () => {
+      const bodies: unknown[] = [];
+      const fakeFetch = (async (_url: string, init: RequestInit) => {
+        bodies.push(JSON.parse(init.body as string));
+        return new Response(JSON.stringify(suggestions));
+      }) as typeof fetch;
+      const res = await withFetch(fakeFetch)(await signedRequest(typing()));
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual(suggestions);
+      const list = {
+        ...base,
+        type: InteractionType.APPLICATION_COMMAND,
+        guild_id: 'g1',
+        data: {
+          name: 'random',
+          options: [{ name: 'character', type: 2, options: [{ name: 'list', type: 1 }] }],
+        },
+      };
+      await withFetch(fakeFetch)(await signedRequest(list));
+      expect(bodies).toEqual([typing(), list]);
+    });
+
+    it('answers no suggestions when Convex is slow, down, unknown, or answers the wrong type', async () => {
+      const slow = (async (_url: string, init: RequestInit) =>
+        new Promise<Response>((resolve, reject) => {
+          const timer = setTimeout(() => resolve(new Response(JSON.stringify(suggestions))), 1000);
+          init.signal?.addEventListener('abort', () => {
+            clearTimeout(timer);
+            reject(new Error('aborted'));
+          });
+        })) as typeof fetch;
+      const empty = { type: 8, data: { choices: [] } };
+      expect(await (await withFetch(slow, 20)(await signedRequest(typing()))).json()).toEqual(
+        empty,
+      );
+      for (const answer of [
+        new Response('boom', { status: 500 }),
+        new Response('{}', { status: 404 }),
+        new Response(JSON.stringify({ type: 4, data: { content: 'hi' } })),
+      ]) {
+        const once = (async () => answer) as typeof fetch;
+        expect(await (await withFetch(once)(await signedRequest(typing()))).json()).toEqual(empty);
+      }
+      expect(await (await handler()(await signedRequest(typing()))).json()).toEqual(empty);
+    });
+
+    it('does not forward autocomplete for other groups', async () => {
+      const calls: unknown[] = [];
+      const fakeFetch = (async () => {
+        calls.push(1);
+        return new Response(JSON.stringify(suggestions));
+      }) as typeof fetch;
+      const res = await withFetch(fakeFetch)(await signedRequest(typing('poll')));
+      expect(await res.json()).toEqual({ type: 8, data: { choices: [] } });
+      expect(calls).toEqual([]);
+    });
+  });
 });

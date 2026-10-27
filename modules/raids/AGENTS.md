@@ -51,10 +51,17 @@ directly. Maturity: **core**.
   the saved character. Without `spec`, the same character keeps the signup's spec and role
   (changing status keeps a chosen spec); a different character starts from its saved spec
   (switching clears it). A spec change alone is a change: `signup-changed` goes out.
+- **A role for one raid** (#149): `signup-set`'s optional `role` plays the signup as tank,
+  healer, melee or ranged (stored with `rolePicked`); `null` follows the spec again. A spec
+  change re-guesses the role unless one was picked for the signup; switching character clears
+  both. The guessed role for a character's saved spec is its saved role (which may be picked).
+  Comp, the card, the queue and the "needed" hints all read the signup's `role`.
 - **`signup-suggest`** (recruit, read-only) guesses the character in `domain/guess.ts`: this
-  raid's signup, then the one brought most in the member's last `SERIES_WINDOW` (5) signups for
-  the same schedule (one-offs: the same instance; declines don't count; a tie goes to the most
-  recent raid), then the main, then the only character; else null. `reason` is shown to members,
+  raid's signup, then the main, then (only with no main) the one brought most in the member's
+  last `SERIES_WINDOW` (5) signups for the same schedule (one-offs: the same instance; declines
+  don't count; a tie goes to the most recent raid), then the only character; else null. The main
+  beats history because members set it on purpose (Bloodfen, 2026-10-27, #149), and the history
+  isn't read when there's a main. `reason` is shown to members,
   so keep it short and plain. It reads `listSignupsByMember` (the component's `by_guild_member`
   index, latest `signedUpAt` first). `rolesNeeded` (contract) is what the surfaces' "needed"
   hints use.

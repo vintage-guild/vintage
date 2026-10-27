@@ -54,6 +54,21 @@ describe('vintage-character-list', () => {
     expect(rows[1]).toContain('Make main');
   });
 
+  it('Edit asks the page to open the character, and a picked role says so (#149)', async () => {
+    const el = await mount<VintageCharacterList>(
+      '<vintage-character-list></vintage-character-list>',
+    );
+    el.characters = [{ ...CHARS[0]!, role: 'tank', rolePicked: true }, CHARS[1]!];
+    await settle();
+    const edits: unknown[] = [];
+    el.addEventListener('character-edit', (e) => edits.push((e as CustomEvent).detail));
+    const fury = [...el.shadowRoot!.querySelectorAll('.row')][1]!;
+    expect(fury.textContent!.replace(/\s+/g, ' ')).toContain('Warrior · Tank (picked) · Fury');
+    const edit = [...fury.querySelectorAll('button')].find((b) => b.textContent === 'Edit');
+    edit!.click();
+    expect(edits).toEqual([expect.objectContaining({ id: 'c2', rolePicked: true })]);
+  });
+
   it('says so when there are none', async () => {
     const el = await mount<VintageCharacterList>(
       '<vintage-character-list></vintage-character-list>',

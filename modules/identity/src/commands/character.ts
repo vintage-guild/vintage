@@ -3,11 +3,14 @@ import {
   characterNameSchema,
   classSchema,
   normalizeCharacterName,
+  type Role,
   roleFor,
+  roleSchema,
+  type WowClass,
 } from '@vintage/wow-data';
 import { z } from 'zod';
 import type { Character } from '../contract';
-import { command } from '../store';
+import { command, type IdentityDeps } from '../store';
 import { notSignedIn } from './member';
 
 const notFound = () =>
@@ -22,6 +25,57 @@ const badSpec = (wowClass: string, spec: string) =>
     retryable: false,
   });
 
+const nameTaken = (name: string) =>
+  error('CHARACTER_EXISTS', `${name} is already registered`, {
+    suggestion: 'Ask an officer if someone else registered your character',
+    retryable: false,
+  });
+
+/**
+ * The role to save: a picked role wins and is remembered as picked; otherwise a role picked
+ * earlier is kept (unless `role` is null: back to guessing), and a guessed one follows the spec.
+ */
+function roleOf(
+  wowClass: WowClass,
+  spec: string,
+  role: Role | null | undefined,
+  before?: Pick<Character, 'role' | 'rolePicked'>,
+): { role: Role; rolePicked: boolean } | null {
+  const guessed = roleFor(wowClass, spec);
+  if (!guessed) return null;
+  if (role) return { role, rolePicked: true };
+  if (role === undefined && before?.rolePicked) return { role: before.role, rolePicked: true };
+  return { role: guessed, rolePicked: false };
+}
+
+interface PlayEdit {
+  class?: WowClass;
+  spec?: string;
+  role?: Role | null;
+}
+
+/**
+ * Class, spec and role after an edit: {} when none of them changes, null when the spec isn't one
+ * of the class's.
+ */
+function playPatch(character: Character, input: PlayEdit): Partial<Character> | null {
+  if (input.class === undefined && input.spec === undefined && input.role === undefined) return {};
+  const wowClass = input.class ?? character.class;
+  const spec = input.spec ?? character.spec;
+  // A new class starts the role over: a picked role belonged to the old class.
+  const before = wowClass === character.class ? character : undefined;
+  const role = roleOf(wowClass, spec, input.role, before);
+  return role ? { class: wowClass, spec, ...role } : null;
+}
+
+/** Make `character` the member's only main. */
+async function makeOnlyMain(deps: IdentityDeps, guildId: string, character: Character) {
+  const siblings = await deps.identity.listCharacters(guildId, { memberId: character.memberId });
+  for (const c of siblings.filter((c) => c.isMain && c.id !== character.id)) {
+    await deps.identity.updateCharacter(guildId, c.id, { isMain: false });
+  }
+}
+
 /** Officers may edit anyone's characters; everyone else only their own. */
 function canEdit(caller: Caller, character: Character): boolean {
   return character.memberId === caller.memberId || tierAllows(caller.tier, 'officer');
@@ -29,28 +83,26 @@ function canEdit(caller: Caller, character: Character): boolean {
 
 export const characterAdd = command({
   name: 'character-add',
-  description: 'Register one of your characters (main or alt).',
+  description:
+    'Register one of your characters (main or alt). role is optional: leave it out to guess ' +
+    'it from the spec, or pick one (a Fury warrior who tanks).',
   tier: 'member',
   mutation: true,
   input: z.object({
     name: characterNameSchema,
     class: classSchema,
     spec: z.string().min(1),
+    role: roleSchema.optional(),
     isMain: z.boolean().default(false),
   }),
   handler: async (input, { caller, guildId, deps }) => {
     if (!caller.memberId) return notSignedIn();
-    const role = roleFor(input.class, input.spec);
+    const role = roleOf(input.class, input.spec, input.role);
     if (!role) return badSpec(input.class, input.spec);
 
     const name = normalizeCharacterName(input.name);
     const all = await deps.identity.listCharacters(guildId);
-    if (all.some((c) => c.name === name)) {
-      return error('CHARACTER_EXISTS', `${name} is already registered`, {
-        suggestion: 'Ask an officer if someone else registered your character',
-        retryable: false,
-      });
-    }
+    if (all.some((c) => c.name === name)) return nameTaken(name);
     const mine = all.filter((c) => c.memberId === caller.memberId);
     const isMain = input.isMain || mine.length === 0;
     if (isMain) {
@@ -64,7 +116,7 @@ export const characterAdd = command({
       name,
       class: input.class,
       spec: input.spec,
-      role,
+      ...role,
       isMain,
     });
     return success(character, {
@@ -75,31 +127,36 @@ export const characterAdd = command({
 
 export const characterUpdate = command({
   name: 'character-update',
-  description: 'Change a character’s spec or make it your main.',
+  description:
+    'Edit a character: name, class, spec, role, or make it your main. role null goes back to ' +
+    'guessing it from the spec; a guessed role follows a spec change, a picked one stays. A new ' +
+    'class needs a spec of that class.',
   tier: 'member',
   mutation: true,
   input: z.object({
     characterId: z.string().min(1),
+    name: characterNameSchema.optional(),
+    class: classSchema.optional(),
     spec: z.string().min(1).optional(),
+    role: roleSchema.nullable().optional(),
     isMain: z.literal(true).optional(),
   }),
-  handler: async ({ characterId, spec, isMain }, { caller, guildId, deps }) => {
+  handler: async (input, { caller, guildId, deps }) => {
+    const { characterId, isMain } = input;
     const character = await deps.identity.getCharacter(guildId, characterId);
     if (!character || !canEdit(caller, character)) return notFound();
 
-    const patch: Partial<Character> = {};
-    if (spec) {
-      const role = roleFor(character.class, spec);
-      if (!role) return badSpec(character.class, spec);
-      Object.assign(patch, { spec, role });
+    const play = playPatch(character, input);
+    if (!play) return badSpec(input.class ?? character.class, input.spec ?? character.spec);
+    const patch: Partial<Character> = { ...play };
+    const name = input.name === undefined ? character.name : normalizeCharacterName(input.name);
+    if (name !== character.name) {
+      const all = await deps.identity.listCharacters(guildId);
+      if (all.some((c) => c.name === name)) return nameTaken(name);
+      patch.name = name;
     }
     if (isMain) {
-      const siblings = await deps.identity.listCharacters(guildId, {
-        memberId: character.memberId,
-      });
-      for (const c of siblings.filter((c) => c.isMain && c.id !== characterId)) {
-        await deps.identity.updateCharacter(guildId, c.id, { isMain: false });
-      }
+      await makeOnlyMain(deps, guildId, character);
       patch.isMain = true;
     }
     return success(await deps.identity.updateCharacter(guildId, characterId, patch));

@@ -218,6 +218,105 @@ const EVENT_GROUP = {
   ],
 };
 
+const CLASS_CHOICES = [
+  'warrior',
+  'paladin',
+  'hunter',
+  'rogue',
+  'priest',
+  'shaman',
+  'mage',
+  'warlock',
+  'druid',
+].map((c) => ({ name: c.charAt(0).toUpperCase() + c.slice(1), value: c }));
+
+/** One of the member's own characters, suggested as they type (autocomplete, #149). */
+const OWN_CHARACTER = {
+  type: T.STRING,
+  name: 'name',
+  description: 'One of your characters',
+  required: true,
+  max_length: 25,
+  autocomplete: true,
+};
+
+/**
+ * `/random character …` (#149): character-add, character-list, character-update and
+ * character-remove, run as the member. `spec` and `name` are autocompleted in Convex (spec by
+ * the chosen class, names from the member's own characters); the commands still check what's
+ * typed, since a member can ignore the suggestions.
+ */
+const CHARACTER_GROUP = {
+  type: T.SUB_COMMAND_GROUP,
+  name: 'character',
+  description: 'Your characters: add, list, set your main, remove',
+  options: [
+    GROUP_HELP,
+    {
+      type: T.SUB_COMMAND,
+      name: 'add',
+      description: 'Register one of your characters',
+      options: [
+        {
+          type: T.STRING,
+          name: 'name',
+          description: 'The character’s name, e.g. Aeryn or Bloodfen Il',
+          required: true,
+          max_length: 25,
+        },
+        {
+          type: T.STRING,
+          name: 'class',
+          description: 'Its class',
+          required: true,
+          choices: CLASS_CHOICES,
+        },
+        {
+          type: T.STRING,
+          name: 'spec',
+          description: 'Its spec, e.g. restoration (suggested for the class)',
+          required: true,
+          max_length: 40,
+          autocomplete: true,
+        },
+        {
+          type: T.STRING,
+          name: 'role',
+          description: 'The role it plays (default: guessed from the spec)',
+          choices: [
+            { name: 'Tank', value: 'tank' },
+            { name: 'Healer', value: 'healer' },
+            { name: 'Melee DPS', value: 'melee' },
+            { name: 'Ranged DPS', value: 'ranged' },
+          ],
+        },
+        {
+          type: T.BOOLEAN,
+          name: 'main',
+          description: 'Make it your main (your first character always is)',
+        },
+      ],
+    },
+    {
+      type: T.SUB_COMMAND,
+      name: 'list',
+      description: 'Your characters, main first',
+    },
+    {
+      type: T.SUB_COMMAND,
+      name: 'main',
+      description: 'Make one of your characters your main',
+      options: [OWN_CHARACTER],
+    },
+    {
+      type: T.SUB_COMMAND,
+      name: 'remove',
+      description: 'Remove one of your characters (asks you to confirm)',
+      options: [OWN_CHARACTER],
+    },
+  ],
+};
+
 /** `/random ask`: a question for the guild agent (#18); the answer arrives privately. */
 const ASK = {
   type: T.SUB_COMMAND,
@@ -252,17 +351,7 @@ const APPLY = {
       name: 'class',
       description: 'Your class',
       required: true,
-      choices: [
-        'warrior',
-        'paladin',
-        'hunter',
-        'rogue',
-        'priest',
-        'shaman',
-        'mage',
-        'warlock',
-        'druid',
-      ].map((c) => ({ name: c.charAt(0).toUpperCase() + c.slice(1), value: c })),
+      choices: CLASS_CHOICES,
     },
     {
       type: T.STRING,
@@ -306,6 +395,7 @@ const HELP = {
       choices: [
         { name: 'Events', value: 'events' },
         { name: 'Signups', value: 'signups' },
+        { name: 'Characters', value: 'characters' },
         { name: 'Polls', value: 'polls' },
         { name: 'Ask Random', value: 'ask' },
         { name: 'Recruiting', value: 'recruiting' },
@@ -327,6 +417,7 @@ export const RANDOM_COMMAND = {
     HELP,
     POLL_GROUP,
     EVENT_GROUP,
+    CHARACTER_GROUP,
     ASK,
     APPLY,
     RECRUITING,
@@ -338,9 +429,16 @@ export const FORWARDED_GROUPS: ReadonlySet<string> = new Set([
   HELP.name,
   POLL_GROUP.name,
   EVENT_GROUP.name,
+  CHARACTER_GROUP.name,
   ASK.name,
   APPLY.name,
   RECRUITING.name,
 ]);
+
+/**
+ * Groups whose autocomplete interactions the gateway forwards to Convex (#149). Only
+ * `/random character` has autocompleted options.
+ */
+export const AUTOCOMPLETED_GROUPS: ReadonlySet<string> = new Set([CHARACTER_GROUP.name]);
 
 export const COMMANDS: readonly ApplicationCommand[] = [RANDOM_COMMAND];

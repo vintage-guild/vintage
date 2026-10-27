@@ -5,8 +5,8 @@ import { mutation, query } from './_generated/server';
 import { role } from './schema';
 
 const toCharacter = (doc: Doc<'characters'>) => {
-  const { _id, _creationTime, ...rest } = doc;
-  return { id: _id as string, ...rest };
+  const { _id, _creationTime, rolePicked, ...rest } = doc;
+  return { id: _id as string, rolePicked: rolePicked ?? false, ...rest };
 };
 
 const byMainThenName = (a: Doc<'characters'>, b: Doc<'characters'>) =>
@@ -45,6 +45,7 @@ export const insert = mutation({
     class: v.string(),
     spec: v.string(),
     role,
+    rolePicked: v.optional(v.boolean()),
     isMain: v.boolean(),
   },
   handler: async (ctx, args) => {
@@ -62,6 +63,7 @@ export const update = mutation({
       class: v.optional(v.string()),
       spec: v.optional(v.string()),
       role: v.optional(role),
+      rolePicked: v.optional(v.boolean()),
       isMain: v.optional(v.boolean()),
     }),
   },

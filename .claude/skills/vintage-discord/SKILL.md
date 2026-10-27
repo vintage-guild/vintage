@@ -35,11 +35,22 @@ commands). Everything runs serverless: no always-on gateway process.
   `convex/discord.ts`.
 - **Commands, not logic, in the endpoint.** Interactions translate to guild-kit commands through
   the registry; the endpoint never holds business rules. `/random ping` answers locally; buttons,
-  modals, and the subcommand groups in `FORWARDED_GROUPS` (`/random poll`, `/random event`, `/random ask`) go to
-  Convex, where `src/discord-signups.ts`, `discord-polls.ts`, `discord-events.ts`, and
-  `discord-agent.ts` run them (shared helpers in `discord-common.ts`). Re-register after changing commands.
+  modals, and the subcommand groups in `FORWARDED_GROUPS` (`/random poll`, `/random event`,
+  `/random character`, `/random ask`, …) go to Convex, where `src/discord-signups.ts`,
+  `discord-polls.ts`, `discord-events.ts`, `discord-characters.ts`, and `discord-agent.ts` run them
+  (shared helpers in `discord-common.ts`). Re-register after changing commands.
   A `/random` subcommand or click that the gateway or Convex doesn't know yet (registered before
   both deploys landed) gets a private "can't do that yet", never a timeout.
+- **Autocomplete answers in time or not at all.** For groups in `AUTOCOMPLETED_GROUPS` (only
+  `/random character`, #149) the gateway forwards type 4 to Convex, which runs it as a query
+  (`internal.discord.autocomplete`: the member and their characters, two indexed reads, no
+  command). The gateway waits 2 seconds, then answers type 8 with no suggestions; any failure does
+  the same. Suggestions are hints: the command still checks the typed value, and nothing is
+  suggested outside the guild server or to someone Random doesn't know.
+- **Modals can hold select menus** inside a Label (type 18; discord-kit `label`,
+  `labelledTextInput`, `modalSelections`). A modal is static: one list can't filter another, so
+  the New character form lists every spec once (25, Discord's most) and `character-add` refuses
+  a spec of the wrong class. At most five fields.
 - **Least privilege for the bot.** It's invited with View Channels, Send Messages, Embed Links,
   Read Message History, Add Reactions, and Mention Everyone (permissions integer `216128`). Add a
   permission only when a feature needs it, and say which in the PR. Never request Administrator
@@ -71,8 +82,12 @@ commands). Everything runs serverless: no always-on gateway process.
   (`convex/http.ts` → `convex/discord.ts` → `src/discord-signups.ts`) with `VINTAGE_GATEWAY_SECRET`.
   Custom ids: `signup:<event>:<status>`, `signup-pick:<event>:<status>`,
   `signup-note:<event>:<status>:<character>`, and the reply's menus
-  `signup-char:<event>` (Switch character) and `signup-spec:<event>` (Change spec), whose choice
-  is the picked value. Parse by exact segment count and allow only `[A-Za-z0-9_-]` in ids and
+  `signup-char:<event>` (Switch character), `signup-spec:<event>` (Change spec) and
+  `signup-role:<event>` (Role; `guess` follows the spec), whose choice is the picked value. The
+  picker and Switch character end with **New character…** (value `new`), which opens the
+  `signup-new:<event>:<status>` form: `character-add`, then `signup-set` in the same step.
+  `/random character remove` confirms with `char-rm:<character>` (a fresh preview, confirmed at
+  once, like the poll close button). Parse by exact segment count and allow only `[A-Za-z0-9_-]` in ids and
   values. Keep every id within 100 characters with 32-character Convex ids. A click signs up
   with `signup-suggest`'s guess. Replies are ephemeral; never edit the
   public post from an interaction (the coordinator tick does that).

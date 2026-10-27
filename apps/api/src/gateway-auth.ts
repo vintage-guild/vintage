@@ -21,3 +21,13 @@ export function refuseUnlessGateway(request: Request, secret: string | undefined
     return json({ error: 'unauthorized' }, 401);
   return null;
 }
+
+/**
+ * Is this forwarded interaction autocomplete (type 4, discord-kit's
+ * InteractionType.APPLICATION_COMMAND_AUTOCOMPLETE)? convex/http.ts runs those as a query. The
+ * number is written out so the HTTP router doesn't load discord-kit.
+ */
+export const isAutocomplete = (interaction: unknown): boolean =>
+  typeof interaction === 'object' &&
+  interaction !== null &&
+  (interaction as { type?: unknown }).type === 4;

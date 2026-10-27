@@ -151,6 +151,160 @@ describe('vintage-character-form', () => {
     expect(client.run).not.toHaveBeenCalled();
   });
 
+  it('guesses the role from the spec, naming the guess, unless one is picked (#149)', async () => {
+    const client = useClient((_, input) => ({
+      success: true,
+      data: { id: 'c3', ...(input as object) },
+    }));
+    const form = await mount<VintageCharacterForm>(
+      '<vintage-character-form></vintage-character-form>',
+    );
+    const roleSelect = () =>
+      [...form.shadowRoot!.querySelectorAll('violet-select')].find(
+        (s) => s.getAttribute('label') === 'Role',
+      )!;
+    const firstOption = () => roleSelect().querySelector('violet-option')?.textContent?.trim();
+    expect(firstOption()).toBe('Guess from spec');
+
+    form.setName('Brakk');
+    form.setClass('warrior');
+    form.setSpec('fury');
+    await settle();
+    expect(firstOption()).toBe('Guess from spec (Melee DPS)');
+    expect(form.role).toBe('melee');
+    expect(form.input).not.toHaveProperty('role');
+
+    // A Fury warrior who tanks.
+    form.setRole('tank');
+    await settle();
+    expect(form.shadowRoot?.querySelector('vintage-role-badge')?.getAttribute('raid-role')).toBe(
+      'tank',
+    );
+    await form.addCharacter();
+    expect(client.run).toHaveBeenCalledWith('character-add', {
+      name: 'Brakk',
+      class: 'warrior',
+      spec: 'fury',
+      role: 'tank',
+      isMain: false,
+    });
+  });
+
+  describe('editing (#149)', () => {
+    const BRAKK = {
+      id: 'c9',
+      name: 'Brakk',
+      class: 'warrior',
+      spec: 'fury',
+      role: 'tank',
+      rolePicked: true,
+      isMain: false,
+    };
+    const editing = async (character = BRAKK) => {
+      const form = await mount<VintageCharacterForm>(
+        '<vintage-character-form></vintage-character-form>',
+      );
+      form.character = { ...character };
+      await settle();
+      return form;
+    };
+
+    it('starts from the saved character and sends only what changed', async () => {
+      const client = useClient((_, input) => ({ success: true, data: input }));
+      const form = await editing();
+      expect([form.name, form.wowClass, form.spec, form.rolePick]).toEqual([
+        'Brakk',
+        'warrior',
+        'fury',
+        'tank',
+      ]);
+      expect(form.saveCharacterCanExecute).toBe(false);
+      expect(form.addCharacterCanExecute).toBe(false);
+
+      form.setName('brakk stone');
+      form.setSpec('arms');
+      form.setMain(true);
+      await settle();
+      const saved = vi.fn();
+      form.addEventListener('character-saved', (e) => saved((e as CustomEvent).detail));
+      const result = await form.saveCharacter();
+      expect(result.success).toBe(true);
+      expect(client.run).toHaveBeenCalledWith('character-update', {
+        characterId: 'c9',
+        name: 'brakk stone',
+        spec: 'arms',
+        isMain: true,
+      });
+      expect(saved).toHaveBeenCalledOnce();
+      // Saved: the form goes back to adding.
+      expect(form.character).toBeNull();
+      expect(form.name).toBe('');
+    });
+
+    it('sends role null to guess again, and a new class with its spec', async () => {
+      const client = useClient((_, input) => ({ success: true, data: input }));
+      const form = await editing();
+      form.setRole('');
+      await form.saveCharacter();
+      expect(client.run).toHaveBeenLastCalledWith('character-update', {
+        characterId: 'c9',
+        role: null,
+      });
+
+      form.character = { ...BRAKK, rolePicked: false, role: 'melee' };
+      form.setClass('paladin');
+      expect(form.saveCharacterCanExecute).toBe(false);
+      form.setSpec('protection');
+      await form.saveCharacter();
+      expect(client.run).toHaveBeenLastCalledWith('character-update', {
+        characterId: 'c9',
+        class: 'paladin',
+        spec: 'protection',
+      });
+
+      // A picked role the form still shows goes with a class change: the server starts the
+      // role over on a new class, so leaving it out would quietly drop the pick.
+      form.character = { ...BRAKK };
+      await settle();
+      form.setClass('paladin');
+      form.setSpec('retribution');
+      await form.saveCharacter();
+      expect(client.run).toHaveBeenLastCalledWith('character-update', {
+        characterId: 'c9',
+        class: 'paladin',
+        spec: 'retribution',
+        role: 'tank',
+      });
+    });
+
+    it('cancel leaves the edit without saving', async () => {
+      const client = useClient(() => ({ success: true }));
+      const form = await editing();
+      const cancelled = vi.fn();
+      form.addEventListener('edit-cancelled', cancelled);
+      form.setSpec('arms');
+      form.cancelEdit();
+      expect(cancelled).toHaveBeenCalledOnce();
+      expect(form.character).toBeNull();
+      expect(form.spec).toBe('');
+      expect(client.run).not.toHaveBeenCalled();
+    });
+
+    it('shows a refusal and stays in the edit', async () => {
+      useClient(() => ({
+        success: false,
+        error: { code: 'CHARACTER_EXISTS', message: 'Kol is already registered' },
+      }));
+      const form = await editing();
+      form.setName('Kol');
+      const result = await form.saveCharacter();
+      await settle();
+      expect(result.success).toBe(false);
+      expect(status(form)).toMatch(/Kol is already registered/);
+      expect(form.character?.id).toBe('c9');
+    });
+  });
+
   it('is the same command agents run through the FAST-AF registry', async () => {
     const client = useClient(() => ({ success: true, data: { id: 'c2' } }));
     const form = await filledForm();

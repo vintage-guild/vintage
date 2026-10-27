@@ -552,7 +552,7 @@
     },
     {
       "name": "character-add",
-      "description": "Register one of your characters (main or alt).",
+      "description": "Register one of your characters (main or alt). role is optional: leave it out to guess it from the spec, or pick one (a Fury warrior who tanks).",
       "tier": "member",
       "mutation": true,
       "destructive": false,
@@ -581,6 +581,15 @@
           "spec": {
             "type": "string",
             "minLength": 1
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "tank",
+              "healer",
+              "melee",
+              "ranged"
+            ]
           },
           "isMain": {
             "default": false,
@@ -636,7 +645,7 @@
     },
     {
       "name": "character-update",
-      "description": "Change a character’s spec or make it your main.",
+      "description": "Edit a character: name, class, spec, role, or make it your main. role null goes back to guessing it from the spec; a guessed role follows a spec change, a picked one stays. A new class needs a spec of that class.",
       "tier": "member",
       "mutation": true,
       "destructive": false,
@@ -648,9 +657,43 @@
             "type": "string",
             "minLength": 1
           },
+          "name": {
+            "type": "string",
+            "pattern": "^\\p{L}{2,12}( \\p{L}{1,12})?$"
+          },
+          "class": {
+            "type": "string",
+            "enum": [
+              "warrior",
+              "paladin",
+              "hunter",
+              "rogue",
+              "priest",
+              "shaman",
+              "mage",
+              "warlock",
+              "druid"
+            ]
+          },
           "spec": {
             "type": "string",
             "minLength": 1
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "tank",
+                  "healer",
+                  "melee",
+                  "ranged"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "isMain": {
             "type": "boolean",
@@ -991,6 +1034,7 @@
             "enum": [
               "events",
               "signups",
+              "characters",
               "polls",
               "ask",
               "recruiting"
@@ -1198,7 +1242,7 @@
     },
     {
       "name": "member-prefs-set",
-      "description": "Update your preferences: DM opt-out, default character, timezone.",
+      "description": "Update your preferences: DM opt-out and timezone. Your main (character-update isMain) is your default character.",
       "tier": "member",
       "mutation": true,
       "destructive": false,
@@ -1208,9 +1252,6 @@
         "properties": {
           "dmOptOut": {
             "type": "boolean"
-          },
-          "defaultCharacterId": {
-            "type": "string"
           },
           "timezone": {
             "type": "string"
@@ -3567,7 +3608,7 @@
     },
     {
       "name": "signup-set",
-      "description": "Sign up for a raid with one of your characters, or change your answer (accepted, late, tentative, bench, declined). One signup per member per raid. Raid leaders may sign up anyone's character and may change locked raids. spec plays the character as another of its class's specs for this raid only (the role follows); the saved character doesn't change. Switching character clears it; changing your answer keeps it.",
+      "description": "Sign up for a raid with one of your characters, or change your answer (accepted, late, tentative, bench, declined). One signup per member per raid. Raid leaders may sign up anyone's character and may change locked raids. spec plays the character as another of its class's specs for this raid only (the role follows); the saved character doesn't change. role plays it as tank, healer, melee or ranged for this raid (null follows the spec again); a picked role stays when the spec changes. Switching character clears both; changing your answer keeps them.",
       "tier": "recruit",
       "mutation": true,
       "destructive": false,
@@ -3608,6 +3649,22 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 40
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "tank",
+                  "healer",
+                  "melee",
+                  "ranged"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -3619,7 +3676,7 @@
     },
     {
       "name": "signup-suggest",
-      "description": "Which of your characters you are likely bringing to a raid, with the spec and a short reason: this raid’s signup, else the one you brought most to your last 5 raids from the same schedule (one-offs: the same instance), else your main, else your only character. Null when there is no good guess; pick with character-list then.",
+      "description": "Which of your characters you are likely bringing to a raid, with the spec, role and a short reason: this raid’s signup, else your main, else (no main) the one you brought most to your last 5 raids from the same schedule (one-offs: the same instance), else your only character. Null when there is no good guess; pick with character-list then.",
       "tier": "recruit",
       "mutation": false,
       "destructive": false,

@@ -197,6 +197,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           promotedAt?: number | null;
           queued?: boolean;
           role: "tank" | "healer" | "melee" | "ranged";
+          rolePicked?: boolean;
           roster: "pending" | "rostered" | "benched";
           signedUpAt: number;
           spec: string;
@@ -241,6 +242,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             promotedAt?: number | null;
             queued?: boolean;
             role?: "tank" | "healer" | "melee" | "ranged";
+            rolePicked?: boolean;
             roster?: "pending" | "rostered" | "benched";
             signedUpAt?: number;
             spec?: string;

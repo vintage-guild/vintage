@@ -4,6 +4,8 @@ import {
   ButtonStyle,
   button,
   ComponentType,
+  label,
+  labelledTextInput,
   linkButton,
   stringSelect,
   textInput,
@@ -11,13 +13,16 @@ import {
 import { EMBED_LIMITS, embed } from './embeds';
 import {
   ApplicationCommandOptionType,
+  autocompleteResult,
   deferReply,
   deferUpdate,
+  focusedOption,
   type Interaction,
   InteractionResponseType,
   InteractionType,
   MessageFlags,
   modal,
+  modalSelections,
   modalValues,
   pong,
   reply,
@@ -89,6 +94,97 @@ describe('interaction responses', () => {
     expect(modalValues(submitted)).toEqual({ note: 'after work' });
     expect(() => modal('x', 'a'.repeat(46), textInput('n', 'Note'))).toThrow();
     expect(() => actionRow(textInput('a', 'A'), textInput('b', 'B'))).toThrow();
+  });
+
+  it('builds a modal with labelled selects, and reads text and choices back', () => {
+    const res = modal(
+      'signup-new:raid:accepted',
+      'New character',
+      label('Name', labelledTextInput('name', { max_length: 25 })),
+      label(
+        'Class',
+        stringSelect('class', [{ label: 'Warrior', value: 'warrior' }], { required: true }),
+        'Pick one',
+      ),
+    );
+    expect(res).toEqual({
+      type: 9,
+      data: {
+        custom_id: 'signup-new:raid:accepted',
+        title: 'New character',
+        components: [
+          {
+            type: 18,
+            label: 'Name',
+            component: { type: 4, custom_id: 'name', style: 1, max_length: 25 },
+          },
+          {
+            type: 18,
+            label: 'Class',
+            description: 'Pick one',
+            component: {
+              type: 3,
+              custom_id: 'class',
+              options: [{ label: 'Warrior', value: 'warrior' }],
+              required: true,
+            },
+          },
+        ],
+      },
+    });
+    const submitted = {
+      id: '1',
+      application_id: '2',
+      token: 't',
+      type: InteractionType.MODAL_SUBMIT,
+      data: {
+        custom_id: 'x',
+        components: [
+          { type: 18, component: { type: 4, custom_id: 'name', value: 'Aeryn' } },
+          { type: 18, component: { type: 3, custom_id: 'class', values: ['warrior'] } },
+          { type: 18, component: { type: 3, custom_id: 'role', values: [] } },
+          { type: 1, components: [{ type: 4, custom_id: 'note', value: 'late' }] },
+        ],
+      },
+    };
+    expect(modalValues(submitted)).toEqual({ name: 'Aeryn', note: 'late' });
+    expect(modalSelections(submitted)).toEqual({ class: ['warrior'], role: [] });
+    expect(() => label('a'.repeat(46), labelledTextInput('n'))).toThrow();
+  });
+
+  it('answers autocomplete with at most 25 choices and finds the focused option', () => {
+    const many = Array.from({ length: 30 }, (_, i) => ({ name: `n${i}`, value: `v${i}` }));
+    const res = autocompleteResult(many);
+    expect(res.type).toBe(InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT);
+    expect(res).toMatchObject({ type: 8 });
+    expect((res as { data: { choices: unknown[] } }).data.choices).toHaveLength(25);
+    const typing = {
+      id: '1',
+      application_id: '2',
+      token: 't',
+      type: InteractionType.APPLICATION_COMMAND_AUTOCOMPLETE,
+      data: {
+        name: 'random',
+        options: [
+          {
+            type: 2 as const,
+            name: 'character',
+            options: [
+              {
+                type: 1 as const,
+                name: 'add',
+                options: [
+                  { type: 3 as const, name: 'class', value: 'druid' },
+                  { type: 3 as const, name: 'spec', value: 'fer', focused: true },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    };
+    expect(focusedOption(typing)).toEqual({ name: 'spec', value: 'fer' });
+    expect(focusedOption({ ...typing, data: { name: 'random' } })).toBeUndefined();
   });
 
   it('builds deferred and update responses', () => {

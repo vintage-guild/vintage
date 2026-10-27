@@ -28,6 +28,7 @@ const MEMBERS: Member[] = PEOPLE.map((id) => ({
   tier: 'raider',
   prefs: { dmOptOut: false },
   syncedAt: 0,
+  rankSince: null,
 }));
 const CHARACTERS: Character[] = [
   ...PEOPLE.map((id) => ({

@@ -25,6 +25,7 @@ const member = (id: string, displayName: string): Member => ({
   tier: 'raider',
   prefs: { dmOptOut: false },
   syncedAt: 0,
+  rankSince: null,
 });
 
 const raider = makeCaller('raider');

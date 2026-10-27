@@ -20,6 +20,7 @@ const member = (id: string, tier: Tier): Member => ({
   tier,
   prefs: { dmOptOut: false },
   syncedAt: 0,
+  rankSince: null,
 });
 
 function ports(answer: CommandResult<unknown> = { success: true, data: { runId: 'r1' } }) {

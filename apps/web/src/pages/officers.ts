@@ -23,6 +23,8 @@ import {
   getCommandClient,
   type PollsDeskPoll,
   type PollsDeskResults,
+  type RosterDeskMember,
+  type RosterDeskRoles,
   STARTER_PROMPTS,
   type TonightRaid,
   type TonightSignup,
@@ -54,7 +56,7 @@ const TABS = [
   { id: 'tonight', label: 'Tonight', ready: true, hint: '' },
   { id: 'calendar', label: 'Calendar', ready: true, hint: '' },
   { id: 'coordinator', label: 'Random', ready: true, hint: '' },
-  { id: 'roster', label: 'Roster', ready: false, hint: 'ranks, sync, recruits on trial' },
+  { id: 'roster', label: 'Roster', ready: true, hint: '' },
   { id: 'guild', label: 'Guild', ready: true, hint: '' },
   { id: 'recruiting', label: 'Recruiting', ready: true, hint: '' },
   { id: 'applications', label: 'Applications', ready: true, hint: '' },
@@ -261,6 +263,21 @@ const template = html<Page>`
               :entries="${(x) => x.coordinatorEntries}"
               @coordinator-changed="${(x) => x.loadCoordinator()}"
             ></vintage-coordinator-desk>
+          `,
+        )}
+
+        ${when(
+          (x) => x.tab === 'roster',
+          html<Page>`
+            <vintage-roster-desk
+              time-zone="${() => preferredTimeZone() ?? ''}"
+              ?can-configure="${(x) => x.canEditRecruiting}"
+              ?loading="${(x) => !x.rosterLoaded}"
+              error="${(x) => x.rosterError}"
+              :members="${(x) => x.rosterMembers}"
+              :roles="${(x) => x.rosterRoles}"
+              @roster-changed="${(x) => x.loadRoster()}"
+            ></vintage-roster-desk>
           `,
         )}
 
@@ -536,7 +553,8 @@ const styles = css`
  * Random reads `coordinator-status` and `coordinator-log` and runs the coordinator's leader
  * commands; Recruiting reads `recruiting-get` and saves with `recruiting-set`; Guild reads
  * `guild-profile-get` and saves with `guild-profile-set` (both officers only to save); Progress
- * reads `progress-get` and records with `kill-record`.
+ * reads `progress-get` and records with `kill-record`; Roster reads `member-list` and
+ * `guild-roles-get` and saves the role map with `guild-roles-set` (officers, preview then confirm).
  */
 export class Page extends FASTElement {
   /** Leaders and officers see the room; everyone else gets the sign-in card or a note. */
@@ -586,14 +604,21 @@ export class Page extends FASTElement {
   @observable progressLoaded = false;
   /** Bumped per ledger read, as the calendar's is. */
   private progressRead = 0;
+  @observable rosterMembers: RosterDeskMember[] = [];
+  @observable rosterRoles: RosterDeskRoles | null = null;
+  @observable rosterError = '';
+  @observable rosterLoaded = false;
+  /** Bumped per roster read, as the calendar's is. */
+  private rosterRead = 0;
   /**
    * Every calendar command is leader tier, as are Random's pause, resume, run, and repost, and
    * `kill-record`; a preview below that reads them without the buttons.
    */
   readonly canLead = tierAllows((currentSession()?.tier ?? 'public') as Tier, 'leader');
   /**
-   * `recruiting-set`, `guild-profile-set`, and `coordinator-config-set` are officer tier; raid
-   * leaders read the band, the profile, and Random's settings here but can't save them.
+   * `recruiting-set`, `guild-profile-set`, `coordinator-config-set`, and `guild-roles-set` are
+   * officer tier; raid leaders read the band, the profile, Random's settings, and the role map
+   * here but can't save them.
    */
   readonly canEditRecruiting = tierAllows((currentSession()?.tier ?? 'public') as Tier, 'officer');
 
@@ -658,6 +683,7 @@ export class Page extends FASTElement {
     if (this.tab === 'calendar') void this.loadCalendar();
     if (this.tab === 'coordinator') void this.loadCoordinator();
     if (this.tab === 'progress') void this.loadProgress();
+    if (this.tab === 'roster') void this.loadRoster();
   }
 
   /** Switch tabs and keep the choice in the address, so `/officers?tab=polls` links work. */
@@ -675,6 +701,7 @@ export class Page extends FASTElement {
     if (id === 'calendar') void this.loadCalendar();
     if (id === 'coordinator') void this.loadCoordinator();
     if (id === 'progress') void this.loadProgress();
+    if (id === 'roster') void this.loadRoster();
   }
 
   /**
@@ -747,6 +774,30 @@ export class Page extends FASTElement {
       this.coordinatorEntries = logs.flat();
     } finally {
       if (read === this.coordinatorRead) this.coordinatorLoaded = true;
+    }
+  }
+
+  /**
+   * Everyone on the rolls from `member-list` and the role map from `guild-roles-get`. Only the
+   * latest read is kept. A failed role-map read leaves the members showing.
+   */
+  async loadRoster(): Promise<void> {
+    const client = getCommandClient();
+    const read = ++this.rosterRead;
+    try {
+      const [members, roles] = await Promise.all([
+        client.read<RosterDeskMember[]>('member-list', {}),
+        client.read<RosterDeskRoles>('guild-roles-get', {}),
+      ]);
+      if (read !== this.rosterRead) return;
+      const failed = [members, roles].find((r) => !r.success);
+      this.rosterError = failed
+        ? `Couldn’t read the roster: ${failed.error?.message ?? 'the server didn’t answer'}.`
+        : '';
+      if (members.success) this.rosterMembers = members.data ?? [];
+      if (roles.success) this.rosterRoles = roles.data ?? {};
+    } finally {
+      if (read === this.rosterRead) this.rosterLoaded = true;
     }
   }
 

@@ -30,3 +30,13 @@ Left-click the minimap button for the raid window and right-click it for the set
 
 The addon lives in the [Vintage monorepo](https://github.com/vintage-guild/vintage) under
 `addon/Vintage`. Start with [AGENTS.md](AGENTS.md).
+
+## License
+
+Copyright (c) 2026 Jason Falk and Vintage Guild contributors.
+
+The Vintage addon (everything under `addon/Vintage`) is licensed under the
+[GNU General Public License, version 3](LICENSE) (GPL-3.0). It ships FenUI and FenCore, which
+are GPL-3.0, alongside Ace3, LibStub, LibDataBroker, LibDBIcon, LibDeflate, and LibSerialize
+under their own licenses (see each folder in `Libs/`). The rest of the monorepo is under the
+PolyForm Noncommercial License 1.0.0.

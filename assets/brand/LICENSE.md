@@ -17,4 +17,5 @@ guild officers, except:
 Forks of this project must replace these assets with their own branding.
 
 The source code and all other files in this repository are licensed under the PolyForm
-Noncommercial License 1.0.0 in [`/LICENSE.md`](../../LICENSE.md).
+Noncommercial License 1.0.0 in [`/LICENSE.md`](../../LICENSE.md), except the WoW addon in
+`addon/Vintage`, which is GPL-3.0 ([`addon/Vintage/LICENSE`](../../addon/Vintage/LICENSE)).

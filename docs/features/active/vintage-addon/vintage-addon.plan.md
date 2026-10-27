@@ -340,9 +340,9 @@ A gate is added only after it has been watched failing once (AGENTS.md).
 ## Release (#25)
 
 - `Vintage.toc`: `## Version: 0.1.0`, `## X-Curse-Project-ID: <id>` once the project exists,
-  `## IconTexture`, `## X-Website: https://vintageguild.gg`, `## X-License:` the repo's
-  `PolyForm-Noncommercial-1.0.0` for now. **Open before the first release:** the package also
-  ships GPL-3.0 FenUI and FenCore, so the license terms of the combined package need a decision.
+  `## IconTexture`, `## X-Website: https://vintageguild.gg`, `## X-License: GPL-3.0`. **Decided
+  2026-10-27:** the addon is GPL-3.0 (`addon/Vintage/LICENSE`), because it ships GPL-3.0 FenUI
+  and FenCore; the rest of the monorepo stays PolyForm Noncommercial.
 - `.pkgmeta`: `package-as: Vintage`; `ignore:` Weekly's list (`.github`, `Tests`, `Tools`, `Dev`,
   `AGENTS.md`, `CONTRIBUTING.md`, lint and format configs) but not `CHANGELOG.md`, which
   `manual-changelog: CHANGELOG.md` turns into the release notes; no `externals` (D3).

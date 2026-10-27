@@ -6,6 +6,7 @@ import { convexClient, crossDomainClient } from '@convex-dev/better-auth/client/
 import { createAuthClient } from 'better-auth/client';
 import { ConvexClient } from 'convex/browser';
 import { type CommandClient, convexCommandClient } from './commands';
+import { type AuthFetch, type OAuthActions, oauthActions } from './oauth';
 import {
   type AuthUser,
   type MemberMe,
@@ -43,6 +44,8 @@ export interface VintageConnection {
   /** Start Discord sign-in; the page navigates to Discord and comes back to `returnTo`. */
   signIn(options?: SignInOptions): Promise<void>;
   signOut(): Promise<void>;
+  /** The site's sign-in and consent pages for MCP clients (Claude, Codex) connecting (#9). */
+  oauth: OAuthActions;
   close(): Promise<void>;
 }
 
@@ -154,6 +157,10 @@ export function connectVintage(options: ConnectOptions): VintageConnection {
       await auth.signOut();
       auth.updateSession();
     },
+    oauth: oauthActions((path, init) => auth.$fetch(path, init) as ReturnType<AuthFetch>, {
+      search: () => (typeof window === 'undefined' ? '' : window.location.search),
+      assign: (url) => window.location.assign(url),
+    }),
     close: () => convex.close(),
   };
 }

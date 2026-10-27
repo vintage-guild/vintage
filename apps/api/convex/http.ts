@@ -1,6 +1,7 @@
 // Convex HTTP routes: Better Auth's sign-in endpoints under /api/auth (#7), and the gateway's
 // interaction route, called with a shared secret. The public Discord endpoint (signature checks,
 // PING) stays in apps/gateway.
+import { oauthProviderAuthServerMetadata } from '@better-auth/oauth-provider';
 import { httpRouter } from 'convex/server';
 import { internal } from './_generated/api';
 import { httpAction } from './_generated/server';
@@ -21,6 +22,19 @@ const json = (body: unknown, status = 200) =>
 const http = httpRouter();
 
 authComponent.registerRoutes(http, createAuth, { cors: { allowedOrigins: siteOrigins() } });
+
+/**
+ * OAuth authorization server metadata (RFC 8414) for MCP clients (#9). The issuer is Better
+ * Auth's base URL (`<site>/api/auth`), so clients look here, with the issuer path after the
+ * well-known name.
+ */
+http.route({
+  path: '/.well-known/oauth-authorization-server/api/auth',
+  method: 'GET',
+  handler: httpAction(async (ctx, request) =>
+    oauthProviderAuthServerMetadata(createAuth(ctx))(request),
+  ),
+});
 
 /**
  * POST /gateway/interaction: a verified Discord component or modal interaction from the gateway.

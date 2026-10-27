@@ -18,6 +18,7 @@ import type * as decisions from "../decisions.js";
 import type * as discord from "../discord.js";
 import type * as http from "../http.js";
 import type * as insights from "../insights.js";
+import type * as mcp from "../mcp.js";
 import type * as pollPosts from "../pollPosts.js";
 import type * as polls from "../polls.js";
 import type * as roleSync from "../roleSync.js";
@@ -41,6 +42,7 @@ declare const fullApi: ApiFromModules<{
   discord: typeof discord;
   http: typeof http;
   insights: typeof insights;
+  mcp: typeof mcp;
   pollPosts: typeof pollPosts;
   polls: typeof polls;
   roleSync: typeof roleSync;
@@ -75,7 +77,7 @@ export declare const internal: FilterApi<
 >;
 
 export declare const components: {
-  betterAuth: import("@convex-dev/better-auth/_generated/component.js").ComponentApi<"betterAuth">;
+  betterAuth: import("../betterAuth/_generated/component.js").ComponentApi<"betterAuth">;
   identity: import("@vintage/identity/_generated/component.js").ComponentApi<"identity">;
   raids: import("@vintage/raids/_generated/component.js").ComponentApi<"raids">;
   coordinator: import("@vintage/coordinator/_generated/component.js").ComponentApi<"coordinator">;

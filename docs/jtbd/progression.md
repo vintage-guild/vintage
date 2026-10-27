@@ -29,3 +29,7 @@ dropped, **so I can** have the guild's progression on the site without a screens
 - [ ] A raider's `kill-record` is refused (`COMMAND_NOT_FOUND`); a member below recruit can still
   read `progress-get`; the public can't.
 - [ ] Recording the same boss a week later answers `first: false` and leaves the ledger date alone.
+- [ ] On the site, `/officers?tab=progress` as the raid leader: before Dec 9 the form is closed
+  and says when kills can be recorded; after, recording Chillhowl with two drops answers "First
+  kill of Chillhowl in Barrow Deeps. It's on the ledger." and the ledger beside the form fills.
+  A raider doesn't get the quarters at all.

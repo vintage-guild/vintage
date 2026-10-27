@@ -9,6 +9,7 @@ import {
 } from '@lushly-dev/fast-element';
 import type { CoordinatorAction } from '@vintage/coordinator/contract';
 import { type Tier, tierAllows } from '@vintage/guild-kit';
+import type { Progress } from '@vintage/progress/contract';
 import type { RaidEvent, Schedule, Signup } from '@vintage/raids/contract';
 import type { GuildProfile, Recruiting } from '@vintage/site/contract';
 import {
@@ -45,7 +46,7 @@ const TABS = [
   { id: 'recruiting', label: 'Recruiting', ready: true, hint: '' },
   { id: 'applications', label: 'Applications', ready: true, hint: '' },
   { id: 'polls', label: 'Polls', ready: true, hint: '' },
-  { id: 'progress', label: 'Progress', ready: false, hint: 'record a kill and its loot' },
+  { id: 'progress', label: 'Progress', ready: true, hint: '' },
 ] as const;
 
 type Tab = (typeof TABS)[number];
@@ -234,6 +235,23 @@ const template = html<Page>`
         )}
 
         ${when(
+          (x) => x.tab === 'progress',
+          html<Page>`
+            <vintage-progress-desk
+              time-zone="${() => preferredTimeZone() ?? ''}"
+              ?can-record="${(x) => x.canLead}"
+              ?loading="${(x) => !x.progressLoaded}"
+              error="${(x) => x.progressError}"
+              :raids="${(x) => x.progress?.raids ?? []}"
+              :latest="${(x) => x.progress?.latest ?? null}"
+              ?open="${(x) => x.progress?.open ?? false}"
+              opens-on="${(x) => x.progress?.opensOn ?? ''}"
+              @progress-changed="${(x) => x.loadProgress()}"
+            ></vintage-progress-desk>
+          `,
+        )}
+
+        ${when(
           (x) => x.tab === 'recruiting',
           html<Page>`
             <vintage-recruiting-desk
@@ -411,7 +429,8 @@ const styles = css`
  * `comp-suggest`, and `coordinator-status`; Polls reads `poll-list` and `poll-results`;
  * Random reads `coordinator-status` and `coordinator-log` and runs the coordinator's leader
  * commands; Recruiting reads `recruiting-get` and saves with `recruiting-set`; Guild reads
- * `guild-profile-get` and saves with `guild-profile-set` (both officers only to save).
+ * `guild-profile-get` and saves with `guild-profile-set` (both officers only to save); Progress
+ * reads `progress-get` and records with `kill-record`.
  */
 export class Page extends FASTElement {
   /** Leaders and officers see the room; everyone else gets the sign-in card or a note. */
@@ -447,9 +466,14 @@ export class Page extends FASTElement {
   @observable coordinatorLoaded = false;
   /** Bumped per Random read, as the calendar's is. */
   private coordinatorRead = 0;
+  @observable progress: Progress | null = null;
+  @observable progressError = '';
+  @observable progressLoaded = false;
+  /** Bumped per ledger read, as the calendar's is. */
+  private progressRead = 0;
   /**
-   * Every calendar command is leader tier, as are Random's pause, resume, run, and repost; a
-   * preview below that reads them without the buttons.
+   * Every calendar command is leader tier, as are Random's pause, resume, run, and repost, and
+   * `kill-record`; a preview below that reads them without the buttons.
    */
   readonly canLead = tierAllows((currentSession()?.tier ?? 'public') as Tier, 'leader');
   /**
@@ -476,6 +500,7 @@ export class Page extends FASTElement {
     if (this.tab === 'guild') void this.loadProfile();
     if (this.tab === 'calendar') void this.loadCalendar();
     if (this.tab === 'coordinator') void this.loadCoordinator();
+    if (this.tab === 'progress') void this.loadProgress();
   }
 
   /** Switch tabs and keep the choice in the address, so `/officers?tab=polls` links work. */
@@ -492,6 +517,7 @@ export class Page extends FASTElement {
     if (id === 'guild') void this.loadProfile();
     if (id === 'calendar') void this.loadCalendar();
     if (id === 'coordinator') void this.loadCoordinator();
+    if (id === 'progress') void this.loadProgress();
   }
 
   /**
@@ -564,6 +590,23 @@ export class Page extends FASTElement {
       this.coordinatorEntries = logs.flat();
     } finally {
       if (read === this.coordinatorRead) this.coordinatorLoaded = true;
+    }
+  }
+
+  /** The ledger from `progress-get`. Only the latest read is kept. */
+  async loadProgress(): Promise<void> {
+    const read = ++this.progressRead;
+    try {
+      const result = await getCommandClient().read<Progress>('progress-get', {});
+      if (read !== this.progressRead) return;
+      if (!result.success || !result.data) {
+        this.progressError = `Couldn’t read the ledger: ${result.error?.message ?? 'the server didn’t answer'}.`;
+        return;
+      }
+      this.progressError = '';
+      this.progress = result.data;
+    } finally {
+      if (read === this.progressRead) this.progressLoaded = true;
     }
   }
 

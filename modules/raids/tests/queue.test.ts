@@ -24,6 +24,7 @@ const MEMBERS: Member[] = PEOPLE.map((id) => ({
   discordId: `d-${id}`,
   displayName: id,
   roleIds: [],
+  inServer: true,
   rank: 'raider',
   tier: 'raider',
   prefs: { dmOptOut: false },

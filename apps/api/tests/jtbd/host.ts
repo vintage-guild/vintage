@@ -101,6 +101,10 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
   const insightsSent: string[] = [];
   /** Application effects the commands scheduled (label and post, accept, onboard, reply, refresh). */
   const applicationEffects: { effect: string; id: string }[] = [];
+  /** Retry times of the rolling-limit alerts officers would get (#145). */
+  const applicationLimitAlerts: number[] = [];
+  /** Discord ids member-refresh asked the bot to re-read (the sync itself is discordMember). */
+  const memberRefreshes: string[] = [];
   /** Questions agent-ask queued, with where the answer goes (as the Convex action receives them). */
   const queued: { runId: string; delivery: AgentDelivery | undefined }[] = [];
   let pendingDelivery: AgentDelivery | undefined;
@@ -108,6 +112,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
   let decisions: DecisionsPort | null = null;
   const deps: VintageDeps = {
     identity,
+    memberRefresh: { request: async (_g, discordId) => void memberRefreshes.push(discordId) },
     raids,
     members: {
       getCharacter: (g, id) => identity.getCharacter(g, id),
@@ -169,11 +174,16 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
       },
       replied: async (_g, id) => void applicationEffects.push({ effect: 'replied', id }),
       changed: async (_g, id) => void applicationEffects.push({ effect: 'changed', id }),
+      limitReached: async (_g, retryAt) => void applicationLimitAlerts.push(retryAt),
     },
     applicationRoles: {
       recruitRoleId: async (g) =>
         Object.entries(await identity.getRoleRankMap(g)).find(([, r]) => r === 'recruit')?.[0] ??
         null,
+    },
+    applicationMembers: {
+      inServer: async (g, discordId) =>
+        (await identity.getMemberByDiscordId(g, discordId))?.inServer ?? false,
     },
     agent: createMemoryAgentStore(),
     // The turn itself needs OpenAI; agentUi.answer stands in for it (it calls the same tools).
@@ -852,6 +862,8 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     helpUi,
     applicationUi,
     applicationEffects,
+    applicationLimitAlerts,
+    memberRefreshes,
     insightsSent,
     discordUi,
     characterUi,

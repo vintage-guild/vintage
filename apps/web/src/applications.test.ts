@@ -73,7 +73,7 @@ describe('/apply', () => {
       raiding: boolean;
     };
     await page.load();
-    expect(reads).toEqual(['application-get']);
+    expect(reads).toEqual(['application-get', 'application-check']);
     expect(page.application?.id).toBe('app-1');
     expect(page.loaded).toBe(true);
     expect(page.raiding).toBe(false);

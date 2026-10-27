@@ -30,6 +30,31 @@ function rest() {
 
 const describe = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
+export const currentConfig = internalQuery({
+  args: {},
+  handler: (ctx) => applicationsStore(ctx).getConfig(GUILD_ID),
+});
+
+/**
+ * The guild's rolling limit was reached (#145): one note in the recruitment channel, so officers
+ * know applicants are being told to wait, and can raise the limit if it's real interest.
+ */
+export const limitAlert = internalAction({
+  args: { retryAt: v.number() },
+  handler: async (ctx, { retryAt }): Promise<string> => {
+    const config = await ctx.runQuery(internal.applications.currentConfig, {});
+    const discord = rest();
+    if (!discord || !config.channelId) return 'no channel';
+    await discord.createMessage(config.channelId, {
+      content:
+        `Applications are paused: ${config.limitCount} came in within ${config.limitWindowMinutes} minutes, the guild's limit. ` +
+        `New ones open again <t:${Math.floor(retryAt / 1000)}:R>. If it's real interest, raise it with \`application-config-set limitCount\`.`,
+      allowed_mentions: { parse: [] },
+    });
+    return 'alerted';
+  },
+});
+
 export const load = internalQuery({
   args: { applicationId: v.string() },
   handler: async (ctx, { applicationId }) => {

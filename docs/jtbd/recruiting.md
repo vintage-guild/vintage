@@ -70,6 +70,24 @@ Live checklist:
       status and the officers' reply; officers see it in the quarters' Applications tab, where
       Decline asks for a second click.
 
+### J42 · Join the Discord, then apply on the site
+
+When I find Vintage on the website, I want to be told to join the Discord before I fill in an
+application, and when to come back if the officers are swamped, so I never type answers only to be
+refused. Automated in `recruiting.jtbd.test.ts` (J42).
+
+Live checklist:
+
+- [ ] Signed in on the site with a Discord account that isn't in the server, `/apply` shows
+      "Join the Vintage Discord first" with the invite (`guild-profile-set discordInvite`) and an
+      "I've joined" button; no form.
+- [ ] After joining, "I've joined" shows the form within a few seconds (`member-refresh`, then
+      `application-check` again). Pressed before joining, it says Discord doesn't show you yet.
+- [ ] With `application-config-set limitCount:1 limitWindowMinutes:5`, a second applicant sees
+      "The application limit has been reached. Try again in N minutes." on the site and from
+      `/random apply`, and the recruitment channel gets one "Applications are paused" note.
+      Set the limit back afterwards.
+
 ### J34 · Apply as a raider, get accepted, get onboarded
 
 When I want to raid with Vintage, I want to apply from the recruiting post, be accepted, and be

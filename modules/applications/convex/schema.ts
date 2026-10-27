@@ -58,6 +58,11 @@ export const configFields = {
   guildId: v.string(),
   channelId: v.union(v.string(), v.null()),
   onboarding: v.string(),
+  // The rolling limit (#145). Optional: config rows from before it have none, and read as the
+  // defaults (apps/api merges them).
+  limitCount: v.optional(v.number()),
+  limitWindowMinutes: v.optional(v.number()),
+  limitAlertedAt: v.optional(v.union(v.number(), v.null())),
   updatedAt: v.number(),
 };
 

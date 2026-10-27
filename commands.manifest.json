@@ -286,6 +286,18 @@
       }
     },
     {
+      "name": "application-check",
+      "description": "Whether you can apply right now, and if not, why: sign in with Discord, already raiding, not in the Vintage Discord yet, an application still open, too many this month, or the guild's limit reached for a few minutes (with when to try again). Read it before showing the form, so nobody fills one in only to be refused.",
+      "tier": "public",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
       "name": "application-config-get",
       "description": "Where new applications are posted, and the onboarding note accepted applicants get.",
       "tier": "officer",
@@ -299,7 +311,7 @@
     },
     {
       "name": "application-config-set",
-      "description": "Set the recruitment channel new applications are posted to (a Discord channel id, or null to stop posting) and the onboarding note (`{site}` becomes the website address). The channel must be visible to officers only: posts carry each applicant’s answers and labels.",
+      "description": "Set the recruitment channel new applications are posted to (a Discord channel id, or null to stop posting), the onboarding note (`{site}` becomes the website address), and the guild’s rolling limit on new applications (`limitCount` per `limitWindowMinutes`; default 10 per 30). The channel must be visible to officers only: posts carry each applicant’s answers and labels.",
       "tier": "officer",
       "mutation": true,
       "destructive": false,
@@ -322,6 +334,16 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 1500
+          },
+          "limitCount": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "limitWindowMinutes": {
+            "type": "integer",
+            "minimum": 5,
+            "maximum": 240
           }
         }
       }
@@ -1257,6 +1279,18 @@
             "type": "string"
           }
         }
+      }
+    },
+    {
+      "name": "member-refresh",
+      "description": "Check your own Discord server membership again now, instead of waiting for the next sync (every 15 minutes): for someone who just joined the Vintage Discord. Read the result a few seconds later (application-check, member-me).",
+      "tier": "public",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {}
       }
     },
     {

@@ -6,13 +6,16 @@ import { mutation, query } from './_generated/server';
 import { prefs, rank, tier } from './schema';
 
 const toMember = (doc: Doc<'members'>) => {
-  const { _id, _creationTime, rank, rankSince, prefs, ...rest } = doc;
+  const { _id, _creationTime, rank, rankSince, inServer, prefs, ...rest } = doc;
   // defaultCharacterId was dropped (#149); older rows may still carry it.
   const { defaultCharacterId: _dropped, ...kept } = prefs;
   return {
     id: _id as string,
     rank: rank ?? null,
     rankSince: rankSince ?? null,
+    // Rows from before inServer was stored: a rank means they were in; none means unknown, read
+    // as out until the next sync (at most 15 minutes) writes it.
+    inServer: inServer ?? (rank !== undefined && rank !== null),
     prefs: kept,
     ...rest,
   };
@@ -55,6 +58,7 @@ export const upsert = mutation({
     discordId: v.string(),
     displayName: v.string(),
     roleIds: v.array(v.string()),
+    inServer: v.boolean(),
     rank,
     tier,
     syncedAt: v.number(),

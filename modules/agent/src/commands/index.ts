@@ -6,8 +6,10 @@ export { ASK_INSTRUCTIONS, type AskContext, askInput } from '../domain/instructi
 export {
   type AskCounts,
   type AskRefusal,
+  BUDGET_WARNING_SHARE,
   BUSY_WINDOW_MS,
   dayStart,
+  decisionsBudgetAlert,
   monthStart,
   refuseAsk,
 } from '../domain/limits';

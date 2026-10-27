@@ -59,3 +59,18 @@ export function refuseAsk(config: AgentConfig, counts: AskCounts): AskRefusal | 
   }
   return null;
 }
+
+/** When the month's Decisions calls cross this share of the cap, officers hear about it. */
+export const BUDGET_WARNING_SHARE = 0.8;
+
+/**
+ * Which budget alert this call's count crosses, if any (#145): `warning` at 80% of the guild's
+ * monthly Decisions cap, `used-up` at the cap. Exactly at the crossing, so each fires once a
+ * month however many calls follow.
+ */
+export function decisionsBudgetAlert(used: number, cap: number): 'warning' | 'used-up' | null {
+  if (cap <= 0) return null;
+  if (used === cap) return 'used-up';
+  if (used === Math.ceil(cap * BUDGET_WARNING_SHARE) && used < cap) return 'warning';
+  return null;
+}

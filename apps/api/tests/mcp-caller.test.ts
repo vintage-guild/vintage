@@ -23,6 +23,7 @@ const member: Member = {
   discordId: DISCORD,
   displayName: 'Aeryn',
   roleIds: [],
+  inServer: true,
   rank: 'raider',
   rankSince: NOW,
   tier: 'raider',

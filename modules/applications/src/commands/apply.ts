@@ -5,13 +5,27 @@ import {
   APPLICATION_LIMITS,
   APPLY_ROLES,
   type Application,
+  type ApplyCheck,
   OPEN_STATUSES,
   toOwnView,
 } from '../contract';
+import { BLOCKS, checkApply, SUBMIT_LIMIT } from '../domain/eligibility';
 import { command } from '../store';
 
-/** At most this many applications per person per window, so a form can't be used to spam. */
-export const SUBMIT_LIMIT = { count: 3, windowMs: 30 * 24 * 60 * 60 * 1000 };
+export { SUBMIT_LIMIT };
+
+export const applicationCheck = command({
+  name: 'application-check',
+  description:
+    'Whether you can apply right now, and if not, why: sign in with Discord, already raiding, ' +
+    'not in the Vintage Discord yet, an application still open, too many this month, or the ' +
+    "guild's limit reached for a few minutes (with when to try again). Read it before showing " +
+    'the form, so nobody fills one in only to be refused.',
+  tier: 'public',
+  input: z.object({}),
+  handler: async (_input, { caller, guildId, deps, now }) =>
+    success<ApplyCheck>(await checkApply(caller, deps, guildId, now())),
+});
 
 const text = (max: number) => z.string().trim().min(1).max(max);
 
@@ -35,40 +49,15 @@ export const applicationSubmit = command({
     applicantName: z.string().trim().min(1).max(64).optional(),
   }),
   handler: async (input, { caller, guildId, deps, now }) => {
-    if (!caller.discordId) {
-      return error('DISCORD_REQUIRED', 'Applications need a Discord account', {
-        suggestion:
-          'Apply with /random apply in the Vintage Discord, or sign in with Discord on the site',
-        retryable: false,
-      });
-    }
-    if (tierAllows(caller.tier, 'raider')) {
-      return error('ALREADY_RAIDING', 'You already raid with Vintage', {
-        suggestion: 'Ask an officer if you want to change your rank',
-        retryable: false,
-      });
-    }
     const at = now();
-    // Open applications count however old they are; only the per-month cap uses the window.
-    const [open] = await deps.applications.list(guildId, {
-      discordId: caller.discordId,
-      statuses: OPEN_STATUSES,
-      limit: 1,
-    });
-    const mine = await deps.applications.list(guildId, {
-      discordId: caller.discordId,
-      since: at - SUBMIT_LIMIT.windowMs,
-    });
-    if (open) {
-      return error('APPLICATION_OPEN', 'Your application is still with the officers', {
-        suggestion: 'Check it with application-get; officers reply in Discord',
-        retryable: false,
-      });
-    }
-    if (mine.length >= SUBMIT_LIMIT.count) {
-      return error('TOO_MANY_APPLICATIONS', 'You have applied too often this month', {
-        suggestion: 'Talk to an officer in Discord',
-        retryable: false,
+    const check = await checkApply(caller, deps, guildId, at);
+    if (!check.canApply || !caller.discordId) {
+      const reason = check.reason ?? 'sign-in';
+      if (reason === 'busy' && check.retryAt) await alertOnce(deps, guildId, at, check.retryAt);
+      return error(BLOCKS[reason].code, check.message ?? BLOCKS[reason].message, {
+        suggestion: check.suggestion ?? BLOCKS[reason].suggestion,
+        retryable: reason === 'busy',
+        ...(check.retryAt ? { details: { retryAt: check.retryAt } } : {}),
       });
     }
     const saved = await deps.applications.insert({
@@ -97,6 +86,20 @@ export const applicationSubmit = command({
     return success(toOwnView(saved), { reasoning: 'Sent to the officers' });
   },
 });
+
+/** One officer alert per window: the first refusal after the window last alerted. */
+async function alertOnce(
+  deps: Parameters<typeof checkApply>[1],
+  guildId: string,
+  at: number,
+  retryAt: number,
+) {
+  const config = await deps.applications.getConfig(guildId);
+  const windowStart = at - config.limitWindowMinutes * 60_000;
+  if (config.limitAlertedAt !== null && config.limitAlertedAt >= windowStart) return;
+  await deps.applications.setConfig(guildId, { limitAlertedAt: at }, at);
+  await deps.applicationEffects.limitReached(guildId, retryAt);
+}
 
 const notFound = (id: string) =>
   error('APPLICATION_NOT_FOUND', `No application ${id}`, {

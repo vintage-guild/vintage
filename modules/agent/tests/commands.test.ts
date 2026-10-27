@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { agentCommands, PROGRESS_LIMITS, recordProgress } from '../src/commands';
 import { CONFIRM_WINDOW_MS, defaultAgentConfig, threadKeyOf } from '../src/contract';
 import { askInput } from '../src/domain/instructions';
-import { dayStart, monthStart, refuseAsk } from '../src/domain/limits';
+import { dayStart, decisionsBudgetAlert, monthStart, refuseAsk } from '../src/domain/limits';
 import type { AgentDeps } from '../src/store';
 import { createMemoryAgentDeps } from '../src/testing';
 
@@ -232,6 +232,15 @@ describe('domain', () => {
     const counts = { memberInFlight: 1, memberToday: 9, guildThisMonth: 9 };
     expect(refuseAsk(config, counts)?.code).toBe('AGENT_PAUSED');
     expect(refuseAsk({ ...config, paused: false }, counts)?.code).toBe('AGENT_BUSY');
+  });
+
+  it('alerts on the Decisions budget once at 80% and once at the cap (#145)', () => {
+    const alerts = Array.from({ length: 12 }, (_, i) => decisionsBudgetAlert(i + 1, 10));
+    expect(alerts.filter(Boolean)).toEqual(['warning', 'used-up']);
+    expect(alerts.indexOf('warning')).toBe(7);
+    expect(alerts.indexOf('used-up')).toBe(9);
+    expect(decisionsBudgetAlert(1, 1)).toBe('used-up');
+    expect(decisionsBudgetAlert(5, 0)).toBeNull();
   });
 
   it('tells the agent where, when, and who', () => {

@@ -76,13 +76,21 @@ describe('interactions endpoint', () => {
     expect(body.data.flags).toBe(64);
   });
 
-  it('returns 400 for unknown commands and interaction types', async () => {
-    const unknownCommand = await signedRequest({
+  it('tells the member privately when a /random subcommand is newer than this gateway', async () => {
+    const newer = await signedRequest({
       ...base,
       type: InteractionType.APPLICATION_COMMAND,
       data: { name: 'random', options: [{ name: 'nope', type: 1 }] },
     });
-    expect((await handler()(unknownCommand)).status).toBe(400);
+    const res = await handler()(newer);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({
+      type: 4,
+      data: { content: expect.stringContaining("can't do that yet"), flags: 64 },
+    });
+  });
+
+  it('returns 400 for unknown commands and interaction types', async () => {
     // The command was /vintage until the bot became Random; the old name is no longer answered.
     const retired = await signedRequest({
       ...base,
@@ -148,13 +156,17 @@ describe('interactions endpoint', () => {
       });
     });
 
-    it('returns 400 when Convex says the interaction is not one of ours', async () => {
+    it('tells the member privately when Convex does not know the interaction yet', async () => {
       const notOurs = (async () => new Response('{}', { status: 404 })) as typeof fetch;
       const handle = createInteractionHandler({
         publicKey,
         convex: { siteUrl: 'https://x.convex.site', secret: 's', fetch: notOurs },
       });
-      expect((await handle(await signedRequest(click))).status).toBe(400);
+      const res = await handle(await signedRequest(click));
+      expect(res.status).toBe(200);
+      expect(await res.json()).toMatchObject({
+        data: { content: expect.stringContaining("can't do that yet"), flags: 64 },
+      });
     });
   });
 

@@ -194,6 +194,25 @@ npx convex run coordinator:tick   # run one tick now instead of waiting
 `coordinator-pause` / `coordinator-resume` stop and restart it; `coordinator-status` shows what
 it did and what is due. DMs to non-responders are on by default (`dmReminders`).
 
+**Raids in the server's Events list (optional, off by default).** With `serverEvents` on, each
+posted raid also gets a Discord server event at its instance, linking to the signup card; it moves
+when the raid moves and is cancelled when the raid is cancelled. "Interested" on the event is not
+a signup. It needs two human steps first, in the **test server** before the Vintage server:
+
+1. Give the bot the **Create Events** permission: on its role (Server Settings → Roles → Random →
+   Create Events), or re-invite it with permissions integer `17592186260544` (`216128` plus
+   `1 << 44`).
+2. Make sure `DISCORD_GUILD_ID` in the Convex environment is that server (the events are made
+   there, and the link points into it).
+
+Then turn it on:
+
+```bash
+npx convex run commands:runAsSystem '{"name":"coordinator-config-set","input":{"serverEvents":true}}'
+```
+
+Without the permission, the first attempt fails and the ops channel is told once, naming it.
+
 ### First role map (bootstrap)
 
 `guild-roles-set` needs an officer, and nobody is an officer until the map exists. Someone with

@@ -14,6 +14,11 @@ export interface CoordinatorConfig {
   expectedRanks: GuildRank[];
   /** DM non-responders at the last reminder. Members can still opt out in their prefs. */
   dmReminders: boolean;
+  /**
+   * Keep a Discord server event (the Events list) in step with each posted raid. Off by default;
+   * the bot needs the CREATE_EVENTS permission first (SETUP.md).
+   */
+  serverEvents: boolean;
   /** Paused: ticks do nothing until resumed. */
   paused: boolean;
   updatedAt: number;
@@ -33,6 +38,7 @@ export function defaultConfig(guildId: string): CoordinatorConfig {
     opsChannelId: null,
     expectedRanks: [...DEFAULT_EXPECTED_RANKS],
     dmReminders: true,
+    serverEvents: false,
     paused: false,
     updatedAt: 0,
   };
@@ -40,7 +46,7 @@ export function defaultConfig(guildId: string): CoordinatorConfig {
 
 /**
  * What triggered an action: `post`, `remind-72h`, `dm-24h`, `digest`, `lock`, `final-roster`,
- * or `import-string`. Together with the event and target it is the idempotency key.
+ * `import-string`, `server-event`, or `server-event-cancel`. Together with the event and target it is the idempotency key.
  */
 export type CoordinatorRule = string;
 

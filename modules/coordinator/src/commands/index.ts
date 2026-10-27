@@ -46,7 +46,7 @@ export const coordinatorStatus = command({
         .map((a) => ({ rule: a.rule, status: a.status, at: a.finishedAt })),
       dueNow: due
         .filter((a) => a.tick.event.id === tick.event.id)
-        .map((a) => (a.kind === 'refresh' ? 'refresh' : a.rule)),
+        .map((a) => ('rule' in a ? a.rule : a.kind)),
       // The same rule the reminders and the officer digest use, so the site and Discord agree.
       waiting: nonResponders(state, tick).map((m) => ({
         memberId: m.memberId,
@@ -116,7 +116,8 @@ export const coordinatorConfigSet = command({
   name: 'coordinator-config-set',
   description:
     'Set where the coordinator posts (signup and officer channels), whose answers it chases ' +
-    '(expectedRanks), and whether it DMs non-responders.',
+    '(expectedRanks), whether it DMs non-responders, and whether each posted raid also gets a ' +
+    'Discord server event (serverEvents; the bot needs the Create Events permission).',
   tier: 'officer',
   mutation: true,
   input: z.object({
@@ -124,6 +125,7 @@ export const coordinatorConfigSet = command({
     opsChannelId: snowflake.nullable().optional(),
     expectedRanks: z.array(z.enum(GUILD_RANKS)).min(1).optional(),
     dmReminders: z.boolean().optional(),
+    serverEvents: z.boolean().optional(),
   }),
   handler: async (input, { guildId, deps, now }) => {
     const patch = Object.fromEntries(Object.entries(input).filter(([, v]) => v !== undefined));

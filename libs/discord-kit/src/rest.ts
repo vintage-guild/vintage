@@ -27,6 +27,37 @@ export interface RequestOptions {
   auth?: boolean;
 }
 
+/** Guild Scheduled Event status (Discord's numbers). */
+export const ScheduledEventStatus = {
+  SCHEDULED: 1,
+  ACTIVE: 2,
+  COMPLETED: 3,
+  CANCELED: 4,
+} as const;
+
+/** Guild Scheduled Event entity type. EXTERNAL events carry a location and need an end time. */
+export const ScheduledEventEntityType = { STAGE_INSTANCE: 1, VOICE: 2, EXTERNAL: 3 } as const;
+
+/** Only privacy level Discord accepts for guild scheduled events. */
+export const SCHEDULED_EVENT_GUILD_ONLY = 2;
+
+/** The fields we send for an EXTERNAL guild scheduled event (POST, or PATCH with a subset). */
+export interface ScheduledEventData {
+  name: string;
+  /** ISO 8601. */
+  scheduled_start_time: string;
+  /** ISO 8601. Required for EXTERNAL events. */
+  scheduled_end_time: string;
+  description?: string | null;
+  entity_metadata: { location: string };
+  entity_type?: number;
+  privacy_level?: number;
+  status?: number;
+}
+
+/** Discord's error code when a scheduled event no longer exists (deleted in the app). */
+export const UNKNOWN_SCHEDULED_EVENT = 10070;
+
 export class DiscordRestError extends Error {
   constructor(
     readonly method: string,
@@ -136,6 +167,29 @@ export function createDiscordRest(options: DiscordRestOptions = {}) {
     /** Post a message to a channel as the bot. */
     createMessage: (channelId: string, data: MessageData) =>
       request('POST', `/channels/${channelId}/messages`, { body: data }),
+
+    /**
+     * Create an EXTERNAL guild scheduled event (shows in the server's Events list). Needs the
+     * bot's CREATE_EVENTS permission (1 << 44). Discord allows 100 SCHEDULED or ACTIVE events.
+     */
+    createScheduledEvent: (guildId: string, data: ScheduledEventData) =>
+      request<{ id: string }>('POST', `/guilds/${guildId}/scheduled-events`, {
+        body: {
+          entity_type: ScheduledEventEntityType.EXTERNAL,
+          privacy_level: SCHEDULED_EVENT_GUILD_ONLY,
+          ...data,
+        },
+      }),
+
+    /** Change a scheduled event; set `status` to cancel (CANCELED) or end it. */
+    editScheduledEvent: (guildId: string, eventId: string, data: Partial<ScheduledEventData>) =>
+      request<{ id: string }>('PATCH', `/guilds/${guildId}/scheduled-events/${eventId}`, {
+        body: data,
+      }),
+
+    /** Delete a scheduled event outright. */
+    deleteScheduledEvent: (guildId: string, eventId: string) =>
+      request<void>('DELETE', `/guilds/${guildId}/scheduled-events/${eventId}`),
 
     /**
      * Create or replace one slash command by name. Guild commands update instantly; global

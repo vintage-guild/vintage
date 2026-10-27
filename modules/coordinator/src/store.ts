@@ -1,5 +1,5 @@
 import type { DecisionsPort } from '@vintage/decisions';
-import type { MessageData } from '@vintage/discord-kit';
+import type { MessageData, ScheduledEventData } from '@vintage/discord-kit';
 import { type Caller, type CommandResult, commandsFor } from '@vintage/guild-kit';
 import type { GuildRank } from '@vintage/identity/contract';
 import type { Poll } from '@vintage/polls/contract';
@@ -89,8 +89,13 @@ export interface TickState {
   /** Upcoming open or locked raids, soonest first. */
   events: TickEvent[];
   members: TickMember[];
-  /** Actions logged for those raids. */
+  /** Actions logged for those raids (and for `cancelled`). */
   actions: CoordinatorAction[];
+  /**
+   * Upcoming raids that were cancelled, so their Discord server events can be cancelled too.
+   * Absent means none (sources that predate server events).
+   */
+  cancelled?: TickEvent[];
 }
 
 /** Reads raids, identity, and the coordinator's log. apps/api adapts this over the stores. */
@@ -130,6 +135,10 @@ export interface CoordinatorDiscord {
   edit(channelId: string, messageId: string, message: MessageData): Promise<void>;
   dm(discordUserId: string, message: MessageData): Promise<{ id: string }>;
   remove(channelId: string, messageId: string): Promise<void>;
+  /** Create an EXTERNAL server event in the guild's Discord server (needs CREATE_EVENTS). */
+  createEvent(event: ScheduledEventData): Promise<{ id: string }>;
+  /** Change a server event: new details, or `status` to cancel it. */
+  editEvent(discordEventId: string, patch: Partial<ScheduledEventData>): Promise<void>;
 }
 
 /** What a tick asks raids to do; apps/api runs these as raids commands with the system caller. */
@@ -163,6 +172,8 @@ export interface TickPorts {
   polls: Pick<CoordinatorPolls, 'get'>;
   /** Labels signup notes for the digest (#132). Absent or null: notes stay raw. */
   decisions?: DecisionsPort | null;
+  /** Where server events link to: the signup card (needs the Discord server id), else the site. */
+  links?: { discordGuildId: string | null; siteUrl: string | null };
 }
 
 export const command = commandsFor<CoordinatorDeps>();

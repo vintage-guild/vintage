@@ -60,7 +60,12 @@ const gapLine = (comp: CompResult) =>
 
 /** Stable hash of what the post would show, so it's edited only when it changes. */
 export function hashMessage(message: MessageData): string {
-  const text = JSON.stringify(message);
+  return hashJson(message);
+}
+
+/** djb2 over the JSON: stable and cheap, for render hashes. */
+export function hashJson(value: unknown): string {
+  const text = JSON.stringify(value);
   let h = 5381;
   for (let i = 0; i < text.length; i++) h = ((h << 5) + h + text.charCodeAt(i)) | 0;
   return (h >>> 0).toString(36);

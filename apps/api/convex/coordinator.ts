@@ -122,8 +122,13 @@ export const setRenderHash = internalMutation({
     coordinatorStore(ctx).setRenderHash(guildId, actionId, renderHash),
 });
 
-function discordPorts(token: string): CoordinatorDiscord {
+/** Server events go to the Discord server DISCORD_GUILD_ID names; without it they fail clearly. */
+function discordPorts(token: string, discordGuildId: string | undefined): CoordinatorDiscord {
   const rest = createDiscordRest({ token });
+  const guild = () => {
+    if (!discordGuildId) throw new Error('set DISCORD_GUILD_ID to create server events');
+    return discordGuildId;
+  };
   const created = (message: unknown) => ({ id: (message as { id: string }).id });
   return {
     post: async (channelId, message) => created(await rest.createMessage(channelId, message)),
@@ -142,6 +147,10 @@ function discordPorts(token: string): CoordinatorDiscord {
         }),
       );
       return created(await rest.createMessage(channel.id, message));
+    },
+    createEvent: (event) => rest.createScheduledEvent(guild(), event),
+    editEvent: async (discordEventId, patch) => {
+      await rest.editScheduledEvent(guild(), discordEventId, patch);
     },
   };
 }
@@ -211,7 +220,12 @@ export const tick = internalAction({
               detail,
             }),
         },
-        discord: discordPorts(token),
+        discord: discordPorts(token, process.env.DISCORD_GUILD_ID),
+        // Server events link to the signup card, or to the site without a Discord server id.
+        links: {
+          discordGuildId: process.env.DISCORD_GUILD_ID ?? null,
+          siteUrl: process.env.VINTAGE_SITE_URL ?? null,
+        },
         // Signup-note labels for the digest (#132); null without a key, and the digest prints notes raw.
         decisions: decisionsFor(ctx, 'note-triage'),
       },

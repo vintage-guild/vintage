@@ -1,4 +1,12 @@
-import { type LayoutComponent, layoutText, type MessageData } from '@vintage/discord-kit';
+import {
+  DiscordRestError,
+  type LayoutComponent,
+  layoutText,
+  type MessageData,
+  type ScheduledEventData,
+  ScheduledEventStatus,
+  UNKNOWN_SCHEDULED_EVENT,
+} from '@vintage/discord-kit';
 import type { Poll } from '@vintage/polls/contract';
 import {
   type CoordinatorAction,
@@ -125,15 +133,62 @@ export interface SentMessage {
   message: MessageData;
 }
 
-/** Records what the coordinator sends. `failNext` makes upcoming calls throw. */
+/** A Discord server event as the fake server holds it. */
+export interface FakeServerEvent {
+  id: string;
+  data: ScheduledEventData;
+  status: number;
+}
+
+/**
+ * Records what the coordinator sends. `failWith` makes upcoming calls throw. Server events live
+ * in `serverEvents` (current state) and `eventCalls` (each create or edit); `deleteEvent`
+ * removes one the way a member deleting it in Discord would, so the next edit gets 10070.
+ */
 export function createFakeDiscord(): CoordinatorDiscord & {
   sent: SentMessage[];
   failWith: Error | null;
+  serverEvents: Map<string, FakeServerEvent>;
+  eventCalls: { kind: 'create' | 'edit'; id: string; data: Partial<ScheduledEventData> }[];
+  deleteEvent(id: string): void;
 } {
   let seq = 0;
   const fake = {
     sent: [] as SentMessage[],
     failWith: null as Error | null,
+    serverEvents: new Map<string, FakeServerEvent>(),
+    eventCalls: [] as { kind: 'create' | 'edit'; id: string; data: Partial<ScheduledEventData> }[],
+    deleteEvent(id: string) {
+      fake.serverEvents.delete(id);
+    },
+    async createEvent(data: ScheduledEventData) {
+      if (fake.failWith) throw fake.failWith;
+      const id = `sev_${++seq}`;
+      fake.serverEvents.set(id, {
+        id,
+        data,
+        status: data.status ?? ScheduledEventStatus.SCHEDULED,
+      });
+      fake.eventCalls.push({ kind: 'create', id, data });
+      return { id };
+    },
+    async editEvent(id: string, patch: Partial<ScheduledEventData>) {
+      if (fake.failWith) throw fake.failWith;
+      const current = fake.serverEvents.get(id);
+      if (!current) {
+        throw new DiscordRestError('PATCH', `/scheduled-events/${id}`, 404, {
+          code: UNKNOWN_SCHEDULED_EVENT,
+          message: 'Unknown Guild Scheduled Event',
+        });
+      }
+      const { status, ...data } = patch;
+      fake.serverEvents.set(id, {
+        id,
+        data: { ...current.data, ...data },
+        status: status ?? current.status,
+      });
+      fake.eventCalls.push({ kind: 'edit', id, data: patch });
+    },
     async post(channelId: string, message: MessageData) {
       if (fake.failWith) throw fake.failWith;
       const id = `msg_${++seq}`;
@@ -203,7 +258,7 @@ export function createStateSource(
   return {
     async load(guildId) {
       const base = state();
-      const eventIds = base.events.map((t) => t.event.id);
+      const eventIds = [...base.events, ...(base.cancelled ?? [])].map((t) => t.event.id);
       return {
         ...base,
         guildId,

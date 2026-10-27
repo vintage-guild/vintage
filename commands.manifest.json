@@ -350,7 +350,7 @@
     },
     {
       "name": "coordinator-config-set",
-      "description": "Set where the coordinator posts (signup and officer channels), whose answers it chases (expectedRanks), and whether it DMs non-responders.",
+      "description": "Set where the coordinator posts (signup and officer channels), whose answers it chases (expectedRanks), whether it DMs non-responders, and whether each posted raid also gets a Discord server event (serverEvents; the bot needs the Create Events permission).",
       "tier": "officer",
       "mutation": true,
       "destructive": false,
@@ -397,6 +397,9 @@
             }
           },
           "dmReminders": {
+            "type": "boolean"
+          },
+          "serverEvents": {
             "type": "boolean"
           }
         }

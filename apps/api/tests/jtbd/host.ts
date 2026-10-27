@@ -186,6 +186,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
         discord,
         polls: { get: (g, id) => polls.getPoll(g, id) },
         decisions,
+        links: { discordGuildId: DISCORD_GUILD, siteUrl: null },
       },
       GUILD,
       clock.now(),

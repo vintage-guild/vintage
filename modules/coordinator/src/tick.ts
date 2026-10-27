@@ -1,9 +1,14 @@
 // One coordinator tick (PLAN §6.1): create upcoming raids, read the state, plan, then perform each
 // action. Every action is claimed in the store before it is sent, so two overlapping ticks can't
 // both send it, and re-running a tick sends nothing twice.
-import { DiscordRestError, type MessageData } from '@vintage/discord-kit';
+import {
+  DiscordRestError,
+  type MessageData,
+  ScheduledEventStatus,
+  UNKNOWN_SCHEDULED_EVENT,
+} from '@vintage/discord-kit';
 import type { Poll } from '@vintage/polls/contract';
-import type { CoordinatorConfig, RaidNight } from './contract';
+import type { CoordinatorAction, CoordinatorConfig, RaidNight } from './contract';
 import { renderFinalRoster, renderSignupPost } from './domain/card';
 import { triageNotes } from './domain/notes';
 import { type PlannedAction, planTick } from './domain/plan';
@@ -22,7 +27,8 @@ import {
   renderPromotion,
   renderReminder,
 } from './domain/render';
-import type { TickPorts, TickState } from './store';
+import { hashServerEvent, renderServerEvent, signupLink } from './domain/server-event';
+import type { TickEvent, TickPorts, TickState } from './store';
 
 /** A claim older than this is treated as abandoned (the tick that took it crashed). */
 export const CLAIM_STALE_MS = 10 * 60 * 1000;
@@ -47,8 +53,51 @@ type Performed = {
   renderHash?: string;
 };
 
+/** Planned actions that edit in place and are never logged. */
+type Unlogged = { kind: 'refresh' | 'server-event-update' };
+type Logged = Exclude<PlannedAction, Unlogged>;
+
+/** Discord 50013: the bot lacks a permission. For server events that is CREATE_EVENTS. */
+const MISSING_PERMISSIONS = 50013;
+
+/** The server event a raid should have, linking to its signup post. */
+function serverEventFor(tick: TickEvent, post: CoordinatorAction, ports: TickPorts) {
+  return renderServerEvent(
+    tick,
+    signupLink(ports.links, { channelId: post.target, messageId: post.discordMessageId }),
+  );
+}
+
+/** Name the missing permission instead of Discord's bare "Missing Permissions". */
+function explainEventError(err: unknown): never {
+  if (err instanceof DiscordRestError && err.code === MISSING_PERMISSIONS) {
+    throw new Error(
+      'the bot lacks the Create Events permission in Discord (see SETUP.md); turn serverEvents off or grant it',
+    );
+  }
+  throw err;
+}
+
+/** Set a cancelled raid's server event to CANCELED; one already deleted in Discord is skipped. */
+async function cancelServerEvent(
+  serverEvent: CoordinatorAction,
+  ports: TickPorts,
+): Promise<Performed> {
+  const id = serverEvent.discordMessageId;
+  if (!id) return { status: 'skipped', detail: 'the server event has no Discord id' };
+  try {
+    await ports.discord.editEvent(id, { status: ScheduledEventStatus.CANCELED });
+  } catch (err) {
+    if (err instanceof DiscordRestError && err.code === UNKNOWN_SCHEDULED_EVENT) {
+      return { status: 'skipped', detail: 'the server event was already deleted in Discord' };
+    }
+    explainEventError(err);
+  }
+  return { status: 'sent', messageId: id };
+}
+
 async function perform(
-  action: Exclude<PlannedAction, { kind: 'refresh' }>,
+  action: Logged,
   state: TickState,
   ports: TickPorts,
   now: number,
@@ -103,6 +152,14 @@ async function perform(
       return send(renderFinalRoster(tick, state.members));
     case 'import-string':
       return send(renderImportString(tick, state.members, state.guildId, now));
+    case 'server-event': {
+      // The Discord event id is stored where posts keep their message id.
+      const data = serverEventFor(tick, action.post, ports);
+      const { id } = await ports.discord.createEvent(data).catch(explainEventError);
+      return { status: 'sent', messageId: id, renderHash: hashServerEvent(data) };
+    }
+    case 'server-event-cancel':
+      return cancelServerEvent(action.serverEvent, ports);
     case 'skip':
       return { status: 'skipped', detail: action.reason };
   }
@@ -138,6 +195,37 @@ async function refresh(
   }
 }
 
+/** Edit a raid's server event when the raid moved or was renamed; retried next tick on failure. */
+async function updateServerEvent(
+  action: Extract<PlannedAction, { kind: 'server-event-update' }>,
+  state: TickState,
+  ports: TickPorts,
+): Promise<TickOutcome> {
+  const { tick, serverEvent, post } = action;
+  const base = { eventId: tick.event.id, rule: 'server-event-update', target: serverEvent.target };
+  if (!serverEvent.discordMessageId) {
+    return { ...base, status: 'skipped', detail: 'server event has no Discord id' };
+  }
+  const data = serverEventFor(tick, post, ports);
+  try {
+    await ports.discord.editEvent(serverEvent.discordMessageId, data);
+    await ports.store.setRenderHash(state.guildId, serverEvent.id, hashServerEvent(data));
+    return { ...base, status: 'edited' };
+  } catch (err) {
+    // 10070: someone deleted the event in Discord. Mark it so the next tick makes a fresh one.
+    if (err instanceof DiscordRestError && err.code === UNKNOWN_SCHEDULED_EVENT) {
+      await ports.store.completeAction(
+        state.guildId,
+        serverEvent.id,
+        { status: 'failed', detail: 'the server event was deleted in Discord; recreating' },
+        Date.now(),
+      );
+      return { ...base, status: 'failed', detail: 'server event deleted; it will be recreated' };
+    }
+    return { ...base, status: 'failed', detail: describe(err) };
+  }
+}
+
 const describe = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
 async function reportFailure(
@@ -147,7 +235,14 @@ async function reportFailure(
   error: string,
 ) {
   const ops = state.config.opsChannelId;
-  if (!ops || action.kind === 'refresh' || action.target === ops) return;
+  if (
+    !ops ||
+    action.kind === 'refresh' ||
+    action.kind === 'server-event-update' ||
+    action.target === ops
+  ) {
+    return;
+  }
   try {
     await ports.discord.post(ops, renderFailure(action.tick, action.rule, error));
   } catch {
@@ -157,7 +252,7 @@ async function reportFailure(
 
 /** Claim, perform, and record one action. */
 async function execute(
-  action: Exclude<PlannedAction, { kind: 'refresh' }>,
+  action: Logged,
   state: TickState,
   ports: TickPorts,
   now: number,
@@ -288,14 +383,21 @@ export async function runTick(ports: TickPorts, guildId: string, now: number): P
   const settled = await resolveRaidNights(ports, config, now);
   await ports.raids.materialize(guildId);
   const state = await ports.source.load(guildId, now);
-  const plan = planTick(state, now, (tick) => hashMessage(renderSignupPost(tick, state.members)));
+  const plan = planTick(
+    state,
+    now,
+    (tick) => hashMessage(renderSignupPost(tick, state.members)),
+    (tick, post) => hashServerEvent(serverEventFor(tick, post, ports)),
+  );
   const outcomes: TickOutcome[] = [...settled];
   // In order: a raid's post goes out before its reminders, the lock before the final roster.
   for (const action of plan) {
     outcomes.push(
       action.kind === 'refresh'
         ? await refresh(action, state, ports)
-        : await execute(action, state, ports, now),
+        : action.kind === 'server-event-update'
+          ? await updateServerEvent(action, state, ports)
+          : await execute(action, state, ports, now),
     );
   }
   return { outcomes };

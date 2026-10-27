@@ -24,6 +24,8 @@ export const configFields = {
   opsChannelId: v.union(v.string(), v.null()),
   expectedRanks: v.array(guildRank),
   dmReminders: v.boolean(),
+  /** Optional: rows saved before server events existed read as off. */
+  serverEvents: v.optional(v.boolean()),
   paused: v.boolean(),
   updatedAt: v.number(),
 };

@@ -60,8 +60,8 @@ export function createMemoryApplicationsStore(): ApplicationsStore & {
 
 export type EffectCall = { effect: keyof ApplicationEffects; applicationId: string };
 
-/** Memory deps; the effects record what was scheduled, in order. */
-export function createMemoryApplicationsDeps() {
+/** Memory deps; the effects record what was scheduled, in order. `recruitRoleId` stands in for the role map. */
+export function createMemoryApplicationsDeps(recruitRoleId: string | null = null) {
   const effects: EffectCall[] = [];
   const record =
     (effect: keyof ApplicationEffects) => async (_guildId: string, applicationId: string) => {
@@ -72,9 +72,11 @@ export function createMemoryApplicationsDeps() {
     applicationEffects: {
       submitted: record('submitted'),
       accepted: record('accepted'),
+      onboard: record('onboard'),
       replied: record('replied'),
       changed: record('changed'),
     },
+    applicationRoles: { recruitRoleId: async () => recruitRoleId },
   } satisfies ApplicationsDeps;
   return { deps, effects };
 }

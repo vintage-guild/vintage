@@ -254,14 +254,10 @@ export class VintageApplicationsDesk extends FASTElement {
   })
   async accept(): Promise<ElementResult<unknown>> {
     const reply = this.replyText.trim();
-    return this.act(
-      'Accepted. They get the onboarding note; give them the recruit role in Discord.',
-      'application-review',
-      {
-        status: 'accepted',
-        ...(reply ? { reply } : {}),
-      },
-    );
+    return this.act(acceptedMessage, 'application-review', {
+      status: 'accepted',
+      ...(reply ? { reply } : {}),
+    });
   }
 
   @command('vintage.application-reply', {
@@ -316,7 +312,7 @@ export class VintageApplicationsDesk extends FASTElement {
   }
 
   private async act(
-    done: string,
+    done: string | ((data: unknown) => string),
     name: string,
     input: Record<string, unknown>,
     confirmToken?: string,
@@ -338,7 +334,7 @@ export class VintageApplicationsDesk extends FASTElement {
         return result;
       }
       this.replyText = '';
-      this.say('success', done);
+      this.say('success', typeof done === 'string' ? done : done(result.data));
       this.$emit('applications-changed');
       return result;
     } finally {
@@ -350,6 +346,18 @@ export class VintageApplicationsDesk extends FASTElement {
     this.statusKind = kind;
     this.statusText = text;
   }
+}
+
+/**
+ * What an officer does after Accept: give the Discord role mapped to recruit (`giveRole` from
+ * `application-review`). The bot never sets roles; role sync promotes them and sends the
+ * onboarding DM.
+ */
+function acceptedMessage(data: unknown): string {
+  const roleId = (data as { giveRole?: { roleId: string | null } } | undefined)?.giveRole?.roleId;
+  return roleId
+    ? `Accepted. Give them the recruit role in Discord (role id ${roleId}); role sync promotes them and Random DMs the onboarding note.`
+    : 'Accepted. No Discord role is mapped to recruit yet: map one in the role settings, then give it to them in Discord.';
 }
 
 if (!customElements.get('vintage-applications-desk')) {

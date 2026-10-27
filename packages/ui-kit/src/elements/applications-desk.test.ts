@@ -74,8 +74,11 @@ describe('vintage-applications-desk', () => {
     expect(el.visible().map((a) => a.id)).toEqual(['1', '2']);
   });
 
-  it('accepts with the written reply and asks the page to re-read', async () => {
-    const calls = useClient(() => ({ success: true, data: {} }));
+  it('accepts with the written reply, names the role to give, and asks the page to re-read', async () => {
+    const calls = useClient(() => ({
+      success: true,
+      data: { giveRole: { rank: 'recruit', roleId: '300000000000000005' } },
+    }));
     const el = await desk([row('1')]);
     let changed = 0;
     el.addEventListener('applications-changed', () => changed++);
@@ -89,7 +92,16 @@ describe('vintage-applications-desk', () => {
       },
     ]);
     expect(changed).toBe(1);
-    expect(el.statusText).toMatch(/give them the recruit role in Discord/);
+    expect(el.statusText).toMatch(
+      /Give them the recruit role in Discord \(role id 300000000000000005\)/,
+    );
+  });
+
+  it('says when no Discord role is mapped to recruit yet', async () => {
+    useClient(() => ({ success: true, data: { giveRole: { rank: 'recruit', roleId: null } } }));
+    const el = await desk([row('1')]);
+    await el.accept();
+    expect(el.statusText).toMatch(/No Discord role is mapped to recruit yet/);
   });
 
   it('declines only on the second click, with the preview token', async () => {

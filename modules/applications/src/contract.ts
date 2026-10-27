@@ -61,6 +61,11 @@ export interface Application {
   /** The review post in the recruitment channel, once posted. */
   postChannelId: string | null;
   postMessageId: string | null;
+  /**
+   * When the accepted applicant was onboarded: promoted by role sync, then sent the onboarding DM
+   * (or not, under the DM opt-out). Set once, so the DM goes out once. Null until then.
+   */
+  onboardedAt: number | null;
   createdAt: number;
   updatedAt: number;
 }
@@ -95,7 +100,10 @@ export interface ApplicationsConfig {
   guildId: string;
   /** Where new applications are posted for officers (e.g. #recruitment). Null: not posted. */
   channelId: string | null;
-  /** The DM an accepted applicant gets. `{site}` is replaced with the website's address. */
+  /**
+   * The DM an accepted applicant gets once role sync promotes them. `{site}` is replaced with the
+   * website's address.
+   */
   onboarding: string;
   updatedAt: number;
 }
@@ -108,6 +116,18 @@ export function defaultApplicationsConfig(guildId: string): ApplicationsConfig {
   return { guildId, channelId: null, onboarding: DEFAULT_ONBOARDING, updatedAt: 0 };
 }
 
+/**
+ * The Discord role an officer gives an accepted applicant: the role mapped to the recruit rank
+ * (`guild-roles-set`), or null when none is mapped yet. The bot never sets roles.
+ */
+export interface GiveRole {
+  rank: 'recruit';
+  roleId: string | null;
+}
+
+/** `application-review` with status accepted answers the application plus the role to give. */
+export type AcceptedApplication = Application & { giveRole: GiveRole };
+
 export const APPLICATION_COMMANDS = [
   'application-submit',
   'application-get',
@@ -115,6 +135,7 @@ export const APPLICATION_COMMANDS = [
   'application-review',
   'application-decline',
   'application-withdraw',
+  'application-onboard',
   'application-config-get',
   'application-config-set',
 ] as const;

@@ -56,6 +56,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             labeledAt: number;
             role: "raider" | "flex-raider" | "social" | null;
           } | null;
+          onboardedAt?: number | null;
           postChannelId: string | null;
           postMessageId: string | null;
           reply: string | null;
@@ -119,6 +120,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               labeledAt: number;
               role: "raider" | "flex-raider" | "social" | null;
             } | null;
+            onboardedAt?: number | null;
             postChannelId?: string | null;
             postMessageId?: string | null;
             reply?: string | null;

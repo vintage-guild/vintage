@@ -83,7 +83,7 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
   {
     key: 'recruiting',
     title: 'Recruiting',
-    summary: 'Who the guild needs, and how to apply.',
+    summary: 'Who the guild needs, and how to apply: the post has Apply buttons.',
     runs: { apply: 'application-submit', recruiting: 'recruiting-get' },
     examples: [
       '/random recruiting',

@@ -1,7 +1,8 @@
 # Recruiting and the public site
 
 The open roles on the website, from an officer changing them to the public recruiting band
-(`docs/features/active/role-aware-views`, the Recruiting tab). Automated in
+(`docs/features/active/role-aware-views`, the Recruiting tab), and applying to the guild, from
+the recruiting post to the onboarding DM. Automated in
 `apps/api/tests/jtbd/recruiting.jtbd.test.ts`.
 
 **Cast:** Ana (Officer), Rook (Raid Leader), and a visitor who isn't signed in.
@@ -60,15 +61,38 @@ Live checklist:
 - [ ] `/random apply character:… class:… spec:… role:raider` opens a form for the long answers;
       submitting it says the officers have it.
 - [ ] The recruitment channel (`application-config-set channelId`, officers only) shows the
-      application with its labels and Accept, Reply, and Decline.
-- [ ] Reply sends me the officer's text in a DM, and the post shows it.
-- [ ] Accept sends me the onboarding DM with the site's address, and asks an officer in the
-      recruitment channel to give me the recruit role (the bot never sets roles).
+      application with its labels and Accept, Ask more, and Decline.
+- [ ] Ask more sends me the officer's text in a DM, and the post shows it.
+- [ ] Accept marks it accepted on the post; the onboarding DM waits for the role (J34).
 - [ ] Applying again while one is open says it is still with the officers, and a raider is
       told they already raid with Vintage, both before the form opens.
 - [ ] On the site, signed in with Discord, `/apply` shows the same form, then my application's
       status and the officers' reply; officers see it in the quarters' Applications tab, where
       Decline asks for a second click.
+
+### J34 · Apply as a raider, get accepted, get onboarded
+
+When I want to raid with Vintage, I want to apply from the recruiting post, be accepted, and be
+told where to start once I have my rank, so I go from applicant to recruit without chasing anyone.
+Automated in `recruiting.jtbd.test.ts` (J34).
+
+Live checklist:
+
+- [ ] `/random recruiting` by a raid leader posts the open needs (`recruiting-get`) with **Apply
+      as a raider** and **Apply as a flex raider**. A button opens one form: character, spec and
+      class ("Restoration Shaman"), about, experience, availability. A spec with no class asks
+      again.
+- [ ] The officers' review post has Accept, Ask more, and Decline. In the quarters' Applications
+      tab the same application shows with its detail; a reply there is the same `application-review`.
+- [ ] Accept answers the officer privately: "Give them @Recruit in Discord" (the role mapped to
+      recruit; no ping). No DM goes out yet. With no role mapped, it says to map one.
+- [ ] The officer gives the role. Within one role sync (15 minutes, or
+      `npx convex run roleSync:syncAllMembers`) the member is a recruit and Random DMs the
+      onboarding note with the site's address, once; a later rank change sends nothing.
+- [ ] Given the role before Accept, Accept sends the onboarding DM at once.
+- [ ] A member who turned DMs off (`member-prefs-set dmOptOut:true`) gets no onboarding DM, then
+      or later.
+- [ ] Decline still asks for a Confirm click.
 
 ### J29 · Get a weekly roster check with one-click recruiting changes
 

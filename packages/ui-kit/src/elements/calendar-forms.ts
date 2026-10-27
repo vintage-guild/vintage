@@ -1,4 +1,13 @@
-import { attr, css, FASTElement, html, observable, repeat, when } from '@lushly-dev/fast-element';
+import {
+  attr,
+  css,
+  FASTElement,
+  html,
+  observable,
+  repeat,
+  Updates,
+  when,
+} from '@lushly-dev/fast-element';
 import {
   AKind,
   defaultRoleTargets,
@@ -56,19 +65,25 @@ const formStyles = css`
     gap: var(--space-md);
     padding: var(--space-md);
     border: var(--border-width-thin) solid var(--color-border-strong);
-    border-radius: 0.5rem;
+    border-radius: var(--desk-control-radius);
     background: var(--color-surface-raised);
   }
 
   h3 {
     margin: 0;
-    font: var(--font-weight-bold) var(--font-size-lg) var(--font-family-display);
+    font: var(--font-weight-bold) var(--font-size-md) var(--font-family-display);
   }
 
   .grid {
     display: grid;
-    gap: var(--space-md);
-    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: var(--space-sm);
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    align-items: start;
+  }
+
+  /* Kind, size, and the three counts fit one row: the counts are two-digit numbers. */
+  .grid.comp {
+    grid-template-columns: repeat(auto-fit, minmax(6rem, 1fr));
   }
 
   .days {
@@ -188,6 +203,30 @@ export abstract class KindedForm extends FASTElement {
   /** True once the officer typed a count; then kind and size changes leave the counts alone. */
   @observable countsTouched = false;
 
+  kindChanged(): void {
+    this.syncSelects();
+  }
+
+  sizeChanged(): void {
+    this.syncSelects();
+  }
+
+  /**
+   * Point the kind and size pickers at the form's values once their options exist. A select's
+   * value binding runs before `repeat` adds the options, so on first open the browser showed its
+   * first option (a 10-player raid) while the form held 40.
+   */
+  protected syncSelects(): void {
+    Updates.enqueue(() => {
+      const pick = (id: string, value: string) => {
+        const select = this.shadowRoot?.querySelector<HTMLSelectElement>(`select#${id}`);
+        if (select && select.value !== value) select.value = value;
+      };
+      pick('kind', this.kind);
+      pick('size', String(this.size));
+    });
+  }
+
   /** The sizes the size picker offers for the kind (`other` types one instead). */
   sizeChoices(): readonly number[] {
     return this.kind === 'other' ? [] : KIND_SIZES[this.kind];
@@ -204,6 +243,7 @@ export abstract class KindedForm extends FASTElement {
     this.healers = targets.healer;
     this.dps = targets.dps;
     this.countsTouched = !!from?.roleTargets;
+    this.syncSelects();
   }
 
   setKind(kind: EventKind): void {
@@ -309,7 +349,7 @@ const scheduleTemplate = html<VintageScheduleForm>`
 
     <fieldset>
       <legend>Kind and comp</legend>
-      <div class="grid">${kindFields}</div>
+      <div class="grid comp">${kindFields}</div>
       ${countsNote}
     </fieldset>
 
@@ -549,7 +589,7 @@ const raidTemplate = html<VintageRaidForm>`
         </div>
         <fieldset>
           <legend>Kind and comp</legend>
-          <div class="grid">${kindFields}</div>
+          <div class="grid comp">${kindFields}</div>
           ${countsNote}
         </fieldset>
       `,
@@ -614,6 +654,12 @@ export class VintageRaidForm extends KindedForm {
   raidChanged(): void {
     this.zone = this.defaultZone || browserTimeZone();
     const r = this.raid;
+    // A new one-off starts empty: the desk reuses this element between opens.
+    if (!r) {
+      this.name = '';
+      this.instance = '';
+      this.durationMinutes = 180;
+    }
     this.date = r ? dayKey(r.startsAt, this.zone) : '';
     this.time = r ? timeOfDay(r.startsAt, this.zone) : '20:00';
     this.problem = '';

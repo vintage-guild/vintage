@@ -11,6 +11,7 @@ import {
   when,
 } from '@lushly-dev/fast-element';
 import { command, failure } from '@lushly-dev/fast-element/command.js';
+import { EVENT_KINDS, type EventKind, KIND_LABELS, kindNoun } from '@vintage/comp-solver';
 import { getCommandClient } from '../client';
 import { describeError, type ElementResult, toElementResult } from '../result';
 import { browserTimeZone, dayKey } from '../zoned';
@@ -166,7 +167,7 @@ const template = html<VintageCalendarDesk>`
         (x) => x.canEdit,
         html<VintageCalendarDesk>`
           <p class="actions">
-            <button type="button" class="primary" ?disabled="${(x) => x.busy}" @click="${(x) => x.openRaid(null)}">Add a one-off raid</button>
+            <button type="button" class="primary" ?disabled="${(x) => x.busy}" @click="${(x) => x.openRaid(null)}">Add a one-off event</button>
             <button type="button" ?disabled="${(x) => x.busy || !x.hasActiveSchedule}" @click="${(x) => x.materialize()}">Create raids now</button>
           </p>
         `,
@@ -183,7 +184,7 @@ const template = html<VintageCalendarDesk>`
           <p id="cal-confirm"><strong>Cancel ${(x) => x.pending?.raid.name}?</strong></p>
           <p id="cal-confirm-detail">${(x) => x.pending?.summary}</p>
           <p class="actions">
-            <button type="button" class="danger" ?disabled="${(x) => x.busy}" @click="${(x) => x.confirm()}">Cancel the raid</button>
+            <button type="button" class="danger" ?disabled="${(x) => x.busy}" @click="${(x) => x.confirm()}">Cancel the ${(x) => kindNoun(x.pending?.raid.kind ?? 'raid')}</button>
             <button type="button" ?disabled="${(x) => x.busy}" @click="${(x) => x.keep()}">Keep it</button>
           </p>
         </div>
@@ -553,9 +554,14 @@ export class VintageCalendarDesk extends FASTElement {
 
   @volatile
   get headline(): string {
-    const live = this.raids.filter((r) => isLive(r) && this.endOf(r) > this.now).length;
+    const upcoming = this.raids.filter((r) => isLive(r) && this.endOf(r) > this.now);
+    const live = upcoming.length;
     if (this.loading && this.raids.length === 0) return 'The calendar';
-    return live === 0 ? 'No raids coming up' : `${live} raid${live === 1 ? '' : 's'} coming up`;
+    // "raids" while what's coming up is all raids; "events" once a dungeon or other event is.
+    const noun = upcoming.every((r) => r.kind === 'raid') ? 'raid' : 'event';
+    return live === 0
+      ? `No ${noun}s coming up`
+      : `${live} ${noun}${live === 1 ? '' : 's'} coming up`;
   }
 
   @volatile
@@ -655,10 +661,11 @@ export class VintageCalendarDesk extends FASTElement {
 
   /** Run what a form asked for; the form closes when the server agrees. */
   async save(submit: CalendarFormSubmit): Promise<ElementResult<unknown>> {
+    const kind = (submit.input.kind as EventKind | undefined) ?? 'raid';
     const done: Record<CalendarFormSubmit['command'], string> = {
       'schedule-create': 'Schedule added. Random creates its raids as their signups come due',
       'schedule-update': 'Schedule saved. Raids already created keep their time',
-      'raid-create': 'Raid added and open for signups',
+      'raid-create': `${KIND_LABELS[kind]} added and open for signups`,
       'raid-reschedule': 'Raid moved. Signups and the roster came along',
     };
     const result = await this.change(submit.command, submit.input, done[submit.command]);
@@ -667,23 +674,47 @@ export class VintageCalendarDesk extends FASTElement {
   }
 
   @command('vintage.raid-create', {
-    label: 'Add a one-off raid',
-    description: 'Create a one-off raid, open for signups.',
+    label: 'Add a one-off event',
+    description:
+      'Create a one-off event, open for signups: a raid (10, 20 or 40), a dungeon (5), a ' +
+      'battleground (10, 15 or 40), or another event (kind other: size 1 to 40 or null for open, ' +
+      'instance optional). raid-create in the command manifest has the full rules.',
     category: 'Officers',
     parameters: {
       type: 'object',
       properties: {
         name: { type: 'string' },
-        instance: { type: 'string' },
-        size: { type: 'number', enum: [10, 20, 40] },
+        instance: { type: 'string', description: 'Required except for kind other' },
+        kind: { type: 'string', enum: [...EVENT_KINDS] },
+        size: {
+          type: ['integer', 'null'],
+          minimum: 1,
+          maximum: 40,
+          description: 'Required except for kind other, where null is open',
+        },
+        roleTargets: {
+          type: ['object', 'null'],
+          properties: {
+            tank: { type: 'integer', minimum: 0 },
+            healer: { type: 'integer', minimum: 0 },
+            dps: { type: 'integer', minimum: 0 },
+          },
+          required: ['tank', 'healer', 'dps'],
+          description: "Null uses the kind's usual comp",
+        },
         startsAt: { type: 'number', description: 'Epoch ms' },
         durationMinutes: { type: 'number' },
       },
-      required: ['name', 'instance', 'size', 'startsAt'],
+      required: ['name', 'startsAt'],
     },
   })
   async createRaid(input: unknown): Promise<ElementResult<unknown>> {
-    return this.change('raid-create', input, 'Raid added and open for signups');
+    const kind = (input as { kind?: EventKind } | null)?.kind ?? 'raid';
+    return this.change(
+      'raid-create',
+      input,
+      `${KIND_LABELS[kind] ?? 'Raid'} added and open for signups`,
+    );
   }
 
   @command('vintage.raid-reschedule', {
@@ -750,7 +781,7 @@ export class VintageCalendarDesk extends FASTElement {
       }
       const token = raw.success ? raw.data?.confirmToken : undefined;
       if (!token || !raid) {
-        this.say('success', 'Raid cancelled');
+        this.say('success', `${KIND_LABELS[raid?.kind ?? 'raid']} cancelled`);
         this.$emit('calendar-changed');
         return result;
       }
@@ -764,7 +795,7 @@ export class VintageCalendarDesk extends FASTElement {
           (signups
             ? `${signups} ${signups === 1 ? 'person has' : 'people have'} signed up; their answers stay for history.`
             : 'Nobody has signed up yet.') +
-          ' A cancelled raid can’t be reopened.',
+          ` A cancelled ${kindNoun(raid.kind)} can’t be reopened.`,
       };
       this.say('idle', '');
       return result;

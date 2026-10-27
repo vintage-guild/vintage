@@ -146,4 +146,13 @@
   --button-primary-text: var(--color-accent-contrast);
   --logo-ink: var(--color-crimson-700);
   --logo-paper: var(--color-gold-300);
+  --desk-space-xs: 0.375rem;
+  --desk-space-sm: 0.625rem;
+  --desk-space-md: 0.875rem;
+  --desk-space-lg: 1.25rem;
+  --desk-font-size: var(--font-size-sm);
+  --desk-font-size-label: 0.8125rem;
+  --desk-control-height: 2rem;
+  --desk-control-pad-inline: 0.5rem;
+  --desk-control-radius: 0.3rem;
 }

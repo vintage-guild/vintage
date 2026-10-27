@@ -148,6 +148,7 @@ const styles = css`
     display: grid;
     grid-template-columns: minmax(0, 8rem) minmax(0, 1fr) auto;
     gap: var(--space-sm);
+    padding-block: var(--space-xs);
     text-align: start;
   }
 

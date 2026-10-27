@@ -46,7 +46,7 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
     runs: {},
     buttons: [
       {
-        text: 'Press **Accept**, **Late**, **Tentative**, **Standby**, or **Decline** on an event’s card. Random asks which character when you have more than one, and you can add a note.',
+        text: 'Press **Accept**, **Late**, **Tentative**, **Standby**, or **Decline** on an event’s card. Random signs you up with the character you usually bring (or your main) and says why; **Switch character** and **Change spec** in its reply change it for that event only. Late and Tentative ask for a note.',
         label: 'sign up with the buttons on event cards',
         command: 'signup-set',
       },

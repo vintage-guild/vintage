@@ -10,11 +10,43 @@ import {
 } from '@lushly-dev/fast-element';
 import { command, failure } from '@lushly-dev/fast-element/command.js';
 import { SIGNUP_STATUSES, type SignupStatus } from '@vintage/comp-solver';
+import { CLASSES, type Role, type WowClass } from '@vintage/wow-data';
 import { getCommandClient } from '../client';
+import { roleLabel, titleCase } from '../labels';
 import '../primitives';
 import { describeError, type ElementResult, toElementResult } from '../result';
 
 export { SIGNUP_STATUSES, type SignupStatus };
+
+/** A character the member can bring (a row of `character-list`). */
+export interface SignupCharacter {
+  id: string;
+  name: string;
+  class: WowClass;
+  spec: string;
+  role: Role;
+  isMain: boolean;
+}
+
+/** A comp role the raid is short of (raids `rolesNeeded`). */
+export type NeededRole = 'tank' | 'healer' | 'dps';
+
+const NEEDED_WORDS: Record<NeededRole, string> = {
+  tank: 'tanks needed',
+  healer: 'healers needed',
+  dps: 'DPS needed',
+};
+
+const neededFor = (role: Role, needed: readonly string[]): string => {
+  const comp: NeededRole = role === 'melee' || role === 'ranged' ? 'dps' : role;
+  return needed.includes(comp) ? ` · ${NEEDED_WORDS[comp]}` : '';
+};
+
+/** `feral-tank` → "Feral": the tank version of a spec reads as the spec, its role beside it. */
+const specName = (spec: string) => titleCase(spec.replace(/-tank$/, ''));
+
+type FieldElement = HTMLElement & { value: string };
+const fieldValue = (event: Event) => (event.currentTarget as FieldElement).value;
 
 /** How a member answers from the card; bench is a leader's decision, not an answer. */
 export const ANSWERS = [
@@ -106,10 +138,54 @@ const template = html<VintageSignupCard>`
           )}
         </div>
         ${when(
-          (x) => x.characterLabel,
-          html<VintageSignupCard>`<span class="as">as <b part="character">${(x) => x.characterLabel}</b></span>`,
+          (x) => x.asLabel,
+          html<VintageSignupCard>`<span class="as">as <b part="character">${(x) => x.asLabel}</b></span>`,
         )}
       </div>
+      ${when(
+        (x) => x.reason,
+        html<VintageSignupCard>`<p class="reason" part="reason">Guessed from ${(x) => x.reason}</p>`,
+      )}
+      ${when(
+        (x) => x.specChoices.length > 0,
+        html<VintageSignupCard>`
+          <div class="switch" part="switch">
+            ${when(
+              (x) => x.characterChoices.length > 1,
+              html<VintageSignupCard>`
+                <violet-select
+                  label="Switch character"
+                  name="character"
+                  :value="${(x) => x.characterId}"
+                  ?disabled="${(x) => !x.switchCharacterCanExecute}"
+                  @change="${(x, c) => x.switchCharacter(fieldValue(c.event))}"
+                >
+                  ${repeat(
+                    (x) => x.characterChoices,
+                    html<
+                      [string, string]
+                    >`<violet-option value="${(o) => o[0]}">${(o) => o[1]}</violet-option>`,
+                  )}
+                </violet-select>
+              `,
+            )}
+            <violet-select
+              label="Change spec"
+              name="spec"
+              :value="${(x) => x.activeSpec}"
+              ?disabled="${(x) => !x.changeSpecCanExecute}"
+              @change="${(x, c) => x.changeSpec(fieldValue(c.event))}"
+            >
+              ${repeat(
+                (x) => x.specChoices,
+                html<
+                  [string, string]
+                >`<violet-option value="${(o) => o[0]}">${(o) => o[1]}</violet-option>`,
+              )}
+            </violet-select>
+          </div>
+        `,
+      )}
       <p class="status ${(x) => x.statusKind}" part="status" role="status" aria-live="polite">
         ${(x) => x.statusText}
       </p>
@@ -269,6 +345,18 @@ const styles = css`
     color: var(--color-text-primary);
   }
 
+  .reason {
+    margin: 0;
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+  }
+
+  .switch {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: var(--space-xs);
+  }
+
   .status {
     min-block-size: var(--font-leading-relaxed);
   }
@@ -290,7 +378,8 @@ const styles = css`
  *
  * @tagname vintage-signup-card
  * @summary A raid's signups and the member's answer, backed by `signup-set`.
- * @fires signup-changed - The server accepted the answer; `detail` is the stored signup.
+ * @fires signup-changed - The server accepted the answer, character, or spec; `detail` is the
+ *   stored signup.
  * @slot - Extra content between the time and the counts, such as the raid's notes.
  * @csspart card - The surface.
  * @csspart eyebrow - The label above the title.
@@ -299,6 +388,8 @@ const styles = css`
  * @csspart counts - The counts grid.
  * @csspart answer - The member's answer block.
  * @csspart character - The character the answer is for.
+ * @csspart reason - Why that character was guessed.
+ * @csspart switch - The Switch character and Change spec menus.
  * @csspart status - The result line (`role="status"`).
  */
 export class VintageSignupCard extends FASTElement {
@@ -320,7 +411,15 @@ export class VintageSignupCard extends FASTElement {
   @attr({ attribute: 'character-label' }) characterLabel = '';
   /** IANA zone to show the start time in; empty uses the viewer's. The zone is always shown. */
   @attr({ attribute: 'time-zone' }) timeZone = '';
+  /** The spec to play for this raid only; empty plays the character's saved spec. */
+  @attr spec = '';
+  /** Why this character was picked (`signup-suggest`'s reason), e.g. "your main". */
+  @attr reason = '';
 
+  /** The member's characters. With them the card offers Switch character and Change spec. */
+  @observable characters: SignupCharacter[] = [];
+  /** Roles the raid is short of; the menus mark characters and specs that fill one. */
+  @observable needed: NeededRole[] = [];
   @observable counts: SignupCounts = EMPTY_COUNTS;
   @observable busy = false;
   @observable statusText = '';
@@ -377,6 +476,135 @@ export class VintageSignupCard extends FASTElement {
     return !this.busy && Boolean(this.eventId) && Boolean(this.characterId);
   }
 
+  /** The character answering, when the card has the member's characters. */
+  @volatile
+  get current(): SignupCharacter | undefined {
+    return this.characters.find((c) => c.id === this.characterId);
+  }
+
+  /** The spec being played: the one chosen for this raid, else the saved one. */
+  @volatile
+  get activeSpec(): string {
+    return this.spec || this.current?.spec || '';
+  }
+
+  /** "Aerbark · Feral Druid · Tank", or the `character-label` attribute without characters. */
+  @volatile
+  get asLabel(): string {
+    const c = this.current;
+    if (!c) return this.characterLabel;
+    const role = (CLASSES[c.class] as Record<string, Role>)[this.activeSpec] ?? c.role;
+    return `${c.name} · ${specName(this.activeSpec)} ${titleCase(c.class)} · ${roleLabel(role)}`;
+  }
+
+  /** Switch character's [id, label] options: main first, each marked when the raid needs it. */
+  get characterChoices(): [string, string][] {
+    return [...this.characters]
+      .sort((a, b) => Number(b.isMain) - Number(a.isMain))
+      .map((c) => [
+        c.id,
+        `${c.name} · ${titleCase(c.class)} · ${roleLabel(c.role)}${c.isMain ? ' · main' : ''}${neededFor(c.role, this.needed)}`,
+      ]);
+  }
+
+  /** Change spec's [spec, label] options for the character's class, each with its role. */
+  @volatile
+  get specChoices(): [string, string][] {
+    const c = this.current;
+    if (!c) return [];
+    const specs: Record<string, Role> = CLASSES[c.class];
+    return Object.entries(specs).map(([spec, role]) => [
+      spec,
+      `${specName(spec)} · ${roleLabel(role)}${neededFor(role, this.needed)}`,
+    ]);
+  }
+
+  @volatile
+  get switchCharacterCanExecute(): boolean {
+    return !this.busy && Boolean(this.eventId) && this.characters.length > 1;
+  }
+
+  @volatile
+  get changeSpecCanExecute(): boolean {
+    return !this.busy && Boolean(this.eventId) && Boolean(this.current);
+  }
+
+  /** Whether the member has answered, so a switch changes the stored signup right away. */
+  private get answered(): SignupStatus | null {
+    return this.statusKey === 'none' ? null : this.statusKey;
+  }
+
+  @command('vintage.signup-switch-character', {
+    label: 'Switch character',
+    description:
+      'Bring another of your characters to this raid. Keeps your answer and place in line; a ' +
+      'spec chosen for the raid is cleared.',
+    category: 'Raids',
+    parameters: {
+      type: 'object',
+      properties: { characterId: { type: 'string' } },
+      required: ['characterId'],
+    },
+  })
+  async switchCharacter(characterId: unknown): Promise<ElementResult<unknown>> {
+    const next = this.characters.find((c) => c.id === characterId);
+    if (!next) {
+      return failure({ code: 'INVALID_PARAMETERS', message: 'Pick one of your characters' });
+    }
+    if (!this.switchCharacterCanExecute) {
+      return failure({ code: 'COMMAND_DISABLED', message: 'Nothing to switch to right now' });
+    }
+    const before = { characterId: this.characterId, spec: this.spec, reason: this.reason };
+    this.characterId = next.id;
+    this.spec = '';
+    this.reason = '';
+    return this.resend({ characterId: next.id }, before);
+  }
+
+  @command('vintage.signup-change-spec', {
+    label: 'Change spec',
+    description:
+      "Play another spec of this character's class for this raid only; the saved character " +
+      'keeps its spec.',
+    category: 'Raids',
+    parameters: { type: 'object', properties: { spec: { type: 'string' } }, required: ['spec'] },
+  })
+  async changeSpec(spec: unknown): Promise<ElementResult<unknown>> {
+    const c = this.current;
+    if (!c || typeof spec !== 'string' || !Object.hasOwn(CLASSES[c.class], spec)) {
+      return failure({ code: 'INVALID_PARAMETERS', message: 'Pick one of this class’s specs' });
+    }
+    if (!this.changeSpecCanExecute) {
+      return failure({ code: 'COMMAND_DISABLED', message: 'Already sending an answer' });
+    }
+    const before = { characterId: this.characterId, spec: this.spec, reason: this.reason };
+    this.spec = spec;
+    return this.resend({ characterId: c.id, spec }, before);
+  }
+
+  /**
+   * After a switch: unanswered, the choice waits for the answer; answered, `signup-set` stores
+   * it now with the same status. A refusal puts the previous choice back.
+   */
+  private async resend(
+    input: { characterId: string; spec?: string },
+    before: { characterId: string; spec: string; reason: string },
+  ): Promise<ElementResult<unknown>> {
+    const status = this.answered;
+    if (!status) return { success: true, data: null };
+    this.busy = true;
+    try {
+      const result = toElementResult(
+        await getCommandClient().run('signup-set', { eventId: this.eventId, ...input, status }),
+      );
+      if (!result.success) Object.assign(this, before);
+      this.report(result, status);
+      return result;
+    } finally {
+      this.busy = false;
+    }
+  }
+
   @command('vintage.signup-set', {
     label: 'Answer a raid',
     description:
@@ -408,6 +636,7 @@ export class VintageSignupCard extends FASTElement {
           eventId: this.eventId,
           characterId: this.characterId,
           status,
+          ...(this.spec ? { spec: this.spec } : {}),
         }),
       );
       this.report(result, status);
@@ -417,7 +646,7 @@ export class VintageSignupCard extends FASTElement {
     }
   }
 
-  private report(result: ElementResult<unknown>, status: Answer): void {
+  private report(result: ElementResult<unknown>, status: SignupStatus): void {
     if (!result.success) {
       this.statusKind = 'error';
       this.statusText = describeError(result);

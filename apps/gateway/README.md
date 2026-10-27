@@ -28,8 +28,9 @@ header points there, so MCP clients find the sign-in flow.
 
 ## Signup buttons
 
-Clicks on the coordinator's signup posts (`signup:…`), the character picker (`signup-pick:…`) and
-the reason form (`signup-note:…`) are verified here, then forwarded to Convex at
+Clicks on the coordinator's signup posts (`signup:…`), the character picker (`signup-pick:…`), the
+reason form (`signup-note:…`) and the reply's Switch character and Change spec menus
+(`signup-char:…`, `signup-spec:…`) are verified here, then forwarded to Convex at
 `POST /gateway/interaction` with `Authorization: Bearer $VINTAGE_GATEWAY_SECRET`. Convex runs the
 flow (`apps/api/src/discord-signups.ts`) and returns the response this endpoint sends back to
 Discord. Without the two variables, members get a private "not set up yet" reply.

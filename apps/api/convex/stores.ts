@@ -154,6 +154,8 @@ export function raidsStore(ctx: Ctx): RaidsStore {
       const row = await ctx.runQuery(raids.signups.byMember, { guildId, eventId, memberId });
       return row && asSignup(row);
     },
+    listSignupsByMember: async (guildId, memberId, limit) =>
+      (await ctx.runQuery(raids.signups.listByMember, { guildId, memberId, limit })).map(asSignup),
     insertSignup: async (signup) =>
       asSignup(await writable(ctx).runMutation(raids.signups.insert, signup)),
     updateSignup: async (guildId, signupId, patch) =>
@@ -182,6 +184,7 @@ export function raidsDeps(ctx: Ctx): RaidsDeps {
     raids: raidsStore(ctx),
     members: {
       getCharacter: (guildId, characterId) => people.getCharacter(guildId, characterId),
+      listCharacters: (guildId, memberId) => people.listCharacters(guildId, { memberId }),
       getMember: (guildId, memberId) => people.getMember(guildId, memberId),
     },
     events: eventSink(ctx),

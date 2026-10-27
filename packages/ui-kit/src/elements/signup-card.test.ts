@@ -129,6 +129,117 @@ describe('vintage-signup-card', () => {
     expect(ANSWERS).not.toContain('bench');
   });
 
+  describe('the guess, Switch character, and Change spec', () => {
+    // The main comes second here; the menu still lists it first.
+    const CHARS = [
+      { id: 'd', name: 'Aerbark', class: 'druid', spec: 'feral-tank', role: 'tank', isMain: false },
+      { id: 'w', name: 'Aeryn', class: 'warrior', spec: 'protection', role: 'tank', isMain: true },
+    ] as const;
+    const card = async (attrs = '') => {
+      const el = await mount<VintageSignupCard>(
+        `<vintage-signup-card event-id="e1" character-id="d" spec="feral" reason="your last 3 Molten Core nights" ${attrs}></vintage-signup-card>`,
+      );
+      el.characters = CHARS.map((c) => ({ ...c }));
+      el.needed = ['healer'];
+      await settle();
+      return el;
+    };
+    const selects = (el: Element) => [...el.shadowRoot!.querySelectorAll('violet-select')];
+    const options = (select: Element) =>
+      [...select.querySelectorAll('violet-option')].map((o) => o.textContent?.trim());
+
+    it('shows the guessed character, spec, role, and why', async () => {
+      const el = await card();
+      const text = shadowText(el);
+      expect(text).toContain('as Aerbark · Feral Druid · Melee DPS');
+      expect(text).toContain('Guessed from your last 3 Molten Core nights');
+      const [switcher, specs] = selects(el);
+      expect(switcher!.getAttribute('label')).toBe('Switch character');
+      expect(options(switcher!)).toEqual([
+        'Aeryn · Warrior · Tank · main',
+        'Aerbark · Druid · Tank',
+      ]);
+      // Feral twice, as DPS and as a tank; the healer spec is marked as needed.
+      expect(options(specs!)).toEqual([
+        'Balance · Ranged DPS',
+        'Feral · Melee DPS',
+        'Feral · Tank',
+        'Restoration · Healer · healers needed',
+      ]);
+    });
+
+    it('answers with the spec chosen for the raid', async () => {
+      const client = useClient(() => ({ success: true, data: { status: 'accepted' } }));
+      const el = await card();
+      await el.answer('accepted');
+      expect(client.run).toHaveBeenCalledWith('signup-set', {
+        eventId: 'e1',
+        characterId: 'd',
+        status: 'accepted',
+        spec: 'feral',
+      });
+    });
+
+    it('before an answer, a switch only changes what the answer will use', async () => {
+      const client = useClient(() => ({ success: true, data: null }));
+      const el = await card();
+      await el.switchCharacter('w');
+      expect(client.run).not.toHaveBeenCalled();
+      expect(el.spec).toBe('');
+      expect(el.reason).toBe('');
+      expect(el.asLabel).toBe('Aeryn · Protection Warrior · Tank');
+    });
+
+    it('once answered, switching and respeccing store it with the same answer', async () => {
+      const client = useClient(() => ({ success: true, data: { status: 'late' } }));
+      const el = await card('status="late"');
+      const seen: unknown[] = [];
+      el.addEventListener('signup-changed', (e) => seen.push((e as CustomEvent).detail));
+      await el.changeSpec('restoration');
+      expect(client.run).toHaveBeenLastCalledWith('signup-set', {
+        eventId: 'e1',
+        characterId: 'd',
+        spec: 'restoration',
+        status: 'late',
+      });
+      await el.switchCharacter('w');
+      expect(client.run).toHaveBeenLastCalledWith('signup-set', {
+        eventId: 'e1',
+        characterId: 'w',
+        status: 'late',
+      });
+      expect(el.status).toBe('late');
+      expect(seen).toHaveLength(2);
+    });
+
+    it('puts the previous choice back when the server refuses, and checks the choice', async () => {
+      useClient(() => ({
+        success: false,
+        error: { code: 'RAID_CLOSED', message: 'Locked', retryable: false },
+      }));
+      const el = await card('status="accepted"');
+      await el.switchCharacter('w');
+      expect(el.characterId).toBe('d');
+      expect(el.spec).toBe('feral');
+      expect(el.statusKind).toBe('error');
+      expect(await el.changeSpec('protection')).toMatchObject({
+        success: false,
+        error: { code: 'INVALID_PARAMETERS' },
+      });
+      expect(await el.switchCharacter('nobody')).toMatchObject({ success: false });
+    });
+
+    it('offers no Switch character with one character, and no menus without any', async () => {
+      const el = await card();
+      el.characters = [{ ...CHARS[0] }];
+      await settle();
+      expect(selects(el).map((s) => s.getAttribute('label'))).toEqual(['Change spec']);
+      el.characters = [];
+      await settle();
+      expect(selects(el)).toEqual([]);
+    });
+  });
+
   it('is reachable as vintage.signup-set with the status as its argument', async () => {
     const client = useClient(() => ({ success: true, data: { status: 'accepted' } }));
     await mount<VintageSignupCard>(

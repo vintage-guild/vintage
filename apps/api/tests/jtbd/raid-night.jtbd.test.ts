@@ -84,6 +84,16 @@ async function scheduleRaidNights(g: Guild) {
 const answer = (g: Guild, who: Caller, key: string, eventId: string, status: string) =>
   g.host.ok<Signup>(who, 'signup-set', { eventId, characterId: g.chars[key], status });
 
+interface Menu {
+  custom_id: string;
+  options: { label: string; value: string; description?: string; default?: boolean }[];
+}
+/** The select menus on a private reply, in order. */
+const menus = (r: unknown): Menu[] =>
+  ((r as { data?: { components?: { components: Menu[] }[] } }).data?.components ?? []).map(
+    (row) => row.components[0]!,
+  );
+
 const mentions = (m: { message: { allowed_mentions?: { users?: string[] } } }) =>
   m.message.allowed_mentions?.users ?? [];
 
@@ -165,9 +175,25 @@ describe('JTBD: raid night', () => {
     expect(changed.signedUpAt).toBe(first.signedUpAt);
     const list = await g.host.ok<Signup[]>(g.dara, 'signup-list', { eventId: wed.id });
     expect(list.map((s) => s.characterName)).toEqual(['Bramble', 'Aeryn']);
+
+    // Playing another spec for the night, from the private reply's Change spec menu, keeps the
+    // place too; only the signup's spec and role change.
+    const respecced = await g.host.discordUi.pick(
+      g.bram.discordId!,
+      `signup-spec:${wed.id}`,
+      'shadow',
+    );
+    expect(respecced).toMatchObject({ type: 7 });
+    const shadow = await g.host.ok<Signup>(g.bram, 'signup-get', { eventId: wed.id });
+    expect(shadow).toMatchObject({ id: first.id, signedUpAt: first.signedUpAt, role: 'ranged' });
+    expect(
+      (await g.host.ok<Signup[]>(g.dara, 'signup-list', { eventId: wed.id })).map(
+        (s) => s.characterName,
+      ),
+    ).toEqual(['Bramble', 'Aeryn']);
   });
 
-  it('J06 · a raid leader arranges groups and sees what the comp is missing', async () => {
+  it('J06 ·a raid leader arranges groups and sees what the comp is missing', async () => {
     const { wed } = await scheduleRaidNights(g);
     const tank = await answer(g, g.aeryn, 'aeryn', wed.id, 'accepted');
     await answer(g, g.bram, 'bram', wed.id, 'accepted');
@@ -402,10 +428,21 @@ describe('JTBD: raid night', () => {
     const content = (r: unknown) => (r as { data?: { content?: string } }).data?.content ?? '';
     const flags = (r: unknown) => (r as { data?: { flags?: number } }).data?.flags;
 
-    // One character: Accept answers right away, only Aeryn sees the reply, the post refresh starts.
+    // One character: Accept answers right away with the guess (her main) and says so. Only
+    // Aeryn sees the reply, and the post refresh starts.
     const accepted = await ui.click(g.aeryn.discordId!, `signup:${wed.id}:accepted`);
-    expect(content(accepted)).toMatch(/Aeryn: \*\*accepted\*\*/);
+    expect(content(accepted)).toMatch(
+      /\*\*Accepted\*\* for Raid night as \*\*Aeryn\*\* \(Protection Warrior, tank\): your main\./,
+    );
     expect(flags(accepted)).toBe(64);
+    // Change spec lists the warrior's specs with their roles; with one character there's no
+    // Switch character menu.
+    expect(menus(accepted).map((m) => m.custom_id)).toEqual([`signup-spec:${wed.id}`]);
+    expect(menus(accepted)[0]!.options.map((o) => `${o.label}: ${o.description}`)).toEqual([
+      'Arms: Melee DPS · DPS needed',
+      'Fury: Melee DPS · DPS needed',
+      'Protection: Tank · tanks needed',
+    ]);
     expect(g.host.ticksRequested.length).toBeGreaterThan(0);
     expect((await g.host.ok<Signup>(g.aeryn, 'signup-get', { eventId: wed.id })).status).toBe(
       'accepted',
@@ -425,24 +462,53 @@ describe('JTBD: raid night', () => {
       type: 9,
       data: { custom_id: `signup-note:${wed.id}:late:${g.chars.bram}` },
     });
-    await ui.submit(g.bram.discordId!, `signup-note:${wed.id}:late:${g.chars.bram}`, 'after work');
+    const late = await ui.submit(
+      g.bram.discordId!,
+      `signup-note:${wed.id}:late:${g.chars.bram}`,
+      'after work',
+    );
     expect(await g.host.ok<Signup>(g.bram, 'signup-get', { eventId: wed.id })).toMatchObject({
       status: 'late',
       note: 'after work',
     });
+    // The form came from the guess, so the reply still says why.
+    expect(content(late)).toMatch(
+      /\*\*Late\*\* for Raid night as \*\*Bramble\*\* \(Holy Priest, healer\): your main\./,
+    );
 
-    // Two characters: pick one first, and the picker turns into the result.
+    // Several characters and no main to guess (she removed it): a private picker asks which,
+    // marking what the raid is short of, and turns into the result with both menus.
     await g.host.ok(g.dara, 'character-add', { name: 'Daraheal', class: 'priest', spec: 'holy' });
+    await g.host.ok(g.dara, 'character-add', { name: 'Darabolt', class: 'mage', spec: 'fire' });
+    await g.host.ok(g.dara, 'character-remove', { characterId: g.chars.dara });
     const picker = await ui.click(g.dara.discordId!, `signup:${wed.id}:accepted`);
     expect(content(picker)).toMatch(/Which character/);
+    expect(menus(picker)[0]!.options.map((o) => o.description)).toEqual([
+      'Fire Mage, ranged DPS · DPS needed',
+      'Holy Priest, healer · healers needed',
+    ]);
     const daraChars = await g.host.ok<{ id: string; name: string }[]>(g.dara, 'character-list', {});
     const alt = daraChars.find((c) => c.name === 'Daraheal')!;
     const picked = await ui.pick(g.dara.discordId!, `signup-pick:${wed.id}:accepted`, alt.id);
-    expect(picked).toMatchObject({ type: 7, data: { components: [] } });
-    expect(content(picked)).toMatch(/Daraheal: \*\*accepted\*\*/);
+    expect(picked).toMatchObject({ type: 7 });
+    expect(content(picked)).toMatch(/\*\*Accepted\*\* for Raid night as \*\*Daraheal\*\*/);
+    expect(menus(picked).map((m) => m.custom_id)).toEqual([
+      `signup-char:${wed.id}`,
+      `signup-spec:${wed.id}`,
+    ]);
     // Next time, their signed-up character is used without asking.
     const again = await ui.click(g.dara.discordId!, `signup:${wed.id}:bench`);
-    expect(content(again)).toMatch(/Daraheal: \*\*bench\*\*/);
+    expect(content(again)).toMatch(/\*\*Bench\*\* for Raid night as \*\*Daraheal\*\*/);
+    expect(content(again)).toMatch(/your signup for this raid/);
+    // Declining needs no menus.
+    expect(menus(await ui.click(g.dara.discordId!, `signup:${wed.id}:declined`))).toEqual([]);
+
+    // A menu click for someone with no signup, or a malformed id, is handled safely.
+    expect(content(await ui.pick(g.cade.discordId!, `signup-spec:${wed.id}`, 'fire'))).toMatch(
+      /Answer the raid first/,
+    );
+    expect(await ui.pick(g.cade.discordId!, `signup-spec:${wed.id}:extra`, 'fire')).toBeNull();
+    expect(await ui.pick(g.cade.discordId!, `signup-char:${wed.id}`, 'a:b')).toBeNull();
 
     // Refusals stay private and say what to do.
     expect(content(await ui.click(g.pip.discordId!, `signup:${wed.id}:accepted`))).toMatch(
@@ -463,6 +529,75 @@ describe('JTBD: raid night', () => {
     expect((await g.host.ok<Signup>(g.aeryn, 'signup-get', { eventId: wed.id })).status).toBe(
       'accepted',
     );
+  });
+
+  it('J39 · a raider brings a different character tonight in one click, for this raid only', async () => {
+    const { wed, thu } = await scheduleRaidNights(g);
+    const ui = g.host.discordUi;
+    const content = (r: unknown) => (r as { data?: { content?: string } }).data?.content ?? '';
+    const bark = (
+      await g.host.ok<{ id: string }>(g.aeryn, 'character-add', {
+        name: 'Aerbark',
+        class: 'druid',
+        spec: 'feral-tank',
+      })
+    ).id;
+
+    // Wednesday she brings her druid: Accept uses her main, Switch character swaps in one pick.
+    expect(content(await ui.click(g.aeryn.discordId!, `signup:${wed.id}:accepted`))).toMatch(
+      /as \*\*Aeryn\*\* .*: your main\./,
+    );
+    const first = await g.host.ok<Signup>(g.aeryn, 'signup-get', { eventId: wed.id });
+    g.host.clock.advance(HOUR);
+    await answer(g, g.bram, 'bram', wed.id, 'accepted');
+    const switched = await ui.pick(g.aeryn.discordId!, `signup-char:${wed.id}`, bark);
+    expect(switched).toMatchObject({ type: 7 });
+    expect(content(switched)).toMatch(/as \*\*Aerbark\*\* \(Feral Druid, tank\)\./);
+    // Her place in line is kept.
+    expect(await g.host.ok<Signup>(g.aeryn, 'signup-get', { eventId: wed.id })).toMatchObject({
+      id: first.id,
+      characterId: bark,
+      signedUpAt: first.signedUpAt,
+    });
+
+    // Thursday, the same schedule: the guess is the druid, and the reply says why.
+    const thursday = await ui.click(g.aeryn.discordId!, `signup:${thu.id}:accepted`);
+    expect(content(thursday)).toMatch(
+      /as \*\*Aerbark\*\* \(Feral Druid, tank\): your last Molten Core night\./,
+    );
+    // Change spec offers Feral twice, as a tank and as DPS.
+    const specs = menus(thursday).find((m) => m.custom_id === `signup-spec:${thu.id}`)!;
+    expect(specs.options.filter((o) => o.label === 'Feral').map((o) => o.value)).toEqual([
+      'feral',
+      'feral-tank',
+    ]);
+    expect(specs.options.find((o) => o.default)?.value).toBe('feral-tank');
+
+    // Tonight she plays cat: the signup's role changes, the saved druid stays a tank.
+    await ui.pick(g.aeryn.discordId!, `signup-spec:${thu.id}`, 'feral');
+    expect(await g.host.ok<Signup>(g.aeryn, 'signup-get', { eventId: thu.id })).toMatchObject({
+      characterId: bark,
+      spec: 'feral',
+      role: 'melee',
+    });
+    const saved = await g.host.ok<{ id: string; spec: string }[]>(g.aeryn, 'character-list', {});
+    expect(saved.find((c) => c.id === bark)?.spec).toBe('feral-tank');
+    // Going late keeps the spec; switching back to her warrior clears it.
+    expect(await ui.click(g.aeryn.discordId!, `signup:${thu.id}:late`)).toMatchObject({
+      data: { custom_id: `signup-note:${thu.id}:late:${bark}` },
+    });
+    await ui.submit(g.aeryn.discordId!, `signup-note:${thu.id}:late:${bark}`, 'ten min');
+    expect(await g.host.ok<Signup>(g.aeryn, 'signup-get', { eventId: thu.id })).toMatchObject({
+      status: 'late',
+      spec: 'feral',
+    });
+    await ui.pick(g.aeryn.discordId!, `signup-char:${thu.id}`, g.chars.aeryn!);
+    expect(await g.host.ok<Signup>(g.aeryn, 'signup-get', { eventId: thu.id })).toMatchObject({
+      characterName: 'Aeryn',
+      spec: 'protection',
+      role: 'tank',
+      status: 'late',
+    });
   });
 
   it('J28 · a raid leader makes a raid from Discord, and its signup card goes up', async () => {

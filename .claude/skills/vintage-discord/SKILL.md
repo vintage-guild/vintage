@@ -70,8 +70,12 @@ commands). Everything runs serverless: no always-on gateway process.
 - **Signup buttons:** the gateway verifies, then forwards components and modals to Convex
   (`convex/http.ts` → `convex/discord.ts` → `src/discord-signups.ts`) with `VINTAGE_GATEWAY_SECRET`.
   Custom ids: `signup:<event>:<status>`, `signup-pick:<event>:<status>`,
-  `signup-note:<event>:<status>:<character>`. Replies are ephemeral; never edit the public post
-  from an interaction (the coordinator tick does that).
+  `signup-note:<event>:<status>:<character>`, and the reply's menus
+  `signup-char:<event>` (Switch character) and `signup-spec:<event>` (Change spec), whose choice
+  is the picked value. Parse by exact segment count and allow only `[A-Za-z0-9_-]` in ids and
+  values. Keep every id within 100 characters with 32-character Convex ids. A click signs up
+  with `signup-suggest`'s guess. Replies are ephemeral; never edit the
+  public post from an interaction (the coordinator tick does that).
 - **App emoji:** class, spec, and role icons are the app's own emoji (work in any server,
   no slots). `scripts/discord-emojis.json` lists them (WoW icon names, or `file:` for our own art);
   `node --env-file=apps/api/.env.local scripts/discord-emojis.mjs` uploads missing ones and

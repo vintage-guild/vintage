@@ -45,6 +45,19 @@ export const byMember = query({
   },
 });
 
+/** One member's signups across raids, latest signedUpAt first, at most `limit`. */
+export const listByMember = query({
+  args: { guildId: v.string(), memberId: v.string(), limit: v.number() },
+  handler: async (ctx, { guildId, memberId, limit }) => {
+    const docs = await ctx.db
+      .query('signups')
+      .withIndex('by_guild_member', (q) => q.eq('guildId', guildId).eq('memberId', memberId))
+      .order('desc')
+      .take(Math.max(0, Math.floor(limit)));
+    return docs.map(toSignup);
+  },
+});
+
 export const insert = mutation({
   args: signupFields,
   handler: async (ctx, args) => {

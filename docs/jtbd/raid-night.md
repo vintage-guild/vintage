@@ -48,6 +48,8 @@ keep notifications for things that need me.
 ### J05 · Change my answer without losing my place
 **When** my plans change, **I (raider) want** to update my answer, **so I can** keep my spot.
 - [ ] Answer tentative, later accepted: same signup, same place in `signup-list`.
+- [ ] **Change spec** in the private reply (Holy → Shadow): same signup, same place, and the
+  role on it is now ranged DPS.
 
 ### J06 · Arrange groups and see what the comp is missing
 **When** signups come in, **I (raid leader) want** to place people and see gaps, **so I can**
@@ -121,14 +123,38 @@ site, **so I can** keep the calendar true without commands (the quarters' Calend
 ### J15 · Answer straight from the Discord post, privately
 **When** I see a raid post, **I (raider) want** to answer with one click, **so I can** sign up
 without leaving Discord.
-- [ ] With one character: Accept answers right away with a private reply, and the post shows me
-  within seconds.
-- [ ] Late or Tentative opens a short reason form; the reason shows on the post.
-- [ ] With several characters: a private picker asks which one; next time my signed-up character
-  is used without asking.
+- [ ] With one character: Accept answers right away with a private reply that names the
+  character, spec, role, and why ("**Accepted** for Raid night as **Aeryn** (Protection Warrior,
+  tank): your main."), and the post shows me within seconds.
+- [ ] The reply has a **Change spec** menu (the class's specs, each with its role, and "tanks
+  needed" style marks for what the raid is short of); with two or more characters, a **Switch
+  character** menu too (main first). A decline has no menus.
+- [ ] Late or Tentative opens a short reason form; the reason shows on the post, and the reply
+  still says why that character was used.
+- [ ] With several characters and no main to guess: a private picker asks which one, marking the
+  roles the raid needs; next time my signed-up character is used without asking ("your signup
+  for this raid").
 - [ ] **Roster** shows the full list privately (everyone, by role, with places in line).
 - [ ] A Member (below Recruit), someone the bot doesn't know, or a click from another server gets
   a private refusal that says what to do.
+
+### J39 · Bring a different character tonight
+**When** I'm bringing an alt, or the same character in another spec, **I (raider) want** to
+switch in one click for this raid only, **so I can** sign up as what I'll actually play without
+changing my saved characters.
+- [ ] Aeryn (warrior main, druid alt Aerbark) presses Accept on Wednesday: the reply says "as
+  **Aeryn** … your main". **Switch character** → Aerbark: the reply now says "as **Aerbark**
+  (Feral Druid, tank)", and her place in line is kept.
+- [ ] On Thursday (the same schedule) Accept uses Aerbark: "your last Molten Core night". After a
+  few weeks it reads "your last 3 Molten Core nights" or "3 of your last 5 …" (the last 5
+  signups for the schedule; a one-off uses the same instance).
+- [ ] **Change spec** lists Feral twice, as a tank and as DPS. Picking the DPS one makes the
+  signup melee DPS; `character-list` still shows Aerbark as Feral Tank.
+- [ ] Late keeps the chosen spec. Switching back to Aeryn clears it: Protection, tank.
+- [ ] On the site (`/`), the next raid's card says "as Aerbark · Feral Druid · …" with "Guessed
+  from …" under it, and has the same two menus; once answered, either menu saves right away.
+  (The scenario test covers Discord; `signup-card.test.ts` and `home-signup.test.ts` cover the
+  site.)
 
 ### J28 · Make a raid from Discord
 **When** a run comes together in chat, **I (raid leader) want** to make the raid with a slash

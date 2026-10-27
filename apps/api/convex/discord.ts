@@ -4,7 +4,7 @@
 // src/discord-*.ts. Help goes first: `/random poll help` would otherwise reach the poll flow.
 import type { Interaction } from '@vintage/discord-kit';
 import type { Caller, CommandResult } from '@vintage/guild-kit';
-import type { Signup } from '@vintage/raids/contract';
+import type { Signup, SignupGuess } from '@vintage/raids/contract';
 import { v } from 'convex/values';
 import { handleAgentInteraction } from '../src/discord-agent';
 import { handleApplicationInteraction } from '../src/discord-applications';
@@ -63,7 +63,12 @@ export const interaction = internalMutation({
       event: (eventId) => raids.getEvent(GUILD_ID, eventId),
       signup: (eventId, memberId) => raids.getSignupByMember(GUILD_ID, eventId, memberId),
       signups: (eventId) => raids.listSignups(GUILD_ID, eventId),
-      // The registry's results are untyped at this boundary; signup-set returns a Signup.
+      // The registry's results are untyped at this boundary; signup-suggest returns a guess or
+      // null, signup-set a Signup.
+      signupSuggest: (caller: Caller, input) =>
+        runCommandAs(ctx, caller, 'signup-suggest', input) as Promise<
+          CommandResult<SignupGuess | null>
+        >,
       signupSet: (caller: Caller, input) =>
         runCommandAs(ctx, caller, 'signup-set', input) as Promise<CommandResult<Signup>>,
       afterChange: () => coordinatorScheduler(ctx).runTickNow(GUILD_ID),

@@ -34,6 +34,8 @@ export interface RaidsStore {
   listSignups(guildId: string, eventId: string): Promise<Signup[]>;
   getSignup(guildId: string, signupId: string): Promise<Signup | null>;
   getSignupByMember(guildId: string, eventId: string, memberId: string): Promise<Signup | null>;
+  /** One member's signups across raids, latest `signedUpAt` first, at most `limit`. */
+  listSignupsByMember(guildId: string, memberId: string, limit: number): Promise<Signup[]>;
   insertSignup(signup: Omit<Signup, 'id'>): Promise<Signup>;
   updateSignup(
     guildId: string,
@@ -49,6 +51,8 @@ export interface RaidsStore {
  */
 export interface RaidsMembers {
   getCharacter(guildId: string, characterId: string): Promise<Character | null>;
+  /** One member's characters, in identity's order. */
+  listCharacters(guildId: string, memberId: string): Promise<Character[]>;
   getMember(guildId: string, memberId: string): Promise<Member | null>;
 }
 

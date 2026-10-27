@@ -29,7 +29,7 @@ import {
   createRecordingEventSink as createPollEventSink,
 } from '@vintage/polls/testing';
 import { createMemoryProgressStore } from '@vintage/progress/testing';
-import type { Signup } from '@vintage/raids/contract';
+import type { Signup, SignupGuess } from '@vintage/raids/contract';
 import { createMemoryRaidsStore, createRecordingEventSink } from '@vintage/raids/testing';
 import { STARTER_RECRUITING } from '@vintage/site/contract';
 import { createMemorySiteStore } from '@vintage/site/testing';
@@ -106,6 +106,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     raids,
     members: {
       getCharacter: (g, id) => identity.getCharacter(g, id),
+      listCharacters: (g, memberId) => identity.listCharacters(g, { memberId }),
       getMember: (g, id) => identity.getMember(g, id),
     },
     events,
@@ -305,6 +306,10 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
       event: (eventId) => raids.getEvent(GUILD, eventId),
       signup: (eventId, memberId) => raids.getSignupByMember(GUILD, eventId, memberId),
       signups: (eventId) => raids.listSignups(GUILD, eventId),
+      signupSuggest: (caller, input) =>
+        registry.execute({ name: 'signup-suggest', input, caller }, deps) as Promise<
+          CommandResult<SignupGuess | null>
+        >,
       signupSet: (caller, input) =>
         registry.execute({ name: 'signup-set', input, caller }, deps) as Promise<
           CommandResult<Signup>

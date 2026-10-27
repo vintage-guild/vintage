@@ -42,8 +42,8 @@ third-party walkthroughs where the docs were thin. Third-party figures are marke
 | Model | Input | Cached | Output | Where it fits for us |
 |---|---|---|---|---|
 | gpt-6-astra | $10.00 | $1.00 | $50.00 | Not at runtime |
-| gpt-6.1-sol | $2.00 | $0.10 | $10.00 | Log analysis, comp and strategy reasoning; the only model with multi-agent in beta |
-| gpt-6.1-terra | $1.00 | $0.05 | $5.00 | Member-facing answers and copy (writing quality is its pitch) |
+| gpt-6.1-sol | $2.00 | $0.10 | $10.00 | Open-ended comparative analysis, comp and strategy reasoning; the only model with multi-agent in beta |
+| gpt-6.1-terra | $1.00 | $0.05 | $5.00 | Member-facing answers, coaching wording, and copy (writing quality is its pitch) |
 | gpt-6-luna | $0.10 | $0.01 | $0.50 | Default `/ask` model if the Agents API accepts it; cheap classification |
 | Decisions API | $0.10 | $0.01 | free | Bounded questions only |
 
@@ -136,12 +136,15 @@ The notes sharpen the priorities more than the API research does:
 - **Comparative log analysis**: not a Warcraft Logs replacement, an AI-backed investigation
   that finds narratives for improvement per raider, delivered as a Discord DM ("you're getting
   hit by this tank buster without a defensive up 73% of the time"). Helpful, not judgmental.
-  Bloodfen has a start on this. Possibly a public product later.
+  This already exists as **Farsight Crawler** (§5.3), dungeon-focused because the beta only had
+  dungeons, and extendable to raids. Possibly a public product later.
+- **Comp selection** can be decided outside WoW (solver, model, officer) as long as the result
+  comes back into the game as an import the addon applies by moving members between groups.
 - **Sub-roles** (recruitment officer, community) so not every officer sees everything.
 
-The two things in that list the Agents API is genuinely built for are the log analysis (code,
-files, parallel per-raider work, long turns) and the officer agent (durable sessions, function
-tools over our commands). The applications pipeline is the Decisions API's natural first job.
+The officer agent (durable sessions, function tools over our commands) is what the Agents API
+is built for. The applications pipeline is the Decisions API's natural first job. Raid insights
+are mostly a Farsight job with a thin model layer on top, not a sandbox job.
 
 ## 5. Opinion: where each piece adds value
 
@@ -166,7 +169,7 @@ natural-language "yes". "Make simple changes directly" therefore means: the agen
 command with `dryRun`, posts the preview, and the officer presses confirm. One click, no epic.
 
 For `/ask`, `environment: none` is right. Sandboxes, subagents, and computer use stay off until
-a job needs code and files, which is exactly the log analysis.
+a job needs code and files. After reading Farsight (§5.3), no job in the first set does.
 
 Trade-offs to accept: conversation state lives at OpenAI (US only, no ZDR; guild data is low
 sensitivity, but say so on the privacy page); the API is beta (pin the SDK, expect field
@@ -188,15 +191,60 @@ failure mode (a wrong label) is cheap to detect and harmless to fall back from.
 Free text enters Vintage at: applications (planned), signup notes, `/ask` prompts, poll
 questions, and later wishlist notes. Those are the candidates, in that order.
 
-### 5.3 Log analysis is where the expensive features pay for themselves
+### 5.3 Raid insights build on Farsight Crawler, not on a sandbox
 
-A raid night's logs are large, per-raider analysis is embarrassingly parallel, and the output
-is a set of files and messages. That is a hosted sandbox with Sol, `multi_agent` enabled, the
-main agent pulling the report (via a function tool or an MCP server for the logs provider) into
-the workspace, one subagent per role or raider writing its findings to its own output file, and
-the main agent assembling per-raider DMs plus an officer summary. Compaction and artifacts
-handle the length; webhooks handle the wait. Nothing else in Vintage needs this machinery, and
-this job needs all of it.
+Before reading Farsight, the obvious design was a hosted sandbox with Sol and subagents chewing
+through raw logs. Farsight makes that unnecessary. **Crawler** (the log-analysis half of
+Bloodfen's Farsight platform, `C:\Program Files (x86)\World of Warcraft\_dev_\Farsight`,
+remote `Falkicon/Farsight`) already does the deterministic part, on the same foundation as
+Vintage (AFD vendored as tarballs, FAST-AF and Violet, FenUI and MechanicLib in the addon):
+
+- The Forever client gives addons no combat-log events, so the core `Farsight` addon turns
+  advanced logging on in instances and a desktop host reads `WoWCombatLog*.txt`.
+- `@farsight/core` (`packages/core`, pure TypeScript, Zod only, runs in Node or a browser
+  worker) streams the log into runs and pulls and extracts the roster with damage done, healing,
+  damage taken and deaths, the tank, per-pull NPCs and intake, death chains (last hits, killing
+  blow, the victim's own casts in the last 8 s), interrupts and kicks per player, a per-NPC
+  ability catalog, and encounter tags from `ENCOUNTER_START/END`. A Python oracle keeps exact
+  parity.
+- A significance pass (`significance.ts`) scores each ability's damage as a share of the
+  target's health, pools baselines across runs, and ranks findings into `do` and `notice`
+  tiers: missed priority kick, damage spike, death, chain pull, long gap, free kick.
+- Wire contract: `RunSummaryV1` plus a `farsight.run` v1 upload schema (`packages/schemas`),
+  built for exactly the "upload summaries, never logs" step a guild platform needs.
+- Surfaces: an AFD host on `127.0.0.1:4317` exposing `crawler-analyze|logs|instances|review|
+  guide` over HTTP and MCP, a Python CLI with a watch mode, a web shell, an in-game briefing,
+  reviewed guide JSON per instance (three raids already seeded), and a claims notebook that
+  tests a tip against your logs.
+- **No model calls exist yet.** Its spec plans typed decisions (Jev) plus Luna for claim
+  extraction and coach narration, with rules we should adopt verbatim: models see only
+  structured summaries, every statement cites an event or timestamp, and a golden set of runs
+  scores prompt changes. OpenAI's Decisions API is a direct substitute for the Jev plan.
+
+So the Vintage shape becomes: the logging raider's desktop runs the Farsight host or watch
+script, which publishes a `RunSummary` to Vintage after each raid; Vintage stores it, links
+characters to members, and runs the significance pass; one cheap model turn per raider turns
+structured findings into a short DM with the evidence attached; a Decisions question gates
+whether each finding is worth sending. No sandbox, no subagents, `environment: none` or even
+the Responses API with structured output. The hosted sandbox keeps one optional job: an
+officer's open-ended comparative question ("did our kick coverage on the third boss improve
+over the last four weeks?") answered by an agent writing code against the stored summaries.
+
+**What raids need that Crawler lacks today** (its own roadmap puts raid support in phase 3,
+Dec 9 to Jan 20, unbuilt): encounter-first segmentation (attempts per boss, kill or wipe from
+`ENCOUNTER_END`) instead of one run per zone change with a 30-minute gap; several tanks and
+role detection instead of "the player who took the most damage"; per-raider findings
+(avoidable damage, deaths, interrupts per raider) and assignment review instead of run-level
+findings; thresholds tuned past 5-player baselines; streaming the second pass, since a raid
+night's log is 100 to 200 MB and 25 players grow the position traces about 5x; and
+realm-qualified names or GUIDs instead of short names so characters link to members. Crawler
+does not model defensives yet, so the "no defensive up 73% of the time" finding is new work.
+
+**Ownership.** Per invariant 9, that raid work lands in Farsight (`@farsight/core` and
+`@farsight/schemas`), which Vintage consumes as dependencies, vendored like AFD until they are
+published. Vintage owns only the guild side: the insights module (runs, findings, member
+links, opt-ins), the import command, the DM delivery, and the wording layer. Farsight's
+`module-sdk` and `host` duplicate guild-kit and `apps/api` and should not be imported.
 
 Two rules to set before building: the tone is "here is one thing that would help", never a
 ranking; and findings are claims about the log with the evidence attached (timestamps, counts),
@@ -207,8 +255,12 @@ because it may become a product on its own.
 
 - **Loot awards.** Never a model decision (PLAN §1 P2, §5.3). A model may summarize inputs for
   the council; the award is a human command.
-- **Comp selection.** `libs/comp-solver` is deterministic and explainable; keep it that way. A
-  model may explain gaps or propose alt swaps as a dryRun preview; the pick order stays code.
+- **Comp selection as a model decision.** `libs/comp-solver` is deterministic and explainable;
+  keep it that way. A model may explain gaps or propose alt swaps as a dryRun preview; the pick
+  order stays code and the officer confirms. Whoever proposes, the result reaches the game the
+  same way: an import string the addon applies by moving members between groups, the path
+  `addon-import-get` already carries. Farsight's addon core has the matching export envelope
+  (`FARSIGHT1:<adler32>:<json>`) for the other direction.
 - **Computer use, Dots, GPT-Live.** No Vintage surface needs a browser-driving agent; Discord
   voice is not reachable through GPT-Live; Dots is a ChatGPT product, not an API.
 - **Contributor fleets on the Agents API.** Plausible for PLAN §7.4's `do-run-fleet` with a
@@ -265,21 +317,25 @@ them to OpenAI, tests use memory fakes, and every path has a deterministic fallb
   from non-officers get a template reply and spend no session. Tier enforcement stays in
   guild-kit; this only saves tokens and labels each `AgentRun` for the cost report.
 
-### D. Raid log insights (Agents API with a hosted sandbox and subagents)
+### D. Raid insights on Farsight Crawler (deterministic analysis, model wording)
 
-- **Shape:** an officer command `insights-run <log-report>` starts a Sol session with
-  `environment: openai_hosted`, `multi_agent` on, a function tool (or MCP server) that fetches
-  the report into the workspace, and read-only tools over `raid-get` and `signup-list` for the
-  roster. Subagents write per-raider findings to their own files; the main agent assembles DMs
-  and an officer summary as artifacts. Convex stores the findings in the module's tables and
-  the coordinator sends DMs under the same opt-out and rate limits as reminders.
-- **Guardrails:** helpful-not-judgmental instructions with examples; every finding carries
-  evidence; raiders opt in to DMs; officers see the summary before DMs go out the first few
-  times; per-run cost cap and prompt deletion of sessions.
-- **Build on** Bloodfen's existing analysis work; the harness replaces the orchestration, not
-  the domain knowledge.
-- **Proves:** whether the Agents API's sandbox, subagents, and artifacts earn their cost on a
-  real job, and the shape of a possible standalone product.
+- **Upstream first (Farsight):** raid segmentation by encounter, multiple tanks and roles,
+  per-raider findings, defensives, realm-qualified identity, and a streaming second pass, in
+  `@farsight/core` and `@farsight/schemas`. A `crawler-publish` command on the Farsight host
+  that posts a `RunSummary` to a configured guild endpoint after each ingest.
+- **Vintage side:** an `insights` module owning runs, findings, member links, and opt-ins.
+  `run-import` (officer, or the logging raider) accepts the `farsight.run` upload envelope,
+  links characters to members, and stores the summary; `insights-get` serves the officer
+  summary and a raider's own findings in Discord and on the site.
+- **Model layer:** per raider, one Terra turn over that raider's structured findings with the
+  evidence, producing a two- or three-line DM; a Decisions `predicate` "worth sending to this
+  raider this week" and `score` severity gate the send; the coordinator delivers DMs under the
+  same opt-in and rate limits as reminders, and officers see the summary first for the first
+  few raid nights. Template fallback: the top finding verbatim.
+- **Later, optional:** an officer's open-ended comparative question answered by an agent in a
+  hosted sandbox with the stored summaries as files. The only sandbox job in sight.
+- **Proves:** whether Crawler's findings hold up on 25-player logs, what a DM a raider actually
+  acts on looks like, and the shape of a possible standalone product.
 
 ### Later
 
@@ -294,7 +350,8 @@ them to OpenAI, tests use memory fakes, and every path has a deterministic fallb
 |---|---|
 | PLAN §3.10 | Runtime becomes "Agents API sessions; Convex keeps the session map, the `AgentRun` ledger, and answers function tools over webhooks". `packages/agent` is a bridge, not a harness. |
 | PLAN §3.2, model-routing | Model names to the GPT-6 line; add Decisions and the log-insights (Sol, subagents) rows. |
-| PLAN §3.3, §8 | New module for applications (Phase 1.5, not "Later"); a new module for log insights; `agent-ask|pause|resume` stay. |
+| PLAN §3.3, §8 | New module for applications (Phase 1.5, not "Later"); an `insights` module that consumes `@farsight/core` and `@farsight/schemas`; `agent-ask|pause|resume` stay. |
+| Farsight (upstream, invariant 9) | Raid support in Crawler (its phase 3), a publish command on the host, and publishing `@farsight/core` and `@farsight/schemas` or vendoring them like AFD. |
 | `packages/` | `agent` (session map, webhook handler, tool bridge, spend ledger) and `decisions` (port + memory fake in `testing`). Modules never import OpenAI (layer rule). |
 | coordinator | A weekly `assessment` rule and a `noteTriage` step in `render.ts`, both behind ports with the current output as fallback. |
 | Tiers | A recruitment sub-role or capability. |
@@ -309,9 +366,12 @@ them to OpenAI, tests use memory fakes, and every path has a deterministic fallb
    answers.
 3. Measured Decisions latency and accuracy on our own notes and applications versus plain Luna
    with a strict enum (the fallback if the endpoint disappoints).
-4. Log access: which logs provider, API terms for pulling a guild's reports, and whether the
-   main agent fetches once or an MCP server serves subagents.
-5. Cost of one insights run for a 25-person raid night on Sol with subagents (budget guess: low
-   single-digit dollars; measure before promising DMs every week).
-6. Whether a saved agent (by id) or an inline agent per session is easier to version alongside
+4. Who runs the Farsight host on raid night (the logging raider's desktop) and whether a
+   `crawler-publish` after ingest is reliable enough, or whether Vintage should accept a manual
+   upload of the summary file as the fallback.
+5. How `@farsight/core` behaves on a 100 to 200 MB raid log: time, memory, and whether the
+   second pass must stream before any of this is usable.
+6. Cost of the wording layer per raid night: 25 Terra turns over structured findings plus the
+   Decisions gate should be cents, not dollars; measure before promising weekly DMs.
+7. Whether a saved agent (by id) or an inline agent per session is easier to version alongside
    `commands.manifest.json`.

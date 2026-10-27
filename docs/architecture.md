@@ -196,6 +196,7 @@ are enforced by `pnpm check:boundaries`; the full table is in PLAN.md §4.1.
 | Lint / format | `pnpm lint` | Biome rules, import order, complexity |
 | Boundaries | `pnpm check:boundaries` | Upward deps, cross-module internals, escaping imports, cycles, `module.json` `dependsOn` out of sync with `package.json` |
 | Agent docs | `pnpm check:agent-docs` | AGENTS.md budget, broken links, missing skills or module docs |
+| Conflict markers | `pnpm check:conflict-markers` | a tracked file (outside `vendor/`) still holds `<<<<<<<`, `=======`, or `>>>>>>>` lines |
 | Vendor | `pnpm check:vendor` | `vendor/` pin and VENDORED.md disagree, missing LICENSE, tests or maps copied in |
 | Manifest | `pnpm check:manifest` | Stale `commands.manifest.json` |
 | Lockfile | part of `validate:final` | Stale `pnpm-lock.yaml` |

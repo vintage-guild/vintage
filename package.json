@@ -23,6 +23,7 @@
     "check:agent-docs": "node scripts/check-agent-docs.mjs",
     "check:vendor": "node scripts/check-vendor.mjs",
     "check:lockfile": "node scripts/check-lockfile.mjs",
+    "check:conflict-markers": "node scripts/check-conflict-markers.mjs",
     "validate:final": "node scripts/run-final-validation.mjs",
     "validate:full": "node scripts/run-final-validation.mjs --full",
     "check": "pnpm validate:full",

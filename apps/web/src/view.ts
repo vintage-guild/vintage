@@ -33,9 +33,11 @@ export function currentView(): View {
 /**
  * The home page's sections, each with the lowest tier its reads allow. A section a session
  * can't read isn't shown at all, and neither is its header link: no placeholder copy for
- * people it isn't for. Recruiting is everyone's.
+ * people it isn't for. Recruiting is everyone's; About is only the storefront's
+ * (`VISITOR_SECTIONS`).
  */
 export const HOME_SECTIONS = {
+  about: 'public', // guild-profile-get
   raids: 'member', // raid-list, signup-list
   progress: 'member', // progress-get
   recruiting: 'public', // recruiting-get
@@ -45,13 +47,18 @@ export const HOME_SECTIONS = {
 
 export type HomeSection = keyof typeof HOME_SECTIONS;
 
+/** Sections for the storefront only: members already know who we are. */
+const VISITOR_SECTIONS: ReadonlySet<HomeSection> = new Set(['about']);
+
 /** The home sections a session sees. */
 export function sectionsFor(session: Session | null): Set<HomeSection> {
   // An unknown tier is treated as public, so it still gets the storefront.
   const raw = session?.tier ?? 'public';
   const tier: Tier = (TIERS as readonly string[]).includes(raw) ? (raw as Tier) : 'public';
   return new Set(
-    (Object.keys(HOME_SECTIONS) as HomeSection[]).filter((s) => tierAllows(tier, HOME_SECTIONS[s])),
+    (Object.keys(HOME_SECTIONS) as HomeSection[]).filter(
+      (s) => tierAllows(tier, HOME_SECTIONS[s]) && (tier === 'public' || !VISITOR_SECTIONS.has(s)),
+    ),
   );
 }
 

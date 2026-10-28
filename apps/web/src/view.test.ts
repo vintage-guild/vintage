@@ -74,14 +74,14 @@ describe('sectionsFor', () => {
   const list = (tier: string | null) => [...sectionsFor(tier ? as(tier) : null)].sort();
 
   it('shows a section only to tiers whose reads it can make', () => {
-    expect(list(null)).toEqual(['recruiting']);
-    expect(list('public')).toEqual(['recruiting']);
+    expect(list(null)).toEqual(['about', 'recruiting']);
+    expect(list('public')).toEqual(['about', 'recruiting']);
     expect(list('member')).toEqual(['news', 'progress', 'raids', 'recruiting']);
     expect(list('recruit')).toEqual(['news', 'progress', 'raids', 'recruiting', 'roster']);
     expect(list('officer')).toEqual(['news', 'progress', 'raids', 'recruiting', 'roster']);
   });
 
   it('gives an unknown tier the storefront, never nothing', () => {
-    expect(list('admin')).toEqual(['recruiting']);
+    expect(list('admin')).toEqual(['about', 'recruiting']);
   });
 });

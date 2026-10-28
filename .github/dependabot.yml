@@ -6,6 +6,14 @@ updates:
     groups:
       dev-tooling:
         patterns: ["@biomejs/*", "@commitlint/*", "lefthook", "turbo", "vitest", "@vitest/*", "tsx"]
+    # @convex-dev/better-auth (latest 0.12.5) peers better-auth >=1.6.11 <1.7.0 and imports
+    # better-auth/plugins/oidc-provider, which 1.7 dropped. Hold both packages on 1.6.x (patches
+    # still flow) until the adapter supports 1.7, then delete this block.
+    ignore:
+      - dependency-name: "better-auth"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
+      - dependency-name: "@better-auth/oauth-provider"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
     commit-message: { prefix: "chore", include: scope }
   - package-ecosystem: github-actions
     directory: /

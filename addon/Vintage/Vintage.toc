@@ -43,3 +43,8 @@ View\MinimapButton.lua
 
 # Mechanic integration (optional)
 Mechanic.lua
+
+# Dev: source checkouts only (the packager strips this block)
+#@debug@
+Dev\DevStrings.lua
+#@end-debug@

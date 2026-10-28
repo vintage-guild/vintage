@@ -34,3 +34,6 @@ Thumbs.db
 
 # Vercel CLI project link (local only)
 .vercel/
+
+# The addon's retail trial TOC: a local copy of Vintage.toc for retail (see addon/Vintage/AGENTS.md)
+addon/Vintage/Vintage_Mainline.toc

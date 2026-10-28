@@ -113,6 +113,8 @@ end
 --------------------------------------------------------------------------------
 
 local commands = {}
+-- Dev/ adds `dev` here from a source checkout.
+ns.SlashCommands = commands
 
 function commands.help(self)
 	self:Print(L["Commands:"])
@@ -121,6 +123,9 @@ function commands.help(self)
 	self:Print("  /vintage clear - " .. L["Start an empty raid session (asks to confirm)"])
 	self:Print("  /vintage settings - " .. L["Open settings"])
 	self:Print("  /vintage debug - " .. L["Turn debug logging on or off"])
+	if commands.dev then
+		self:Print("  /vintage dev - " .. L["Make or read bridge strings by hand (source checkouts only)"])
+	end
 end
 
 function commands.status(self)

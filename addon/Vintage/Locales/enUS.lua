@@ -18,6 +18,20 @@ L["Debug logging on"] = true
 L["Debug logging off"] = true
 L["Unknown command %q. Type /vintage help."] = true
 L["Error"] = true
+
+-- Dev tools (source checkouts only)
+L["Make or read bridge strings by hand (source checkouts only)"] = true
+L["Encode the group as a raid export to copy"] = true
+L["Paste a bridge string and see what it holds"] = true
+L["Export of %d people (%d hidden by the game). Copy it with Ctrl+C."] = true
+L["Import for %s: %d in the roster, %d groups, loot %s."] = true
+L["Export by %s: %d snapshots, %d people, %d drops."] = true
+L["A %s string."] = true
+L["Paste a bridge string (it starts with !VIN:)"] = true
+L["Bridge string"] = true
+L["Read"] = true
+L["Vintage raid export"] = true
+L["Read a bridge string"] = true
 L["Vintage is built for WoW: Forever. Some features may not work on this client."] = true
 
 -- Raid window

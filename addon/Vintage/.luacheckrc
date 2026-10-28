@@ -41,6 +41,19 @@ read_globals = {
 	"LibStub",
 }
 
+-- Dev tools read the group themselves (dev only; the real snapshot goes through Bridge/Context)
+files["Dev/**/*.lua"] = {
+	read_globals = {
+		"GetNumGroupMembers",
+		"GetNumSubgroupMembers",
+		"GetRaidRosterInfo",
+		"IsInRaid",
+		"UnitClass",
+		"UnitIsConnected",
+		"UnitName",
+	},
+}
+
 ignore = {
 	"211/_.*", -- unused variables starting with _
 	"212/self", -- unused self

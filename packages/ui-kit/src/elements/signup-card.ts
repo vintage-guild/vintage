@@ -235,9 +235,7 @@ const styles = css`
     border-radius: 0.4rem;
     border: var(--border-width-thin) solid var(--color-border-strong);
     background: linear-gradient(180deg, var(--color-surface-raised), var(--card-bg));
-    box-shadow:
-      inset 0 1px 0 rgb(255 244 228 / 6%),
-      0 14px 34px rgb(0 0 0 / 45%);
+    box-shadow: var(--shadow-raised);
   }
 
   .eyebrow {
@@ -304,7 +302,7 @@ const styles = css`
     border-radius: 0.3rem;
     border: var(--border-width-thin) solid var(--color-border-default);
     background: var(--color-surface-canvas);
-    box-shadow: inset 0 1px 0 rgb(255 244 228 / 6%);
+    box-shadow: var(--shadow-edge);
   }
 
   .row {

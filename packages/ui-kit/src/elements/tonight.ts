@@ -46,6 +46,40 @@ interface RoleGroup {
   rows: TonightSignup[];
 }
 
+/** A raid an export can be checked against: one from the last week or the next day. */
+export interface TonightRecentRaid {
+  id: string;
+  name: string;
+  /** Epoch ms. */
+  startsAt: number;
+}
+
+/** What `raid-export-check` returns, as far as Tonight shows it (raids' ExportCheck). */
+export interface TonightExportCheck {
+  event: { id: string; name: string; startsAt: number; status: string } | null;
+  otherGuild: boolean;
+  exporter: string;
+  addonVersion: string;
+  snapshots: { at: number; label: string | null; present: number; online: number }[];
+  attendees: {
+    name: string;
+    snapshots: number;
+    characterId: string | null;
+    matchedWithoutRealm?: boolean;
+  }[];
+  loot: {
+    itemId: number;
+    itemName: string | null;
+    looter: string;
+    count: number;
+    source: string | null;
+  }[];
+  unknownNames: string[];
+  absent: { characterId: string; characterName: string; status: string }[];
+  declinedButSeen?: string[];
+  warnings?: { code: string; message: string }[];
+}
+
 /** A destructive command's preview, waiting for the officer to confirm or keep. */
 interface PendingRemoval {
   signupId: string;
@@ -109,6 +143,12 @@ const template = html<VintageTonight>`
         <button class="btn" ?disabled="${(x) => !x.canAct}" @click="${(x) => x.copyImport()}">
           Copy addon import
         </button>
+        <button
+          class="btn"
+          aria-expanded="${(x) => String(x.exportOpen)}"
+          ?disabled="${(x) => x.busy}"
+          @click="${(x) => x.toggleExport()}"
+        >Check an export</button>
       </div>
     </header>
 
@@ -135,6 +175,86 @@ const template = html<VintageTonight>`
           <span>Addon import · ${(x) => x.importNote}</span>
           <textarea readonly rows="3" @focus="${(_, c) => (c.event.target as HTMLTextAreaElement).select()}">${(x) => x.importString}</textarea>
         </label>
+      `,
+    )}
+
+    ${when(
+      (x) => x.exportOpen,
+      html<VintageTonight>`
+        <div class="export" part="export">
+          <label class="import">
+            <span>Raid export from the addon (starts with !VIN:). Nothing is saved.</span>
+            <textarea
+              rows="3"
+              spellcheck="false"
+              placeholder="!VIN:1!…"
+              :value="${(x) => x.exportText}"
+              @input="${(x, c) => x.setExportText((c.event.target as HTMLTextAreaElement).value)}"
+            ></textarea>
+          </label>
+          <div class="export-actions">
+            <label class="import">
+              <span>Raid</span>
+              <select
+                ?disabled="${(x) => x.busy}"
+                @change="${(x, c) => x.pickExportRaid((c.event.target as HTMLSelectElement).value)}"
+              >
+                ${repeat(
+                  (x) => x.exportRaidOptions,
+                  html<{ id: string; label: string }, VintageTonight>`
+                    <option
+                      value="${(o) => o.id}"
+                      ?selected="${(o, c) => c.parent.exportRaidId === o.id}"
+                    >${(o) => o.label}</option>
+                  `,
+                )}
+              </select>
+            </label>
+            <button
+              class="btn primary"
+              ?disabled="${(x) => x.busy || !x.exportText.trim()}"
+              @click="${(x) => x.checkExport()}"
+            >Check export</button>
+          </div>
+          ${when(
+            (x) => x.exportCheck,
+            html<VintageTonight>`
+              <div class="card export-result" part="export-result">
+                <span class="eyebrow">${(x) => x.exportHeading}</span>
+                <p>${(x) => x.exportSummary}</p>
+                ${repeat(
+                  (x) => x.exportCheck?.warnings ?? [],
+                  html<{ message: string }>`<p class="warn" role="note">${(w) => w.message}</p>`,
+                )}
+                <p class="names"><b>Snapshots</b> ${(x) => x.exportSnapshotsLine}</p>
+                ${when(
+                  (x) => (x.exportCheck?.attendees.length ?? 0) > 0,
+                  html<VintageTonight>`<p class="names"><b>Seen</b> ${(x) => x.exportSeenLine}</p>`,
+                )}
+                ${when(
+                  (x) => x.exportCheck?.event && x.exportCheck.unknownNames.length,
+                  html<VintageTonight>`<p class="names"><b>Not signed up</b> ${(x) => x.exportCheck?.unknownNames.join(', ')}</p>`,
+                )}
+                ${when(
+                  (x) => x.exportCheck?.absent.length,
+                  html<VintageTonight>`<p class="names"><b>Signed up but not seen</b> ${(x) => x.exportCheck?.absent.map((a) => a.characterName).join(', ')}</p>`,
+                )}
+                ${when(
+                  (x) => x.exportCheck?.declinedButSeen?.length,
+                  html<VintageTonight>`<p class="names"><b>Declined but came</b> ${(x) => x.exportCheck?.declinedButSeen?.join(', ')}</p>`,
+                )}
+                ${when(
+                  (x) => x.exportLooseNames,
+                  html<VintageTonight>`<p class="names"><b>Matched by name only</b> ${(x) => x.exportLooseNames}</p>`,
+                )}
+                ${when(
+                  (x) => x.exportCheck?.loot.length,
+                  html<VintageTonight>`<p class="names"><b>Loot</b> ${(x) => x.exportLootLine}</p>`,
+                )}
+              </div>
+            `,
+          )}
+        </div>
       `,
     )}
 
@@ -392,6 +512,33 @@ const styles = css`
     word-break: break-all;
   }
 
+  .export {
+    display: grid;
+    gap: var(--space-sm);
+  }
+
+  .export-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: var(--space-sm);
+  }
+
+  .export-result p {
+    margin: 0;
+  }
+
+  .export-result b {
+    color: var(--color-text-primary);
+    font-weight: var(--font-weight-bold);
+    margin-inline-end: var(--space-xs);
+  }
+
+  .warn {
+    color: var(--color-text-accent);
+    font-size: var(--font-size-sm);
+  }
+
   .glance {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -547,9 +694,10 @@ const styles = css`
  * Tonight, in the officers' quarters: the next raid's signups by role, the comp gaps, who
  * hasn't answered, and the raid-night actions as commands. Lock and unlock the roster, place a
  * signup in a group, bench them, remove them (preview and confirm), and copy the addon import
- * string. Feed it `raid-list` / `raid-get`, `signup-list`, `comp-suggest` gaps, and
- * `coordinator-status` waiting; it emits `tonight-changed` after every change so the page
- * re-reads.
+ * string, or check a raid export from the addon (raid-export-check, read-only). Feed it
+ * `raid-list` / `raid-get`, `signup-list`, `comp-suggest` gaps, `coordinator-status` waiting,
+ * and `recentRaids` (the last week's raids, for the export check); it emits `tonight-changed`
+ * after every change so the page re-reads.
  *
  * @tagname vintage-tonight
  * @summary The raid-night view for leaders: roster, gaps, non-responders, and actions.
@@ -560,6 +708,8 @@ const styles = css`
  * @csspart status - The line that says what happened.
  * @csspart confirm - A removal waiting for confirmation.
  * @csspart import - The import string, when copied.
+ * @csspart export - The export check: paste box and its actions.
+ * @csspart export-result - What the check found.
  * @csspart gaps - The comp gaps.
  * @csspart waiting - Who hasn't answered.
  * @csspart roster - The signups by role.
@@ -584,6 +734,97 @@ export class VintageTonight extends FASTElement {
   @observable pending: PendingRemoval | null = null;
   @observable importString = '';
   @observable importNote = '';
+  /** The export check panel is open. */
+  @observable exportOpen = false;
+  @observable exportText = '';
+  /** The last `raid-export-check` result, or null before a check. */
+  @observable exportCheck: TonightExportCheck | null = null;
+  /** The check's own one-line summary (its reasoning). */
+  @observable exportSummary = '';
+  /**
+   * Raids an export can be checked against (the page reads the last week and the next day).
+   * Tonight's `raid` is the next one, which is the wrong raid once it's over.
+   */
+  @observable recentRaids: TonightRecentRaid[] = [];
+  /** The raid to check against; '' leaves it to the raid the export names. */
+  @observable exportRaidId = '';
+  /** The leader picked a raid themselves, so new data doesn't move the choice. */
+  private exportRaidPicked = false;
+
+  recentRaidsChanged(): void {
+    const ids = this.exportRaidOptions.map((o) => o.id);
+    if (this.exportRaidPicked && ids.includes(this.exportRaidId)) return;
+    this.exportRaidPicked = false;
+    this.exportRaidId = ids[0] ?? '';
+  }
+
+  /**
+   * The raid picker's choices: raids that have started, latest first (the one just finished
+   * leads), then upcoming ones, soonest first; then the raid the export names.
+   */
+  @volatile
+  get exportRaidOptions(): { id: string; label: string }[] {
+    const now = Date.now();
+    const started = this.recentRaids
+      .filter((r) => r.startsAt <= now)
+      .sort((a, b) => b.startsAt - a.startsAt);
+    const upcoming = this.recentRaids
+      .filter((r) => r.startsAt > now)
+      .sort((a, b) => a.startsAt - b.startsAt);
+    return [
+      ...[...started, ...upcoming].map((r) => ({
+        id: r.id,
+        label: `${r.name} · ${this.shortDate(r.startsAt)}`,
+      })),
+      { id: '', label: 'The raid the export names' },
+    ];
+  }
+
+  /** Attendees matched to a signup without their realm, comma-separated. */
+  @volatile
+  get exportLooseNames(): string {
+    return (this.exportCheck?.attendees ?? [])
+      .filter((a) => a.matchedWithoutRealm)
+      .map((a) => a.name)
+      .join(', ');
+  }
+
+  @volatile
+  get exportHeading(): string {
+    const event = this.exportCheck?.event;
+    return event ? `Export · ${event.name}` : 'Export · no raid matched';
+  }
+
+  @volatile
+  get exportSnapshotsLine(): string {
+    const snapshots = this.exportCheck?.snapshots ?? [];
+    if (!snapshots.length) return 'none';
+    return snapshots
+      .map((s) => {
+        const offline = s.present - s.online;
+        return `${s.label ?? 'snapshot'} ${s.present}${offline > 0 ? ` (${offline} offline)` : ''}`;
+      })
+      .join(' · ');
+  }
+
+  @volatile
+  get exportSeenLine(): string {
+    const total = this.exportCheck?.snapshots.length ?? 0;
+    return (this.exportCheck?.attendees ?? [])
+      .map((a) => `${a.name} (${a.snapshots}/${total})`)
+      .join(', ');
+  }
+
+  @volatile
+  get exportLootLine(): string {
+    return (this.exportCheck?.loot ?? [])
+      .map(
+        (l) =>
+          `${l.itemName ?? `item ${l.itemId}`}${l.count > 1 ? ` ×${l.count}` : ''} → ${l.looter}` +
+          (l.source ? ` (${l.source})` : ''),
+      )
+      .join(' · ');
+  }
 
   get locked(): boolean {
     return this.raid?.status === 'locked';
@@ -597,21 +838,30 @@ export class VintageTonight extends FASTElement {
   @volatile
   get startsLabel(): string {
     if (!this.raid) return this.loading ? 'loading' : 'nothing posted';
+    return this.formatTime(this.raid.startsAt, { timeZoneName: 'short' });
+  }
+
+  /** "Wed, Oct 28, 8:00 PM" in the viewer's zone, for the export's raid picker. */
+  private shortDate(at: number): string {
+    return this.formatTime(at, {});
+  }
+
+  private formatTime(at: number, extra: Intl.DateTimeFormatOptions): string {
     const options: Intl.DateTimeFormatOptions = {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
-      timeZoneName: 'short',
+      ...extra,
     };
     try {
-      return new Date(this.raid.startsAt).toLocaleString(undefined, {
+      return new Date(at).toLocaleString(undefined, {
         ...options,
         ...(this.timeZone ? { timeZone: this.timeZone } : {}),
       });
     } catch {
-      return new Date(this.raid.startsAt).toLocaleString(undefined, options);
+      return new Date(at).toLocaleString(undefined, options);
     }
   }
 
@@ -810,6 +1060,65 @@ export class VintageTonight extends FASTElement {
         'success',
         copied ? 'Import copied. Paste it into the Vintage addon.' : 'Import ready below.',
       );
+      return result;
+    } finally {
+      this.busy = false;
+    }
+  }
+
+  toggleExport(): void {
+    this.exportOpen = !this.exportOpen;
+  }
+
+  setExportText(value: string): void {
+    this.exportText = value;
+  }
+
+  pickExportRaid(eventId: string): void {
+    this.exportRaidPicked = true;
+    this.exportRaidId = eventId;
+  }
+
+  /**
+   * Checks the pasted export against `eventId`, or the raid picked in the panel (the one that
+   * started last, until the leader picks another). An empty `eventId` leaves it to the raid the
+   * export names, which is set when the addon imported the raid first.
+   */
+  @command('vintage.raid-export-check', {
+    label: 'Check a raid export',
+    description:
+      'Read a raid export string from the Vintage addon and match it to a raid: attendance, loot, ' +
+      'who was not signed up, and who did not show. Records nothing. Without eventId it uses the ' +
+      'raid picked in the panel; an empty eventId uses the raid the export names.',
+    category: 'Officers',
+    parameters: {
+      type: 'object',
+      properties: { eventId: { type: 'string' } },
+    },
+  })
+  async checkExport(eventId?: unknown): Promise<ElementResult<unknown>> {
+    if (eventId !== undefined && typeof eventId !== 'string') {
+      return failure({ code: 'INVALID_PARAMETERS', message: 'eventId must be a raid id' });
+    }
+    const exportString = this.exportText.trim();
+    if (!exportString)
+      return failure({ code: 'COMMAND_DISABLED', message: 'Paste an export first' });
+    const target = eventId ?? this.exportRaidId;
+    this.busy = true;
+    try {
+      const raw = await getCommandClient().read<TonightExportCheck>('raid-export-check', {
+        exportString,
+        ...(target ? { eventId: target } : {}),
+      });
+      const result = toElementResult(raw);
+      if (!result.success || !raw.success || !raw.data) {
+        this.exportCheck = null;
+        this.say('error', describeError(result));
+        return result;
+      }
+      this.exportCheck = raw.data;
+      this.exportSummary = String(result.metadata?.reasoning ?? '');
+      this.say('success', 'Export checked. Nothing was saved.');
       return result;
     } finally {
       this.busy = false;

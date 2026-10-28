@@ -2,10 +2,11 @@
 // Each test builds a fresh guild, drives it only through commands and coordinator ticks, and
 // checks what members would see in Discord. Extend these when the raid night changes.
 import { decodeRaidImport } from '@vintage/bridge-format';
+import luaMade from '@vintage/bridge-format/fixtures/lua-made.json';
 import { buttonLabels, messageText } from '@vintage/coordinator/testing';
 import { ScheduledEventStatus } from '@vintage/discord-kit';
 import type { Caller } from '@vintage/guild-kit';
-import type { RaidEvent, Signup } from '@vintage/raids/contract';
+import type { ExportCheck, RaidEvent, Signup } from '@vintage/raids/contract';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   createHost,
@@ -17,6 +18,9 @@ import {
   ROLES,
   SIGNUP_CHANNEL,
 } from './host';
+
+/** The golden fixture J44 checks (libs/bridge-format fixtures.ts, RAID_NIGHT_EXPORT_FIXTURE). */
+const RAID_NIGHT_EXPORT = 'raid-export-night.v1';
 
 /** Wed 28 Oct 2026, 20:00 New York (EDT). */
 const WED = Date.UTC(2026, 9, 29, 0);
@@ -247,6 +251,108 @@ describe('JTBD: raid night', () => {
       characterId: g.chars.cade,
       status: 'accepted',
     });
+  });
+
+  it('J44 · after the raid, the addon’s export reads the same on the site, over MCP, and in Discord', async () => {
+    const { wed } = await scheduleRaidNights(g);
+    for (const key of ['aeryn', 'bram', 'cade'] as const) {
+      await answer(g, g[key], key, wed.id, 'accepted');
+    }
+    g.host.clock.advance(WED + 4 * HOUR - g.host.clock.now()); // the raid is over
+    const before = await g.host.ok<{ signups: Signup[] }>(g.rook, 'raid-get', { eventId: wed.id });
+
+    // The string the addon's own codec wrote (Lua, checked under Lua 5.1 in CI): Aeryn and
+    // Bramble raided, Cadence signed up and didn't come, a pick-up from another realm took loot.
+    const exportString = luaMade.strings[RAID_NIGHT_EXPORT];
+    expect(exportString).toMatch(/^!VIN:1!/);
+
+    // The site: the quarters' Tonight tab reads the last week's raids and the next day's (as
+    // the officers page does), picks the one that started last, and runs raid-export-check as
+    // the signed-in raid leader. Tonight's own raid is Thursday's by now, the wrong one.
+    const now = g.host.clock.now();
+    const recent = await g.host.ok<{ event: RaidEvent }[]>(g.rook, 'raid-list', {
+      from: now - 7 * DAY,
+      to: now + DAY,
+      statuses: ['open', 'locked', 'completed'],
+    });
+    const started = recent.filter((r) => r.event.startsAt <= now);
+    expect(recent.map((r) => r.event.id)).toEqual([wed.id, expect.any(String)]);
+    const picked = started.sort((a, b) => b.event.startsAt - a.event.startsAt)[0]!.event;
+    expect(picked.id).toBe(wed.id);
+    const site = await g.host.run(g.rook, 'raid-export-check', {
+      exportString,
+      eventId: picked.id,
+    });
+    expect(site).toMatchObject({ success: true });
+    const check = site.data as ExportCheck;
+    expect(check.event).toMatchObject({ id: wed.id, name: 'Raid night' });
+    // The export was taken that night, so nothing about the match is in doubt.
+    expect(check.warnings).toEqual([]);
+    expect(check.declinedButSeen).toEqual([]);
+    expect(check.attendees.map((a) => [a.name, a.snapshots, a.characterId])).toEqual([
+      ['Aeryn', 3, g.chars.aeryn],
+      ['Bramble', 3, g.chars.bram],
+      ['Doran-Stonemaul', 2, null],
+    ]);
+    expect(check.unknownNames).toEqual(['Doran-Stonemaul']);
+    expect(check.absent.map((a) => a.characterName)).toEqual(['Cadence']);
+    expect(check.loot.map((l) => [l.itemName ?? l.itemId, l.looter, l.characterId])).toEqual([
+      ['Arcanist Boots', 'Bramble', g.chars.bram],
+      ['Lava Core', 'Doran-Stonemaul', null],
+    ]);
+
+    // MCP: the same command, listed for raid leaders and not for raiders, with the same answer.
+    expect(await g.host.mcp.tools(g.rook.discordId!)).toContain('raid-export-check');
+    expect(await g.host.mcp.tools(g.aeryn.discordId!)).not.toContain('raid-export-check');
+    const mcp = await g.host.mcp.call(g.rook.discordId!, 'raid-export-check', {
+      exportString,
+      eventId: wed.id,
+    });
+    expect(mcp.data).toEqual(check);
+    expect(mcp.reasoning).toBe(site.reasoning);
+
+    // Discord: the raid leader picks last night's raid from the suggestions, then pastes.
+    const suggested = (await g.host.eventUi.autocomplete(g.rook.discordId!, 'raid')) as {
+      data: { choices: { name: string; value: string }[] };
+    };
+    expect(suggested.data.choices[0]).toEqual({
+      name: 'Raid night · Wed, Oct 28, 8:00 PM',
+      value: wed.id,
+    });
+    const reply = (await g.host.eventUi.slash(g.rook.discordId!, 'check-export', {
+      export: exportString!,
+      event: suggested.data.choices[0]!.value,
+    })) as { data: { content: string; flags: number } };
+    expect(reply.data.flags & 64).toBe(64); // private
+    const said = reply.data.content;
+    expect(said).toContain('**Raid night** · ');
+    expect(said).not.toContain('⚠️');
+    expect(said).toContain('3 snapshots: start 3 · Lucifron 3 (1 offline) · end 2');
+    expect(said).toContain('Seen: Aeryn (3/3), Bramble (3/3), Doran-Stonemaul (2/3)');
+    expect(said).toContain('Not signed up: Doran-Stonemaul');
+    expect(said).toContain('Signed up but not seen: Cadence');
+    expect(said).toContain(
+      'Loot: Arcanist Boots → Bramble (Lucifron), Lava Core ×2 → Doran-Stonemaul',
+    );
+    expect(said).toMatch(/Nothing was recorded\.$/);
+
+    // Suggestions are for raid leaders too: a raider, a Discord-only friend, and someone Random
+    // doesn't know get none.
+    const friend = await g.host.discordMember('500000000000000099', 'Fen', [ROLES.friend]);
+    for (const discordId of [g.aeryn.discordId!, friend.discordId!, '500000000000000098']) {
+      const offered = (await g.host.eventUi.autocomplete(discordId, '')) as {
+        data: { choices: unknown[] };
+      };
+      expect(offered.data.choices, discordId).toEqual([]);
+    }
+
+    // A raider can't run it from Discord either, and nothing anywhere was recorded.
+    const raider = (await g.host.eventUi.slash(g.aeryn.discordId!, 'check-export', {
+      export: exportString!,
+    })) as { data: { content: string } };
+    expect(raider.data.content).toContain('needs the Raid Leader rank');
+    const after = await g.host.ok<{ signups: Signup[] }>(g.rook, 'raid-get', { eventId: wed.id });
+    expect(after.signups).toEqual(before.signups);
   });
 
   it('J08 · an officer cancels one night; it stays cancelled and nobody is chased for it', async () => {

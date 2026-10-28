@@ -10,8 +10,9 @@ directly. Maturity: **core**.
 |---|---|
 | `src/contract.ts` | Public types (`Schedule`, `RaidEvent`, `Signup`), command names, events. The only import other modules may use |
 | `src/domain/recurrence.ts` | Pure: a weekly recurrence in an IANA zone → start times (DST-safe) |
+| `src/domain/export-check.ts` | Pure: an addon export (`@vintage/bridge-format` `raid-export`) matched to a raid's signups by name, with or without the realm |
 | `src/store.ts` | `RaidsStore` port, `RaidsMembers` (what raids reads from identity), `RaidsEventSink`, `RaidsDeps`, `command` |
-| `src/commands/` | `schedule-*`, `raid-*`, `signup-*`, `roster-*`, `comp-suggest` |
+| `src/commands/` | `schedule-*`, `raid-*`, `signup-*`, `roster-*`, `comp-suggest`, `raid-export-check` (read-only: an addon export matched to its raid, #29) |
 | `src/testing.ts` | Memory store, members, and a recording event sink, same behavior as the component |
 | `convex/` | The `raids` Convex component: `schedules`, `raidEvents`, `signups` tables |
 
@@ -70,6 +71,14 @@ directly. Maturity: **core**.
   so keep it short and plain. It reads `listSignupsByMember` (the component's `by_guild_member`
   index, latest `signedUpAt` first). `rolesNeeded` (contract) is what the surfaces' "needed"
   hints use.
+- **`raid-export-check`** (leader, read-only, #29) matches an addon export to a raid: the
+  caller's `eventId`, else the export's own when it's this guild's. Who was expected is
+  `expectedSignups`: the roster once anyone is rostered (as `raid-complete` counts), else
+  everyone going who isn't queued or benched. A declined signup who was seen is
+  `declinedButSeen`, not unknown. A `Name-Realm` falls back to a signup for `Name` only when the
+  export has no plain `Name` and no second realm's, and is flagged `matchedWithoutRealm`.
+  `warnings` (OTHER_GUILD, OTHER_RAID, TIMES_APART: no snapshot from 2 hours before the start to
+  10 after) are plain sentences every surface shows as they are.
 - **Leaders override** (tier `leader`): signing up anyone's character, changing locked raids,
   and every `roster-*` command. `raid-cancel` and `roster-remove` are destructive (confirm flow).
 - **Events:** `signup-changed` on every real change (not on a no-op re-answer) and on removal

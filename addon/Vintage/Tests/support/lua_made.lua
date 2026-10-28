@@ -39,7 +39,7 @@ end
 
 ---@param strings table name -> encoded string
 function LuaMade.Write(strings)
-	local file = assert(io.open(LuaMade.PATH, "w"))
+	local file = assert(io.open(LuaMade.PATH, "wb")) -- binary: LF line endings on Windows too
 	file:write(LuaMade.Render(strings))
 	file:close()
 end

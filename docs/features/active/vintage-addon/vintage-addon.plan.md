@@ -375,16 +375,19 @@ the addon can ship before either.
 
 ## Jobs to be done
 
-A new suite, `docs/jtbd/raid-addon.md` (job IDs are the next free ones when it lands; J33 went to the officers' assistant), with the automated layer split between the addon's busted
-scenario specs (the in-game half) and `raid-night.jtbd.test.ts` (the web half, once #29 lands):
+A new suite, `docs/jtbd/raid-addon.md`, with the automated layer split between the addon's busted
+scenario specs (the in-game half) and `raid-night.jtbd.test.ts` (the web half). Job IDs are
+assigned when each job lands, since other suites took J33–J43 in the meantime. The first one in
+is **J44**, in the raid-night suite: the export check on the site, over MCP, and in Discord, using
+a string the addon's codec wrote.
 
 | Job | When … I want … so I can … | Addon checks |
 |---|---|---|
-| **J34 Form the raid from the string** | the raid is locked, I (raid leader) want to paste one string and invite everyone, so I can form the raid in a minute | Decoded summary shown; invites in roster order; raid conversion; status per character; declined and offline shown |
-| **J35 Groups match the plan** | the raid is formed, I want the groups arranged, so I can skip dragging 25 people | Move plan reaches the import's groups; manual changes afterwards are respected (no fighting the leader) |
-| **J36 Attendance without a spreadsheet** | the night runs, I want attendance taken at start, per boss, and at the end, so I can stop asking "who was here for Onyxia?" | Snapshots labelled `start`, boss names, `end`; late joiners appear in later snapshots |
-| **J37 Loot priority at the corpse** | an item drops, I (master looter) want to see who the guild's method says gets it and why, so I can hand it out without alt-tabbing | Popup with ranked reasons; Give → Confirm → one `GiveMasterLoot`; group loot: record only |
-| **J38 Close the loop** | the raid is over, I want one string for the website, so I can record attendance and loot and let the bot post the summary | Export validates against `raidExportV1Schema`; pasting it on the site records attendance and loot (J38's web half, #29) |
+| **Form the raid from the string** | the raid is locked, I (raid leader) want to paste one string and invite everyone, so I can form the raid in a minute | Decoded summary shown; invites in roster order; raid conversion; status per character; declined and offline shown |
+| **Groups match the plan** | the raid is formed, I want the groups arranged, so I can skip dragging 25 people | Move plan reaches the import's groups; manual changes afterwards are respected (no fighting the leader) |
+| **Attendance without a spreadsheet** | the night runs, I want attendance taken at start, per boss, and at the end, so I can stop asking "who was here for Onyxia?" | Snapshots labelled `start`, boss names, `end`; late joiners appear in later snapshots |
+| **Loot priority at the corpse** | an item drops, I (master looter) want to see who the guild's method says gets it and why, so I can hand it out without alt-tabbing | Popup with ranked reasons; Give → Confirm → one `GiveMasterLoot`; group loot: record only |
+| **Close the loop** | the raid is over, I want one string for the website, so I can record attendance and loot and let the bot post the summary | Export validates against `raidExportV1Schema`; pasting it on the site records attendance and loot (the web half: J44 checks it today, read-only; recording is #29) |
 
 ## Docs and repo updates that ride with PR1
 

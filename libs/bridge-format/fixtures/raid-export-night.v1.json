@@ -1,0 +1,110 @@
+{
+  "description": "A raid night with no event id: two signed-up raiders, one no-show, a pick-up",
+  "payload": {
+    "v": 1,
+    "kind": "raid-export",
+    "exportedAt": 1793242800,
+    "addonVersion": "0.1.0",
+    "exporter": "Aeryn",
+    "attendance": [
+      {
+        "at": 1793232100,
+        "label": "start",
+        "members": [
+          {
+            "name": "Aeryn",
+            "class": "warrior",
+            "group": 1,
+            "online": true
+          },
+          {
+            "name": "Bramble",
+            "class": "priest",
+            "group": 1,
+            "online": true
+          },
+          {
+            "name": "Doran-Stonemaul",
+            "class": "rogue",
+            "group": 2,
+            "online": true
+          }
+        ]
+      },
+      {
+        "at": 1793235700,
+        "label": "Lucifron",
+        "members": [
+          {
+            "name": "Aeryn",
+            "class": "warrior",
+            "group": 1,
+            "online": true
+          },
+          {
+            "name": "Bramble",
+            "class": "priest",
+            "group": 1,
+            "online": false
+          },
+          {
+            "name": "Doran-Stonemaul",
+            "class": "rogue",
+            "group": 2,
+            "online": true
+          }
+        ]
+      },
+      {
+        "at": 1793239300,
+        "label": "end",
+        "members": [
+          {
+            "name": "Aeryn",
+            "class": "warrior",
+            "group": 1,
+            "online": true
+          },
+          {
+            "name": "Bramble",
+            "class": "priest",
+            "group": 1,
+            "online": true
+          }
+        ]
+      }
+    ],
+    "loot": [
+      {
+        "itemId": 16800,
+        "looter": "Bramble",
+        "at": 1793235800,
+        "source": "Lucifron"
+      },
+      {
+        "itemId": 17011,
+        "looter": "Doran-Stonemaul",
+        "at": 1793235900,
+        "count": 2
+      }
+    ],
+    "items": [
+      {
+        "itemId": 16800,
+        "name": "Arcanist Boots",
+        "quality": 4,
+        "itemLevel": 66,
+        "equipLoc": "INVTYPE_FEET",
+        "classId": 4,
+        "subclassId": 1,
+        "icon": 132539
+      },
+      {
+        "itemId": 17011,
+        "name": "Lava Core",
+        "quality": 3
+      }
+    ]
+  },
+  "encoded": "!VIN:1!99ySoTrqqyyLyBW2qiKuffPiHsAISeiskOWD3LylzjROOniusvy37Mq2K92Xm7UoHwlfQsfLqdYD0HOGgOING5zaXtaIhaUZNr0r38pZ8)P))hT7fY0u0UbqonAfRUY7wz1XsVhSPsBc0ETxl9V9xx()RegPcmcNxsEkdYu5oA3vKyKoh9hjrAKeBryyqLyRmderaTJvHwJ2cB2LNvnG0GZZnQWnPysMPmapFXfbHBfaUrnU51FejPD5V4rlKjdM8hMMG9VHRoQFir)dcT8mTZ9X1NaJNRed)Ks5c88)Sq(0je5fVNXrv5QVpVz8mTEq7Bog(7aK8qAuHTtpE0unXZj0EiZ1AxAsZ7L2yeSDqpOpMCrVpTX6F7ZD(E3oDwpwNG2x84ANPk(VxA9Od3RyQpmem)JBEzeLiTANFPye9oA7G0O970ySlOMsUYA8lRh74M71xouU0hqc4xnB8V120tiPoD5YqfBYb0QBzdp4R5EIouvSlpTlOCyGsa(z3D)CrcgS(ALOFdV4Zhw5wa"
+}

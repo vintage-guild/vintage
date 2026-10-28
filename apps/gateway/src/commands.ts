@@ -158,8 +158,9 @@ const EVENT_EXTRAS = [
 ];
 
 /**
- * `/random event create` and `/random event pick-night` (#151; `/random raid` until then):
- * raid-create and raid-night-poll, run as the raid leader who asked, for a raid, dungeon,
+ * `/random event create`, `/random event pick-night` (#151; `/random raid` until then), and
+ * `/random event check-export`: raid-create, raid-night-poll, and raid-export-check, run as the raid
+ * leader who asked, for a raid, dungeon,
  * battleground, or other event. Times are typed in the guild's clock (`2026-11-10 20:00`, or
  * `2026-11-10 8pm`) and echoed back as Discord timestamps, so mistakes show at once.
  */
@@ -212,6 +213,29 @@ const EVENT_GROUP = {
           description: 'Fewest ballots for the result to count',
           min_value: 1,
           max_value: 40,
+        },
+      ],
+    },
+    {
+      type: T.SUB_COMMAND,
+      name: 'check-export',
+      description:
+        'Read a raid export from the Vintage addon and match it to the raid (records nothing)',
+      options: [
+        {
+          type: T.STRING,
+          name: 'export',
+          description: 'The export string from the addon, starting with !VIN:',
+          required: true,
+          // Discord's most for a string option; a 40-player night with 40 drops is about 3,000.
+          max_length: 6000,
+        },
+        {
+          type: T.STRING,
+          name: 'event',
+          description: 'The raid to check it against, when the export doesn’t name one',
+          max_length: 100,
+          autocomplete: true,
         },
       ],
     },
@@ -394,6 +418,7 @@ const HELP = {
       description: 'One topic in detail',
       choices: [
         { name: 'Events', value: 'events' },
+        { name: 'Raid exports', value: 'exports' },
         { name: 'Signups', value: 'signups' },
         { name: 'Characters', value: 'characters' },
         { name: 'Polls', value: 'polls' },
@@ -436,9 +461,12 @@ export const FORWARDED_GROUPS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Groups whose autocomplete interactions the gateway forwards to Convex (#149). Only
- * `/random character` has autocompleted options.
+ * Groups whose autocomplete interactions the gateway forwards to Convex: `/random character`
+ * (spec and name, #149) and `/random event check-export` (the raid).
  */
-export const AUTOCOMPLETED_GROUPS: ReadonlySet<string> = new Set([CHARACTER_GROUP.name]);
+export const AUTOCOMPLETED_GROUPS: ReadonlySet<string> = new Set([
+  CHARACTER_GROUP.name,
+  EVENT_GROUP.name,
+]);
 
 export const COMMANDS: readonly ApplicationCommand[] = [RANDOM_COMMAND];

@@ -540,6 +540,9 @@ importers:
 
   modules/raids:
     dependencies:
+      '@vintage/bridge-format':
+        specifier: workspace:*
+        version: link:../../libs/bridge-format
       '@vintage/comp-solver':
         specifier: workspace:*
         version: link:../../libs/comp-solver

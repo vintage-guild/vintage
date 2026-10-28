@@ -194,6 +194,116 @@ return {
 				v = 1,
 			},
 		},
+		["raid-export-night.v1"] = {
+			description = "A raid night with no event id: two signed-up raiders, one no-show, a pick-up",
+			encoded = "!VIN:1!99ySoTrqqyyLyBW2qiKuffPiHsAISeiskOWD3LylzjROOniusvy37Mq2K92Xm7UoHwlfQsfLqdYD0HOGgOING5zaXtaIhaUZNr0r38pZ8)P))hT7fY0u0UbqonAfRUY7wz1XsVhSPsBc0ETxl9V9xx()RegPcmcNxsEkdYu5oA3vKyKoh9hjrAKeBryyqLyRmderaTJvHwJ2cB2LNvnG0GZZnQWnPysMPmapFXfbHBfaUrnU51FejPD5V4rlKjdM8hMMG9VHRoQFir)dcT8mTZ9X1NaJNRed)Ks5c88)Sq(0je5fVNXrv5QVpVz8mTEq7Bog(7aK8qAuHTtpE0unXZj0EiZ1AxAsZ7L2yeSDqpOpMCrVpTX6F7ZD(E3oDwpwNG2x84ANPk(VxA9Od3RyQpmem)JBEzeLiTANFPye9oA7G0O970ySlOMsUYA8lRh74M71xouU0hqc4xnB8V120tiPoD5YqfBYb0QBzdp4R5EIouvSlpTlOCyGsa(z3D)CrcgS(ALOFdV4Zhw5wa",
+			payload = {
+				addonVersion = "0.1.0",
+				attendance = {
+					{
+						at = 1793232100,
+						label = "start",
+						members = {
+							{
+								class = "warrior",
+								group = 1,
+								name = "Aeryn",
+								online = true,
+							},
+							{
+								class = "priest",
+								group = 1,
+								name = "Bramble",
+								online = true,
+							},
+							{
+								class = "rogue",
+								group = 2,
+								name = "Doran-Stonemaul",
+								online = true,
+							},
+						},
+					},
+					{
+						at = 1793235700,
+						label = "Lucifron",
+						members = {
+							{
+								class = "warrior",
+								group = 1,
+								name = "Aeryn",
+								online = true,
+							},
+							{
+								class = "priest",
+								group = 1,
+								name = "Bramble",
+								online = false,
+							},
+							{
+								class = "rogue",
+								group = 2,
+								name = "Doran-Stonemaul",
+								online = true,
+							},
+						},
+					},
+					{
+						at = 1793239300,
+						label = "end",
+						members = {
+							{
+								class = "warrior",
+								group = 1,
+								name = "Aeryn",
+								online = true,
+							},
+							{
+								class = "priest",
+								group = 1,
+								name = "Bramble",
+								online = true,
+							},
+						},
+					},
+				},
+				exportedAt = 1793242800,
+				exporter = "Aeryn",
+				items = {
+					{
+						classId = 4,
+						equipLoc = "INVTYPE_FEET",
+						icon = 132539,
+						itemId = 16800,
+						itemLevel = 66,
+						name = "Arcanist Boots",
+						quality = 4,
+						subclassId = 1,
+					},
+					{
+						itemId = 17011,
+						name = "Lava Core",
+						quality = 3,
+					},
+				},
+				kind = "raid-export",
+				loot = {
+					{
+						at = 1793235800,
+						itemId = 16800,
+						looter = "Bramble",
+						source = "Lucifron",
+					},
+					{
+						at = 1793235900,
+						count = 2,
+						itemId = 17011,
+						looter = "Doran-Stonemaul",
+					},
+				},
+				v = 1,
+			},
+		},
 		["raid-export.v1"] = {
 			description = "Game → web export: attendance snapshots, loot received, item data seen",
 			encoded = "!VIN:1!1avZQnvquy1ySjPfbDLiieCHibA52nDH7UtnbUqqKXsbxfN7mhJJo3zspZmxnBdORCvw7Iqw4dq36U(aiNhaLw6JqFc6KM0DNZhF)C(o393NjukN9ya9ANLNT3(7LTuecGvjSsO3bpxeE5Np)V)KBeLGH7dcmGvqvzsXRgWLgH3JFvGO2H8XOloPbZkQaEoGtTLoRrBHpmG2QCcQbFGA3G6WzOWAPDwHZQeJbQDtQd7WPOG25tBY8F)IU)SHrP(JOZsp4PjUuRBKtBNKIqnydfQtH6WOk5OSSS9xcFBIddGkpzWfnxmBZosBJJJAJQqnF8OATnKYKRdqLV3pWB6qHQ9m4KOEYqN8SI3C8rV)T9hnOF)JyAPZ(K718pLR4xOALVy(QPHP8nFN6CzokfwTp0L5CbpEsuy0HPTx6JLBCUXb0ZAX8uN5df1IUh6qG6Uf7lAR6uuOv7U(mzMKb9gSU9))ojn5lkxHb4vV2L(y7(UGZcvIOP07IOeOhDlBfx6I2qZ1b9c6HpUUX1a",
@@ -375,6 +485,7 @@ return {
 		["error-newer-version"] = "!VIN:1!1azWkorqqyy144MKDrqpjccbpilb2LzVSh820RjWabrAxwWtXE6Um26mvNT6EgnxdSEYt5Shc5Gpa7vVTpas9aOO4JGpb2zt8wv)8)9)3vFZVELYyC4za5TouME4rhMUsfcaAuOg6F8JvH9F3V((NLLQcOu6dkkqvqvrK4PdL6sL3tFqrK1rYjKREAlbQQazgqZWchwAr41d5DkMswWh4oT4UsbPqK3BTUOsnb4ojCxXjZifV3B325p(cF75JQ123qoKVZdJE52xJZ7grjObWqU5sOjmUsponn9OvWhN6OayYIb87KLZ3Ut8U0KABPj3SyY4glgIDkTbOY3)t013qUPZC48A70ro9v5p)StF1lgmE4GbNkSAh(GBL8TI1(ZnTZwUy90Oy)LxWD)tgPvO1h6jCUGNoVwvAdZ6SYxxSn5whZpQTWZDxms1O6DIJaU3oI3BrZLKYAoyZZuugdO)Wnx)pVrKjBzXAnG(7ZCXFSdEzWHqLQUSW7QjnW37)UnsTRgdjBk6j8DVFtY)(d",
 		["error-unknown-kind"] = "!VIN:1!JrZukXs0iR7ZKdoLDM5LYLkkXmtr3ssnNuli)IkrOYygWd",
 		["raid-export-empty.v1"] = "!VIN:1!JX2ouIPKs(5fwQfvCM5NxqgONH6zWIsSKssnVusmVKtLRfLAffKFrLKAkowIgz9awxqtq5xuqoMArvMxqzwsQ5wmxoLDM5LYMkkXmtrxiY7uo5NFjCjuzmd4",
+		["raid-export-night.v1"] = "!VIN:1!99ymVnrqquyb2oX2jecuHqcPiObzPefOifU7oWwYswi0sKfuHN7UHWc7TJZS7AiTwcxrvkdnrUJoef0av5xW8BiIFbi(bWD(mIo623(M3NEVRm)cilJSJq2PjRA)9EWE7Va8E0Mb2uS7b3f83)nx(XFQmqcAuopWEohZtks0TVk1aoh)oGznXQJykmPwSfYrveYNytiRrBXX9L1tMWA05Lw1K2Cmd5jgu2S0rX0rbuA1qA)Rhtmy39zEYI5qWuCWQgC2VL6Zggs1VIjRSw3ICsZLWKnQWixRsULS5RlLxFjrz7)X4Z1L6pSyzYAD(VXhVaF)eI9ywuzSV9LzR0SSHs7XCxN58YLpiR1m84GEYqk9Ibpz0HV4P9Ez)E9omwNs2BD1gFpP8(bznJo)0YxdXPO5ds7lJ4uWQD(DIjY74JdGr7pP1cxizf5Ahi3UzStAF6qykSZJigL7SE8B12SVYGoB3QsfBka0PF1c)0ZlYeDEs5FfTDRehf4uuUXF9)HkLcwFJk03t2(MtR9N",
 		["raid-export.v1"] = "!VIN:1!1azWQnvquyy1ySjPLc6krqi0fsjql3UPlC3DQjWfcImwk4Q45oZX4O37mjNzMRMTbQRCvw7Iqw4dq36U(aiNhaffFe8jWBAI7oNF()()NZC7VEnO1o7fi5noRm54toozfecOvdwf270dGWHV7xF)ZYcihlK(aqbQelZRjE6aPQa8E6darghjhtU4KgcluIYuKMzZD2cJfF9aEN8jKb9bUDdUJuqG1Y7TwxucJrUDtUJ4SzeW792TD(JVW3D(WOY8gYz579OAVCRBW5DRrjScTHm9vyvyuPAussYjRWpoXrbuNwhWVBUC(2DI3Lghnf6m9IXJQm2qDNstal99(eDZnKPBphNgntg6uxN98lo)vVO)Ob97FUWOC2hENMFlFT)mDR0LlwpnSU)Il5o)jLuG14dDfoxWttJqHjmR9kFmFBYnoLFClHN7SyiubDpZri3DhX7nw9vey0hT5zkkQdO3Gnx)pVvnt6Y81Ai93N5Q)Xo6LbNflHyrU3fjfY3))U1sLlAdn3u0t49FqvJ)9d",
 		["raid-import.v1"] = "!VIN:1!Lf5ZkorqqyCCZgnk(p8WEEoeggdejzp4bpz6veYbVmlKdEzSNURmPn901q1vsi3KCZRlINL9ri4tGEEHM9fqWhbFcSNSki4157xv1V5RV1NVujDAJwYGFqAPHH6P6Et(sjjDlb9G09QfssQyGMQjvHgJbLei9OR5KZX58qc8aTg0jzJtW5jN(00WXrsjqBDHB)FqN(xOJ6j(AOZ92xboGI3xpHZE)po6LLveUQjAZ3(Nt7FrOxCPTA5cDZpG0jnC)bLQc1wsUtvawCd4cpSlvTYy1t1xuvS24yzfiwAC69K0OhAQBqIfwe5zxRq3Ct1mG8g0DND1aVaJds(OYrJV(Mp8N8oIAudL1sF0Ol4frGfOvFxr7EFobRbhpvVhwZf1QIrJgnENNLe7p8FD17YzdBHMtEdAzWLCgsqYp)WNs2aWYKXLe2U33olCCOxUYk9EAJKidscNSgYN02NccTGGJVncFdOUSHqguC0U25EqOFzdzaphsZfhQQSYfG0cuyGik72xhPEuOVOowkHuXzXMlIejRaDBw3q)CcRwfd)1RAFQhEoJoOwUYgYYRblaTh6XrmnTYOdP03)4n9Ew4zHb7JLchNR1ONSUZVp",
 	},

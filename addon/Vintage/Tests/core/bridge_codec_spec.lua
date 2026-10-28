@@ -44,6 +44,9 @@ describe("Bridge golden fixtures", function()
 	end)
 
 	it("covers every fixture with a Lua-made string, and nothing else", function()
+		if WRITING then
+			return
+		end
 		local fixtureNames, madeNames = names(), {}
 		for name in pairs(F.luaMade) do
 			madeNames[#madeNames + 1] = name

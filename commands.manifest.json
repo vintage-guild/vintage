@@ -1055,6 +1055,7 @@
             "type": "string",
             "enum": [
               "events",
+              "exports",
               "signups",
               "characters",
               "polls",
@@ -1971,6 +1972,31 @@
         "required": [
           "name",
           "startsAt"
+        ]
+      }
+    },
+    {
+      "name": "raid-export-check",
+      "description": "Read a raid export string from the Vintage addon and match it to the raid: who was seen in each snapshot, the loot, who was not signed up, and who signed up but was not seen. Records nothing. Pass eventId to check it against a raid the export does not name.",
+      "tier": "leader",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "exportString": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000000
+          },
+          "eventId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "exportString"
         ]
       }
     },

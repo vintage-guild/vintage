@@ -1,3 +1,4 @@
+import { encodeBridge } from '@vintage/bridge-format';
 import { coordinatorCommands } from '@vintage/coordinator/commands';
 import { createMemoryCoordinatorDeps } from '@vintage/coordinator/testing';
 import {
@@ -9,10 +10,18 @@ import {
 import type { Tier } from '@vintage/guild-kit';
 import type { Member } from '@vintage/identity/contract';
 import { raidsCommands } from '@vintage/raids/commands';
+import type { ExportCheck, RaidEvent } from '@vintage/raids/contract';
 import { createMemoryRaidsDeps } from '@vintage/raids/testing';
 import { fixedClock, testRegistry } from '@vintage/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { type EventPorts, handleEventInteraction, parseLocalTime } from '../src/discord-events';
+import {
+  type EventAutocompletePorts,
+  type EventPorts,
+  exportCheckText,
+  handleEventAutocomplete,
+  handleEventInteraction,
+  parseLocalTime,
+} from '../src/discord-events';
 
 const GUILD = 'guild-test';
 const DISCORD_GUILD = '600000000000000001';
@@ -396,5 +405,231 @@ describe('scope', () => {
       data: { name: 'random', options: [{ name: 'poll', type: T.SUB_COMMAND_GROUP }] },
     };
     expect(await handleEventInteraction(poll as Interaction, ports)).toBeNull();
+  });
+});
+
+const exportCheck = (over: Partial<ExportCheck> = {}): ExportCheck => ({
+  event: { id: 'e1', name: 'Molten Core', startsAt: TUE_8PM, status: 'completed' },
+  eventSource: 'input',
+  otherGuild: false,
+  exporter: 'Aeryn',
+  exportedAt: 0,
+  addonVersion: '0.1.0',
+  snapshots: [{ at: 1, label: 'start', present: 2, online: 2 }],
+  attendees: [
+    {
+      name: 'Aeryn',
+      snapshots: 1,
+      characterId: 'c1',
+      memberId: 'm1',
+      status: 'accepted',
+      matchedWithoutRealm: false,
+    },
+  ],
+  loot: [],
+  itemsSeen: 0,
+  unknownNames: [],
+  absent: [],
+  declinedButSeen: [],
+  warnings: [],
+  ...over,
+});
+
+const many = (n: number, what: string) => Array.from({ length: n }, (_, i) => `${what}${i}`);
+
+describe('/random event check-export, the reply', () => {
+  const lineOf = (text: string, prefix: string) =>
+    text.split('\n').findIndex((l) => l.startsWith(prefix));
+
+  it('puts warnings and who to follow up with before the attendance and loot', () => {
+    const aeryn = exportCheck().attendees[0]!;
+    const text = exportCheckText(
+      exportCheck({
+        warnings: [
+          {
+            code: 'TIMES_APART',
+            message: 'The export’s first snapshot is 2 days before Molten Core started.',
+          },
+        ],
+        unknownNames: ['Doran-Stonemaul'],
+        absent: [{ characterId: 'c3', characterName: 'Cadence', status: 'accepted' }],
+        declinedButSeen: ['Nimue'],
+        attendees: [{ ...aeryn, name: 'Aeryn-Stonemaul', matchedWithoutRealm: true }],
+        loot: [
+          {
+            itemId: 1,
+            itemName: 'Arcanist Boots',
+            looter: 'Aeryn',
+            characterId: 'c1',
+            at: 1,
+            count: 1,
+            source: null,
+          },
+        ],
+      }),
+    );
+    const order = [
+      '**Molten Core**',
+      '⚠️ The export’s first snapshot is 2 days before',
+      'Not signed up: Doran-Stonemaul',
+      'Signed up but not seen: Cadence',
+      'Declined but came: Nimue',
+      'Matched by name only: Aeryn-Stonemaul',
+      'Export by Aeryn',
+      'Seen: Aeryn-Stonemaul (1/1)',
+      'Loot: Arcanist Boots → Aeryn',
+    ].map((prefix) => lineOf(text, prefix));
+    expect(order).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(text).toMatch(/\n-# Nothing was recorded\.$/);
+  });
+
+  it('says when no raid matched, and lists nobody as missing', () => {
+    const text = exportCheckText(
+      exportCheck({
+        event: null,
+        eventSource: null,
+        otherGuild: true,
+        unknownNames: ['Aeryn'],
+        warnings: [
+          {
+            code: 'OTHER_GUILD',
+            message: 'This export names another guild, so the raid it names was ignored.',
+          },
+        ],
+      }),
+    );
+    expect(text.split('\n').slice(0, 2)).toEqual([
+      '**No raid matched.** Add `event:` to check it against one.',
+      '⚠️ This export names another guild, so the raid it names was ignored.',
+    ]);
+    expect(text).not.toContain('Not signed up');
+  });
+
+  it('stays inside Discord’s limit on a long night and keeps who to follow up with', () => {
+    const aeryn = exportCheck().attendees[0]!;
+    const text = exportCheckText(
+      exportCheck({
+        snapshots: many(40, 'Boss').map((label) => ({ at: 1, label, present: 40, online: 39 })),
+        attendees: many(40, 'Raider-With-A-Long-Realm-Name').map((name) => ({
+          ...aeryn,
+          name,
+          snapshots: 40,
+        })),
+        unknownNames: many(20, 'Stranger'),
+        absent: many(3, 'Missing').map((characterName) => ({
+          characterId: characterName,
+          characterName,
+          status: 'accepted' as const,
+        })),
+        loot: many(30, 'A Very Long Epic Item Name Of The Ages').map((itemName, i) => ({
+          itemId: i,
+          itemName,
+          looter: 'Raider-With-A-Long-Realm-Name0',
+          characterId: null,
+          at: 1,
+          count: 1,
+          source: 'Ragnaros the Firelord',
+        })),
+      }),
+    );
+    expect(text.length).toBeLessThanOrEqual(2000);
+    expect(text).toContain('Not signed up: Stranger0, ');
+    expect(text).toContain('Stranger11 and 8 more');
+    expect(text).toContain('Signed up but not seen: Missing0, Missing1, Missing2');
+    expect(text).toContain('Boss7 40 (1 offline) and 32 more');
+    expect(text).toMatch(/\n-# Nothing was recorded\.$/);
+  });
+
+  it('points at the suggestions when event: is a typed name, not a raid', async () => {
+    const encoded = encodeBridge({
+      v: 1,
+      kind: 'raid-export',
+      exportedAt: 1,
+      addonVersion: '0.1.0',
+      exporter: 'Aeryn',
+      attendance: [],
+      loot: [],
+      items: [],
+    });
+    if (!encoded.ok) throw new Error(encoded.error.message);
+    const reply = said(
+      await handleEventInteraction(
+        slash('rook', 'check-export', { export: encoded.value, event: 'Molten Core' }),
+        ports,
+      ),
+    );
+    expect(reply.flags).toBe(MessageFlags.EPHEMERAL);
+    expect(reply.content).toContain('Pick it from the suggestions in `event:`');
+  });
+});
+
+describe('/random event check-export, suggesting raids', () => {
+  const raid = (id: string, name: string, startsAt: number, status = 'open') =>
+    ({ id, guildId: GUILD, name, startsAt, status }) as RaidEvent;
+  const EVENTS = [
+    raid('tomorrow', 'Onyxia', NOW + 20 * HOUR),
+    raid('last-week', 'Molten Core', NOW - 6 * 24 * HOUR),
+    raid('cancelled', 'Zul’Gurub', NOW - 2 * HOUR, 'cancelled'),
+    raid('last-night', 'Molten Core', NOW - 16 * HOUR, 'completed'),
+  ];
+  let windows: { from: number; to: number }[];
+  const autocompletePorts = (): EventAutocompletePorts => ({
+    discordGuildId: DISCORD_GUILD,
+    guildId: GUILD,
+    memberByDiscordId: async (discordId) => MEMBERS.find((m) => m.discordId === discordId) ?? null,
+    events: async (window) => {
+      windows.push(window);
+      return EVENTS;
+    },
+    timeZone: async () => NY,
+    now: () => NOW,
+  });
+  beforeEach(() => {
+    windows = [];
+  });
+
+  /** Typing into `focused` of check-export, as Discord sends it while the leader types. */
+  const typing = (
+    who: string,
+    focused: 'event' | 'export',
+    value: string,
+    guildId = DISCORD_GUILD,
+  ) => {
+    const i = slash(who, 'check-export', {}, guildId);
+    const sub = i.data!.options![0]!.options![0]!;
+    sub.options = [
+      { name: 'export', type: T.STRING, value: focused === 'export' ? value : '!VIN:1!x' },
+      ...(focused === 'event' ? [{ name: 'event', type: T.STRING, value }] : []),
+    ].map((o) => (o.name === focused ? { ...o, focused: true } : o));
+    return { ...i, type: InteractionType.APPLICATION_COMMAND_AUTOCOMPLETE } as Interaction;
+  };
+  const choices = async (i: Interaction) =>
+    (
+      (await handleEventAutocomplete(i, autocompletePorts())) as {
+        data: { choices: { name: string; value: string }[] };
+      }
+    ).data.choices;
+
+  it('lists raids that started, latest first, then upcoming ones, and no cancelled raids', async () => {
+    expect(await choices(typing('rook', 'event', ''))).toEqual([
+      { name: 'Molten Core · Sun, Oct 25, 8:00 PM', value: 'last-night' },
+      { name: 'Molten Core · Tue, Oct 20, 12:00 PM', value: 'last-week' },
+      { name: 'Onyxia · Tue, Oct 27, 8:00 AM', value: 'tomorrow' },
+    ]);
+    expect(windows).toEqual([{ from: NOW - 7 * 24 * HOUR, to: NOW + 24 * HOUR }]);
+    const typed = await choices(typing('rook', 'event', 'ony'));
+    expect(typed.map((c) => c.value)).toEqual(['tomorrow']);
+  });
+
+  it('suggests nothing in another server, for another option, or for a raider', async () => {
+    expect(await choices(typing('rook', 'event', '', '999'))).toEqual([]);
+    expect(await choices(typing('rook', 'export', '!VIN'))).toEqual([]);
+    expect(await choices(typing('aeryn', 'event', ''))).toEqual([]);
+    expect(windows).toEqual([]);
+  });
+
+  it('leaves slash commands alone', async () => {
+    const run = slash('rook', 'check-export', {});
+    expect(await handleEventAutocomplete(run, autocompletePorts())).toBeNull();
   });
 });

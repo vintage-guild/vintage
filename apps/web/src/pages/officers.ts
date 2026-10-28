@@ -27,6 +27,7 @@ import {
   type RosterDeskRoles,
   STARTER_PROMPTS,
   type TonightRaid,
+  type TonightRecentRaid,
   type TonightSignup,
 } from '@vintage/ui-kit';
 import { formatMonthDay, formatWeekday, preferredTimeZone } from '../dates';
@@ -47,6 +48,9 @@ function readAssistantOpen(): boolean {
 
 /** How far ahead the raid picker looks. */
 const AHEAD_MS = 30 * 86_400_000;
+/** The raids an export can be checked against: the last week and the next day, as Discord offers. */
+const EXPORT_BEHIND_MS = 7 * 86_400_000;
+const EXPORT_AHEAD_MS = 86_400_000;
 
 /**
  * The quarters' tabs, by job rather than by module (docs/features/active/role-aware-views).
@@ -362,6 +366,7 @@ const template = html<Page>`
               :signups="${(x) => x.signups}"
               :gaps="${(x) => x.gaps}"
               :waiting="${(x) => x.waiting}"
+              :recentRaids="${(x) => x.recentRaids}"
               ?loading="${(x) => !x.loaded}"
               @tonight-changed="${(x) => x.load()}"
             ></vintage-tonight>
@@ -564,6 +569,8 @@ export class Page extends FASTElement {
   @observable signups: TonightSignup[] = [];
   @observable gaps: string[] = [];
   @observable waiting: string[] = [];
+  /** Raids an export can be checked against (Tonight's export panel). */
+  @observable recentRaids: TonightRecentRaid[] = [];
   @observable loadError = '';
   /** The first load has settled; later re-reads keep showing the last answer. */
   @observable loaded = false;
@@ -894,7 +901,22 @@ export class Page extends FASTElement {
 
   private async read(): Promise<void> {
     const client = getCommandClient();
-    const list = await client.read<RaidRow[]>('raid-list', { to: Date.now() + AHEAD_MS });
+    const now = Date.now();
+    const [list, recent] = await Promise.all([
+      client.read<RaidRow[]>('raid-list', { to: now + AHEAD_MS }),
+      client.read<RaidRow[]>('raid-list', {
+        from: now - EXPORT_BEHIND_MS,
+        to: now + EXPORT_AHEAD_MS,
+        statuses: ['open', 'locked', 'completed'],
+      }),
+    ]);
+    this.recentRaids = recent.success
+      ? (recent.data ?? []).map(({ event }) => ({
+          id: event.id,
+          name: event.name,
+          startsAt: event.startsAt,
+        }))
+      : [];
     if (!list.success) {
       this.loadError = list.error?.message ?? 'Could not read the calendar';
       return;

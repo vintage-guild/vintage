@@ -107,6 +107,69 @@ const emptyExport: RaidExport = {
   items: [],
 };
 
+/**
+ * A raid night as the addon exports it, for the JTBD host's guild (apps/api/tests/jtbd): Aeryn and
+ * Bramble attend, Cadence signed up but never shows, and a pick-up from another realm takes loot.
+ * No guild or event id, as after a raid the addon didn't import, so a check names the raid. The
+ * jobs suite uses the Lua-made string (lua-made.json), which the addon's codec writes. Times are
+ * the night of that guild's Wednesday raid (2026-10-29 00:00 UTC), so a check finds them close.
+ */
+const raidNightExport: RaidExport = {
+  v: 1,
+  kind: 'raid-export',
+  exportedAt: 1_793_242_800,
+  addonVersion: '0.1.0',
+  exporter: 'Aeryn',
+  attendance: [
+    {
+      at: 1_793_232_100,
+      label: 'start',
+      members: [
+        { name: 'Aeryn', class: 'warrior', group: 1, online: true },
+        { name: 'Bramble', class: 'priest', group: 1, online: true },
+        { name: 'Doran-Stonemaul', class: 'rogue', group: 2, online: true },
+      ],
+    },
+    {
+      at: 1_793_235_700,
+      label: 'Lucifron',
+      members: [
+        { name: 'Aeryn', class: 'warrior', group: 1, online: true },
+        { name: 'Bramble', class: 'priest', group: 1, online: false },
+        { name: 'Doran-Stonemaul', class: 'rogue', group: 2, online: true },
+      ],
+    },
+    {
+      at: 1_793_239_300,
+      label: 'end',
+      members: [
+        { name: 'Aeryn', class: 'warrior', group: 1, online: true },
+        { name: 'Bramble', class: 'priest', group: 1, online: true },
+      ],
+    },
+  ],
+  loot: [
+    { itemId: 16_800, looter: 'Bramble', at: 1_793_235_800, source: 'Lucifron' },
+    { itemId: 17_011, looter: 'Doran-Stonemaul', at: 1_793_235_900, count: 2 },
+  ],
+  items: [
+    {
+      itemId: 16_800,
+      name: 'Arcanist Boots',
+      quality: 4,
+      itemLevel: 66,
+      equipLoc: 'INVTYPE_FEET',
+      classId: 4,
+      subclassId: 1,
+      icon: 132_539,
+    },
+    { itemId: 17_011, name: 'Lava Core', quality: 3 },
+  ],
+};
+
+/** The fixture the jobs suite checks on every surface (raid-export-check). */
+export const RAID_NIGHT_EXPORT_FIXTURE = 'raid-export-night.v1';
+
 export const FIXTURES: Record<string, Fixture> = {
   'raid-import.v1': {
     description: 'Web → game import: roster, groups, loot settings, ranked candidates',
@@ -115,6 +178,10 @@ export const FIXTURES: Record<string, Fixture> = {
   'raid-export.v1': {
     description: 'Game → web export: attendance snapshots, loot received, item data seen',
     payload: raidExport,
+  },
+  [RAID_NIGHT_EXPORT_FIXTURE]: {
+    description: 'A raid night with no event id: two signed-up raiders, one no-show, a pick-up',
+    payload: raidNightExport,
   },
   'raid-export-empty.v1': {
     description: 'An export with nothing recorded; empty lists must round-trip',

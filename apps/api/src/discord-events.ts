@@ -2,23 +2,28 @@
 // (convex/discord.ts) and the JTBD host run the same flow:
 //   /random event create …      → raid-create as the member; the coordinator then posts its card
 //   /random event pick-night …  → raid-night-poll as the member; the poll goes up in the signup channel
+//   /random event check-export … → raid-export-check as the member; a private summary, nothing recorded
 // `kind` (default raid) and the optional tanks/healers/dps counts pass through. Times are typed in
 // the guild's clock and echoed back as Discord timestamps. Commands decide everything else (raid
 // leader tier, sizes per kind, time rules); this file only translates.
 import {
+  autocompleteResult,
   discordTimestamp,
+  focusedOption,
   type Interaction,
   type InteractionResponse,
   InteractionType,
+  interactionUser,
   subcommandPath,
   TimestampStyle,
 } from '@vintage/discord-kit';
-import type { Caller, CommandResult } from '@vintage/guild-kit';
+import { type Caller, type CommandResult, tierAllows } from '@vintage/guild-kit';
 import { type WallClock, wallClock, zonedTime } from '@vintage/raids/commands';
 import {
   defaultRoleTargets,
   EVENT_KINDS,
   type EventKind,
+  type ExportCheck,
   kindNoun,
   type RaidEvent,
   type RoleTargets,
@@ -233,13 +238,164 @@ async function pickNight(ports: EventPorts, caller: Caller, values: OptionValues
   );
 }
 
+// ── /random event check-export ────────────────────────────────────────────────────────────────
+
+const NEEDS_LEADER_CHECK =
+  'Checking a raid export needs the Raid Leader rank or higher. Ask a raid leader or officer.';
+
+/** Discord's limit for a message's text, less room for the footer. */
+const MAX_REPLY = 1900;
+/** Names listed per line before "and N more". */
+const MAX_NAMES = 12;
+/** Snapshots listed before "and N more" (a long night can take dozens). */
+const MAX_SNAPSHOTS = 8;
+
+const capped = (list: string[], max: number, sep: string) =>
+  list.length <= max
+    ? list.join(sep)
+    : `${list.slice(0, max).join(sep)} and ${list.length - max} more`;
+const names = (list: string[]) => capped(list, MAX_NAMES, ', ');
+
+/**
+ * The check as a private reply. What a leader acts on comes first (warnings, who wasn't signed
+ * up, who didn't come), so a long reply loses the attendance and loot detail, not those.
+ */
+export function exportCheckText(check: ExportCheck): string {
+  const lines: string[] = [];
+  lines.push(
+    check.event
+      ? `**${check.event.name}** · ${when(check.event.startsAt)}`
+      : '**No raid matched.** Add `event:` to check it against one.',
+  );
+  for (const w of check.warnings) lines.push(`⚠️ ${w.message}`);
+  if (check.event && check.unknownNames.length) {
+    lines.push(`Not signed up: ${names(check.unknownNames)}`);
+  }
+  if (check.absent.length) {
+    lines.push(`Signed up but not seen: ${names(check.absent.map((a) => a.characterName))}`);
+  }
+  if (check.declinedButSeen.length) {
+    lines.push(`Declined but came: ${names(check.declinedButSeen)}`);
+  }
+  const loose = check.attendees.filter((a) => a.matchedWithoutRealm).map((a) => a.name);
+  if (loose.length) lines.push(`Matched by name only: ${names(loose)}`);
+  const snapshots = capped(
+    check.snapshots.map(
+      (s) =>
+        `${s.label ?? 'snapshot'} ${s.present}${s.online < s.present ? ` (${s.present - s.online} offline)` : ''}`,
+    ),
+    MAX_SNAPSHOTS,
+    ' · ',
+  );
+  lines.push(
+    `Export by ${check.exporter} (addon ${check.addonVersion}), ` +
+      `${plural(check.snapshots.length, 'snapshot', 'snapshots')}${snapshots ? `: ${snapshots}` : ''}`,
+  );
+  if (check.attendees.length) {
+    const total = check.snapshots.length;
+    lines.push(`Seen: ${names(check.attendees.map((a) => `${a.name} (${a.snapshots}/${total})`))}`);
+  }
+  if (check.loot.length) {
+    const drops = check.loot.map(
+      (l) =>
+        `${l.itemName ?? `item ${l.itemId}`}${l.count > 1 ? ` ×${l.count}` : ''} → ${l.looter}` +
+        (l.source ? ` (${l.source})` : ''),
+    );
+    lines.push(`Loot: ${names(drops)}`);
+  }
+  let text = lines.join('\n');
+  if (text.length > MAX_REPLY) text = `${text.slice(0, MAX_REPLY - 1)}…`;
+  return `${text}\n-# Nothing was recorded.`;
+}
+
+/** A typed raid name isn't an id: the suggestions are how to name one. */
+const PICK_A_RAID =
+  'I can’t find that raid. Pick it from the suggestions in `event:` (they list the last ' +
+  'week’s raids), or leave `event:` out to use the raid the export names.';
+
+async function checkExport(ports: EventPorts, caller: Caller, values: OptionValues) {
+  const eventId =
+    typeof values.event === 'string' && values.event.trim() ? values.event.trim() : undefined;
+  const result = await ports.run(caller, 'raid-export-check', {
+    exportString: String(values.export ?? ''),
+    ...(eventId ? { eventId } : {}),
+  });
+  if (!result.success) {
+    if (result.error?.code === 'RAID_NOT_FOUND') return ephemeral(PICK_A_RAID);
+    return ephemeral(failureText(result, NEEDS_LEADER_CHECK, 'That export isn’t valid.'));
+  }
+  return ephemeral(exportCheckText(result.data as ExportCheck));
+}
+
+export interface EventAutocompletePorts extends MemberPorts {
+  /** Raids in a window: one indexed read, so suggestions stay well inside 3 seconds. */
+  events(window: { from: number; to: number }): Promise<RaidEvent[]>;
+  /** The guild's clock, for the dates in the suggestions. */
+  timeZone(): Promise<string>;
+  now(): number;
+}
+
+/** How far back and ahead `event:` suggests raids. */
+const SUGGEST_BACK = 7 * 24 * HOUR;
+const SUGGEST_AHEAD = 24 * HOUR;
+
+/** "Molten Core · Wed, Oct 28, 8:00 PM" in the guild's clock. */
+const suggestionName = (event: RaidEvent, zone: string) =>
+  `${event.name} · ${new Intl.DateTimeFormat('en-US', {
+    timeZone: zone,
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(event.startsAt)}`;
+
+/** Suggestions for `event:` in `/random event check-export`: last week's raids, latest first, then tomorrow's. */
+export async function handleEventAutocomplete(
+  interaction: Interaction,
+  ports: EventAutocompletePorts,
+): Promise<InteractionResponse | null> {
+  if (
+    interaction.type !== InteractionType.APPLICATION_COMMAND_AUTOCOMPLETE ||
+    !isEventGroup(interaction)
+  ) {
+    return null;
+  }
+  const none = autocompleteResult([]);
+  if (!ports.discordGuildId || interaction.guild_id !== ports.discordGuildId) return none;
+  const focused = focusedOption(interaction);
+  if (focused?.name !== 'event') return none;
+  // The suggestions serve a raid-leader command and read raids directly, outside the registry,
+  // so they check the same tier: nothing for raiders, Discord-only friends, or strangers.
+  const user = interactionUser(interaction);
+  const member = user ? await ports.memberByDiscordId(user.id) : null;
+  if (!member || !tierAllows(member.tier, 'leader')) return none;
+  const now = ports.now();
+  const q = focused.value.trim().toLowerCase();
+  const [events, zone] = await Promise.all([
+    ports.events({ from: now - SUGGEST_BACK, to: now + SUGGEST_AHEAD }),
+    ports.timeZone(),
+  ]);
+  const wanted = events.filter(
+    (e) => e.status !== 'cancelled' && (!q || e.name.toLowerCase().includes(q)),
+  );
+  // An export comes after a raid: the raids that started go first, the latest at the top, then
+  // the ones still to come, soonest first.
+  const started = wanted.filter((e) => e.startsAt <= now).sort((a, b) => b.startsAt - a.startsAt);
+  const coming = wanted.filter((e) => e.startsAt > now).sort((a, b) => a.startsAt - b.startsAt);
+  const choices = [...started, ...coming].map((e) => ({
+    name: suggestionName(e, zone),
+    value: e.id,
+  }));
+  return autocompleteResult(choices);
+}
+
+const isEventGroup = (interaction: Interaction) =>
+  interaction.data?.name === SLASH_COMMAND && subcommandPath(interaction)[0] === EVENT_GROUP;
+
 /** Is this `/random event …`? */
 export function isEventInteraction(interaction: Interaction): boolean {
-  return (
-    interaction.type === InteractionType.APPLICATION_COMMAND &&
-    interaction.data?.name === SLASH_COMMAND &&
-    subcommandPath(interaction)[0] === EVENT_GROUP
-  );
+  return interaction.type === InteractionType.APPLICATION_COMMAND && isEventGroup(interaction);
 }
 
 export async function handleEventInteraction(
@@ -253,5 +409,6 @@ export async function handleEventInteraction(
   const [, sub] = subcommandPath(interaction);
   if (sub === 'create') return create(ports, who.caller, values);
   if (sub === 'pick-night') return pickNight(ports, who.caller, values);
+  if (sub === 'check-export') return checkExport(ports, who.caller, values);
   return null;
 }

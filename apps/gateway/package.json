@@ -17,7 +17,7 @@
     "@vintage/discord-kit": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^24.10.0",
+    "@types/node": "^26.6.5",
     "@vintage/config": "workspace:*",
     "esbuild": "^0.28.2",
     "tsx": "^4.23.15",

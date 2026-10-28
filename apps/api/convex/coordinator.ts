@@ -242,7 +242,8 @@ export const tick = internalAction({
             }),
         },
         discord: discordPorts(token, process.env.DISCORD_GUILD_ID),
-        // Server events link to the signup card, or to the site without a Discord server id.
+        // Server events and reminder DMs link to the signup card, or to the site without a
+        // Discord server id.
         links: {
           discordGuildId: process.env.DISCORD_GUILD_ID ?? null,
           siteUrl: process.env.VINTAGE_SITE_URL ?? null,

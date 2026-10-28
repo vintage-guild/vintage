@@ -187,6 +187,18 @@ describe('runTick', () => {
     expect(digest?.message.content).toMatch(/Not answered \(2\): bram, cade/);
   });
 
+  it('links the DM straight to the signup post', async () => {
+    const DISCORD_GUILD = '600000000000000001';
+    ports = { ...ports, links: { discordGuildId: DISCORD_GUILD, siteUrl: null } };
+    await tick(START - 100 * HOUR);
+    await tick(START - 24 * HOUR);
+    const post = discord.sent.find((s) => s.to === SIGNUPS && s.kind !== 'edit');
+    const [dm] = discord.sent.filter((s) => s.kind === 'dm');
+    expect(dm?.message.content).toContain(
+      `https://discord.com/channels/${DISCORD_GUILD}/${SIGNUPS}/${post?.messageId}`,
+    );
+  });
+
   it('skips DMs when they are turned off', async () => {
     await store.setConfig(G, { dmReminders: false }, 0);
     await tick(START - 100 * HOUR);

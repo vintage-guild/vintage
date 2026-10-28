@@ -114,13 +114,13 @@ describe('JTBD: raid night', () => {
     const posts = g.host.sentTo(SIGNUP_CHANNEL);
     for (const p of posts) expect(p.message.embeds?.[0]?.title).toBe('Raid night · Molten Core');
     expect(posts).toHaveLength(2);
+    // No Roster yet: a new card hides no one.
     expect(buttonLabels(posts[0]!.message)).toEqual([
       'Accept',
       'Late',
       'Tentative',
       'Standby',
       'Decline',
-      'Roster',
     ]);
     // Running again posts nothing new.
     await g.host.tick();

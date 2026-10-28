@@ -52,3 +52,20 @@ can** answer from wherever I am, and **I (officer) want** every closed result in
 - [ ] As an officer, the quarters' Polls tab shows open polls with the live tally and every
   closed poll with its result, and closes or cancels only after a preview and a confirm.
 - [ ] A visitor gets the sign-in card, and the home page says polls are for members.
+
+### J43 · Vote from the website
+**When** I'm on the site anyway, **I (raider) want** to answer the open poll from the home page,
+and rank a ranked poll on its own page, **so I can** vote without opening Discord and know it
+counts the same.
+- [ ] Signed in as a raider, the home page's poll card shows the first open poll with its live
+  tally. A click on an option votes (`vote-cast`): the card marks my choice and the counts move.
+- [ ] It is the same ballot as Discord: a vote on the post's buttons shows as mine on the card,
+  and the post's "voted" count includes my site vote once it refreshes.
+- [ ] Clicking another option changes my vote; "Take back my vote" (`vote-retract`) removes it,
+  and the card shows no choice.
+- [ ] A ranked poll's post has a "Rank on the website" link to `/polls/<id>`. There I click
+  options in order, see the order numbered, and vote; reloading shows my ranking in that order.
+  While it's open the card shows first preferences.
+- [ ] Once a ranked poll closes, `/polls/<id>` shows the winner after the runoff (a second choice
+  can carry it) and takes no more votes.
+- [ ] A Member (below the poll's audience) sees no poll card on the home page.

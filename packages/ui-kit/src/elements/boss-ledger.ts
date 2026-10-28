@@ -227,9 +227,7 @@ const styles = css`
       color-mix(in srgb, var(--color-gold-500) 14%, var(--color-surface-raised)),
       var(--color-surface-raised) 55%
     );
-    box-shadow:
-      inset 0 1px 0 rgb(255 244 228 / 6%),
-      0 14px 34px rgb(0 0 0 / 45%);
+    box-shadow: var(--shadow-raised);
   }
 
   .badge {
@@ -328,9 +326,7 @@ const styles = css`
     padding: var(--space-md);
     border: var(--border-width-thin) solid var(--color-border-default);
     border-radius: 0.6rem;
-    box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 4%),
-      0 10px 30px rgb(0 0 0 / 25%);
+    box-shadow: var(--shadow-low);
   }
 
   .raid.scene:first-child {
@@ -413,7 +409,7 @@ const styles = css`
     border-radius: 0.3rem;
     border: var(--border-width-thin) solid var(--color-border-strong);
     background: color-mix(in srgb, var(--color-surface-canvas) 60%, transparent);
-    box-shadow: inset 0 1px 0 rgb(255 244 228 / 4%);
+    box-shadow: var(--shadow-edge);
     cursor: default;
   }
 
@@ -445,7 +441,7 @@ const styles = css`
     background: var(--color-gold-500);
     color: var(--color-accent-contrast);
     box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 30%),
+      inset 0 1px 0 var(--color-highlight-gloss),
       0 6px 16px color-mix(in srgb, var(--color-gold-500) 35%, transparent);
   }
 
@@ -488,7 +484,7 @@ const styles = css`
     text-align: center;
     text-transform: none;
     letter-spacing: 0;
-    box-shadow: 0 10px 24px rgb(0 0 0 / 45%);
+    box-shadow: 0 10px 24px var(--color-shadow-strong);
     translate: -50% 0;
     /* Hidden tips take no layout space, so they never widen the page. */
     display: none;

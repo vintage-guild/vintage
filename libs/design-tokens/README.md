@@ -30,6 +30,14 @@ The parent is named in `$extensions["dev.vintage.node"].parent`. A node lists **
 changes**; everything else is inherited. Aliases (`"{color.gold.300}"`) resolve against the most
 derived node, so `card.bg` in `afd-site` picks up `vintage-dark`'s surface without restating it.
 
+**Shadows** use DTCG's composite `shadow` type: a list of layers (`offsetX`, `offsetY`, `blur`,
+optional `spread` and `inset`, `color`), where `color` may alias a color token. CSS keeps those
+colors live (`--shadow-raised: inset 0 1px 0 var(--color-highlight-edge), 0 14px 34px
+var(--color-shadow-strong)`), so parchment moves every shadow by overriding `color.shadow.*`;
+`tokens.ts` holds the resolved literal. Elevation: `shadow.edge` (top-edge light only),
+`shadow.low`, `shadow.raised` (cards, callouts, menus), `shadow.button` (filled buttons). For a
+one-off geometry, use the colors (`color.highlight.edge|gloss`, `color.shadow.soft|strong`).
+
 Token ids are the dotted path inside a tier and are unique across tiers. The CSS name replaces
 dots with dashes: `color.surface.canvas` → `--color-surface-canvas`.
 

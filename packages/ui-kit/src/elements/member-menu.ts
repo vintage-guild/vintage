@@ -118,9 +118,7 @@ const styles = css`
     border-radius: 0.4rem;
     border: var(--border-width-thin) solid var(--color-border-strong);
     background: var(--color-surface-raised);
-    box-shadow:
-      inset 0 1px 0 rgb(255 244 228 / 6%),
-      0 14px 34px rgb(0 0 0 / 45%);
+    box-shadow: var(--shadow-raised);
     z-index: 30;
   }
 

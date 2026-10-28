@@ -4,6 +4,7 @@ import {
   type NodeMeta,
   type ResolvedToken,
   type ResolvedTokens,
+  type ShadowLayer,
   TIERS,
   TOKEN_TYPES,
   type TokenNodeFile,
@@ -19,11 +20,29 @@ export class TokenError extends Error {
 const SEGMENT = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const ALIAS = /^\{([a-z0-9.-]+)\}$/;
 
+const isColor = (v: unknown) => typeof v === 'string' && /^#[0-9a-f]{6}([0-9a-f]{2})?$/.test(v);
+const isDimension = (v: unknown) =>
+  typeof v === 'string' && (/^-?\d*\.?\d+(px|rem|em|vw|vh|%)?$/.test(v) || /^clamp\(.+\)$/.test(v));
+const SHADOW_KEYS = new Set(['color', 'offsetX', 'offsetY', 'blur', 'spread', 'inset']);
+
+/** A shadow layer; its color is a literal or an alias (checked to be a color when resolved). */
+function isShadowLayer(v: unknown): boolean {
+  if (typeof v !== 'object' || v === null || Array.isArray(v)) return false;
+  const layer = v as Record<string, unknown>;
+  return (
+    Object.keys(layer).every((k) => SHADOW_KEYS.has(k)) &&
+    (isColor(layer.color) || (typeof layer.color === 'string' && ALIAS.test(layer.color))) &&
+    isDimension(layer.offsetX) &&
+    isDimension(layer.offsetY) &&
+    isDimension(layer.blur) &&
+    (layer.spread === undefined || isDimension(layer.spread)) &&
+    (layer.inset === undefined || typeof layer.inset === 'boolean')
+  );
+}
+
 const LITERAL_CHECKS: Record<TokenType, (v: unknown) => boolean> = {
-  color: (v) => typeof v === 'string' && /^#[0-9a-f]{6}([0-9a-f]{2})?$/.test(v),
-  dimension: (v) =>
-    typeof v === 'string' &&
-    (/^-?\d*\.?\d+(px|rem|em|vw|vh|%)?$/.test(v) || /^clamp\(.+\)$/.test(v)),
+  color: isColor,
+  dimension: isDimension,
   fontFamily: (v) =>
     (typeof v === 'string' && v.length > 0) ||
     (Array.isArray(v) && v.length > 0 && v.every((f) => typeof f === 'string' && f.length > 0)),
@@ -32,6 +51,7 @@ const LITERAL_CHECKS: Record<TokenType, (v: unknown) => boolean> = {
   duration: (v) => typeof v === 'string' && /^\d+(\.\d+)?(ms|s)$/.test(v),
   cubicBezier: (v) => Array.isArray(v) && v.length === 4 && v.every((n) => typeof n === 'number'),
   string: (v) => typeof v === 'string',
+  shadow: (v) => Array.isArray(v) && v.length > 0 && v.every(isShadowLayer),
 };
 
 /** The token id an alias value points at, or undefined for a literal. */
@@ -187,7 +207,32 @@ function followAlias(
       `${node}: ${start.id} resolves to an invalid ${start.type} ${JSON.stringify(current.value)}`,
     );
   }
-  return { resolved: current.value, alias };
+  const resolved =
+    start.type === 'shadow'
+      ? shadowColors(node, start.id, current.value as readonly ShadowLayer[], merged)
+      : current.value;
+  return { resolved, alias };
+}
+
+/** A shadow's layers with each color alias followed to its literal; it must name a color. */
+function shadowColors(
+  node: string,
+  id: string,
+  layers: readonly ShadowLayer[],
+  merged: Map<string, Merged>,
+): ShadowLayer[] {
+  return layers.map((layer) => {
+    const target = aliasTarget(layer.color);
+    if (target === undefined) return layer;
+    const color = merged.get(target);
+    if (color === undefined) {
+      throw new TokenError(`${node}: ${id} references unknown token {${target}}`);
+    }
+    if (color.type !== 'color') {
+      throw new TokenError(`${node}: ${id} (shadow) references {${target}} (${color.type})`);
+    }
+    return { ...layer, color: String(followAlias(node, color, merged).resolved) };
+  });
 }
 
 /** CSS custom property name for a token id: `color.surface.canvas` → `--color-surface-canvas`. */

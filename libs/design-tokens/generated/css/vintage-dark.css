@@ -134,6 +134,15 @@
   --color-signup-bench: #8fb3d9;
   --color-signup-declined: var(--color-crimson-300);
   --color-signup-no-response: #9a9086;
+  --color-highlight-edge: #faf5ea0f;
+  --color-highlight-gloss: #faf5ea4d;
+  --color-shadow-soft: #0b0a1040;
+  --color-shadow-strong: #0b0a1073;
+  --shadow-edge: inset 0 1px 0 var(--color-highlight-edge);
+  --shadow-low: inset 0 1px 0 var(--color-highlight-edge), 0 10px 30px var(--color-shadow-soft);
+  --shadow-raised:
+    inset 0 1px 0 var(--color-highlight-edge), 0 14px 34px var(--color-shadow-strong);
+  --shadow-button: inset 0 1px 0 var(--color-highlight-gloss), 0 1px 0 var(--color-shadow-strong);
 
   /* component */
   --card-bg: var(--color-surface-raised);

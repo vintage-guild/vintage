@@ -428,10 +428,26 @@ upstream (`upstream:fast-af`) and gets a local stub with the issue link.
   2000 px wide, the phone hero at 1000, the raven at 640). Still to make, as the guild earns them: boss cutouts for
   the first-kill callout, a banner for About, a campfire for the empty calendar.
 
+**Polish (2026-10-27):**
+
+- **Preload:** `index.html` preloads Bitter's latin upright woff2 by its node_modules path, so
+  Vite emits one hashed file that both the preload and Fontsource's `@font-face` use (checked in
+  the built `dist/index.html`). Bitter is variable, so that one file covers every weight.
+  `src/preload.test.ts` fails if the preload drifts from the display family's file.
+- **Shadow and highlight tokens:** a DTCG `shadow` type in `libs/design-tokens`, with
+  `color.highlight.edge|gloss` (parchment 50 at 6% / 30%) and `color.shadow.soft|strong` (plum
+  975 at 25% / 45%; leather 900 on parchment) behind `shadow.edge|low|raised|button`. The
+  cards, callouts, menus, poll card, boss ledger, and primary buttons use them; the ledger's 4%
+  highlights became the shared 6% edge. Still literal, with no clean match: the cream band's
+  inner shading and its button, the hero's text shadow over art, the dev and preview switches,
+  and `vintage-signup-card` (left for the signup-card batch to swap in).
+- **JTBD J43** (`docs/jtbd/polls.md`): voting from the home card and `/polls/<id>`, ranked
+  included, through `poll-list`, `poll-get`, `vote-cast`, and `vote-retract`.
+
 ## Tasks
 
 - [x] Research pass folded into this doc; direction chosen (concept E, 2026-10-25)
-- [x] Fonts: pick display + body, self-host, token update (preload still to do)
+- [x] Fonts: pick display + body, self-host, token update; display face preloaded (2026-10-27)
 - [x] Fixtures through the real registry; `apps/web` uses them in dev
 - [x] Hero + identity pills + figures
 - [x] Sticky header with section context, both themes, phone width
@@ -445,7 +461,7 @@ upstream (`upstream:fast-af`) and gets a local stub with the issue link.
 - [x] Docs: `apps/web/README.md`, `packages/ui-kit/README.md`, architecture status line
 - [x] Section nav, member menu with avatar, vector logo, theme switch out of the header
 - [x] Art: raid scenes, phone hero, recruiting cutout, coordinator raven, footer dusk (2026-10-26)
-- [ ] Preload the display face; shadow and highlight tokens; a JTBD job for voting from the website
+- [x] Preload the display face; shadow and highlight tokens; a JTBD job for voting from the website (2026-10-27)
 - [x] Once sign-in (#7) lands: Discord avatar into `Session.avatarUrl`, Sign out in the member menu (2026-10-26)
 
 ## Decisions
@@ -458,6 +474,7 @@ upstream (`upstream:fast-af`) and gets a local stub with the issue link.
 | 2026-10-26 | The header navigates within the home page's sections; routes stay for About, Profile, and Characters | Bloodfen: the concept moves down the page, the first build swapped pages |
 | 2026-10-26 | Recruiting copy is static site content, not a fixture, until a `site` module owns it | Production must show it too; a fixture would leave production empty |
 | 2026-10-25 | Raids and bosses are data in the `progress` contract, not rows; kills are the records. Datamined names carry a flag every surface shows | Blizzard's launch raids don't vary per guild; the flag keeps the page honest until the names are official |
+| 2026-10-27 | Shadows are DTCG `shadow` tokens whose layer colors alias `color.highlight.*` / `color.shadow.*` | A theme changes every shadow by overriding two colors, and shadows stay in the palette instead of pure black and white |
 
 ## Open questions
 

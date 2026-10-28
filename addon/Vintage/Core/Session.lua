@@ -60,11 +60,15 @@ function Session.Summary(session)
 		snapshots = session.attendance and #session.attendance or 0,
 		loot = session.loot and #session.loot or 0,
 		items = Core.Count(session.itemsSeen),
+		lastExport = session.lastExport,
+		lastExportAt = session.lastExportAt,
 	}
 
 	local reasoning
 	if summary.title then
 		reasoning = string.format("%s: %s, %d characters", summary.title, summary.state, summary.roster)
+	elseif summary.snapshots > 0 then
+		reasoning = string.format("Raid without an import: %s, %d snapshots", summary.state, summary.snapshots)
 	else
 		reasoning = "No raid imported"
 	end

@@ -34,7 +34,17 @@ describe("Vintage on the client", function()
 		local host, ns, loaded = start()
 		assert.are.same({}, host.errors)
 		assert.truthy(#loaded > 50, "libraries and addon files")
-		for _, module in ipairs({ "Core", "Executor", "Context", "Events", "Config", "Options", "RaidWindow", "MinimapButton", "Theme" }) do
+		for _, module in ipairs({
+			"Core",
+			"Executor",
+			"Context",
+			"Events",
+			"Config",
+			"Options",
+			"RaidWindow",
+			"MinimapButton",
+			"Theme",
+		}) do
 			assert.is_not_nil(ns[module], module)
 		end
 		assert.is_true(LibStub("AceAddon-3.0"):GetAddon("Vintage"):IsEnabled())
@@ -58,7 +68,8 @@ describe("Vintage on the client", function()
 	end)
 
 	it("keeps the raid session across a reload", function()
-		local session = { schemaVersion = 1, state = "live", attendance = {}, loot = { { itemId = 16800 } }, itemsSeen = {} }
+		local session =
+			{ schemaVersion = 1, state = "live", attendance = {}, loot = { { itemId = 16800 } }, itemsSeen = {} }
 		local _, ns = start({ saved = { char = { [CHAR_KEY] = { schemaVersion = 1, session = session } } } })
 		assert.are.equal("live", ns.db.char.session.state)
 		assert.are.equal(1, #ns.db.char.session.loot)
@@ -172,7 +183,9 @@ describe("The raid window", function()
 		ns.RaidWindow:Show()
 		ns.db.char.session.state = "live"
 		ns.Executor:Execute("session-clear", { confirm = true })
-		assert.are.equal("No raid imported", ns.RaidWindow.frame:GetSubtitle())
+		assert.are.equal("No raid imported", ns.RaidWindow:GetStatusText())
+		-- The panel subtitle overlaps FenUI's tab bar, so the window keeps it empty.
+		assert.are.equal("", ns.RaidWindow.frame:GetSubtitle())
 	end)
 
 	it("reads the session once each time it opens", function()
@@ -183,9 +196,9 @@ describe("The raid window", function()
 			return execute(self, name, params)
 		end
 		ns.RaidWindow:Show()
-		assert.are.same({ "session-get" }, executed)
+		assert.are.same({ "session-get", "raid-status" }, executed)
 		ns.Executor:Execute("session-clear", { confirm = true })
-		assert.are.same({ "session-get", "session-clear", "session-get" }, executed)
+		assert.are.same({ "session-get", "raid-status", "session-clear", "session-get", "raid-status" }, executed)
 	end)
 
 	it("registers its themes again when a FenUI copy that loaded later wiped them", function()

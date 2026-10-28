@@ -10,7 +10,9 @@ Load.CORE = {
 	"Core/init.lua",
 	"Core/Session.lua",
 	"Core/Migrations.lua",
+	"Core/Roster.lua",
 	"Core/Actions/session.lua",
+	"Core/Actions/raid.lua",
 	"Core/BridgeFormat/schema.lua",
 	"Core/BridgeFormat/codec.lua",
 }

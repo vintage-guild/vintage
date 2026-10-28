@@ -1,7 +1,7 @@
 # Role-aware views and the officers' quarters
 
 > Status: active · Created 2026-10-26 · Owner: Bloodfen · Depends on sign-in (#7)
-> Related: [home page](../../active/home-page/home-page.plan.md), [PLAN.md §3.4](../../../../PLAN.md)
+> Related: [home page](../../completed/home-page/home-page.plan.md), [PLAN.md §3.4](../../../../PLAN.md)
 > (tiers), [docs/jtbd](../../../jtbd/README.md)
 
 **The ask.** "Add a bit of sight variance depending on if you're signed in or not and the role

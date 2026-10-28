@@ -1,6 +1,10 @@
 # Home page
 
-> Status: active · Created 2026-10-25 · Owner: Bloodfen · Branch: `claude/wow-guild-homepage-37008f`
+> Status: completed (2026-10-27) · Created 2026-10-25 · Owner: Bloodfen · Branch: `claude/wow-guild-homepage-37008f`
+>
+> Every task is done: the last batch shipped the raid-day signup card and the visitors' About
+> section (#192), the font preload, shadow tokens, and J43 (#193), and the members' raid page
+> (#194). What's left below is the guild leader's to decide, not build work.
 >
 > The public front page of the Vintage website: what a prospective recruit, a guildie, and an
 > officer each see first. Bold and modern with WoW hints, not a parchment-and-gold theme park.
@@ -479,9 +483,14 @@ upstream (`upstream:fast-af`) and gets a local stub with the issue link.
 
 ## Open questions
 
+The guild leader (GM) decides these; none blocks the page, and each answer is a copy or setting
+change (the guild profile, recruiting, or a command's tier), not a rebuild. Question 1 is
+settled: Bitter for display, IBM Plex for body and labels (Design direction, third round).
+Questions 2, 4, and 9 are Bloodfen's optional polish.
+
 | # | Question | Owner |
 |---|---|---|
-| 1 | Display and body typefaces (shortlist from research) | Bloodfen → GM |
+| 1 | ~~Display and body typefaces (shortlist from research)~~ Settled: Bitter and IBM Plex | Bloodfen → GM |
 | 2 | How literal the chain motif gets (line only vs drawn links) | Bloodfen |
 | 3 | Discord invite link and whether recruiting is "apply" or "ask an officer" | GM |
 | 4 | Does the parchment band stay a one-off, or do long-form pages (news, strategy) adopt it | later |

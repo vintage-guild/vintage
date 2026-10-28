@@ -115,7 +115,7 @@ crimson) were added to reach contrast targets.
 | Parchment / leather | | 50 `#faf5ea` · 100 `#f3ead7` · 200 `#e8dcc0` · 400 `#b5a485` · leather 700 `#5c4a3a` · 900 `#2b2118` |
 
 The site palette was chosen with the home page concepts (2026-10-25, [feature
-plan](../../docs/features/active/home-page/home-page.plan.md)), after the dusk sky and teal
+plan](../../docs/features/completed/home-page/home-page.plan.md)), after the dusk sky and teal
 banners of Blizzard's Forever page, pulled toward vintage tones. The dark theme is built on it;
 the emblem's gold and crimson stay for the logo and WoW frames.
 

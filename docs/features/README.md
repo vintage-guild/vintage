@@ -14,7 +14,7 @@ when they affect every contributor, in the Decisions table in [AGENTS.md](../../
 | Phase 0 foundation | active | [phase-0-foundation](active/phase-0-foundation/phase-0-foundation.plan.md) |
 | Polls, votes, and surveys | active | [polls](active/polls/polls.plan.md) |
 | PR self-review (review lanes) | active | [pr-self-review](active/pr-self-review/pr-self-review.plan.md) |
-| Home page | active | [home-page](active/home-page/home-page.plan.md) |
+| Home page | completed | [home-page](completed/home-page/home-page.plan.md) |
 | Role-aware views and the officers' quarters | active | [role-aware-views](active/role-aware-views/role-aware-views.plan.md) |
 | Character choice (guess, switch, spec per raid) | active | [character-choice](active/character-choice/character-choice.plan.md) |
 | Officers’ assistant (Random in a side panel) | completed | [officers-assistant](completed/officers-assistant/officers-assistant.plan.md) |

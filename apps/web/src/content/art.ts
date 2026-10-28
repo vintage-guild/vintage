@@ -3,7 +3,7 @@ import type { LedgerArt } from '@vintage/ui-kit';
 /**
  * The site's art: Bloodfen's generated pieces, used with permission and not covered by the code
  * license. Files live in `public/art`; the brief for each is in the home page plan's image
- * guidance (docs/features/active/home-page).
+ * guidance (docs/features/completed/home-page).
  */
 export const ART = {
   /** The home hero: the orc and the dragon, subject right, dark left where the text sits. */

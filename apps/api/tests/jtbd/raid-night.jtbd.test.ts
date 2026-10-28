@@ -1076,6 +1076,123 @@ describe('JTBD: raid night', () => {
     expect(bgEvent?.data.description).toContain('10-player battleground: Warsong Gulch.');
   });
 
+  it('J45 · a raid leader makes a dungeon from the New event form, changes the comp, and posts it', async () => {
+    await g.host.configureCoordinator();
+    const rook = g.rook.discordId!;
+    const ui = g.host.eventUi;
+    type Seen = {
+      type: number;
+      data: {
+        title?: string;
+        content?: string;
+        embeds?: {
+          title?: string;
+          fields?: { name: string; value: string }[];
+          footer?: { text: string };
+        }[];
+        components?: {
+          label?: string;
+          component?: { custom_id: string; value?: string; options?: { value: string }[] };
+          components?: { label: string; custom_id: string; disabled?: boolean }[];
+        }[];
+      };
+    };
+    const seen = (r: unknown) => r as Seen;
+    const field = (r: unknown, name: string) =>
+      seen(r).data.embeds?.[0]?.fields?.find((f) => f.name === name)?.value ?? '';
+    const buttons = (r: unknown) =>
+      (seen(r).data.components ?? []).flatMap((row) => row.components ?? []);
+    const message = (r: unknown) => ({ id: 'preview', embeds: seen(r).data.embeds ?? [] });
+    const submit = (customId: string, fields: Record<string, string | string[]>, from?: unknown) =>
+      ui.form(rook, {
+        type: 5,
+        data: {
+          custom_id: customId,
+          components: Object.entries(fields).map(([id, v]) => ({
+            type: 18,
+            component: Array.isArray(v)
+              ? { type: 3, custom_id: id, values: v }
+              : { type: 4, custom_id: id, value: v },
+          })),
+        },
+        ...(from ? { message: message(from) } : {}),
+      });
+    const click = (customId: string, from: unknown) =>
+      ui.form(rook, { data: { custom_id: customId, component_type: 2 }, message: message(from) });
+
+    // The bare command opens the New event form, in the guild's clock.
+    const form = await ui.form(rook, {
+      type: 2,
+      data: {
+        name: 'random',
+        options: [{ name: 'event', type: 2, options: [{ name: 'create', type: 1, options: [] }] }],
+      },
+    });
+    expect(seen(form).data.title).toBe('New event');
+    expect(seen(form).data.components?.map((c) => c.label)).toEqual([
+      'Name',
+      'Kind',
+      'Where',
+      'Date and time',
+      'Length in hours',
+    ]);
+
+    // Stage 1: a dungeon, then Set up event.
+    const first = await submit('evform:new', {
+      name: 'Cathedral run',
+      kind: ['dungeon'],
+      where: 'Scarlet Monastery',
+      start: '2026-10-28 7pm',
+      hours: '2',
+    });
+    expect(field(first, 'Roles')).toBe('1 tank · 1 healer · 3 DPS (the usual comp)');
+    expect(buttons(first).map((b) => b.label)).toEqual(['Set up event', 'Edit details', 'Cancel']);
+
+    // Stage 2 is built for a dungeon: one size, the usual 1/1/3 prefilled.
+    const details = await click('evform:next', first);
+    expect(seen(details).data.title).toBe('Dungeon details');
+    // Rook wants two healers and two DPS.
+    const preview = await submit(
+      'evform:kind:dungeon',
+      { size: ['5'], tanks: '1', healers: '2', dps: '2' },
+      first,
+    );
+    expect(field(preview, 'Roles')).toBe('1 tank · 2 healers · 2 DPS');
+    expect(field(preview, 'Length')).toBe('2 hours');
+    expect(buttons(preview)[0]).toMatchObject({ label: 'Post event', disabled: false });
+
+    // Post event: the dungeon is made, the reply says so, and its card goes up with the comp.
+    const posted = await click('evform:post', preview);
+    expect(seen(posted).data.content).toContain(
+      'Made **Cathedral run** (Scarlet Monastery, 5-player dungeon)',
+    );
+    expect(seen(posted).data.content).toContain('looking for 1 tank · 2 healers · 2 DPS');
+    expect(seen(posted).data.components).toEqual([]);
+    await g.host.tick();
+    const raids = await g.host.ok<{ event: RaidEvent }[]>(g.aeryn, 'raid-list', {});
+    const sm = raids.find((r) => r.event.name === 'Cathedral run')!.event;
+    expect(sm).toMatchObject({
+      kind: 'dungeon',
+      size: 5,
+      durationMinutes: 120,
+      roleTargets: { tank: 1, healer: 2, dps: 2 },
+    });
+    const card = g.host
+      .sentTo(SIGNUP_CHANNEL)
+      .find((m) => m.message.embeds?.[0]?.title?.includes('Cathedral run'))!.message;
+    expect(messageText(card)).toMatch(/Healers 0\/2/);
+
+    // A raider can't open the form at all.
+    const refused = await ui.form(g.aeryn.discordId!, {
+      type: 2,
+      data: {
+        name: 'random',
+        options: [{ name: 'event', type: 2, options: [{ name: 'create', type: 1, options: [] }] }],
+      },
+    });
+    expect(seen(refused).data.content).toContain('needs the Raid Leader rank');
+  });
+
   it('J31 · a 5-player dungeon shows its 1/1/3 comp and what it is missing, and queues the sixth', async () => {
     await g.host.configureCoordinator();
     const made = await g.host.eventUi.slash(g.rook.discordId!, 'create', {

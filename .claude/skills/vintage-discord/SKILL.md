@@ -37,7 +37,7 @@ commands). Everything runs serverless: no always-on gateway process.
   the registry; the endpoint never holds business rules. `/random ping` answers locally; buttons,
   modals, and the subcommand groups in `FORWARDED_GROUPS` (`/random poll`, `/random event`,
   `/random character`, `/random ask`, …) go to Convex, where `src/discord-signups.ts`,
-  `discord-polls.ts`, `discord-events.ts`, `discord-characters.ts`, and `discord-agent.ts` run them
+  `discord-polls.ts`, `discord-events.ts` (and `discord-event-form.ts`), `discord-characters.ts`, and `discord-agent.ts` run them
   (shared helpers in `discord-common.ts`). Re-register after changing commands.
   A `/random` subcommand or click that the gateway or Convex doesn't know yet (registered before
   both deploys landed) gets a private "can't do that yet", never a timeout.
@@ -91,6 +91,15 @@ commands). Everything runs serverless: no always-on gateway process.
   values. Keep every id within 100 characters with 32-character Convex ids. A click signs up
   with `signup-suggest`'s guess. Replies are ephemeral; never edit the
   public post from an interaction (the coordinator tick does that).
+- **New event form** (`src/discord-event-form.ts`, routed before `discord-events.ts`): a bare
+  `/random event create` opens modal `evform:new` (name, kind, where, date and time, length;
+  options typed so far prefill it, size and counts ride as `evform:new:<size>:<t>:<h>:<d>`).
+  Its private preview has `evform:next` (**Set up event**), `evform:edit`, `evform:cancel`;
+  `evform:next` / `evform:edit-kind` open `evform:kind:<kind>` (sizes for that kind, counts),
+  and after it **Post event** is `evform:post` (raid-create, then a tick). A modal submit can't
+  answer with another modal, so a button sits between the stages. No draft table: the draft is
+  base64url JSON (`v1.…`) in the preview's embed footer; treat it as untrusted, decode it with
+  the strict schema, check the owner, and re-run every check each step.
 - **App emoji:** class, spec, and role icons are the app's own emoji (work in any server,
   no slots). `scripts/discord-emojis.json` lists them (WoW icon names, or `file:` for our own art);
   `node --env-file=apps/api/.env.local scripts/discord-emojis.mjs` uploads missing ones and

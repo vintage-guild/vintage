@@ -34,7 +34,7 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
     group: 'event',
     runs: { 'event create': 'raid-create', 'event pick-night': 'raid-night-poll' },
     examples: [
-      '/random event create name:Scarlet Monastery instance:Scarlet Monastery kind:dungeon size:5 start:2026-11-03 8pm',
+      '/random event create',
       '/random event create name:Molten Core instance:Molten Core size:40 start:2026-11-12 20:00 hours:4',
       '/random event pick-night name:Zul’Gurub instance:Zul’Gurub size:20 times:2026-11-10 20:00; 2026-11-12 20:00',
     ],

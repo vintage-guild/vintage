@@ -92,6 +92,13 @@ export {
 } from './elements/progress-desk';
 export { VintageRaidMonth } from './elements/raid-month';
 export {
+  type RaidRosterComp,
+  type RaidRosterCounts,
+  type RaidRosterRaid,
+  type RaidRosterSignup,
+  VintageRaidRoster,
+} from './elements/raid-roster';
+export {
   type RecruitingDeskBand,
   type RecruitingNeed,
   VintageRecruitingDesk,

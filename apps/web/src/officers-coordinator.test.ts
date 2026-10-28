@@ -34,6 +34,7 @@ const event = (id: string, name: string): RaidEvent => ({
   status: 'completed',
   roleTargets: null,
   lootMethodId: null,
+  notes: null,
   configVersion: 1,
 });
 

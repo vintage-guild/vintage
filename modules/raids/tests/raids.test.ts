@@ -77,18 +77,14 @@ describe('raids commands', () => {
     return result.data as T;
   };
 
+  const raidInput = () => ({
+    name: 'Molten Core',
+    instance: 'Molten Core',
+    size: 10,
+    startsAt: clock.now() + 2 * DAY,
+  });
   const createRaid = (overrides: Record<string, unknown> = {}) =>
-    ok<RaidEvent>(
-      'raid-create',
-      {
-        name: 'Molten Core',
-        instance: 'Molten Core',
-        size: 10,
-        startsAt: clock.now() + 2 * DAY,
-        ...overrides,
-      },
-      leader,
-    );
+    ok<RaidEvent>('raid-create', { ...raidInput(), ...overrides }, leader);
 
   beforeEach(() => {
     clock = fixedClock(); // Wed 4 Nov 2026 23:00 UTC
@@ -183,6 +179,33 @@ describe('raids commands', () => {
       expect(got.locksAt).toBe((scheduled?.startsAt ?? 0) - 6 * HOUR);
     });
 
+    it("copies the schedule's default notes to each new raid, not to ones already made", async () => {
+      const schedule = await ok<Schedule>(
+        'schedule-create',
+        { ...tueThu, notes: 'Fire resist. On at 7:45.' },
+        leader,
+      );
+      expect(schedule.notes).toBe('Fire resist. On at 7:45.');
+      const [thursday] = (await ok<{ created: RaidEvent[] }>('schedule-materialize', {}, leader))
+        .created;
+      expect(thursday?.notes).toBe('Fire resist. On at 7:45.');
+
+      const updated = await ok<Schedule>(
+        'schedule-update',
+        { scheduleId: schedule.id, notes: '' },
+        leader,
+      );
+      expect(updated.notes).toBeNull();
+      expect(
+        (await ok<{ event: RaidEvent }>('raid-get', { eventId: thursday?.id }, leader)).event.notes,
+      ).toBe('Fire resist. On at 7:45.');
+      // A week on, the next raid comes from the updated schedule.
+      clock.advance(7 * DAY);
+      const [next] = (await ok<{ created: RaidEvent[] }>('schedule-materialize', {}, leader))
+        .created;
+      expect(next?.notes).toBeNull();
+    });
+
     it('skips paused schedules and bumps the config version on update', async () => {
       const schedule = await ok<Schedule>('schedule-create', tueThu, leader);
       const updated = await ok<Schedule>(
@@ -249,6 +272,45 @@ describe('raids commands', () => {
       ).toMatchObject({
         error: { code: 'RAID_CLOSED' },
       });
+    });
+
+    it('keeps notes: set on create, changed or cleared on reschedule, capped at 500', async () => {
+      const raid = await createRaid({ notes: '  Fire resist and flasks.\n\nOn at 7:45.  ' });
+      expect(raid.notes).toBe('Fire resist and flasks.\n\nOn at 7:45.');
+      expect((await createRaid()).notes).toBeNull();
+      expect(
+        await run('raid-create', { ...raidInput(), notes: 'x'.repeat(501) }, leader),
+      ).toMatchObject({ error: { code: 'VALIDATION_ERROR' } });
+
+      // Notes alone: the time stays.
+      const noted = await ok<RaidEvent>(
+        'raid-reschedule',
+        { eventId: raid.id, notes: 'Nature resist instead.' },
+        leader,
+      );
+      expect(noted).toMatchObject({ startsAt: raid.startsAt, notes: 'Nature resist instead.' });
+      // Moving it keeps the notes; a blank box clears them.
+      const moved = await ok<RaidEvent>(
+        'raid-reschedule',
+        { eventId: raid.id, startsAt: raid.startsAt + DAY },
+        leader,
+      );
+      expect(moved.notes).toBe('Nature resist instead.');
+      expect(
+        (await ok<RaidEvent>('raid-reschedule', { eventId: raid.id, notes: '   ' }, leader)).notes,
+      ).toBeNull();
+      // Nothing to change is a validation error, not a silent no-op.
+      expect(await run('raid-reschedule', { eventId: raid.id }, leader)).toMatchObject({
+        error: { code: 'VALIDATION_ERROR' },
+      });
+      // Members read the notes; only leaders change them.
+      expect(
+        (await ok<{ event: RaidEvent }>('raid-get', { eventId: raid.id }, as('aeryn', 'member')))
+          .event.notes,
+      ).toBeNull();
+      expect(
+        await run('raid-reschedule', { eventId: raid.id, notes: 'mine' }, as('aeryn')),
+      ).toMatchObject({ error: { code: 'COMMAND_NOT_FOUND' } });
     });
 
     it('lists upcoming raids with counts and my status', async () => {

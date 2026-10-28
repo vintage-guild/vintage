@@ -247,6 +247,10 @@ const template = html<Page>`
                   <p class="note">${(x) => (x.next ? [x.next.event.instance, players(x.next.event)].filter(Boolean).join(' · ') : '')}</p>
                   <p class="note"><a href="${(x) => raidHref(x.next?.event.id ?? '')}">See who’s coming</a></p>
                   ${when(
+                    (x) => x.next?.event.notes,
+                    html<Page>`<div class="raid-notes" aria-label="Raid notes">${repeat((x) => paragraphs(x.next?.event.notes ?? ''), html<string>`<p>${(p) => p}</p>`)}</div>`,
+                  )}
+                  ${when(
                     (x) => !x.signUpAllowed,
                     html`<p class="note">Signups open to recruits and up. Ask an officer about raiding with us.</p>`,
                   )}
@@ -809,6 +813,19 @@ const styles = css`
     margin: 0;
     font-size: var(--font-size-sm);
     color: var(--color-text-secondary);
+  }
+
+  /* An officer's notes for the raid (what to bring, when to be on): their line breaks kept. */
+  .raid-notes {
+    display: grid;
+    gap: var(--space-xs);
+  }
+
+  .raid-notes p {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    white-space: pre-line;
+    overflow-wrap: anywhere;
   }
 
   /* The list fills the card's middle row; keep its raids at the top however few there are. */

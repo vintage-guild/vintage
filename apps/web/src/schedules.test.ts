@@ -17,6 +17,7 @@ const schedule = (over: Partial<Schedule> = {}): Schedule => ({
   timings: { leadDays: 7, reminderHours: [72, 24], lockHours: 2 },
   roleTargets: null,
   lootMethodId: null,
+  notes: null,
   active: true,
   configVersion: 1,
   ...over,

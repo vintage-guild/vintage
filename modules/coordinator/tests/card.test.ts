@@ -25,6 +25,7 @@ const event: RaidEvent = {
   status: 'open',
   roleTargets: null,
   lootMethodId: null,
+  notes: null,
   configVersion: 1,
 };
 
@@ -115,6 +116,30 @@ describe('raid cards', () => {
 
   it('the final roster stays inside the limits too', () => {
     expectWithinLimits(renderFinalRoster(fullRaid(), []));
+  });
+
+  it("quotes the raid's notes under the lock line, a block per paragraph, within the limits", () => {
+    const plain = renderSignupPost({ event, timings: DEFAULT_TIMINGS, signups: [] }, []);
+    expect((plain.embeds![0] as Embed).description).not.toMatch(/^> /m);
+    const notes = 'Fire resist and flasks.\nBring a fire pot.\n\nOn at 7:45 for buffs.';
+    const noted = renderSignupPost(
+      { event: { ...event, notes }, timings: DEFAULT_TIMINGS, signups: [] },
+      [],
+    );
+    const lines = (noted.embeds![0] as Embed).description!.split('\n');
+    const at = lines.findIndex((l) => l.startsWith('-# '));
+    expect(lines.slice(at + 1, at + 6)).toEqual([
+      '',
+      '> Fire resist and flasks.',
+      '> Bring a fire pot.',
+      '',
+      '> On at 7:45 for buffs.',
+    ]);
+    // The longest notes on the fullest card still fit.
+    const raid = fullRaid();
+    expectWithinLimits(
+      renderSignupPost({ ...raid, event: { ...event, notes: 'x'.repeat(500) } }, []),
+    );
   });
 
   it('uses the app emoji map and nothing for unknown names', () => {

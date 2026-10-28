@@ -9,6 +9,7 @@ import {
   instanceForKind,
   kindRules,
   kindSchema,
+  notesSchema,
   scheduleNotFound,
   sizeForKind,
   targetsTooBig,
@@ -50,6 +51,8 @@ const scheduleFields = {
   lockHours: z.number().int().min(0).max(72),
   roleTargets: roleTargetsSchema.nullable(),
   lootMethodId: z.string().min(1).nullable(),
+  /** Default notes: each raid copies them when it is created; edit one raid with raid-reschedule. */
+  notes: notesSchema,
 };
 
 export const scheduleCreate = command({
@@ -57,7 +60,8 @@ export const scheduleCreate = command({
   description:
     'Create a recurring raid night, e.g. Molten Core every Tuesday and Thursday at 20:00 New York ' +
     'time, or a weekly dungeon, battleground, or other event with kind (default raid; other may ' +
-    'leave out size and instance). Events are created ahead of time by schedule-materialize.',
+    'leave out size and instance). notes (what to bring, when to be on) are copied to each raid. ' +
+    'Events are created ahead of time by schedule-materialize.',
   tier: 'leader',
   mutation: true,
   input: z
@@ -72,6 +76,7 @@ export const scheduleCreate = command({
       lockHours: scheduleFields.lockHours.default(2),
       roleTargets: scheduleFields.roleTargets.default(null),
       lootMethodId: scheduleFields.lootMethodId.default(null),
+      notes: scheduleFields.notes.default(null),
     })
     .superRefine(kindRules),
   handler: async (input, { guildId, deps }) => {
@@ -93,6 +98,7 @@ export const scheduleCreate = command({
       },
       roleTargets: input.roleTargets,
       lootMethodId: input.lootMethodId,
+      notes: input.notes,
       active: true,
       configVersion: 1,
     });
@@ -105,8 +111,9 @@ export const scheduleCreate = command({
 export const scheduleUpdate = command({
   name: 'schedule-update',
   description:
-    'Change a schedule (time, days, kind, size, timings, comp targets) or pause it with active: false. ' +
-    'Raids already created keep their time; use raid-reschedule for those.',
+    'Change a schedule (time, days, kind, size, timings, comp targets, default notes) or pause it ' +
+    'with active: false. Raids already created keep their time and notes; use raid-reschedule ' +
+    'for those.',
   tier: 'leader',
   mutation: true,
   input: z.object({
@@ -202,6 +209,7 @@ export const scheduleMaterialize = command({
             status: 'open',
             roleTargets: schedule.roleTargets,
             lootMethodId: schedule.lootMethodId,
+            notes: schedule.notes,
             configVersion: schedule.configVersion,
           }),
         );

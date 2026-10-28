@@ -120,6 +120,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           discordId: string;
           displayName: string;
           guildId: string;
+          inServer: boolean;
           rank:
             | "officer"
             | "raid-leader"

@@ -152,7 +152,19 @@ const SIGNUP_BUTTONS = [
 ] as const;
 
 /**
- * The signup post: when and how it locks, status counts, three role columns against the comp
+ * The raid's notes as quotes, a block per paragraph (split on blank lines, as the website does),
+ * after an empty line; nothing when it has none. Notes are at most 500 characters, so they fit.
+ */
+function notesLines(event: RaidEvent): string[] {
+  const paragraphs = (event.notes ?? '')
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  return paragraphs.flatMap((p) => ['', ...p.split('\n').map((l) => `> ${l.trim()}`)]);
+}
+
+/**
+ * The signup post: when and how it locks, the raid's notes, status counts, three role columns against the comp
  * targets (class square, place in line, name, spec), the queue, standby and tentative, what the comp
  * is missing, reasons in the footer, the answer buttons, and a Roster button for the full list.
  */
@@ -225,10 +237,12 @@ export function renderSignupPost(tick: TickEvent, members: TickMember[]): Messag
     embeds: [
       embed({
         title: cardTitle(event),
-        // When; the lock and size as quieter subtext; then the counts with room around them.
+        // When; the lock and size as quieter subtext; the notes; then the counts with room around
+        // them. The render hash covers the notes, so editing them refreshes the post.
         description: [
           `${emoji('info_calendar')} ${when(event.startsAt)}`,
           `-# ${lock} · ${sizeWords(event)}`,
+          ...notesLines(event),
           '',
           statusLine(signups),
           BLANK,

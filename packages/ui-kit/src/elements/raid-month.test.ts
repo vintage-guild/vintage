@@ -19,6 +19,7 @@ const raid = (over: Partial<CalendarRaid> = {}): CalendarRaid => ({
   startsAt: Date.UTC(2026, 10, 5, 1), // Wed 4 Nov, 20:00 New York
   durationMinutes: 180,
   status: 'open',
+  notes: null,
   counts: null,
   ...over,
 });

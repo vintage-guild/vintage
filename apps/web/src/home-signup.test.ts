@@ -143,4 +143,37 @@ describe('the home signup card on raid day', () => {
       page.remove();
     }
   });
+
+  it("puts the raid's notes on the card, a paragraph per blank line, and nothing without", async () => {
+    let notes: string | null =
+      'Fire resist and flasks.\nBring a fire pot.\n\nOn at 7:45 for buffs.';
+    client((name) => {
+      if (name === 'raid-list') {
+        const [row] = (reader(name).data as { event: RaidEvent }[]) ?? [];
+        return { success: true, data: [{ ...row, event: { ...row?.event, notes } }] };
+      }
+      return reader(name);
+    });
+    setSession({ memberId: 'm1', tier: 'raider', rank: 'raider' } as never);
+    const page = document.createElement('vintage-home-page') as HomePage;
+    document.body.append(page);
+    const paras = () =>
+      [...(page.shadowRoot?.querySelectorAll('vintage-signup-card .raid-notes p') ?? [])].map(
+        (p) => p.textContent,
+      );
+    try {
+      await page.loadRaids();
+      await new Promise((r) => setTimeout(r, 50));
+      expect(paras()).toEqual([
+        'Fire resist and flasks.\nBring a fire pot.',
+        'On at 7:45 for buffs.',
+      ]);
+      notes = null;
+      await page.loadRaids();
+      await new Promise((r) => setTimeout(r, 50));
+      expect(page.shadowRoot?.querySelector('vintage-signup-card .raid-notes')).toBeNull();
+    } finally {
+      page.remove();
+    }
+  });
 });

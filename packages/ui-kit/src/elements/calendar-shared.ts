@@ -23,6 +23,8 @@ export interface CalendarRaid {
   startsAt: number;
   durationMinutes: number;
   status: CalendarRaidStatus;
+  /** What to bring and when to be on; null for none. */
+  notes: string | null;
   counts: { accepted: number; late: number; tentative: number; bench: number } | null;
 }
 
@@ -38,6 +40,8 @@ export interface CalendarSchedule {
   recurrence: { weekdays: WallWeekday[]; time: string; timeZone: string };
   durationMinutes: number;
   timings: { leadDays: number; reminderHours: number[]; lockHours: number };
+  /** Default notes each new raid copies; null for none. */
+  notes: string | null;
   /** Paused schedules create no new raids. */
   active: boolean;
 }

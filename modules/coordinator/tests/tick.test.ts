@@ -99,6 +99,7 @@ describe('runTick', () => {
       status: 'open',
       roleTargets: null,
       lootMethodId: null,
+      notes: null,
       configVersion: 1,
     };
     signups = [signup('aeryn')];
@@ -155,6 +156,16 @@ describe('runTick', () => {
     expect(edits[0]!.messageId).toBe(discord.sent[0]!.messageId);
     await tick(START - 97 * HOUR);
     expect(discord.sent.filter((s) => s.kind === 'edit')).toHaveLength(1);
+  });
+
+  it('edits the post when the raid notes change', async () => {
+    await tick(START - 100 * HOUR);
+    event = { ...event, notes: 'Fire resist and flasks.' };
+    await tick(START - 99 * HOUR);
+    const edits = discord.sent.filter((s) => s.kind === 'edit');
+    expect(edits).toHaveLength(1);
+    expect(edits[0]!.messageId).toBe(discord.sent[0]!.messageId);
+    expect(JSON.stringify(edits[0])).toContain('> Fire resist and flasks.');
   });
 
   it('pings only expected non-responders at 72h, and never twice', async () => {

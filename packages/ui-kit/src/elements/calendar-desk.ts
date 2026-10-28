@@ -47,7 +47,7 @@ export interface AgendaRow {
   counts: string;
   warnings: string[];
   status: string;
-  canMove: boolean;
+  canChange: boolean;
   canCancel: boolean;
   canComplete: boolean;
 }
@@ -91,7 +91,7 @@ const agendaRow = html<AgendaRow, AgendaDay>`
       )}
     </div>
     ${when(
-      (r, c) => host(c).canEdit && (r.canMove || r.canCancel || r.canComplete),
+      (r, c) => host(c).canEdit && (r.canChange || r.canCancel || r.canComplete),
       html<AgendaRow, AgendaDay>`
         <p class="actions">
           ${when(
@@ -102,11 +102,11 @@ const agendaRow = html<AgendaRow, AgendaDay>`
             >`<button type="button" ?disabled="${(_, c) => host(c).busy}" @click="${(r, c) => host(c).complete(r.raid.id)}">Mark done</button>`,
           )}
           ${when(
-            (r) => r.canMove,
+            (r) => r.canChange,
             html<
               AgendaRow,
               AgendaDay
-            >`<button type="button" ?disabled="${(_, c) => host(c).busy}" @click="${(r, c) => host(c).openRaid(r.raid)}">Move</button>`,
+            >`<button type="button" ?disabled="${(_, c) => host(c).busy}" @click="${(r, c) => host(c).openRaid(r.raid)}">Edit</button>`,
           )}
           ${when(
             (r) => r.canCancel,
@@ -618,7 +618,7 @@ export class VintageCalendarDesk extends FASTElement {
       counts: describeCounts(raid),
       warnings,
       status: STATUS_LABEL[raid.status],
-      canMove: live && !started,
+      canChange: live && !started,
       canCancel: live,
       canComplete: live && started,
     };
@@ -666,7 +666,7 @@ export class VintageCalendarDesk extends FASTElement {
       'schedule-create': 'Schedule added. Random creates its raids as their signups come due',
       'schedule-update': 'Schedule saved. Raids already created keep their time',
       'raid-create': `${KIND_LABELS[kind]} added and open for signups`,
-      'raid-reschedule': 'Raid moved. Signups and the roster came along',
+      'raid-reschedule': 'Raid saved. Signups and the roster came along',
     };
     const result = await this.change(submit.command, submit.input, done[submit.command]);
     if (result.success) this.editing = null;

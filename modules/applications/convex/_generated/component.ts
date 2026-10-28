@@ -101,6 +101,9 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         {
           channelId: string | null;
           guildId: string;
+          limitAlertedAt?: number | null;
+          limitCount?: number;
+          limitWindowMinutes?: number;
           onboarding: string;
           updatedAt: number;
         },

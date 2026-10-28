@@ -40,6 +40,7 @@ const GALLERY_SCHEDULES: CalendarSchedule[] = [
     durationMinutes: 180,
     timings: { leadDays: 7, reminderHours: [72, 24], lockHours: 2 },
     roleTargets: null,
+    notes: 'Fire resist and flasks. On at 7:45 for buffs.',
     active: true,
   },
   {
@@ -52,6 +53,7 @@ const GALLERY_SCHEDULES: CalendarSchedule[] = [
     durationMinutes: 120,
     timings: { leadDays: 5, reminderHours: [24], lockHours: 1 },
     roleTargets: null,
+    notes: null,
     active: false,
   },
 ];
@@ -66,6 +68,7 @@ const calendarRaid = (
   size: 40,
   durationMinutes: 180,
   status: 'open',
+  notes: null,
   counts: { accepted: 22, late: 2, tentative: 4, bench: 1 },
   ...over,
 });

@@ -515,7 +515,7 @@ describe('JTBD: raid night', () => {
     expect(notices[0]!.message.allowed_mentions?.users).toEqual([people[10]!.discordId]);
   });
 
-  it('J19 · on raid day, the site says when signups lock and where I am in line', async () => {
+  it('J19 · on raid day, the site says when signups lock, what to bring, and where I am in line', async () => {
     const { wed } = await scheduleRaidNights(g);
     await answer(g, g.aeryn, 'aeryn', wed.id, 'accepted');
     const [next] = await g.host.ok<{ event: RaidEvent; myStatus: string; locksAt: number }[]>(
@@ -524,6 +524,23 @@ describe('JTBD: raid night', () => {
       {},
     );
     expect(next).toMatchObject({ myStatus: 'accepted', locksAt: wed.startsAt - 2 * HOUR });
+
+    // What to bring: Rook writes the raid's notes; the card the site reads carries them, and the
+    // Discord post is edited to show them.
+    const notes = 'Fire resist and flasks.\n\nOn at 7:45 for buffs.';
+    await g.host.ok(g.rook, 'raid-reschedule', { eventId: wed.id, notes });
+    const [noted] = await g.host.ok<{ event: RaidEvent }[]>(g.aeryn, 'raid-list', {});
+    expect(noted?.event).toMatchObject({ id: wed.id, startsAt: wed.startsAt, notes });
+    const editsBefore = g.host.editsTo(SIGNUP_CHANNEL).length;
+    await g.host.tick();
+    const edits = g.host.editsTo(SIGNUP_CHANNEL);
+    expect(edits.length).toBeGreaterThan(editsBefore);
+    const card = edits.at(-1)!.message.embeds?.[0]?.description ?? '';
+    expect(card).toContain('> Fire resist and flasks.\n\n> On at 7:45 for buffs.');
+    // A raider can read the notes but not change them.
+    expect(
+      await g.host.run(g.aeryn, 'raid-reschedule', { eventId: wed.id, notes: 'mine' }),
+    ).toMatchObject({ error: { code: 'COMMAND_NOT_FOUND' } });
 
     // A full dungeon: the sixth and seventh to answer wait in line, and the list says where.
     const sm = await g.host.ok<RaidEvent>(g.rook, 'raid-create', {

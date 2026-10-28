@@ -56,6 +56,9 @@ export const role = v.union(
   v.literal('ranged'),
 );
 
+// Optional so rows written before notes existed stay valid; the mappers read a missing one as null.
+export const notes = v.optional(v.union(v.string(), v.null()));
+
 export const scheduleFields = {
   guildId: v.string(),
   name: v.string(),
@@ -72,6 +75,7 @@ export const scheduleFields = {
   }),
   roleTargets,
   lootMethodId: v.union(v.string(), v.null()),
+  notes,
   active: v.boolean(),
   configVersion: v.number(),
 };
@@ -89,6 +93,7 @@ export const eventFields = {
   status: raidStatus,
   roleTargets,
   lootMethodId: v.union(v.string(), v.null()),
+  notes,
   configVersion: v.number(),
 };
 

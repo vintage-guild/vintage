@@ -26,6 +26,7 @@ const event = (id: string, startsAt: number): RaidEvent => ({
   status: 'open',
   roleTargets: null,
   lootMethodId: null,
+  notes: null,
   configVersion: 1,
 });
 

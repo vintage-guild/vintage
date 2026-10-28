@@ -113,7 +113,10 @@ when we pull, and when signups lock, **so I can** get ready without hunting thro
   one-off), and my answer pressed. After the lock it says "locked · roster posted".
 - [ ] In a full raid, the card says where I am in line: "You're next in line", or "in line with
   N ahead of you", and that Random tells me when a spot opens (J13).
-- [ ] Not yet: "what to bring". That waits on raid notes (`notes` on `RaidEvent`).
+- [ ] What to bring: Rook writes the raid's notes on the quarters' Calendar tab (Edit on the
+  agenda, or a schedule's default notes that each new raid copies). The card shows them under the
+  instance, a paragraph per blank line, and the Discord signup post is edited to quote them. A
+  raider can read them but `raid-reschedule` answers `COMMAND_NOT_FOUND`.
 
 ### J24 · Keep the calendar right from the quarters
 **When** plans change, **I (raid leader) want** to add, move, pause, and close out raids on the

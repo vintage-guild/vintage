@@ -42,6 +42,7 @@ const SCHEDULE: CalendarSchedule = {
   recurrence: { weekdays: ['wed', 'thu'], time: '20:00', timeZone: 'America/New_York' },
   durationMinutes: 180,
   timings: { leadDays: 7, reminderHours: [72, 24], lockHours: 2 },
+  notes: null,
   active: true,
 };
 
@@ -55,6 +56,7 @@ const raid = (over: Partial<CalendarRaid> = {}): CalendarRaid => ({
   startsAt: Date.UTC(2026, 10, 5, 1), // Wed 4 Nov, 20:00 New York (EST)
   durationMinutes: 180,
   status: 'open',
+  notes: null,
   counts: { accepted: 12, late: 1, tentative: 3, bench: 0 },
   ...over,
 });
@@ -127,7 +129,7 @@ describe('vintage-calendar-desk agenda', () => {
     const labels = (row: Element | undefined) =>
       [...(row?.querySelectorAll('button') ?? [])].map((b) => b.textContent?.trim());
     expect(labels(tonight)).toEqual(['Mark done', 'Cancel']);
-    expect(labels(later)).toEqual(['Move', 'Cancel']);
+    expect(labels(later)).toEqual(['Edit', 'Cancel']);
   });
 
   it('is read-only without can-edit', async () => {
@@ -228,7 +230,7 @@ describe('vintage-calendar-desk actions', () => {
   it('runs a moved raid through raid-reschedule and closes the form', async () => {
     const client = useClient(() => ({ success: true, data: {} }));
     const el = await desk();
-    button(el, 'Move')?.click();
+    button(el, 'Edit')?.click();
     await settle();
     const form = $<VintageRaidForm>(el, 'vintage-raid-form');
     expect(form.date).toBe('2026-11-04');
@@ -243,6 +245,36 @@ describe('vintage-calendar-desk actions', () => {
     );
     await settle();
     expect($(el, 'vintage-raid-form')).toBeNull();
+  });
+
+  it("edits a raid's notes alone, sends only what changed, and refuses no change", async () => {
+    const el = await desk({ raids: [raid({ notes: 'Flasks.' })] });
+    button(el, 'Edit')?.click();
+    await settle();
+    const form = $<VintageRaidForm>(el, 'vintage-raid-form');
+    const submitted = vi.fn();
+    form.addEventListener('form-submit', (e) => submitted((e as CustomEvent).detail));
+    const box = form.shadowRoot?.querySelector<HTMLTextAreaElement>('textarea#notes');
+    expect(box?.value).toBe('Flasks.');
+    expect(box?.maxLength).toBe(500);
+    const send = () => form.shadowRoot?.querySelector('form')?.requestSubmit();
+    send();
+    expect(submitted).not.toHaveBeenCalled();
+    expect(form.problem).toBe('Nothing changed.');
+    box!.value = '  Flasks and fire resist.\n\nOn at 7:45.  ';
+    box!.dispatchEvent(new Event('input'));
+    send();
+    expect(submitted).toHaveBeenLastCalledWith({
+      command: 'raid-reschedule',
+      input: { eventId: 'r1', notes: 'Flasks and fire resist.\n\nOn at 7:45.' },
+    });
+    // An emptied box clears them.
+    form.notes = ' ';
+    send();
+    expect(submitted).toHaveBeenLastCalledWith({
+      command: 'raid-reschedule',
+      input: { eventId: 'r1', notes: null },
+    });
   });
 });
 
@@ -294,7 +326,19 @@ describe('vintage-schedule-form', () => {
         leadDays: 7,
         lockHours: 2,
         reminderHours: [72, 24],
+        notes: null,
       },
+    });
+  });
+
+  it("edits a schedule's default notes, and only those", async () => {
+    const { f, submitted } = await form(SCHEDULE);
+    expect(f.shadowRoot?.querySelector<HTMLTextAreaElement>('textarea#notes')?.value).toBe('');
+    f.notes = 'Fire resist. On at 7:45.';
+    submit(f);
+    expect(submitted).toHaveBeenCalledWith({
+      command: 'schedule-update',
+      input: { scheduleId: 's1', notes: 'Fire resist. On at 7:45.' },
     });
   });
 

@@ -229,11 +229,10 @@ export function renderTopic(topic: HelpTopic, ctx: HelpContext): HelpPage {
     for (const option of a.leaf?.definition.options ?? []) lines.push(optionLine(option));
   }
   const minePaths = new Set(mine.flatMap((a) => (a.kind === 'slash' ? [a.path] : [])));
+  // A slash example shows to whoever can run it; a line of prose to whoever can use anything here.
   const examples = topic.examples.filter((e) => {
     const parsed = parseExample(e);
-    return 'problem' in parsed
-      ? mine.some((a) => a.kind === 'button')
-      : minePaths.has(parsed.leaf.path);
+    return 'problem' in parsed ? mine.length > 0 : minePaths.has(parsed.leaf.path);
   });
   if (examples.length) {
     lines.push('', '**Examples**', ...examples.map((e) => (e.startsWith('/') ? `\`${e}\`` : e)));

@@ -1,13 +1,16 @@
 // The New event form (`/random event create` with no name or start). Pure over the same ports as
 // discord-events.ts, so Convex (convex/discord.ts) and the JTBD host run the same flow:
-//   /random event create (bare)   → stage 1 modal `evform:new`: name, kind, where, date and time,
-//                                   length. Options typed so far prefill it; size and counts ride
-//                                   in its custom id (`evform:new:<size>:<tanks>:<healers>:<dps>`).
+//   /random event create (bare)   → stage 1 modal `evform:new`: name, kind (radio), where, a date
+//                                   (the next 25 days in the guild's clock) and a time (half-hour
+//                                   steps, starting on the guild's usual raid time). Options typed
+//                                   so far prefill it; size, counts and length ride in its custom
+//                                   id (`evform:new:<size>:<tanks>:<healers>:<dps>:<hours>`).
 //   modal  evform:new             → a private preview of the draft, with Set up event, Edit
 //                                   details, and Cancel
 //   button evform:next            → stage 2 modal `evform:kind:<kind>`, built for the kind: a size
-//                                   (a select of the kind's sizes; a box for Event, empty is open)
-//                                   and the tank, healer and DPS counts (no tanks for battlegrounds)
+//                                   (radio for the kind's sizes, none for a dungeon's one size, a
+//                                   box for Event where empty is open), the tank, healer and DPS
+//                                   counts (no tanks for battlegrounds), and the length
 //   modal  evform:kind:<kind>     → the preview again, with Post event, Edit details, Edit size
 //                                   and comp, and Cancel
 //   button evform:edit            → stage 1 again, prefilled
@@ -16,13 +19,14 @@
 //                                   preview becomes the "Made **X** …" line
 //   button evform:cancel          → "Cancelled, nothing was made."
 //
-// No draft is stored. It rides in the preview's embed footer as base64url JSON (`v1.…`), and
+// No draft is stored. It rides in the preview's embed footer as base64url JSON (`v2.…`), and
 // Discord sends that message back with every click and with a modal opened from it. The draft is
-// read as untrusted: a strict schema caps each field at what the form lets a member type, the
-// member who opened the form must be the one clicking, and every step re-reads the guild clock,
-// re-checks the tier, and re-validates the whole draft against raid-create's own input schema.
-// Post event runs raid-create through the registry, which checks the Raid Leader tier and every
-// rule again; the preview's checks only say early what the command would refuse.
+// read as untrusted: a strict schema caps each field at what the form lets a member pick or type,
+// the member who opened the form must be the one clicking, and every step re-reads the guild
+// clock, re-checks the tier, and re-validates the whole draft against raid-create's own input
+// schema. Post event runs raid-create through the registry, which checks the Raid Leader tier and
+// every rule again; the preview's checks only say early what the command would refuse. A `v1.`
+// draft (the typed-date form, before pickers) gets a "start again" line instead of an error.
 import {
   actionRow,
   ButtonStyle,
@@ -33,12 +37,14 @@ import {
   type InteractionResponse,
   InteractionType,
   interactionUser,
+  type Label,
   label,
   labelledTextInput,
   type MessageData,
   modal,
   modalSelections,
   modalValues,
+  radioGroup,
   reply,
   type SelectOption,
   stringSelect,
@@ -46,7 +52,7 @@ import {
   updateMessage,
 } from '@vintage/discord-kit';
 import { type Caller, tierAllows } from '@vintage/guild-kit';
-import { raidsCommands } from '@vintage/raids/commands';
+import { raidsCommands, wallClock } from '@vintage/raids/commands';
 import {
   AKind,
   defaultRoleTargets,
@@ -76,6 +82,8 @@ import {
   DEFAULT_RAID_HOURS,
   EVENT_GROUP,
   type EventPorts,
+  type GuildClock,
+  guildClock,
   guildTimeZone,
   madeText,
   NEEDS_LEADER,
@@ -100,19 +108,34 @@ export const FORM_IDS = {
 export const POST_LABEL = 'Post event';
 export const SET_UP_LABEL = 'Set up event';
 export const CANCELLED = 'Cancelled, nothing was made.';
+export const OLD_DRAFT =
+  'That draft is from an older version; run `/random event create` again. Nothing was made.';
 /** Before the draft in the footer, so a reader finds it and nothing else. */
-const DRAFT_TAG = 'v1.';
+const DRAFT_TAG = 'v2.';
+
+/** How many days the date picker offers, today first (Discord shows at most 25 options). */
+export const DATE_DAYS = 25;
+const MAX_OPTIONS = 25;
 
 /** The most each box takes; the draft schema caps each field at the same, so it holds no more. */
-const MAX = { name: 60, where: 60, start: 40, hours: 4, count: 2 } as const;
+const MAX = { name: 60, where: 60, hours: 4, count: 2 } as const;
 
 const COUNTS = ['tanks', 'healers', 'dps'] as const;
 type Count = (typeof COUNTS)[number];
 const COUNT_LABELS: Record<Count, string> = { tanks: 'Tanks', healers: 'Healers', dps: 'DPS' };
 
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const HH_MM = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/** A day that exists: `2026-02-30` has the shape but isn't one. */
+const isRealDate = (iso: string) => {
+  const at = new Date(`${iso}T00:00:00Z`);
+  return !Number.isNaN(at.getTime()) && at.toISOString().slice(0, 10) === iso;
+};
+
 /**
- * What the member typed so far, exactly as typed: every step reads it again, so a field the
- * member gets wrong stays visible (and fixable) instead of being dropped.
+ * What the member picked and typed so far, exactly as given: every step reads it again, so a
+ * field the member gets wrong stays visible (and fixable) instead of being dropped.
  */
 const draftSchema = z
   .object({
@@ -121,7 +144,10 @@ const draftSchema = z
     name: z.string().max(MAX.name),
     kind: z.enum(EVENT_KINDS),
     where: z.string().max(MAX.where),
-    start: z.string().max(MAX.start),
+    /** The day, in the guild's clock: `2026-11-04`. */
+    date: z.string().regex(ISO_DATE).refine(isRealDate),
+    /** The start, in the guild's clock: `20:00`. */
+    time: z.string().regex(HH_MM),
     hours: z.string().max(MAX.hours),
     /** Empty: the kind's usual size, or open for Event. */
     size: z.string().max(MAX.count),
@@ -153,7 +179,7 @@ export const encodeDraft = (draft: Draft) => `${DRAFT_TAG}${toBase64Url(JSON.str
 
 /** The draft a footer carries, or null when it carries none or anything that isn't one. */
 export function decodeDraft(footer: string | undefined): Draft | null {
-  const match = /(?:^|\s)v1\.([A-Za-z0-9_-]{1,1500})$/.exec(footer ?? '');
+  const match = /(?:^|\s)v2\.([A-Za-z0-9_-]{1,1500})$/.exec(footer ?? '');
   if (!match) return null;
   try {
     const parsed = draftSchema.safeParse(JSON.parse(fromBase64Url(match[1]!)));
@@ -163,9 +189,114 @@ export function decodeDraft(footer: string | undefined): Draft | null {
   }
 }
 
+/** A footer from the typed-date form (`v1.`): a preview posted before the pickers shipped. */
+export const isOldDraft = (footer: string | undefined) =>
+  /(?:^|\s)v1\.[A-Za-z0-9_-]{1,1500}$/.test(footer ?? '');
+
+const footerOf = (interaction: Interaction) => interaction.message?.embeds?.[0]?.footer?.text;
+
 /** The draft on the message a click or modal came from. */
-const draftOf = (interaction: Interaction) =>
-  decodeDraft(interaction.message?.embeds?.[0]?.footer?.text);
+const draftOf = (interaction: Interaction) => decodeDraft(footerOf(interaction));
+
+// ── Dates and times in the guild's clock ─────────────────────────────────────────────────────
+
+const DAY = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'UTC',
+  weekday: 'short',
+  month: 'short',
+  day: 'numeric',
+});
+const DAY_WITH_YEAR = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'UTC',
+  weekday: 'short',
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+});
+
+const utcDay = (iso: string) => new Date(`${iso}T00:00:00Z`);
+
+/** "Tue, Nov 4" (with the year when it isn't `year`). */
+const dayText = (iso: string, year?: number) => {
+  const at = utcDay(iso);
+  return (year === undefined || at.getUTCFullYear() === year ? DAY : DAY_WITH_YEAR).format(at);
+};
+
+/** "8:00 PM" for `20:00`. */
+export const timeText = (hhmm: string) => {
+  const [h, m] = hhmm.split(':').map(Number) as [number, number];
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
+};
+
+/** "New York" for `America/New_York`: the city a zone is named for. */
+export const zoneCity = (zone: string) => zone.split('/').pop()!.replace(/_/g, ' ');
+
+/** Today and the days after it in the guild's clock, as ISO dates. */
+function windowDates(zone: string, now: number): string[] {
+  const today = wallClock(now, zone);
+  return Array.from({ length: DATE_DAYS }, (_, i) =>
+    new Date(Date.UTC(today.year, today.month - 1, today.day + i)).toISOString().slice(0, 10),
+  );
+}
+
+/**
+ * The date picker: the next 25 days in the guild's clock, "Today" and "Tomorrow" first. A
+ * picked date outside them (a `start:` typed weeks ahead, or a draft gone stale) leads the list,
+ * picked, so it isn't lost; the window gives up its last day to keep 25.
+ */
+export function dateOptions(zone: string, now: number, picked?: string): SelectOption[] {
+  const days = windowDates(zone, now);
+  const year = utcDay(days[0]!).getUTCFullYear();
+  const shown: SelectOption[] = days.map((iso, i) => ({
+    label: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : dayText(iso),
+    value: iso,
+    ...(i < 2 ? { description: dayText(iso) } : {}),
+    ...(iso === picked ? { default: true } : {}),
+  }));
+  if (!picked || days.includes(picked) || !isRealDate(picked)) return shown;
+  const outside = { label: dayText(picked, year), value: picked, default: true };
+  return [
+    { ...outside, description: 'Outside the next 25 days' },
+    ...shown.slice(0, MAX_OPTIONS - 1),
+  ];
+}
+
+const hhmm = (minutes: number) =>
+  `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+
+/** Every half hour from noon to 11:30 PM: when guild events start. */
+const TIME_GRID = Array.from({ length: 24 }, (_, i) => hhmm(12 * 60 + i * 30));
+
+/**
+ * The time picker: half-hour steps from 12:00 PM to 11:30 PM, picked on `picked` or else the
+ * guild's usual time. Either one off that grid is added in its place, and the earliest steps
+ * give way to keep 25.
+ */
+export function timeOptions(usual: string, picked?: string): SelectOption[] {
+  const chosen = picked && HH_MM.test(picked) ? picked : usual;
+  const extras = [...new Set([usual, chosen])].filter(
+    (t) => HH_MM.test(t) && !TIME_GRID.includes(t),
+  );
+  const grid = TIME_GRID.slice(Math.max(0, TIME_GRID.length + extras.length - MAX_OPTIONS));
+  return [...grid, ...extras].sort().map((t) => ({
+    label: timeText(t),
+    value: t,
+    ...(t === usual ? { description: 'The guild’s usual start' } : {}),
+    ...(t === chosen ? { default: true } : {}),
+  }));
+}
+
+/** A typed `start:` as the date and time the pickers hold; empty when it can't be read. */
+function pickedFrom(start: string, zone: string): Pick<Draft, 'date' | 'time'> | null {
+  const at = parseLocalTime(start, zone);
+  if (at === null) return null;
+  const w = wallClock(at, zone);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return {
+    date: `${w.year}-${pad(w.month)}-${pad(w.day)}`,
+    time: `${pad(w.hour)}:${pad(w.minute)}`,
+  };
+}
 
 // ── Reading the draft ────────────────────────────────────────────────────────────────────────
 
@@ -227,7 +358,7 @@ export interface DraftCheck {
   minutes: number | null;
 }
 
-/** Stage 1's problems: name, where, when, and how long. */
+/** Stage 1's problems: name, where, and when; and the length, now asked in stage 2. */
 function detailsProblems(
   draft: Draft,
   startsAt: number | null,
@@ -241,9 +372,10 @@ function detailsProblems(
     problems.push('Say where it runs, like Onyxia’s Lair.');
   }
   if (startsAt === null) {
+    // The pickers only offer real days and times, so this is the hour daylight saving skips.
     problems.push(
-      `I couldn't read “${draft.start}” as a time. Use the guild's clock (${zone}), like ` +
-        '`2026-11-10 8pm` or `2026-11-10 20:00`.',
+      `${timeText(draft.time)} on ${dayText(draft.date)} doesn’t exist in the guild’s clock ` +
+        `(${zone}): daylight saving skips it. Pick another time.`,
     );
   } else if (startsAt <= now) {
     problems.push('That time has already passed. Pick a future one.');
@@ -281,12 +413,14 @@ function schemaProblem(input: Record<string, unknown>, kind: EventKind): string 
 }
 
 /**
- * Everything raid-create would refuse, said early. The kind rules, sizes, and counts come from
- * the same contract helpers the command uses, and a draft that passes them is parsed with
- * raid-create's own input schema, so the preview can't approve what the schema won't.
+ * Everything raid-create would refuse, said early. The date and time join into one instant with
+ * the same guild-clock parsing the typed `start:` uses, so a time daylight saving skips is
+ * refused. The kind rules, sizes, and counts come from the same contract helpers the command
+ * uses, and a draft that passes them is parsed with raid-create's own input schema, so the
+ * preview can't approve what the schema won't.
  */
 export function checkDraft(draft: Draft, zone: string, now: number): DraftCheck {
-  const startsAt = parseLocalTime(draft.start, zone);
+  const startsAt = parseLocalTime(`${draft.date} ${draft.time}`, zone);
   const minutes = minutesOf(draft);
   const typedSize = sizeOf(draft);
   const size = Number.isNaN(typedSize) ? null : typedSize;
@@ -322,14 +456,18 @@ const KIND_DESCRIPTIONS: Record<EventKind, string> = {
 
 const value = (text: string | undefined) => (text ? { value: text } : {});
 
-/** Stage 1: the name, kind, where, when, and how long. Submit shows the draft. */
+/**
+ * Stage 1: the name, kind, where, and when (a date and a time in the guild's clock). Submit
+ * shows the draft. Five fields, Discord's most for a modal, so the length is asked in stage 2.
+ */
 export function detailsForm(
   draft: Partial<Draft>,
-  zone: string,
+  clock: GuildClock,
+  now: number,
   customId: string = FORM_IDS.details,
 ): InteractionResponse {
   const kind = draft.kind ?? 'raid';
-  const kinds: SelectOption[] = EVENT_KINDS.map((k) => ({
+  const kinds = EVENT_KINDS.map((k) => ({
     label: KIND_LABELS[k],
     value: k,
     description: KIND_DESCRIPTIONS[k],
@@ -348,7 +486,7 @@ export function detailsForm(
       }),
       'Submit to set up the event.',
     ),
-    label('Kind', stringSelect('kind', kinds)),
+    label('Kind', radioGroup('kind', kinds)),
     label(
       'Where',
       labelledTextInput('where', {
@@ -360,24 +498,14 @@ export function detailsForm(
       'Needed except for Event (Westfall, levels 10–20)',
     ),
     label(
-      'Date and time',
-      labelledTextInput('start', {
-        required: true,
-        max_length: MAX.start,
-        placeholder: '2026-11-10 8pm',
-        ...value(draft.start),
-      }),
-      `In the guild’s clock (${zone}), like 2026-11-10 8pm or 20:00`.slice(0, 100),
+      'Date',
+      stringSelect('date', dateOptions(clock.zone, now, draft.date), { placeholder: 'Pick a day' }),
+      'Further ahead? Type it: /random event create start:',
     ),
     label(
-      'Length in hours',
-      labelledTextInput('hours', {
-        required: false,
-        max_length: MAX.hours,
-        placeholder: String(DEFAULT_RAID_HOURS),
-        value: draft.hours || String(DEFAULT_RAID_HOURS),
-      }),
-      'Half an hour to 8 hours',
+      `Time (${zoneCity(clock.zone)})`.slice(0, 45),
+      stringSelect('time', timeOptions(clock.time, draft.time)),
+      `In the guild’s clock (${clock.zone})`.slice(0, 100),
     ),
   );
 }
@@ -410,37 +538,48 @@ function countsHint(draft: Draft): string {
 const countsFor = (kind: EventKind): readonly Count[] =>
   kind === 'battleground' ? ['healers', 'dps'] : COUNTS;
 
+/** A kind with one size (a dungeon) asks for none: the form's title says it. */
+const onlySize = (kind: EventKind) =>
+  kind !== 'other' && KIND_SIZES[kind].length === 1 ? KIND_SIZES[kind][0]! : null;
+
+/** The size field for the kind: a box for Event, radio for 2-10 sizes, else a select. */
+function sizeField(draft: Draft): Label | null {
+  const { kind } = draft;
+  if (kind === 'other') {
+    return label(
+      'Size',
+      labelledTextInput('size', {
+        required: false,
+        max_length: MAX.count,
+        placeholder: 'Empty for open: no cap, no queue',
+        ...value(draft.size.trim()),
+      }),
+      HINT_STAGE_2,
+    );
+  }
+  if (onlySize(kind) !== null) return null;
+  const size = sizeOf(draft);
+  const options = KIND_SIZES[kind].map((n) => ({
+    label: `${n} players`,
+    value: String(n),
+    ...(n === size ? { default: true } : {}),
+  }));
+  return label(
+    'Size',
+    options.length <= 10 ? radioGroup('size', options) : stringSelect('size', options),
+    HINT_STAGE_2,
+  );
+}
+
 /**
- * Stage 2, built for the kind: its sizes (a box for Event, where empty is open) and the counts,
- * prefilled. Counts left as they were follow the size picked here (see `readKindForm`).
+ * Stage 2, built for the kind: its sizes (a box for Event, where empty is open; none for a
+ * dungeon's one size), the counts, prefilled, and the length. Counts left as they were follow
+ * the size picked here (see `readKindForm`).
  */
 export function kindForm(draft: Draft): InteractionResponse {
   const { kind } = draft;
-  const size = sizeOf(draft);
-  const sizeField =
-    kind === 'other'
-      ? label(
-          'Size',
-          labelledTextInput('size', {
-            required: false,
-            max_length: MAX.count,
-            placeholder: 'Empty for open: no cap, no queue',
-            ...value(draft.size.trim()),
-          }),
-          HINT_STAGE_2,
-        )
-      : label(
-          'Size',
-          stringSelect(
-            'size',
-            KIND_SIZES[kind].map((n) => ({
-              label: `${n} players`,
-              value: String(n),
-              ...(n === size ? { default: true } : {}),
-            })),
-          ),
-          HINT_STAGE_2,
-        );
+  const size = sizeField(draft);
+  const single = onlySize(kind);
   const shown = shownCounts(draft);
   const counts = countsFor(kind).map((c, i) =>
     label(
@@ -454,7 +593,19 @@ export function kindForm(draft: Draft): InteractionResponse {
       i > 0 ? undefined : countsHint(draft),
     ),
   );
-  return modal(`${FORM_IDS.kind}:${kind}`, `${KIND_LABELS[kind]} details`, sizeField, ...counts);
+  const length = label(
+    'Length in hours',
+    labelledTextInput('hours', {
+      required: false,
+      max_length: MAX.hours,
+      placeholder: String(DEFAULT_RAID_HOURS),
+      value: draft.hours || String(DEFAULT_RAID_HOURS),
+    }),
+    size ? 'Half an hour to 8 hours' : `Half an hour to 8 hours. ${HINT_STAGE_2}`,
+  );
+  const title = `${KIND_LABELS[kind]} details${single ? ` (${single} players)` : ''}`;
+  const fields = size ? [size, ...counts, length] : [...counts, length];
+  return modal(`${FORM_IDS.kind}:${kind}`, title, ...fields);
 }
 
 /**
@@ -467,8 +618,18 @@ export function readKindForm(draft: Draft, interaction: Interaction): Draft {
   const text = modalValues(interaction);
   const picked = modalSelections(interaction);
   const shown = shownCounts(draft);
-  const size = draft.kind === 'other' ? (text.size ?? '') : (picked.size?.[0] ?? '');
-  const next: Draft = { ...draft, size: size.trim().slice(0, MAX.count), step: 2 };
+  const size =
+    draft.kind === 'other'
+      ? (text.size ?? '')
+      : onlySize(draft.kind) !== null
+        ? ''
+        : (picked.size?.[0] ?? '');
+  const next: Draft = {
+    ...draft,
+    size: size.trim().slice(0, MAX.count),
+    hours: (text.hours ?? draft.hours).trim().slice(0, MAX.hours),
+    step: 2,
+  };
   const asked = countsFor(draft.kind);
   const typed = (c: Count) => (text[c] ?? '').trim().slice(0, MAX.count);
   // Event shows empty boxes for counts it has none of, so empty is "as shown" there too.
@@ -481,27 +642,34 @@ export function readKindForm(draft: Draft, interaction: Interaction): Draft {
   return next;
 }
 
-/** The stage 1 answers, on top of the earlier draft when there is one. */
+/**
+ * The stage 1 answers, on top of the earlier draft when there is one. `old` when the modal is
+ * the typed-date form from before the pickers (opened before a deploy, submitted after).
+ */
 function readDetailsForm(
   interaction: Interaction,
   user: string,
   earlier: Draft | null,
-  extras: Pick<Draft, 'size' | Count>,
-): Draft | null {
+  extras: Pick<Draft, 'size' | 'hours' | Count>,
+): Draft | 'old' | null {
   const text = modalValues(interaction);
-  const kind = modalSelections(interaction).kind?.[0];
+  const picked = modalSelections(interaction);
+  if (!picked.date && !picked.time && text.start !== undefined) return 'old';
+  const kind = picked.kind?.[0];
+  const same = earlier && earlier.kind === kind;
   const parsed = draftSchema.safeParse({
     user,
     name: (text.name ?? '').trim(),
     kind,
     where: (text.where ?? '').trim(),
-    start: (text.start ?? '').trim(),
-    hours: (text.hours ?? '').trim(),
+    date: picked.date?.[0],
+    time: picked.time?.[0],
+    hours: earlier ? earlier.hours : extras.hours,
     // A new kind starts its size and comp over; the same kind keeps them.
-    ...(earlier && earlier.kind === kind
+    ...(same
       ? { size: earlier.size, tanks: earlier.tanks, healers: earlier.healers, dps: earlier.dps }
-      : extras),
-    step: earlier && earlier.kind === kind ? earlier.step : 1,
+      : { size: extras.size, tanks: extras.tanks, healers: extras.healers, dps: extras.dps }),
+    step: same ? earlier.step : 1,
   });
   return parsed.success ? parsed.data : null;
 }
@@ -534,7 +702,7 @@ export function previewMessage(
     { name: 'Where', value: draft.where.trim() || 'Anywhere', inline: true },
     {
       name: 'Starts',
-      value: check.startsAt === null ? 'Not readable yet' : when(check.startsAt),
+      value: check.startsAt === null ? 'Pick another time' : when(check.startsAt),
       inline: false,
     },
     { name: 'Size', value: sizeText, inline: true },
@@ -553,7 +721,7 @@ export function previewMessage(
     ? problems.length
       ? 'Fix what’s below, then **Post event**.'
       : 'Check it, then **Post event**. Its signup card goes up in the signup channel.'
-    : '**Set up event** next for its size and comp.';
+    : '**Set up event** next for its size, comp, and length.';
   const card: Embed = embed({
     title: draft.name.trim() || `New ${kindNoun(draft.kind)}`,
     description,
@@ -606,27 +774,37 @@ export function isEventFormInteraction(interaction: Interaction): boolean {
   );
 }
 
-/** Size and counts typed as slash options, carried in the stage 1 custom id until it comes back. */
-const EXTRAS_SHAPE = /^evform:new(?::(\d{0,2}):(\d{0,2}):(\d{0,2}):(\d{0,2}))?$/;
+/**
+ * Size, counts and length typed as slash options, carried in the stage 1 custom id until it
+ * comes back. The length part is optional so a stage 1 opened before it existed still routes.
+ */
+const EXTRAS_SHAPE = /^evform:new(?::(\d{0,2}):(\d{0,2}):(\d{0,2}):(\d{0,2})(?::([\d.]{0,4}))?)?$/;
 
 function extrasId(values: OptionValues): string {
   const part = (v: unknown) =>
     typeof v === 'number' && Number.isInteger(v) && v >= 0 && v < 100 ? String(v) : '';
+  const hours =
+    typeof values.hours === 'number' && values.hours > 0
+      ? String(values.hours).slice(0, MAX.hours)
+      : '';
   const parts = [values.size, values.tanks, values.healers, values.dps].map(part);
-  return parts.some(Boolean) ? `${FORM_IDS.details}:${parts.join(':')}` : FORM_IDS.details;
+  return [...parts, hours].some(Boolean)
+    ? `${FORM_IDS.details}:${parts.join(':')}:${hours}`
+    : FORM_IDS.details;
 }
 
-function draftFromOptions(values: OptionValues): Partial<Draft> {
+function draftFromOptions(values: OptionValues, zone: string): Partial<Draft> {
   const text = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
   const kind = (EVENT_KINDS as readonly unknown[]).includes(values.kind)
     ? (values.kind as EventKind)
     : 'raid';
+  // A typed start the pickers can hold is picked; one they can't read is left for the member.
+  const picked = pickedFrom(text(values.start, 100), zone);
   return {
     name: text(values.name, MAX.name),
     kind,
     where: text(values.instance, MAX.where),
-    start: text(values.start, MAX.start),
-    hours: typeof values.hours === 'number' ? String(values.hours).slice(0, MAX.hours) : '',
+    ...(picked ?? {}),
   };
 }
 
@@ -657,11 +835,13 @@ export async function handleEventFormInteraction(
 
   if (interaction.type === InteractionType.APPLICATION_COMMAND) {
     const values = commandOptions(interaction);
-    const zone = await guildTimeZone(ports, caller);
-    return detailsForm(draftFromOptions(values), zone, extrasId(values));
+    const clock = await guildClock(ports, caller);
+    return detailsForm(draftFromOptions(values, clock.zone), clock, ports.now(), extrasId(values));
   }
 
   const id = formId(interaction)!;
+  // A preview from before the pickers: say so, rather than "can't read that form".
+  if (id !== FORM_IDS.cancel && isOldDraft(footerOf(interaction))) return done(OLD_DRAFT);
   const earlier = draftOf(interaction);
   if (earlier && earlier.user !== user) return ephemeral(NOT_YOURS);
 
@@ -685,8 +865,9 @@ async function submitted({ interaction, ports, caller, user, id, earlier }: Step
   const zone = await guildTimeZone(ports, caller);
   const extras = EXTRAS_SHAPE.exec(id);
   if (extras) {
-    const [, size = '', tanks = '', healers = '', dps = ''] = extras;
-    const draft = readDetailsForm(interaction, user, earlier, { size, tanks, healers, dps });
+    const [, size = '', tanks = '', healers = '', dps = '', hours = ''] = extras;
+    const draft = readDetailsForm(interaction, user, earlier, { size, tanks, healers, dps, hours });
+    if (draft === 'old') return ephemeral(OLD_DRAFT);
     if (!draft) return ephemeral(EXPIRED);
     const preview = previewMessage(draft, zone, ports.now());
     // From Edit details the preview is there to update; from the slash command it's new.
@@ -704,7 +885,9 @@ async function clicked({ ports, caller, id, earlier }: Step) {
   if (id === FORM_IDS.cancel) return done(CANCELLED);
   if (!earlier) return done(EXPIRED);
   if (id === FORM_IDS.next || id === FORM_IDS.editKind) return kindForm(earlier);
-  if (id === FORM_IDS.edit) return detailsForm(earlier, await guildTimeZone(ports, caller));
+  if (id === FORM_IDS.edit) {
+    return detailsForm(earlier, await guildClock(ports, caller), ports.now());
+  }
   if (id === FORM_IDS.post) return post(ports, caller, earlier);
   return null;
 }

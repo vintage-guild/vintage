@@ -35,6 +35,7 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
     runs: { 'event create': 'raid-create', 'event pick-night': 'raid-night-poll' },
     examples: [
       '/random event create',
+      'The form picks a date in the next 25 days; type `start:` for any date, further ahead too.',
       '/random event create name:Molten Core instance:Molten Core size:40 start:2026-11-12 20:00 hours:4',
       '/random event pick-night name:Zul’Gurub instance:Zul’Gurub size:20 times:2026-11-10 20:00; 2026-11-12 20:00',
     ],

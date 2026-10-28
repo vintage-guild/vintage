@@ -57,11 +57,14 @@ export interface CommandInteractionOption {
   options?: CommandInteractionOption[];
 }
 
-/** A submitted modal field: a text input's value or a select's values. */
+/**
+ * A submitted modal field: a text input's value, a select's values, or a radio group's value
+ * (null when nothing was picked).
+ */
 export interface SubmittedField {
   type: number;
   custom_id: string;
-  value?: string;
+  value?: string | null;
   values?: string[];
 }
 
@@ -247,16 +250,23 @@ function submittedFields(interaction: Interaction): SubmittedField[] {
 export function modalValues(interaction: Interaction): Record<string, string> {
   const values: Record<string, string> = {};
   for (const field of submittedFields(interaction)) {
-    if (field.values === undefined) values[field.custom_id] = field.value ?? '';
+    if (field.values === undefined && field.type !== ComponentType.RADIO_GROUP) {
+      values[field.custom_id] = field.value ?? '';
+    }
   }
   return values;
 }
 
-/** The choices a modal submit carried, by select menu custom_id (empty when none was picked). */
+/**
+ * The choices a modal submit carried, by select menu or radio group custom_id (empty when none
+ * was picked). A radio group's single value comes back as a one-item list, like a select's.
+ */
 export function modalSelections(interaction: Interaction): Record<string, string[]> {
   const values: Record<string, string[]> = {};
   for (const field of submittedFields(interaction)) {
-    if (field.values !== undefined) values[field.custom_id] = field.values;
+    if (field.type === ComponentType.RADIO_GROUP) {
+      values[field.custom_id] = typeof field.value === 'string' ? [field.value] : [];
+    } else if (field.values !== undefined) values[field.custom_id] = field.values;
   }
   return values;
 }

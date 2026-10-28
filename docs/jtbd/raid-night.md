@@ -232,18 +232,29 @@ command, **so I can** open signups without going to the site.
 **When** a run comes together in chat, **I (raid leader) want** to fill in a form instead of
 remembering a slash command's options, **so I can** check the event before anyone sees it.
 - [ ] Rook runs `/random event create` with nothing typed. The **New event** form asks for Name
-  (its note says "Submit to set up the event."), Kind, Where, Date and time (naming the guild's
-  zone), and Length in hours (3 already filled in).
-- [ ] He picks Dungeon, Scarlet Monastery, `2026-10-28 7pm`, 2 hours. The private reply previews
+  (its note says "Submit to set up the event."), Kind (four radio buttons: Raid, Dungeon,
+  Battleground, Event), Where, Date, and Time named for the guild's zone, like "Time (New York)".
+- [ ] Date lists the next 25 days in the guild's clock: "Today", "Tomorrow", then "Wed, Oct 28"
+  and on, with nothing picked yet. Its note says to type `start:` for a date further ahead. Time
+  goes in half hours from 12:00 PM to 11:30 PM and starts on the guild's usual raid time (8:00 PM
+  here; a schedule starting off the half hour, like 7:45, adds that time).
+- [ ] He picks Dungeon, Scarlet Monastery, Wed, Oct 28 and 7:00 PM. The private reply previews
   it: the time as a Discord timestamp and "in N days", 5-player dungeon, "1 tank · 1 healer · 3
-  DPS (the usual comp)", 2 hours, with **Set up event**, **Edit details**, and **Cancel**.
-- [ ] **Set up event** opens **Dungeon details**: Size offers only 5, and Tanks 1, Healers 1,
-  DPS 3 are filled in ("Submit to preview, then Post event."). A raid offers 10/20/40, a
-  battleground 10/15/40 with no Tanks box, and an Event a size box where empty means open.
-- [ ] He sets Healers 2 and DPS 2. The preview shows "1 tank · 2 healers · 2 DPS" and **Post
-  event**, **Edit details**, **Edit size and comp**, and **Cancel**. Counts that add up to more
-  than the size, a past time, or an unreadable one show under "Fix before posting", and **Post
-  event** stays greyed out until they're fixed.
+  DPS (the usual comp)", 3 hours, with **Set up event**, **Edit details**, and **Cancel**.
+  Picking Today with a time already gone shows "already passed" under "Fix before posting".
+- [ ] **Set up event** opens **Dungeon details (5 players)**: no size to pick, Tanks 1, Healers
+  1 and DPS 3 filled in, and Length in hours 3 ("Submit to preview, then Post event."). A raid
+  offers 10/20/40 as radio buttons, a battleground 10/15/40 with no Tanks box, and an Event a
+  size box where empty means open.
+- [ ] He sets Healers 2, DPS 2 and 2 hours. The preview shows "1 tank · 2 healers · 2 DPS", 2
+  hours, and **Post event**, **Edit details**, **Edit size and comp**, and **Cancel**. Counts
+  that add up to more than the size, or a past time, show under "Fix before posting", and **Post
+  event** stays greyed out until they're fixed. **Edit details** reopens the form with Wed, Oct
+  28 and 7:00 PM still picked.
+- [ ] `/random event create start:2026-12-24 8pm` (no name) opens the form with Thu, Dec 24 as
+  the first date, picked, and 8:00 PM. A preview from before this form changed answers **Set up
+  event**, **Edit details**, **Edit size and comp**, or **Post event** with "That draft is from
+  an older version; run `/random event create` again." (**Cancel** still cancels.)
 - [ ] **Post event** turns the preview into "Made **Cathedral run** (Scarlet Monastery, 5-player
   dungeon) …" with no buttons, and the card goes up with Healers 0/2. Pressing it again (or a
   second click) makes no second dungeon.

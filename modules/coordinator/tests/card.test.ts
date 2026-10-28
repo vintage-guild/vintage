@@ -105,6 +105,29 @@ describe('raid cards', () => {
     ]);
   });
 
+  it('offers Roster only when the card leaves someone out', () => {
+    const raid = fullRaid();
+    const hasRoster = (signups: typeof raid.signups) =>
+      buttonLabels(renderSignupPost({ ...raid, signups }, [])).includes('Roster');
+    // The full raid's DPS column runs past the cap.
+    expect(hasRoster(raid.signups)).toBe(true);
+    // A handful going, all shown: no Roster.
+    const few = raid.signups
+      .slice(0, 3)
+      .map((s) => ({ ...s, status: 'accepted' as const, queued: false }));
+    expect(hasRoster(few)).toBe(false);
+    // One declined: the card counts them but doesn't name them.
+    expect(hasRoster([...few, { ...few[0]!, id: 'd1', status: 'declined' as const }])).toBe(true);
+    // More tentative than the card lists; exactly the cap still fits.
+    const maybes = Array.from({ length: 11 }, (_, i) => ({
+      ...few[0]!,
+      id: `t${i}`,
+      status: 'tentative' as const,
+    }));
+    expect(hasRoster([...few, ...maybes])).toBe(true);
+    expect(hasRoster([...few, ...maybes.slice(0, 10)])).toBe(false);
+  });
+
   it('the Roster reply lists everyone and stays inside the limits', () => {
     const raid = fullRaid();
     const message = renderRosterReply(raid.event, raid.signups);

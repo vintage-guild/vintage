@@ -141,8 +141,7 @@ describe('runTick', () => {
       'signup:raid-1:tentative',
       'signup:raid-1:bench',
       'signup:raid-1:declined',
-      'roster:raid-1',
-    ]);
+    ]); // no Roster: an empty card hides no one
   });
 
   it('edits the post only when signups change', async () => {
@@ -360,14 +359,8 @@ describe('runTick', () => {
     expect(text).toMatch(/Queue 1\n1\. <:square_mage:\d+> Pip \*frost\*/);
     expect(text).toMatch(/\*\*Tentative\*\* <:square_warrior:\d+> Cade \*prot\*/);
     expect(text).toMatch(/Late: Bram \(after work\) · Tentative: Cade \(maybe\)/);
-    expect(buttonLabels(message)).toEqual([
-      'Accept',
-      'Late',
-      'Tentative',
-      'Standby',
-      'Decline',
-      'Roster',
-    ]);
+    // Everyone fits on the card, so there's no Roster button.
+    expect(buttonLabels(message)).toEqual(['Accept', 'Late', 'Tentative', 'Standby', 'Decline']);
   });
 
   it('reposts a card deleted in Discord and removes the old message on repost', async () => {

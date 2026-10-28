@@ -87,6 +87,9 @@ function line(s: Signup, place?: number): string {
   return `${emoji(`square_${s.class}`)} ${n}${s.characterName} *${shortSpec(s.spec)}*${late}`.trim();
 }
 
+/** Names shown in the queue, standby, and tentative lines before "+N more". */
+const LIST_CAP = 10;
+
 const capped = (lines: string[], cap = COLUMN_CAP) =>
   lines.length <= cap ? lines : [...lines.slice(0, cap), `+${lines.length - cap} more…`];
 
@@ -166,7 +169,8 @@ function notesLines(event: RaidEvent): string[] {
 /**
  * The signup post: when and how it locks, the raid's notes, status counts, three role columns against the comp
  * targets (class square, place in line, name, spec), the queue, standby and tentative, what the comp
- * is missing, reasons in the footer, the answer buttons, and a Roster button for the full list.
+ * is missing, reasons in the footer, the answer buttons, and a Roster button for the full list
+ * when the card leaves someone out.
  */
 export function renderSignupPost(tick: TickEvent, members: TickMember[]): MessageData {
   const { event, signups, timings } = tick;
@@ -205,7 +209,7 @@ export function renderSignupPost(tick: TickEvent, members: TickMember[]): Messag
       value: value([
         capped(
           queue.map((s, i) => `${i + 1}. ${line(s)}`),
-          10,
+          LIST_CAP,
         ).join(' · '),
       ]),
     });
@@ -214,13 +218,13 @@ export function renderSignupPost(tick: TickEvent, members: TickMember[]): Messag
     standby.length
       ? `${emoji('status_standby')} **Standby** ${capped(
           standby.map((s) => line(s)),
-          10,
+          LIST_CAP,
         ).join(' · ')}`
       : null,
     maybe.length
       ? `${emoji('status_tentative')} **Tentative** ${capped(
           maybe.map((s) => line(s)),
-          10,
+          LIST_CAP,
         ).join(' · ')}`
       : null,
   ].filter((l): l is string => l !== null);
@@ -260,10 +264,30 @@ export function renderSignupPost(tick: TickEvent, members: TickMember[]): Messag
           button(`signup:${event.id}:${status}`, text, style, { disabled: locked }),
         ),
       ),
-      actionRow(button(`roster:${event.id}`, 'Roster', ButtonStyle.SECONDARY)),
+      // Roster only when it shows more than the card: a full column, a long list, or the
+      // declined, whom the card counts but doesn't name.
+      ...(cardHidesSomeone(tick, targets)
+        ? [actionRow(button(`roster:${event.id}`, 'Roster', ButtonStyle.SECONDARY))]
+        : []),
     ],
     allowed_mentions: { parse: [] },
   };
+}
+
+/** Does the card leave anyone out that the Roster reply would show? */
+export function cardHidesSomeone(tick: TickEvent, targets = targetsOf(tick.event)): boolean {
+  const { signups } = tick;
+  const going = signups.filter(inRaid);
+  const columns = hasRoleTargets(targets)
+    ? ROLES.map(([role]) => going.filter((s) => compRoleOf(s.role) === role).length)
+    : [going.length];
+  return (
+    columns.some((n) => n > COLUMN_CAP) ||
+    signups.filter((s) => s.queued).length > LIST_CAP ||
+    signups.filter((s) => s.status === 'bench').length > LIST_CAP ||
+    signups.filter((s) => s.status === 'tentative').length > LIST_CAP ||
+    signups.some((s) => s.status === 'declined')
+  );
 }
 
 /** Lines split into embed fields of at most 1024 characters, the first one titled. */

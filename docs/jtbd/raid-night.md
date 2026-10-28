@@ -148,7 +148,9 @@ without leaving Discord.
 - [ ] With several characters and no main to guess: a private picker asks which one, marking the
   roles the raid needs; next time my signed-up character is used without asking ("your signup
   for this raid").
-- [ ] **Roster** shows the full list privately (everyone, by role, with places in line).
+- [ ] **Roster** shows the full list privately (everyone, by role, with places in line). The
+  button appears only when the card leaves someone out: a role column past 8 names, more than
+  10 in the queue, standby, or tentative, or anyone who declined.
 - [ ] A Member (below Recruit), someone the bot doesn't know, or a click from another server gets
   a private refusal that says what to do.
 

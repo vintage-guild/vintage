@@ -136,9 +136,13 @@ async function perform(
       return send(renderReminder(tick, action.waiting));
     case 'dm':
       try {
+        const link = signupLink(ports.links, {
+          channelId: action.post.target,
+          messageId: action.post.discordMessageId,
+        });
         const { id } = await ports.discord.dm(
           action.member.discordId,
-          renderDm(tick, action.member),
+          renderDm(tick, action.member, link),
         );
         return { status: 'sent', messageId: id };
       } catch (err) {

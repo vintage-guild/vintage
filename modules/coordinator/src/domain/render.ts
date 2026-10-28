@@ -96,11 +96,22 @@ export function renderPromotion(
   };
 }
 
-export function renderDm(tick: TickEvent, member: TickMember): MessageData {
+/**
+ * The last-reminder DM. `signupLink` jumps to the signup post (a discord.com/channels link
+ * opens the message), or the site when the post can't be linked.
+ */
+export function renderDm(
+  tick: TickEvent,
+  member: TickMember,
+  signupLink: string | null = null,
+): MessageData {
+  const where = signupLink
+    ? `Answer on the ${noun(tick.event)} signup post: ${signupLink}`
+    : `Use the buttons on the ${noun(tick.event)} signup post in Discord.`;
   return {
     content:
       `Hi ${member.displayName}, **${eventTitle(tick.event)}** starts ${when(tick.event.startsAt)} and you ` +
-      `haven't answered yet. Use the buttons on the ${noun(tick.event)} signup post in Discord. ` +
+      `haven't answered yet. ${where} ` +
       'You can turn these DMs off in your profile on the guild site.',
     allowed_mentions: { parse: [] },
   };

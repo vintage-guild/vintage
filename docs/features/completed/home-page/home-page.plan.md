@@ -443,8 +443,9 @@ upstream (`upstream:fast-af`) and gets a local stub with the issue link.
   975 at 25% / 45%; leather 900 on parchment) behind `shadow.edge|low|raised|button`. The
   cards, callouts, menus, poll card, boss ledger, and primary buttons use them; the ledger's 4%
   highlights became the shared 6% edge. Still literal, with no clean match: the cream band's
-  inner shading and its button, the hero's text shadow over art, the dev and preview switches,
-  and `vintage-signup-card` (left for the signup-card batch to swap in).
+  inner shading and its button, the hero's text shadow over art, and the dev and preview
+  switches. `vintage-signup-card` took `shadow.raised` and `shadow.edge` once the signup-card
+  batch (#192) landed; its drop shadow is now plum rather than black, like the other cards.
 - **JTBD J43** (`docs/jtbd/polls.md`): voting from the home card and `/polls/<id>`, ranked
   included, through `poll-list`, `poll-get`, `vote-cast`, and `vote-retract`.
 

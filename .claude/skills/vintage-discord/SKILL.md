@@ -92,14 +92,22 @@ commands). Everything runs serverless: no always-on gateway process.
   with `signup-suggest`'s guess. Replies are ephemeral; never edit the
   public post from an interaction (the coordinator tick does that).
 - **New event form** (`src/discord-event-form.ts`, routed before `discord-events.ts`): a bare
-  `/random event create` opens modal `evform:new` (name, kind, where, date and time, length;
-  options typed so far prefill it, size and counts ride as `evform:new:<size>:<t>:<h>:<d>`).
+  `/random event create` opens modal `evform:new` (name, kind as a radio group, where, a date
+  select of the next 25 days and a half-hour time select, both in the guild's clock; options
+  typed so far prefill it, size, counts and length ride as `evform:new:<size>:<t>:<h>:<d>:<hours>`).
   Its private preview has `evform:next` (**Set up event**), `evform:edit`, `evform:cancel`;
-  `evform:next` / `evform:edit-kind` open `evform:kind:<kind>` (sizes for that kind, counts),
-  and after it **Post event** is `evform:post` (raid-create, then a tick). A modal submit can't
-  answer with another modal, so a button sits between the stages. No draft table: the draft is
-  base64url JSON (`v1.…`) in the preview's embed footer; treat it as untrusted, decode it with
-  the strict schema, check the owner, and re-run every check each step.
+  `evform:next` / `evform:edit-kind` open `evform:kind:<kind>` (sizes for that kind as radio,
+  none for a dungeon, counts, length), and after it **Post event** is `evform:post` (raid-create,
+  then a tick). A modal submit can't answer with another modal, so a button sits between the
+  stages. A modal holds at most 5 fields. No draft table: the draft is base64url JSON (`v2.…`)
+  in the preview's embed footer; treat it as untrusted, decode it with the strict schema, check
+  the owner, and re-run every check each step. Bump the tag when the draft's shape changes, and
+  answer the old tag with a "start again" line (`OLD_DRAFT`), not an error.
+- **Modal fields:** `label()` wraps a text input, `stringSelect` (up to 25 options), or
+  `radioGroup` (2-10 options; Discord types 21-23 are modal-only, announced 2026-02-12 and
+  documented with no preview mark). A modal
+  with one field Discord rejects fails whole, so the builders throw on what Discord would refuse.
+  `modalSelections` reads a radio's single `value` as a one-item list.
 - **App emoji:** class, spec, and role icons are the app's own emoji (work in any server,
   no slots). `scripts/discord-emojis.json` lists them (WoW icon names, or `file:` for our own art);
   `node --env-file=apps/api/.env.local scripts/discord-emojis.mjs` uploads missing ones and

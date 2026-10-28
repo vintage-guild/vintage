@@ -111,11 +111,33 @@ const unreadable = (text: string, zone: string) =>
  * the first schedule's (all paused), else the fallback.
  */
 export async function guildTimeZone(ports: EventPorts, caller: Caller): Promise<string> {
+  return (await guildClock(ports, caller)).zone;
+}
+
+export interface GuildClock {
+  /** IANA zone, e.g. `America/New_York`. */
+  zone: string;
+  /** The guild's usual start time, `HH:MM` (24h). */
+  time: string;
+}
+
+/**
+ * The guild's clock and usual raid time, from the same schedule `guildTimeZone` reads: the first
+ * active schedule, else the first one, else the fallbacks (New York, 20:00).
+ */
+export async function guildClock(ports: EventPorts, caller: Caller): Promise<GuildClock> {
   const result = await ports.run(caller, 'schedule-list', { includeInactive: true });
   const schedules = result.success ? ((result.data as Schedule[] | undefined) ?? []) : [];
   const schedule = schedules.find((s) => s.active) ?? schedules[0];
-  return schedule?.recurrence.timeZone ?? FALLBACK_TIME_ZONE;
+  const time = schedule?.recurrence.time ?? '';
+  return {
+    zone: schedule?.recurrence.timeZone ?? FALLBACK_TIME_ZONE,
+    time: /^([01]\d|2[0-3]):[0-5]\d$/.test(time) ? time : FALLBACK_RAID_TIME,
+  };
 }
+
+/** The start time the New event form picks when no schedule has one. */
+export const FALLBACK_RAID_TIME = '20:00';
 
 const durationMinutes = (values: OptionValues) =>
   Math.round((typeof values.hours === 'number' ? values.hours : DEFAULT_RAID_HOURS) * 60);

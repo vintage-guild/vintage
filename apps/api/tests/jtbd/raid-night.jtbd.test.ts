@@ -1092,7 +1092,12 @@ describe('JTBD: raid night', () => {
         }[];
         components?: {
           label?: string;
-          component?: { custom_id: string; value?: string; options?: { value: string }[] };
+          component?: {
+            type: number;
+            custom_id: string;
+            value?: string;
+            options?: { label: string; value: string; default?: boolean }[];
+          };
           components?: { label: string; custom_id: string; disabled?: boolean }[];
         }[];
       };
@@ -1100,10 +1105,14 @@ describe('JTBD: raid night', () => {
     const seen = (r: unknown) => r as Seen;
     const field = (r: unknown, name: string) =>
       seen(r).data.embeds?.[0]?.fields?.find((f) => f.name === name)?.value ?? '';
+    const input = (r: unknown, id: string) =>
+      seen(r).data.components?.find((c) => c.component?.custom_id === id)?.component;
     const buttons = (r: unknown) =>
       (seen(r).data.components ?? []).flatMap((row) => row.components ?? []);
     const message = (r: unknown) => ({ id: 'preview', embeds: seen(r).data.embeds ?? [] });
-    const submit = (customId: string, fields: Record<string, string | string[]>, from?: unknown) =>
+    // Selects come back as lists, radio groups (`{ radio }`) as one value, boxes as text.
+    type Answer = string | string[] | { radio: string };
+    const submit = (customId: string, fields: Record<string, Answer>, from?: unknown) =>
       ui.form(rook, {
         type: 5,
         data: {
@@ -1112,7 +1121,9 @@ describe('JTBD: raid night', () => {
             type: 18,
             component: Array.isArray(v)
               ? { type: 3, custom_id: id, values: v }
-              : { type: 4, custom_id: id, value: v },
+              : typeof v === 'object'
+                ? { type: 21, custom_id: id, value: v.radio }
+                : { type: 4, custom_id: id, value: v },
           })),
         },
         ...(from ? { message: message(from) } : {}),
@@ -1133,33 +1144,97 @@ describe('JTBD: raid night', () => {
       'Name',
       'Kind',
       'Where',
-      'Date and time',
-      'Length in hours',
+      'Date',
+      'Time (New York)',
     ]);
+    // Kind is a radio group; the date offers the next 25 days from today (Saturday), and the
+    // time starts on the guild's usual 8:00 PM from its Wednesday schedule.
+    expect(input(form, 'kind')?.type).toBe(21);
+    const dates = input(form, 'date')?.options ?? [];
+    expect(dates.slice(0, 2).map((d) => d.label)).toEqual(['Today', 'Tomorrow']);
+    expect(dates.find((d) => d.value === '2026-10-28')?.label).toBe('Wed, Oct 28');
+    expect(input(form, 'time')?.options?.find((t) => t.default)).toMatchObject({
+      label: '8:00 PM',
+      value: '20:00',
+    });
 
-    // Stage 1: a dungeon, then Set up event.
+    // Stage 1: a dungeon on Wednesday at 7:00 PM, then Set up event.
     const first = await submit('evform:new', {
       name: 'Cathedral run',
-      kind: ['dungeon'],
+      kind: { radio: 'dungeon' },
       where: 'Scarlet Monastery',
-      start: '2026-10-28 7pm',
-      hours: '2',
+      date: ['2026-10-28'],
+      time: ['19:00'],
     });
     expect(field(first, 'Roles')).toBe('1 tank · 1 healer · 3 DPS (the usual comp)');
+    expect(field(first, 'Length')).toBe('3 hours');
     expect(buttons(first).map((b) => b.label)).toEqual(['Set up event', 'Edit details', 'Cancel']);
+    // Today at noon has already gone by (it's Saturday noon), so the preview says so.
+    const gone = await submit('evform:new', {
+      name: 'Cathedral run',
+      kind: { radio: 'dungeon' },
+      where: 'Scarlet Monastery',
+      date: ['2026-10-24'],
+      time: ['12:00'],
+    });
+    expect(field(gone, 'Fix before posting')).toContain('already passed');
 
-    // Stage 2 is built for a dungeon: one size, the usual 1/1/3 prefilled.
+    // Stage 2 is built for a dungeon: its one size in the title, the usual 1/1/3 and 3 hours.
     const details = await click('evform:next', first);
-    expect(seen(details).data.title).toBe('Dungeon details');
-    // Rook wants two healers and two DPS.
+    expect(seen(details).data.title).toBe('Dungeon details (5 players)');
+    expect(seen(details).data.components?.map((c) => c.label)).toEqual([
+      'Tanks',
+      'Healers',
+      'DPS',
+      'Length in hours',
+    ]);
+    // Rook wants two healers, two DPS, and two hours.
     const preview = await submit(
       'evform:kind:dungeon',
-      { size: ['5'], tanks: '1', healers: '2', dps: '2' },
+      { tanks: '1', healers: '2', dps: '2', hours: '2' },
       first,
     );
     expect(field(preview, 'Roles')).toBe('1 tank · 2 healers · 2 DPS');
     expect(field(preview, 'Length')).toBe('2 hours');
     expect(buttons(preview)[0]).toMatchObject({ label: 'Post event', disabled: false });
+    // Edit details reopens stage 1 with Wednesday and 7:00 PM still picked.
+    const edit = await click('evform:edit', preview);
+    expect(input(edit, 'date')?.options?.find((d) => d.default)?.value).toBe('2026-10-28');
+    expect(input(edit, 'time')?.options?.find((t) => t.default)?.value).toBe('19:00');
+
+    // A start typed weeks ahead (with no name) leads the dates, picked.
+    const far = await ui.form(rook, {
+      type: 2,
+      data: {
+        name: 'random',
+        options: [
+          {
+            name: 'event',
+            type: 2,
+            options: [
+              {
+                name: 'create',
+                type: 1,
+                options: [{ name: 'start', type: 3, value: '2026-12-24 8pm' }],
+              },
+            ],
+          },
+        ],
+      },
+    });
+    expect(input(far, 'date')?.options?.[0]).toMatchObject({
+      label: 'Thu, Dec 24',
+      value: '2026-12-24',
+      default: true,
+    });
+    expect(input(far, 'time')?.options?.find((t) => t.default)?.label).toBe('8:00 PM');
+
+    // A preview from before the pickers (a v1 draft) asks to start again.
+    const old = await ui.form(rook, {
+      data: { custom_id: 'evform:post', component_type: 2 },
+      message: { id: 'old', embeds: [{ footer: { text: 'Only you can see this draft. v1.e30' } }] },
+    });
+    expect(seen(old).data.content).toContain('That draft is from an older version');
 
     // Post event: the dungeon is made, the reply says so, and its card goes up with the comp.
     const posted = await click('evform:post', preview);

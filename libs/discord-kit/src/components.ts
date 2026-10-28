@@ -1,13 +1,15 @@
-// Message components: buttons and string select menus inside action rows, and text inputs
-// inside modals.
+// Message components: buttons and string select menus inside action rows, and text inputs,
+// select menus, and radio groups inside modals.
 
 export const ComponentType = {
   ACTION_ROW: 1,
   BUTTON: 2,
   STRING_SELECT: 3,
   TEXT_INPUT: 4,
-  /** A labelled field in a modal, holding a text input or a select menu. */
+  /** A labelled field in a modal, holding a text input, a select menu, or a radio group. */
   LABEL: 18,
+  /** One choice of 2-10, shown as radio buttons. Modals only, always inside a Label. */
+  RADIO_GROUP: 21,
 } as const;
 
 export const ButtonStyle = {
@@ -74,15 +76,36 @@ export interface TextInput {
   value?: string;
 }
 
+export interface RadioOption {
+  label: string;
+  value: string;
+  description?: string;
+  default?: boolean;
+}
+
 /**
- * A modal field with its label (type 18): wraps one text input or string select. It's how a
- * modal holds a select menu; Discord reads the label here, so the inner text input has none.
+ * A radio group (type 21): one choice of 2-10 options, for modals only and always inside a Label.
+ * A submit carries the choice as a single `value` (null when none was picked);
+ * `modalSelections` reads it like a select's, as a one-item list.
+ */
+export interface RadioGroup {
+  type: typeof ComponentType.RADIO_GROUP;
+  custom_id: string;
+  options: RadioOption[];
+  /** Whether a choice must be made (Discord's default is true). */
+  required?: boolean;
+}
+
+/**
+ * A modal field with its label (type 18): wraps one text input, string select, or radio group.
+ * It's how a modal holds a select menu; Discord reads the label here, so the inner text input
+ * has none.
  */
 export interface Label {
   type: typeof ComponentType.LABEL;
   label: string;
   description?: string;
-  component: Omit<TextInput, 'label'> | StringSelect;
+  component: Omit<TextInput, 'label'> | StringSelect | RadioGroup;
 }
 
 /** A text field for inside a Label: the same as textInput, with the label left to the Label. */
@@ -124,6 +147,8 @@ export const COMPONENT_LIMITS = {
   customId: 100,
   buttonLabel: 80,
   selectOptions: 25,
+  radioOptions: { min: 2, max: 10 },
+  radioText: 100,
 } as const;
 
 function assertCustomId(customId: string): void {
@@ -161,6 +186,35 @@ export function stringSelect(
     throw new Error(`a select menu needs 1-${COMPONENT_LIMITS.selectOptions} options`);
   }
   return { type: ComponentType.STRING_SELECT, custom_id: customId, options, ...extra };
+}
+
+/**
+ * A radio group for a modal Label: 2-10 options, each label, value and description up to 100
+ * characters, values distinct, and at most one picked by default. Discord rejects the whole modal
+ * for any of these, so they throw here instead.
+ */
+export function radioGroup(
+  customId: string,
+  options: RadioOption[],
+  extra: Pick<RadioGroup, 'required'> = {},
+): RadioGroup {
+  assertCustomId(customId);
+  const { min, max } = COMPONENT_LIMITS.radioOptions;
+  if (options.length < min || options.length > max) {
+    throw new Error(`a radio group needs ${min}-${max} options`);
+  }
+  const tooLong = (text: string | undefined) =>
+    text !== undefined && (text.length === 0 || text.length > COMPONENT_LIMITS.radioText);
+  if (options.some((o) => tooLong(o.label) || tooLong(o.value) || tooLong(o.description))) {
+    throw new Error(`a radio option's label, value and description are 1-100 characters`);
+  }
+  if (new Set(options.map((o) => o.value)).size !== options.length) {
+    throw new Error('radio option values must be distinct');
+  }
+  if (options.filter((o) => o.default).length > 1) {
+    throw new Error('a radio group has at most one default');
+  }
+  return { type: ComponentType.RADIO_GROUP, custom_id: customId, options, ...extra };
 }
 
 /** An action row: up to five buttons, or exactly one select menu. */

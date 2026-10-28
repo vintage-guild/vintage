@@ -7,6 +7,7 @@ import {
   label,
   labelledTextInput,
   linkButton,
+  radioGroup,
   stringSelect,
   textInput,
 } from './components';
@@ -150,6 +151,47 @@ describe('interaction responses', () => {
     expect(modalValues(submitted)).toEqual({ name: 'Aeryn', note: 'late' });
     expect(modalSelections(submitted)).toEqual({ class: ['warrior'], role: [] });
     expect(() => label('a'.repeat(46), labelledTextInput('n'))).toThrow();
+  });
+
+  it('builds a radio group in a label, and reads its one choice back like a select', () => {
+    const sizes = [
+      { label: '10 players', value: '10' },
+      { label: '40 players', value: '40', default: true },
+    ];
+    expect(label('Size', radioGroup('size', sizes))).toEqual({
+      type: 18,
+      label: 'Size',
+      component: { type: 21, custom_id: 'size', options: sizes },
+    });
+    const opt = (v: string) => ({ label: v, value: v });
+    expect(() => radioGroup('size', [opt('5')])).toThrow('2-10 options');
+    expect(() => radioGroup('size', 'abcdefghijk'.split('').map(opt))).toThrow('2-10 options');
+    expect(() => radioGroup('size', [opt('5'), opt('5')])).toThrow('distinct');
+    expect(() => radioGroup('size', [opt('5'), { label: 'x'.repeat(101), value: '6' }])).toThrow(
+      '1-100',
+    );
+    expect(() =>
+      radioGroup('size', [
+        { ...opt('5'), default: true },
+        { ...opt('6'), default: true },
+      ]),
+    ).toThrow('at most one default');
+    const submitted = {
+      id: '1',
+      application_id: '2',
+      token: 't',
+      type: InteractionType.MODAL_SUBMIT,
+      data: {
+        custom_id: 'x',
+        components: [
+          { type: 18, component: { type: 21, custom_id: 'size', value: '40' } },
+          { type: 18, component: { type: 21, custom_id: 'kind', value: null } },
+          { type: 18, component: { type: 4, custom_id: 'name', value: 'Aeryn' } },
+        ],
+      },
+    };
+    expect(modalSelections(submitted)).toEqual({ size: ['40'], kind: [] });
+    expect(modalValues(submitted)).toEqual({ name: 'Aeryn' });
   });
 
   it('answers autocomplete with at most 25 choices and finds the focused option', () => {

@@ -145,6 +145,7 @@ describe('help pages', () => {
     expect(page.text).toContain('**Examples**');
     expect(page.text).toMatch(/`\/random event create`\n/);
     expect(page.text).toContain('(leave out name or start for a form)');
+    expect(page.text).toContain('type `start:` for any date, further ahead too');
     expect(page.text).not.toContain('can:');
   });
 

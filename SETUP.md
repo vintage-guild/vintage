@@ -159,6 +159,14 @@ queue. Every other kind still needs both, and the command says so. `size` is che
 `healers` and `dps` set the comp, and any left out come from the kind's default (dps fills
 what's left). Times are typed in the guild's clock. No new bot permissions.
 
+`/random event check-export` (Raid Leader and up) runs `raid-export-check`: paste the addon's
+export string (Discord takes up to 6,000 characters; a 40-player night is about 3,000) and get a
+private summary matched to the raid. Its `event:` option autocompletes the last week's raids, so
+the gateway forwards autocomplete for the `event` group too (`AUTOCOMPLETED_GROUPS`). Nothing is
+recorded. The addon can't make an export in game yet (its Export tab is still to come); until
+then, try it with a string from `libs/bridge-format/fixtures/lua-made.json`. Re-register the
+commands after deploying.
+
 The group was `/random raid` until #151. After deploying Convex and the gateway, re-register the
 commands (`pnpm --filter @vintage/gateway register-commands`), the test server first
 (`DISCORD_DEV_GUILD_ID`). Until then a stale `/random raid` gets the private "can't do that yet".

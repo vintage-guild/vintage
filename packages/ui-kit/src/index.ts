@@ -120,7 +120,13 @@ export {
   VintageSignupCard,
 } from './elements/signup-card';
 export { VintageThemeSwitch } from './elements/theme-switch';
-export { type TonightRaid, type TonightSignup, VintageTonight } from './elements/tonight';
+export {
+  type TonightExportCheck,
+  type TonightRaid,
+  type TonightRecentRaid,
+  type TonightSignup,
+  VintageTonight,
+} from './elements/tonight';
 export { roleLabel, ruleHours, ruleLead, ruleWords, titleCase } from './labels';
 export { type Block, type Inline, parseInline, parseMarkdown, renderMarkdown } from './markdown';
 export { describeError, type ElementResult, toElementResult } from './result';

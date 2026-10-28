@@ -19,7 +19,7 @@ import {
   type MessageData,
 } from '@vintage/discord-kit';
 import type { Caller, CommandResult } from '@vintage/guild-kit';
-import { systemCaller } from '@vintage/guild-kit';
+import { systemCaller, toManifest } from '@vintage/guild-kit';
 import type { Character } from '@vintage/identity/contract';
 import { createMemoryIdentityDeps } from '@vintage/identity/testing';
 import { createMemoryInsightsStore } from '@vintage/insights/testing';
@@ -41,10 +41,11 @@ import {
   handleCharacterAutocomplete,
   handleCharacterInteraction,
 } from '../../src/discord-characters';
-import { handleEventInteraction } from '../../src/discord-events';
+import { handleEventAutocomplete, handleEventInteraction } from '../../src/discord-events';
 import { handleHelpInteraction } from '../../src/discord-help';
 import { handlePollInteraction } from '../../src/discord-polls';
 import { handleSignupInteraction } from '../../src/discord-signups';
+import { callFor, toolsFor } from '../../src/mcp-gateway';
 import { onboardAfterSync, onboardIfPromoted } from '../../src/onboarding';
 import { commands, type VintageDeps } from '../../src/registry';
 import { createTickSource } from '../../src/tick-source';
@@ -494,9 +495,49 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
 
   /** `/random event create` and `/random event pick-night`, run through src/discord-events.ts. */
   const eventUi = {
+    /** `/random event event:` suggestions while typing, as convex/discord.ts's autocomplete. */
+    autocomplete: (discordId: string, typed: string) =>
+      handleEventAutocomplete(
+        {
+          id: 'i',
+          application_id: 'app',
+          token: 'token',
+          type: InteractionType.APPLICATION_COMMAND_AUTOCOMPLETE,
+          guild_id: DISCORD_GUILD,
+          channel_id: SIGNUP_CHANNEL,
+          member: { user: { id: discordId, username: discordId }, roles: [] },
+          data: {
+            name: 'random',
+            options: [
+              {
+                name: 'event',
+                type: 2,
+                options: [
+                  {
+                    name: 'check-export',
+                    type: 1,
+                    options: [{ name: 'event', type: 3, value: typed, focused: true }],
+                  },
+                ],
+              },
+            ],
+          },
+        } as Interaction,
+        {
+          discordGuildId: DISCORD_GUILD,
+          guildId: GUILD,
+          memberByDiscordId,
+          events: (window) => deps.raids.listEvents(GUILD, window),
+          timeZone: async () => {
+            const schedules = await deps.raids.listSchedules(GUILD);
+            return (schedules.find((s) => s.active) ?? schedules[0])?.recurrence.timeZone ?? 'UTC';
+          },
+          now: clock.now,
+        },
+      ),
     slash: (
       discordId: string,
-      sub: 'create' | 'pick-night',
+      sub: 'create' | 'pick-night' | 'check-export',
       options: Record<string, string | number>,
     ) =>
       handleEventInteraction(
@@ -857,7 +898,35 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     pollPosts,
   };
 
+  /**
+   * /mcp for a member, through the same functions convex/mcp.ts runs (toolsFor, callFor) with the
+   * caller an OAuth token would resolve to; the token check itself is tested in mcp-caller.test.ts.
+   */
+  const mcp = {
+    caller: async (discordId: string): Promise<Caller> => ({
+      ...(await as(discordId)),
+      surface: 'mcp',
+    }),
+    tools: async (discordId: string) => {
+      const listed = toolsFor(
+        { caller: await mcp.caller(discordId) },
+        (c) => toManifest(registry.visibleTo(c)).commands,
+      );
+      return 'tools' in listed ? (listed.tools as { name: string }[]).map((t) => t.name) : [];
+    },
+    call: async (discordId: string, name: string, input: unknown) => {
+      const called = await callFor(
+        { caller: await mcp.caller(discordId) },
+        { name, input },
+        (c, r) => registry.execute({ name: r.name, input: r.input, caller: c }, deps),
+      );
+      if (!('result' in called)) throw new Error('MCP refused the caller');
+      return called.result;
+    },
+  };
+
   return {
+    mcp,
     agentUi,
     helpUi,
     applicationUi,

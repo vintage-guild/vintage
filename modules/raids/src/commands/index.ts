@@ -1,4 +1,5 @@
 import { compSuggest } from './comp';
+import { raidExportCheck } from './export';
 import { raidCancel, raidComplete, raidCreate, raidGet, raidList, raidReschedule } from './raid';
 import { rosterBench, rosterLock, rosterMove, rosterRemove, rosterUnlock } from './roster';
 import { scheduleCreate, scheduleList, scheduleMaterialize, scheduleUpdate } from './schedule';
@@ -35,4 +36,5 @@ export const raidsCommands = [
   rosterMove,
   rosterRemove,
   compSuggest,
+  raidExportCheck,
 ] as const;

@@ -212,6 +212,36 @@ command, **so I can** open signups without going to the site.
 - [ ] A stale `/random raid` (before the commands are re-registered) gets the private "can't do
   that yet" reply, not a timeout.
 
+### J44 · Check the addon's export after the raid
+**When** a raid is over, **I (raid leader) want** to paste the Vintage addon's export string and
+see who was there and what dropped, matched to the raid's signups, **so I can** catch problems
+before attendance and loot are recorded. The check records nothing.
+- [ ] Rook pastes the export in the officers' quarters (Tonight → **Check an export**). Its
+  **Raid** picker starts on the raid that started last (Wednesday's, not Thursday's that Tonight
+  now shows), lists the rest of the last week and the next day, and offers **The raid the export
+  names** for an export the addon made from an import.
+- [ ] It lists each snapshot (start 3 · Lucifron 3, 1 offline · end 2), who was seen and in how
+  many snapshots, **Not signed up** (a pick-up such as `Doran-Stonemaul`), **Signed up but not
+  seen** (Cadence), and the loot with item names when the export carries them. Benched and
+  queued signups aren't missed; someone who declined and came anyway is listed as such.
+- [ ] Nothing warns, since the export was taken that night. Checked against another night it
+  warns how far apart they are, and checked against a raid other than the one the addon made it
+  for, it says so. A `Name-Realm` is matched to a signup only when no one else could be meant,
+  and is listed as **Matched by name only**.
+- [ ] `/random event check-export` with the same string gives the same lines privately, the
+  warnings and who to follow up with first. Typing in `event:` suggests the raids that started
+  in the last week, the latest first, to raid leaders and officers only; a raider, a
+  Discord-only friend, or a stranger gets no suggestions. A raid name typed instead of picked
+  says to pick it from the suggestions.
+- [ ] Over `/mcp`, `raid-export-check` is listed for a raid leader and not for a raider, and
+  returns the same result as the site.
+- [ ] A raider gets "needs the Raid Leader rank" in Discord. An import string pasted by mistake
+  says to paste it into the addon instead (`WRONG_KIND`).
+- [ ] Afterwards the raid's signups are unchanged.
+- The automated scenario uses the Lua-made `raid-export-night.v1` string from
+  `libs/bridge-format/fixtures/lua-made.json`, written by the addon's own codec. For a live run,
+  any string from that file works, or one from the addon once its Export tab lands.
+
 ### J31 · Run a dungeon with the same signups
 **When** a few of us want a dungeon, **I (raid leader) want** the same signup card with a
 dungeon's comp, **so I can** fill five spots without a raid's rules getting in the way.

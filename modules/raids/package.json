@@ -16,6 +16,7 @@
     "type-check": "tsc6 -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@vintage/bridge-format": "workspace:*",
     "@vintage/comp-solver": "workspace:*",
     "@vintage/guild-kit": "workspace:*",
     "@vintage/identity": "workspace:*",

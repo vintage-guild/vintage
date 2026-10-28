@@ -161,6 +161,76 @@ export const DEFAULT_TIMINGS: ScheduleTimings = {
   lockHours: 2,
 };
 
+/** One attendance snapshot from an addon export, counted (raid-export-check). */
+export interface ExportSnapshot {
+  /** Unix seconds. */
+  at: number;
+  /** `start`, a boss name, `end`, or `manual`; null when the addon gave none. */
+  label: string | null;
+  present: number;
+  online: number;
+}
+
+/** Someone the export saw, matched to a signup for the raid when one fits. */
+export interface ExportAttendee {
+  /** As the game showed it: `Name`, or `Name-Realm`. */
+  name: string;
+  class?: string;
+  /** How many snapshots they were in. */
+  snapshots: number;
+  characterId: string | null;
+  memberId: string | null;
+  /** Their answer for the raid, when they matched a signup. */
+  status: SignupStatus | null;
+  /** Matched by name alone: the export showed a realm the signup doesn't have. */
+  matchedWithoutRealm: boolean;
+}
+
+export interface ExportLoot {
+  itemId: number;
+  /** From the item data the client revealed, when the export carries it. */
+  itemName: string | null;
+  looter: string;
+  characterId: string | null;
+  /** Unix seconds. */
+  at: number;
+  count: number;
+  source: string | null;
+}
+
+/** Something about the export that makes the match doubtful, said plainly. */
+export interface ExportWarning {
+  /** OTHER_GUILD: the export names another guild. OTHER_RAID: the addon made it for another
+   * raid than the one picked. TIMES_APART: no snapshot falls near the raid's start. */
+  code: 'OTHER_GUILD' | 'OTHER_RAID' | 'TIMES_APART';
+  message: string;
+}
+
+/** What raid-export-check reports: the export read and matched, nothing recorded. */
+export interface ExportCheck {
+  event: { id: string; name: string; startsAt: number; status: RaidStatus } | null;
+  /** Where the raid came from: the caller's eventId, the export's own, or none. */
+  eventSource: 'input' | 'export' | null;
+  /** The export names another guild. */
+  otherGuild: boolean;
+  exporter: string;
+  /** Unix seconds. */
+  exportedAt: number;
+  addonVersion: string;
+  snapshots: ExportSnapshot[];
+  attendees: ExportAttendee[];
+  loot: ExportLoot[];
+  itemsSeen: number;
+  /** Seen in the raid but not signed up for it (empty when no raid matched). */
+  unknownNames: string[];
+  /** Expected (the roster, else everyone going with a spot) but in no snapshot. */
+  absent: { characterId: string; characterName: string; status: SignupStatus }[];
+  /** Said no to the raid but were seen in it. */
+  declinedButSeen: string[];
+  /** Reasons to doubt the match, most serious first; empty when it looks right. */
+  warnings: ExportWarning[];
+}
+
 export const RAIDS_COMMANDS = [
   'schedule-create',
   'schedule-update',
@@ -182,6 +252,7 @@ export const RAIDS_COMMANDS = [
   'roster-move',
   'roster-remove',
   'comp-suggest',
+  'raid-export-check',
 ] as const;
 export type RaidsCommandName = (typeof RAIDS_COMMANDS)[number];
 

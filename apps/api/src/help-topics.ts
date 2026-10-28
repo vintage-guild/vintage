@@ -40,6 +40,19 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
     ],
   },
   {
+    key: 'exports',
+    title: 'Raid exports',
+    summary:
+      'Check what the Vintage addon recorded on a raid night (who was there, the loot) before it is saved.',
+    runs: { 'event check-export': 'raid-export-check' },
+    examples: [
+      'After the raid, copy the addon’s export string (it starts with !VIN:) once its Export tab lands.',
+      '/random event check-export export:!VIN:1!9b5ZQnvq',
+      'Add `event:` and pick the raid from its suggestions when the export doesn’t name one.',
+    ],
+    sitePath: '/officers',
+  },
+  {
     key: 'signups',
     title: 'Signups',
     summary: 'Sign up for an event from its card in the signup channel.',

@@ -198,6 +198,158 @@ describe('vintage-tonight', () => {
   });
 });
 
+describe('vintage-tonight, checking a raid export', () => {
+  const check = (over: Record<string, unknown> = {}) => ({
+    event: { id: 'e0', name: 'Molten Core', startsAt: Date.UTC(2026, 9, 29), status: 'completed' },
+    otherGuild: false,
+    exporter: 'Aeryn',
+    addonVersion: '0.1.0',
+    snapshots: [
+      { at: 1, label: 'start', present: 3, online: 3 },
+      { at: 2, label: 'Lucifron', present: 3, online: 2 },
+    ],
+    attendees: [
+      { name: 'Aeryn', snapshots: 2, characterId: 'c1' },
+      { name: 'Doran-Stonemaul', snapshots: 2, characterId: null },
+    ],
+    loot: [{ itemId: 17_011, itemName: null, looter: 'Doran-Stonemaul', count: 2, source: null }],
+    unknownNames: ['Doran-Stonemaul'],
+    absent: [{ characterId: 'c3', characterName: 'Cade', status: 'accepted' }],
+    ...over,
+  });
+
+  async function pasted(el: VintageTonight, value: string) {
+    el.toggleExport();
+    await settle();
+    const box = el.shadowRoot!.querySelector<HTMLTextAreaElement>('[part="export"] textarea')!;
+    box.value = value;
+    box.dispatchEvent(new Event('input'));
+    await settle();
+  }
+
+  it('checks the pasted export against the raid it names, and shows what it found', async () => {
+    const client = useClient(() => ({
+      success: true,
+      data: check(),
+      reasoning: 'Molten Core: 2 people over 2 snapshots, 1 drop',
+    }));
+    const el = await tonight();
+    await pasted(el, '  !VIN:1!abc  ');
+    await el.checkExport();
+    await settle();
+    expect(client.read).toHaveBeenCalledWith('raid-export-check', { exportString: '!VIN:1!abc' });
+    const found = text(el, 'export-result');
+    expect(found).toContain('Export · Molten Core');
+    expect(found).toContain('Molten Core: 2 people over 2 snapshots, 1 drop');
+    expect(found).toContain('Snapshots start 3 · Lucifron 3 (1 offline)');
+    expect(found).toContain('Seen Aeryn (2/2), Doran-Stonemaul (2/2)');
+    expect(found).toContain('Not signed up Doran-Stonemaul');
+    expect(found).toContain('Signed up but not seen Cade');
+    expect(found).toContain('Loot item 17011 ×2 → Doran-Stonemaul');
+    expect(el.statusText).toBe('Export checked. Nothing was saved.');
+  });
+
+  it('checks against the raid that just ended, not the next one, unless the leader picks', async () => {
+    const client = useClient(() => ({ success: true, data: check() }));
+    const el = await tonight();
+    const hour = 3_600_000;
+    el.recentRaids = [
+      { id: 'e1', name: 'Launch night', startsAt: Date.now() + 20 * hour },
+      { id: 'e0', name: 'Molten Core', startsAt: Date.now() - 4 * hour },
+      { id: 'e-1', name: 'Onyxia', startsAt: Date.now() - 52 * hour },
+    ];
+    await pasted(el, '!VIN:1!abc');
+    const picker = el.shadowRoot!.querySelector<HTMLSelectElement>('[part="export"] select')!;
+    expect([...picker.options].map((o) => [o.value, o.textContent?.split(' · ')[0]])).toEqual([
+      ['e0', 'Molten Core'],
+      ['e-1', 'Onyxia'],
+      ['e1', 'Launch night'],
+      ['', 'The raid the export names'],
+    ]);
+    expect(picker.value).toBe('e0');
+    el.shadowRoot!.querySelector<HTMLButtonElement>('[part="export"] .btn.primary')!.click();
+    await settle();
+    expect(client.read).toHaveBeenLastCalledWith('raid-export-check', {
+      exportString: '!VIN:1!abc',
+      eventId: 'e0',
+    });
+
+    picker.value = '';
+    picker.dispatchEvent(new Event('change'));
+    // A re-read of the page keeps the leader's choice.
+    el.recentRaids = [...el.recentRaids];
+    await settle();
+    await el.checkExport();
+    expect(client.read).toHaveBeenLastCalledWith('raid-export-check', {
+      exportString: '!VIN:1!abc',
+    });
+    // An agent can name the raid itself, and only with an id.
+    await el.checkExport('e-1');
+    expect(client.read).toHaveBeenLastCalledWith('raid-export-check', {
+      exportString: '!VIN:1!abc',
+      eventId: 'e-1',
+    });
+    expect(await el.checkExport(42)).toMatchObject({
+      success: false,
+      error: { code: 'INVALID_PARAMETERS' },
+    });
+  });
+
+  it('shows the check’s warnings, who declined but came, and who matched without a realm', async () => {
+    useClient(() => ({
+      success: true,
+      data: check({
+        attendees: [
+          { name: 'Aeryn-Stonemaul', snapshots: 2, characterId: 'c1', matchedWithoutRealm: true },
+          { name: 'Nimue', snapshots: 1, characterId: 'c4' },
+        ],
+        unknownNames: [],
+        declinedButSeen: ['Nimue'],
+        warnings: [
+          {
+            code: 'TIMES_APART',
+            message: 'The export’s first snapshot is 2 days before Molten Core started.',
+          },
+        ],
+      }),
+    }));
+    const el = await tonight();
+    await pasted(el, '!VIN:1!abc');
+    await el.checkExport();
+    await settle();
+    const found = text(el, 'export-result');
+    expect(found).toContain('The export’s first snapshot is 2 days before Molten Core started.');
+    expect(found).toContain('Declined but came Nimue');
+    expect(found).toContain('Matched by name only Aeryn-Stonemaul');
+    expect(found).not.toContain('Not signed up');
+  });
+
+  it('says why an export was refused', async () => {
+    useClient(() => ({
+      success: false,
+      error: {
+        code: 'WRONG_KIND',
+        message: 'Expected a raid-export string, got raid-import',
+        suggestion: 'Paste an import string into the addon and an export string into the website',
+      },
+    }));
+    const el = await tonight();
+    await pasted(el, '!VIN:1!abc');
+    const result = await el.checkExport();
+    expect(result.success).toBe(false);
+    expect(el.statusKind).toBe('error');
+    expect(el.statusText).toContain('Expected a raid-export string');
+    expect(el.exportCheck).toBeNull();
+  });
+
+  it('needs something pasted first', async () => {
+    const client = useClient(() => ({ success: true, data: check() }));
+    const el = await tonight();
+    expect((await el.checkExport()).success).toBe(false);
+    expect(client.read).not.toHaveBeenCalled();
+  });
+});
+
 describe('vintage-tonight, data arriving late', () => {
   it('counts signups that arrive after the raid, as on a slow connection', async () => {
     const el = await mount<VintageTonight>('<vintage-tonight time-zone="UTC"></vintage-tonight>');

@@ -42,7 +42,8 @@ keep notifications for things that need me.
 ### J04 · A last nudge by DM, and a digest for officers
 **When** a raid is a day out, **I (raider who forgot) want** a DM, **so I can** answer in time;
 **I (officer) want** a digest, **so I can** fix gaps before the night.
-- [ ] At T-24h, non-responders get a DM unless they turned DMs off (`member-prefs-set`).
+- [ ] At T-24h, non-responders get a DM unless they turned DMs off (`member-prefs-set`). The DM
+  links straight to the signup post, so one click opens the buttons.
 - [ ] `#vintage-ops` gets "N/40 confirmed · gaps · Not answered: …".
 
 ### J05 · Change my answer without losing my place

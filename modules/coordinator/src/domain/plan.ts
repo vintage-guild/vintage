@@ -25,7 +25,15 @@ export type PlannedAction =
   | { kind: 'refresh'; tick: TickEvent; post: CoordinatorAction }
   | { kind: 'promote'; tick: TickEvent; rule: string; target: string; signup: Signup }
   | { kind: 'remind'; tick: TickEvent; rule: string; target: string; waiting: TickMember[] }
-  | { kind: 'dm'; tick: TickEvent; rule: string; target: string; member: TickMember }
+  | {
+      kind: 'dm';
+      tick: TickEvent;
+      rule: string;
+      target: string;
+      member: TickMember;
+      /** The signup post, so the DM can link straight to it. */
+      post: CoordinatorAction;
+    }
   | { kind: 'digest'; tick: TickEvent; rule: 'digest'; target: string; waiting: TickMember[] }
   | { kind: 'lock'; tick: TickEvent; rule: 'lock'; target: string }
   | { kind: 'final-roster'; tick: TickEvent; rule: 'final-roster'; target: string }
@@ -81,6 +89,7 @@ function planReminders(
   tick: TickEvent,
   done: Set<string>,
   now: number,
+  post: CoordinatorAction,
 ): PlannedAction[] {
   const channel = state.config.signupChannelId!;
   const { startsAt } = tick.event;
@@ -115,7 +124,14 @@ function planReminders(
   if (state.config.dmReminders && current === lastReminderHours(tick)) {
     for (const member of waiting) {
       if (member.dmOptOut || done.has(`dm-${current}h|${member.memberId}`)) continue;
-      out.push({ kind: 'dm', tick, rule: `dm-${current}h`, target: member.memberId, member });
+      out.push({
+        kind: 'dm',
+        tick,
+        rule: `dm-${current}h`,
+        target: member.memberId,
+        member,
+        post,
+      });
     }
   }
   return out;
@@ -245,7 +261,7 @@ export function planTick(
     if (post.renderHash !== renderHash(tick)) out.push({ kind: 'refresh', tick, post });
     out.push(
       ...planPromotions(state, tick, done),
-      ...planReminders(state, tick, done, now),
+      ...planReminders(state, tick, done, now, post),
       ...planDigest(state, tick, done, now),
       ...planLock(state, tick, done, now),
     );

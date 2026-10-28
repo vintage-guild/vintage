@@ -115,8 +115,19 @@ export function identityStore(ctx: Ctx): IdentityStore {
 const asRoleRankMap = (entries: { discordRoleId: string; rank: GuildRank }[]): RoleRankMap =>
   Object.fromEntries(entries.map((e) => [e.discordRoleId, e.rank]));
 
+// Referenced by name to avoid a type cycle with the generated api (as applicationAction is).
+const syncSignIn = makeFunctionReference<'action', { discordId: string }>('auth:syncSignIn');
+
 export function identityDeps(ctx: Ctx): IdentityDeps {
-  return { identity: identityStore(ctx) };
+  return {
+    identity: identityStore(ctx),
+    // member-refresh: the same read-and-sync a sign-in runs, now (#145).
+    memberRefresh: {
+      request: async (_guildId, discordId) => {
+        await writable(ctx).scheduler.runAfter(0, syncSignIn, { discordId });
+      },
+    },
+  };
 }
 
 const raids = components.raids;
@@ -485,15 +496,20 @@ export function applicationsStore(ctx: Ctx): ApplicationsStore {
           ...(statuses ? { statuses: [...statuses] } : {}),
         })
       ).map(asApplication),
-    getConfig: async (guildId) =>
-      ((await ctx.runQuery(applications.applications.getConfig, {
+    // Rows from before a field existed (the rolling limit, #145) read as its default.
+    getConfig: async (guildId) => ({
+      ...defaultApplicationsConfig(guildId),
+      ...((await ctx.runQuery(applications.applications.getConfig, {
         guildId,
-      })) as ApplicationsConfig | null) ?? defaultApplicationsConfig(guildId),
+      })) as Partial<ApplicationsConfig> | null),
+    }),
     setConfig: async (guildId, patch, now) => {
-      const current =
-        ((await ctx.runQuery(applications.applications.getConfig, {
+      const current = {
+        ...defaultApplicationsConfig(guildId),
+        ...((await ctx.runQuery(applications.applications.getConfig, {
           guildId,
-        })) as ApplicationsConfig | null) ?? defaultApplicationsConfig(guildId);
+        })) as Partial<ApplicationsConfig> | null),
+      };
       return (await writable(ctx).runMutation(applications.applications.putConfig, {
         ...current,
         ...patch,
@@ -510,6 +526,7 @@ const applicationAction = (name: string) =>
 const onboardIfPromoted = makeFunctionReference<'mutation', { applicationId: string }>(
   'applications:onboardIfPromoted',
 );
+const limitAlert = makeFunctionReference<'action', { retryAt: number }>('applications:limitAlert');
 
 /**
  * Effects run as scheduled functions (convex/applications.ts): label and post; after an accept,
@@ -529,6 +546,14 @@ export function applicationsDeps(ctx: Ctx): ApplicationsDeps {
       onboard: later('sendOnboarding'),
       replied: later('sendReply'),
       changed: later('refreshPost'),
+      limitReached: async (_guildId, retryAt) => {
+        await writable(ctx).scheduler.runAfter(0, limitAlert, { retryAt });
+      },
+    },
+    // In the Vintage Discord server, from identity's last sync (#145).
+    applicationMembers: {
+      inServer: async (guildId, discordId) =>
+        (await identityStore(ctx).getMemberByDiscordId(guildId, discordId))?.inServer ?? false,
     },
     applicationRoles: {
       recruitRoleId: async (guildId) =>

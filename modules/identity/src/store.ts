@@ -29,8 +29,15 @@ export interface IdentityStore {
   setRoleRankMap(guildId: string, map: RoleRankMap): Promise<RoleRankMap>;
 }
 
+/** Re-reads one Discord account's server membership now (apps/api: the bot, then member-sync). */
+export interface MemberRefresh {
+  request(guildId: string, discordId: string): Promise<void>;
+}
+
 export interface IdentityDeps {
   identity: IdentityStore;
+  /** Optional: hosts without the bot (tests, the website's fixtures) leave it out. */
+  memberRefresh?: MemberRefresh;
 }
 
 export const command = commandsFor<IdentityDeps>();

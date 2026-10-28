@@ -51,6 +51,10 @@
         "bench": { "$value": "#2f5a87" },
         "declined": { "$value": "{color.crimson.500}" },
         "no-response": { "$value": "#5f564e" }
+      },
+      "shadow": {
+        "soft": { "$value": "#2b211840", "$description": "Leather 900 at 25%." },
+        "strong": { "$value": "#2b211873", "$description": "Leather 900 at 45%." }
       }
     }
   }

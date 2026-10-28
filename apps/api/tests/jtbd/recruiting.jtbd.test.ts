@@ -115,6 +115,52 @@ describe('JTBD: apply, get accepted, get onboarded', () => {
   });
   const text = (r: unknown) => JSON.stringify(r);
 
+  it('J42 · a visitor joins the Discord before applying on the site, and waits when it is busy', async () => {
+    const host = createHost(NOW);
+    const ana = await host.discordMember('500000000000000001', 'Ana', [ROLES.officer]);
+    const code = (r: { success: boolean; error?: { code: string } }) =>
+      r.success ? 'OK' : r.error?.code;
+    const site = { characterName: 'Jaina', wowClass: 'mage', spec: 'Frost', role: 'raider' };
+    const apply = (caller: Caller, name: string) =>
+      host.run(caller, 'application-submit', {
+        ...site,
+        about: 'Frost mage, steady on voice.',
+        experience: 'Cleared Naxx in 2020.',
+        availability: 'Tue and Thu evenings',
+        applicantName: name,
+      });
+
+    // Signed in on the site with Discord, but not in the Vintage server: join first.
+    const JAINA = '500000000000000070';
+    const visitor = await host.as(JAINA);
+    expect(await host.ok(visitor, 'application-check')).toMatchObject({
+      canApply: false,
+      reason: 'not-in-server',
+    });
+    expect(code(await apply(visitor, 'Jaina'))).toBe('JOIN_DISCORD_FIRST');
+
+    // "I've joined": the bot re-reads the membership, the sync lands, and the form opens.
+    expect(await host.ok(visitor, 'member-refresh')).toEqual({ status: 'checking' });
+    expect(host.memberRefreshes).toEqual([JAINA]);
+    const joined = await host.discordMember(JAINA, 'Jaina', []);
+    expect(await host.ok(joined, 'application-check')).toMatchObject({ canApply: true });
+    expect(code(await apply(joined, 'Jaina'))).toBe('OK');
+
+    // A flood: past the guild's limit, applicants are told when to try again; officers hear once.
+    await host.ok(ana, 'application-config-set', { limitCount: 2, limitWindowMinutes: 10 });
+    const next = async (n: number) => host.discordMember(`50000000000000006${n}`, `Alt${n}`, []);
+    expect(code(await apply(await next(1), 'Alt1'))).toBe('OK');
+    const held = await apply(await next(2), 'Alt2');
+    expect(held).toMatchObject({
+      success: false,
+      error: { code: 'APPLICATIONS_BUSY', suggestion: 'Try again in 10 minutes' },
+    });
+    await apply(await next(3), 'Alt3');
+    expect(host.applicationLimitAlerts).toEqual([NOW + 10 * 60_000]);
+    host.clock.advance(10 * 60_000);
+    expect(code(await apply(await next(2), 'Alt2'))).toBe('OK');
+  });
+
   it('J34 · a player applies from the recruiting post, is accepted, and is onboarded once', async () => {
     const host = createHost(NOW);
     const ana = await host.discordMember('500000000000000001', 'Ana', [ROLES.officer]);

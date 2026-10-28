@@ -59,6 +59,43 @@ export const memberList = command({
  * with roles it read from Discord itself. System-only: the role ids are trusted input, so an
  * officer (or a stolen officer session) must not be able to hand in any Discord id with any roles.
  */
+/** A member synced this recently is current: `member-refresh` doesn't ask Discord again. */
+export const REFRESH_MIN_MS = 30_000;
+
+export const memberRefresh = command({
+  name: 'member-refresh',
+  description:
+    'Check your own Discord server membership again now, instead of waiting for the next sync ' +
+    '(every 15 minutes): for someone who just joined the Vintage Discord. Read the result a few ' +
+    'seconds later (application-check, member-me).',
+  tier: 'public',
+  mutation: true,
+  input: z.object({}),
+  handler: async (_input, { caller, guildId, deps, now }) => {
+    if (!caller.discordId) {
+      return error('DISCORD_REQUIRED', 'Sign in with Discord first', {
+        suggestion: 'Sign in on the site with your Discord account',
+        retryable: false,
+      });
+    }
+    if (!deps.memberRefresh) {
+      return error('NOT_AVAILABLE', 'Membership can’t be checked here', {
+        suggestion: 'It updates on its own within 15 minutes',
+        retryable: false,
+      });
+    }
+    const member = await deps.identity.getMemberByDiscordId(guildId, caller.discordId);
+    if (member && now() - member.syncedAt < REFRESH_MIN_MS) {
+      return success({ status: 'current' as const, inServer: member.inServer });
+    }
+    await deps.memberRefresh.request(guildId, caller.discordId);
+    return success(
+      { status: 'checking' as const },
+      { reasoning: 'Asked Discord; read it again in a few seconds' },
+    );
+  },
+});
+
 export const memberSync = command({
   name: 'member-sync',
   description:
@@ -88,6 +125,7 @@ export const memberSync = command({
       discordId: input.discordId,
       displayName: input.displayName,
       roleIds: input.roleIds,
+      inServer: input.inServer,
       rank,
       tier,
       syncedAt: at,

@@ -13,6 +13,11 @@
     <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <meta name="theme-color" content="#100f15" />
+    <!-- The display face, fetched before the stylesheet that asks for it so the hero headline
+         paints in Bitter rather than swapping in. One file: Bitter is variable, so it covers every
+         weight; only the latin, upright subset is above the fold. The path resolves to the same
+         hashed asset as @fontsource-variable/bitter's CSS in the build (src/preload.test.ts). -->
+    <link rel="preload" as="font" type="font/woff2" crossorigin href="/node_modules/@fontsource-variable/bitter/files/bitter-latin-wght-normal.woff2" />
     <style>
       /* First paint, before the stylesheets and the header element load: the theme's canvas and
          text (literal copies of --color-surface-canvas / --color-text-primary, kept equal by
@@ -37,6 +42,7 @@
     <vintage-logo-header heading="">
       <a slot="logo" href="/"><span class="visually-hidden">Vintage home</span><!-- brand:logo --></a>
       <a href="/" data-section-link="top">Home</a>
+      <a href="/#about" data-section-link="about">About</a>
       <a href="/#raids" data-section-link="raids">Raids</a>
       <a href="/#progress" data-section-link="progress">Progress</a>
       <a href="/#recruiting" data-section-link="recruiting">Recruiting</a>

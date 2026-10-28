@@ -32,6 +32,8 @@ afd-site → vintage → vintage-dark (default) / vintage-parchment
 
 - **CSS:** components read only `var(--…)`; never literal colors, fonts, or spacing. Theme by
   setting `data-theme="vintage-parchment"` on an ancestor (dark is the default on `:root`).
+- **Shadows:** `var(--shadow-edge|low|raised|button)` for elevation; for other geometry, the
+  colors `--color-highlight-edge|gloss` and `--color-shadow-soft|strong`. No literal `rgb()`.
 - **TypeScript:** `discordColor('color.quality.epic')` for embed colors;
   `tokenValue(theme, id)` for a resolved literal.
 - **Addon:** `generated/lua/VintageTokens.lua` feeds `FenUI:RegisterTheme`.

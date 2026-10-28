@@ -28,12 +28,7 @@ import {
   replyModal,
   START_FIELDS,
 } from '@vintage/applications/commands';
-import {
-  type AcceptedApplication,
-  type Application,
-  type ApplicationStatus,
-  OPEN_STATUSES,
-} from '@vintage/applications/contract';
+import type { AcceptedApplication, Application, ApplyCheck } from '@vintage/applications/contract';
 import { parseRaiseNeedCustomId } from '@vintage/coordinator/commands';
 import {
   type CommandInteractionOption,
@@ -116,23 +111,23 @@ function options(interaction: Interaction): Record<string, string> {
 }
 
 /** Why this caller can't apply now, before any form opens; null when they can. */
+/** Refuse before the form (application-check), in the words members already know. */
 async function applyRefusal(
   ports: ApplicationDiscordPorts,
   caller: Caller,
 ): Promise<InteractionResponse | null> {
-  if (tierAllows(caller.tier, 'raider')) {
+  const checked = await ports.run(caller, 'application-check', {});
+  const check = checked.success ? (checked.data as ApplyCheck) : null;
+  if (!check || check.canApply) return null;
+  if (check.reason === 'already-raiding') {
     return ephemeral(
       'You already raid with Vintage. Ask an officer if you want to change your rank.',
     );
   }
-  const latest = await ports.run(caller, 'application-get', {});
-  const status = latest.success
-    ? (latest.data as { status?: ApplicationStatus } | null)?.status
-    : null;
-  if (status && OPEN_STATUSES.includes(status)) {
+  if (check.reason === 'open') {
     return ephemeral('Your application is still with the officers; they answer here in Discord.');
   }
-  return null;
+  return ephemeral(`${check.message}. ${check.suggestion}.`);
 }
 
 async function startApply(

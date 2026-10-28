@@ -28,6 +28,7 @@ import {
   type SignupStatus,
 } from '@vintage/raids/contract';
 import {
+  type AboutSection,
   type ClassNeed,
   type GuildProfile,
   type Recruiting,
@@ -57,10 +58,10 @@ import {
   preferredTimeZone,
   RAIDS_OPEN_AT as RAIDS_OPEN_ISO,
 } from '../dates';
-import { readGuildProfile } from '../guild-profile';
+import { paragraphs, readGuildProfile } from '../guild-profile';
 import { type PollCardModel, type PollGet, pollCardModel } from '../polls';
 import { raidHref } from '../raids';
-import { describeNights, describeTimings } from '../schedules';
+import { describeNights, describeTimings, lockLabel } from '../schedules';
 import { currentSession } from '../session';
 import {
   consumePendingSection,
@@ -84,7 +85,12 @@ interface RaidRow {
   event: RaidEvent;
   counts: Record<SignupStatus, number>;
   myStatus: SignupStatus | null;
+  /** When signups lock (absent from a server older than the field). */
+  locksAt?: number;
 }
+
+/** A `signup-list` row: the signup and, while queued, its place in line. */
+type SignupRow = Signup & { queuePosition?: number | null };
 
 const weekday = (ms: number) => formatWeekday(ms);
 const monthDay = (ms: number) => formatMonthDay(ms);
@@ -225,6 +231,7 @@ const template = html<Page>`
                   event-title="${(x) => x.next?.event.name}"
                   starts-at="${(x) => x.next?.event.startsAt}"
                   lock-label="${(x) => x.lockLabel}"
+                  queue-position="${(x) => x.mySignup?.queuePosition ?? null}"
                   status="${(x) => x.next?.myStatus ?? 'none'}"
                   character-id="${(x) => (x.signUpAllowed ? (x.guess?.characterId ?? x.main?.id ?? '') : '')}"
                   character-label="${(x) => x.mainLabel}"
@@ -324,6 +331,41 @@ const template = html<Page>`
             ?open="${(x) => x.ledgerOpen}"
             opens-on="${RAIDS_OPEN_ON}"
           ></vintage-boss-ledger>
+        </div>
+      </section>
+    `,
+  )}
+
+  ${when(
+    (x) => x.shows('about'),
+    html<Page>`
+      <section
+        class="sec about"
+        id="about"
+        data-section
+        data-section-eyebrow="About"
+        data-section-title="About the guild"
+        data-section-action="More about us"
+        data-section-href="/about"
+        aria-labelledby="h-about"
+      >
+        <div class="wrap" ?data-pending="${(x) => !x.guild}">
+          <header>
+            <div class="lead"><span class="eyebrow">About</span><h2 id="h-about">About the guild</h2></div>
+          </header>
+          <p class="about-lead">${(x) => x.profile.aboutLead}</p>
+          <div class="about-grid">
+            ${repeat(
+              (x) => x.profile.aboutSections,
+              html<AboutSection>`
+                <article class="card">
+                  <h3>${(s) => s.heading}</h3>
+                  ${repeat((s) => paragraphs(s.body), html<string>`<p>${(p) => p}</p>`)}
+                </article>
+              `,
+            )}
+          </div>
+          <p class="actions"><a class="btn" href="/about">More about the guild</a></p>
         </div>
       </section>
     `,
@@ -625,7 +667,7 @@ const styles = css`
     font-weight: var(--font-weight-bold);
     font-size: var(--font-size-sm);
     text-decoration: none;
-    box-shadow: inset 0 1px 0 rgb(255 244 228 / 6%);
+    box-shadow: var(--shadow-edge);
   }
 
   /* Crisp, not glowing: a solid darker rim, a one-pixel highlight inside the top, and a
@@ -634,9 +676,7 @@ const styles = css`
     border-color: color-mix(in srgb, var(--button-primary-bg) 55%, black);
     background: var(--button-primary-bg);
     color: var(--button-primary-text);
-    box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 30%),
-      0 1px 0 rgb(0 0 0 / 45%);
+    box-shadow: var(--shadow-button);
   }
 
   .btn:hover {
@@ -685,9 +725,7 @@ const styles = css`
     border: var(--border-width-thin) solid var(--color-border-default);
     border-inline-start: var(--border-width-thick) solid var(--color-accent-primary);
     background: var(--color-surface-raised);
-    box-shadow:
-      inset 0 1px 0 rgb(255 244 228 / 6%),
-      0 14px 34px rgb(0 0 0 / 45%);
+    box-shadow: var(--shadow-raised);
   }
 
   .callout .big {
@@ -763,9 +801,7 @@ const styles = css`
     border-radius: 0.4rem;
     border: var(--border-width-thin) solid var(--color-border-default);
     background: var(--color-surface-raised);
-    box-shadow:
-      inset 0 1px 0 rgb(255 244 228 / 6%),
-      0 14px 34px rgb(0 0 0 / 45%);
+    box-shadow: var(--shadow-raised);
   }
 
   .note,
@@ -942,6 +978,30 @@ const styles = css`
     max-inline-size: 52ch;
   }
 
+  .about-lead {
+    margin: 0;
+    max-inline-size: 60ch;
+    font-size: var(--font-size-lg);
+    text-wrap: pretty;
+  }
+
+  .about-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+    gap: var(--space-md);
+  }
+
+  .about-grid h3 {
+    margin: 0;
+    font-size: var(--font-size-md);
+  }
+
+  .about-grid p {
+    margin: 0;
+    max-inline-size: 60ch;
+    text-wrap: pretty;
+  }
+
   .sec.cream .btn.primary {
     background: var(--color-verdigris-700);
     border-color: color-mix(in srgb, var(--color-verdigris-700) 60%, black);
@@ -988,7 +1048,7 @@ const styles = css`
     block-size: 1.75rem;
     border-radius: 0.3rem;
     border: var(--border-width-thin) solid color-mix(in srgb, var(--color-leather-900) 55%, transparent);
-    box-shadow: 0 1px 2px rgb(0 0 0 / 25%);
+    box-shadow: 0 1px 2px var(--color-shadow-soft);
   }
 
   .needs td {
@@ -1045,7 +1105,7 @@ const styles = css`
     grid-row: 1 / span 2;
     inline-size: 5rem;
     block-size: auto;
-    filter: drop-shadow(0 6px 10px rgb(0 0 0 / 45%));
+    filter: drop-shadow(0 6px 10px var(--color-shadow-strong));
   }
 
   .feed {
@@ -1143,7 +1203,7 @@ export class Page extends FASTElement {
   /** `signup-suggest` for the next raid: who they're likely bringing, and why. */
   @observable guess: SignupGuess | null = null;
   /** The member's own signup for the next raid, so the card shows a role picked for it. */
-  @observable mySignup: Signup | null = null;
+  @observable mySignup: SignupRow | null = null;
   /** Roles the next raid is short of, not counting the member (the card marks them). */
   @observable nextNeeded: CompRole[] = [];
   @observable progress: Progress | null = null;
@@ -1287,11 +1347,11 @@ export class Page extends FASTElement {
     return n === 0 ? 'nothing posted yet' : `${n} raid${n === 1 ? '' : 's'} in the next two months`;
   }
 
+  @volatile
   get lockLabel(): string {
-    const event = this.next?.event;
-    if (!event) return '';
-    if (event.status === 'locked') return 'locked · roster posted';
-    return 'signups open';
+    const next = this.next;
+    if (!next) return '';
+    return lockLabel(next.event.status, next.locksAt, Date.now(), preferredTimeZone());
   }
 
   get mainLabel(): string {
@@ -1564,7 +1624,7 @@ export class Page extends FASTElement {
       return;
     }
     const [signups, guess] = await Promise.all([
-      client.read<Signup[]>('signup-list', { eventId: next.event.id }),
+      client.read<SignupRow[]>('signup-list', { eventId: next.event.id }),
       this.signUpAllowed
         ? client.read<SignupGuess | null>('signup-suggest', { eventId: next.event.id })
         : null,

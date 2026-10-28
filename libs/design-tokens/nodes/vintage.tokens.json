@@ -164,6 +164,83 @@
         "bench": { "$value": "#8fb3d9", "$description": "Benched: available, not in the comp." },
         "declined": { "$value": "{color.crimson.300}", "$description": "Declined." },
         "no-response": { "$value": "#9a9086", "$description": "No response yet." }
+      },
+      "highlight": {
+        "$description": "Light along a surface's top edge: parchment 50 with alpha, so it reads as lit paper rather than white.",
+        "edge": {
+          "$value": "#faf5ea0f",
+          "$description": "Parchment 50 at 6%: the one-pixel top light on raised surfaces, quiet buttons, and slots."
+        },
+        "gloss": {
+          "$value": "#faf5ea4d",
+          "$description": "Parchment 50 at 30%: the one-pixel top light on filled buttons and lit slots."
+        }
+      },
+      "shadow": {
+        "$description": "Shadow ink: the canvas's darkest plum (975) with alpha, so shadows stay in the palette. Parchment overrides it with leather.",
+        "soft": {
+          "$value": "#0b0a1040",
+          "$description": "Plum 975 at 25%: low shadows and small drops."
+        },
+        "strong": {
+          "$value": "#0b0a1073",
+          "$description": "Plum 975 at 45%: raised cards, menus, and tooltips."
+        }
+      }
+    },
+    "shadow": {
+      "$type": "shadow",
+      "$description": "Elevation: a top-edge highlight plus a drop, built from color.highlight and color.shadow. The hard offset shadows (shadow.offset) stay AFD's.",
+      "edge": {
+        "$value": [
+          {
+            "inset": true,
+            "offsetX": "0",
+            "offsetY": "1px",
+            "blur": "0",
+            "color": "{color.highlight.edge}"
+          }
+        ],
+        "$description": "Flush with the surface: only the top-edge light (quiet buttons, slots)."
+      },
+      "low": {
+        "$value": [
+          {
+            "inset": true,
+            "offsetX": "0",
+            "offsetY": "1px",
+            "blur": "0",
+            "color": "{color.highlight.edge}"
+          },
+          { "offsetX": "0", "offsetY": "10px", "blur": "30px", "color": "{color.shadow.soft}" }
+        ],
+        "$description": "Just off the surface: art strips and panels that sit low."
+      },
+      "raised": {
+        "$value": [
+          {
+            "inset": true,
+            "offsetX": "0",
+            "offsetY": "1px",
+            "blur": "0",
+            "color": "{color.highlight.edge}"
+          },
+          { "offsetX": "0", "offsetY": "14px", "blur": "34px", "color": "{color.shadow.strong}" }
+        ],
+        "$description": "Cards, callouts, menus, and popovers."
+      },
+      "button": {
+        "$value": [
+          {
+            "inset": true,
+            "offsetX": "0",
+            "offsetY": "1px",
+            "blur": "0",
+            "color": "{color.highlight.gloss}"
+          },
+          { "offsetX": "0", "offsetY": "1px", "blur": "0", "color": "{color.shadow.strong}" }
+        ],
+        "$description": "Filled buttons: a crisp gloss inside the top and a one-pixel drop, no blur."
       }
     }
   },

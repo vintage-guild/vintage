@@ -105,7 +105,38 @@ export interface ApplicationsConfig {
    * website's address.
    */
   onboarding: string;
+  /**
+   * The guild's rolling limit (#145): at most `limitCount` new applications in any
+   * `limitWindowMinutes`. Past it, applicants are told when to try again; nothing is labeled or
+   * posted, and officers get one alert per window.
+   */
+  limitCount: number;
+  limitWindowMinutes: number;
+  /** When the last limit alert went out, so one window alerts once. Null: never. */
+  limitAlertedAt: number | null;
   updatedAt: number;
+}
+
+export const DEFAULT_APPLICATION_LIMIT = { count: 10, windowMinutes: 30 } as const;
+
+/** Why someone can't apply right now (`application-check`), in the order they are checked. */
+export const APPLY_BLOCKS = [
+  'sign-in',
+  'already-raiding',
+  'not-in-server',
+  'open',
+  'too-many',
+  'busy',
+] as const;
+export type ApplyBlock = (typeof APPLY_BLOCKS)[number];
+
+export interface ApplyCheck {
+  canApply: boolean;
+  reason: ApplyBlock | null;
+  message: string | null;
+  suggestion: string | null;
+  /** `busy` only: when a slot opens again (ms). */
+  retryAt: number | null;
 }
 
 export const DEFAULT_ONBOARDING =
@@ -113,7 +144,15 @@ export const DEFAULT_ONBOARDING =
   'Sign in at {site} to add your characters and sign up for raids, and say hi in Discord.';
 
 export function defaultApplicationsConfig(guildId: string): ApplicationsConfig {
-  return { guildId, channelId: null, onboarding: DEFAULT_ONBOARDING, updatedAt: 0 };
+  return {
+    guildId,
+    channelId: null,
+    onboarding: DEFAULT_ONBOARDING,
+    limitCount: DEFAULT_APPLICATION_LIMIT.count,
+    limitWindowMinutes: DEFAULT_APPLICATION_LIMIT.windowMinutes,
+    limitAlertedAt: null,
+    updatedAt: 0,
+  };
 }
 
 /**

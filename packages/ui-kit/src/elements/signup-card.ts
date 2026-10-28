@@ -3,6 +3,7 @@ import {
   css,
   FASTElement,
   html,
+  nullableNumberConverter,
   observable,
   repeat,
   volatile,
@@ -150,6 +151,10 @@ const template = html<VintageSignupCard>`
           html<VintageSignupCard>`<span class="as">as <b part="character">${(x) => x.asLabel}</b></span>`,
         )}
       </div>
+      ${when(
+        (x) => x.queueLine,
+        html<VintageSignupCard>`<p class="queue" part="queue">${(x) => x.queueLine}</p>`,
+      )}
       ${when(
         (x) => x.reason,
         html<VintageSignupCard>`<p class="reason" part="reason">Guessed from ${(x) => x.reason}</p>`,
@@ -367,6 +372,13 @@ const styles = css`
     color: var(--color-text-primary);
   }
 
+  .queue {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-accent);
+    text-wrap: pretty;
+  }
+
   .reason {
     margin: 0;
     font-size: var(--font-size-xs);
@@ -410,6 +422,7 @@ const styles = css`
  * @csspart counts - The counts grid.
  * @csspart answer - The member's answer block.
  * @csspart character - The character the answer is for.
+ * @csspart queue - Where the member is in line when the raid is full.
  * @csspart reason - Why that character was guessed.
  * @csspart switch - The Switch character, Change spec and Role menus.
  * @csspart status - The result line (`role="status"`).
@@ -423,8 +436,15 @@ export class VintageSignupCard extends FASTElement {
   @attr eyebrow = 'Next up';
   /** ISO 8601 or epoch-ms start time; shown in the viewer's time zone. */
   @attr({ attribute: 'starts-at' }) startsAt = '';
-  /** Shown after the time, e.g. "signups lock 6:00 pm". */
+  /** Shown after the time, e.g. "signups lock Sat 6:00 PM". */
   @attr({ attribute: 'lock-label' }) lockLabel = '';
+  /**
+   * The member's place in line when they're going but the raid is full (`signup-list`'s
+   * `queuePosition`, 1 is next); 0 when they aren't queued.
+   */
+  @attr({ attribute: 'queue-position', converter: nullableNumberConverter }) queuePosition:
+    | number
+    | null = null;
   /** The member's current signup status, or `none`. */
   @attr status = 'none';
   /** The character the member answers with; empty disables answering. */
@@ -451,6 +471,16 @@ export class VintageSignupCard extends FASTElement {
   @observable busy = false;
   @observable statusText = '';
   @observable statusKind: 'idle' | 'error' | 'success' = 'idle';
+
+  /** "You're next in line…", or how many are ahead; empty when not queued. */
+  @volatile
+  get queueLine(): string {
+    const position = this.queuePosition ?? 0;
+    if (position < 1) return '';
+    const place =
+      position === 1 ? 'You’re next in line' : `You’re in line with ${position - 1} ahead of you`;
+    return `The raid is full. ${place}; Random tells you when a spot opens.`;
+  }
 
   get statusKey(): SignupStatus | 'none' {
     return isStatus(this.status) ? this.status : 'none';

@@ -158,6 +158,7 @@ New jobs for [docs/jtbd](../../../jtbd/README.md), each as a scenario test and a
 | 2026-10-26 | The Calendar tab leads with an agenda by day, with a month view as a plain `<table>` beside it (not an ARIA grid: at two or three raids a week the raids are ordinary buttons and empty days aren't tab stops). Times are in the viewer's zone with the guild's clock alongside; the week the US and Europe change clocks on different dates gets a note. Edits are scoped the way the commands are: a raid on its own (`raid-reschedule`, `raid-cancel`), or the schedule, which changes raids not yet created; no "this and following". Storybook was tried for building it and dropped: the `/ui` gallery and happy-dom tests cover the states without 70-odd new packages. |
 | 2026-10-27 | The Coordinator tab is **Random**, the bot's name in Discord and on the home page ("From Random Raven"), and its log is "Random's log"; the code keeps `coordinator`. The log asks `coordinator-log` once per raid (the upcoming ones and the last week's, since a raid leaves `coordinator-status` when it starts), so no all-raids command was needed. Channels are typed as ids: nothing lists the server's channels yet. |
 | 2026-10-27 | The trial start date is a general `rankSince` on members, written by `member-sync` when the rank changes (or the member is first seen), not a recruit-only field: it also dates promotions. Members whose rank last changed before it existed read null and show as "before tracking began" rather than a guessed date. The Roster tab shows days on trial with no "due for review" flag until the trial length is settled (open question 3). |
+| 2026-10-27 | The raids module says when signups lock (`locksAt` on `raid-list` and `raid-get`) and where a queued signup is in line (`queuePosition` on `signup-list`); the site shows both and never recomputes them. Signed out, the home page gets an **About** section from the guild profile (the about lead and sections officers edit in the Guild tab), between the hero and recruiting: members already know us, so it's the storefront's only (`VISITOR_SECTIONS` in `src/view.ts`). |
 | 2026-10-26 | The Progress tab records kills only; there is no way to correct or remove one yet. The form says what it will record, and whether it becomes the ledger entry, before it is sent. A `kill-remove` command (officer, destructive, with the confirm step) is the follow-up if a wrong kill gets recorded. Repeat kills are kept but not listed: `progress-get` answers first kills only. |
 | 2026-10-26 | The site module's commands are `recruiting-get` / `recruiting-set`, not `site-recruiting-*`: names say the noun, as `progress-get` and `kill-record` do, not the module. Until an officer saves, `recruiting-get` answers the copy the site shipped with. |
 
@@ -255,7 +256,8 @@ it public would let recruits see the scoreboard (a command change).
 
 - [x] `view` from the session; home page composes by view; dev fixture switch
 - [x] `vintage-hero` compact mode and member-bound figures
-- [ ] Signup card: queued and how many ahead, lock time; `notes` on `RaidEvent` (raids contract, manifest)
+- [x] Signup card: place in line (`signup-list` `queuePosition`) and lock time (`raid-list` `locksAt`)
+- [ ] Raid notes: `notes` on `RaidEvent` (raids contract, manifest), on the card ("what to bring", J19)
 - [x] `vintage-officer-strip`
 - [x] `/officers` route, tier guard, Tonight tab (digest, non-responders, roster controls, import string)
 - [x] Polls tab: open and closed polls with results, open, close and cancel with confirm, the sweep (#63)
@@ -265,5 +267,7 @@ it public would let recruits see the scoreboard (a command change).
 - [x] `site` module: `recruiting-get` / `recruiting-set`, Recruiting tab (`vintage-recruiting-desk`), band reads it
 - [x] Trial start date on identity (`rankSince`, set by `member-sync`)
 - [x] Roster tab (`vintage-roster-desk`)
-- [ ] J19, J20 in `docs/jtbd` and `apps/api/tests/jtbd` (J21 done: `docs/jtbd/recruiting.md`)
+- [x] J19 in `docs/jtbd/raid-night.md` and `raid-night.jtbd.test.ts`, except "what to bring" (raid notes)
+- [ ] J20 in `docs/jtbd` and `apps/api/tests/jtbd` (J21 done: `docs/jtbd/recruiting.md`)
+- [x] About for visitors on the home page, from the guild profile
 - [ ] Docs: `apps/web/README.md` routes table, `packages/ui-kit/README.md`, architecture status

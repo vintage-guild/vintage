@@ -12,11 +12,31 @@ export const TOKEN_TYPES = [
   'duration',
   'cubicBezier',
   'string',
+  'shadow',
 ] as const;
 export type TokenType = (typeof TOKEN_TYPES)[number];
 
+/**
+ * One layer of a DTCG shadow. `color` is a color literal or a `{color.…}` alias, so a shadow is
+ * built from the palette. `spread` is optional: a layer without one also works as a
+ * `text-shadow` or `drop-shadow()`.
+ */
+export interface ShadowLayer {
+  color: string;
+  offsetX: string;
+  offsetY: string;
+  blur: string;
+  spread?: string;
+  inset?: boolean;
+}
+
 /** A literal DTCG value. Aliases are strings of the form `{token.id}`. */
-export type TokenValue = string | number | readonly string[] | readonly number[];
+export type TokenValue =
+  | string
+  | number
+  | readonly string[]
+  | readonly number[]
+  | readonly ShadowLayer[];
 
 /** One token or group in a DTCG file, before validation. */
 export interface DtcgGroup {

@@ -1,4 +1,4 @@
-import { applicationGet, applicationSubmit, applicationWithdraw } from './apply';
+import { applicationCheck, applicationGet, applicationSubmit, applicationWithdraw } from './apply';
 import { applicationOnboard } from './onboard';
 import {
   applicationConfigGet,
@@ -8,6 +8,7 @@ import {
   applicationReview,
 } from './review';
 
+export { BLOCKS, checkApply, guildLimit } from '../domain/eligibility';
 export {
   LABEL_THRESHOLDS,
   labelApplication,
@@ -51,6 +52,7 @@ export { SUBMIT_LIMIT } from './apply';
 
 /** Every applications command, registered by apps/api through guild-kit. */
 export const applicationsCommands = [
+  applicationCheck,
   applicationSubmit,
   applicationGet,
   applicationWithdraw,

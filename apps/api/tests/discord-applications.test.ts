@@ -23,6 +23,7 @@ const member = (id: string, tier: Tier): Member => ({
   discordId: `d-${id}`,
   displayName: id,
   roleIds: [],
+  inServer: true,
   rank: null,
   tier,
   prefs: { dmOptOut: false },
@@ -162,6 +163,23 @@ describe('/random apply', () => {
     );
     expect(content(response)).toMatch(/"type":4/);
     expect(content(response)).toMatch(/You already raid with Vintage/);
+  });
+
+  it('holds the form while the guild limit is reached, saying when to try again (#145)', async () => {
+    await ports.run(
+      { surface: 'system', guildId: GUILD, tier: 'officer' } as Caller,
+      'application-config-set',
+      { limitCount: 1, limitWindowMinutes: 30 },
+    );
+    await apply('d-first');
+    const held = await handleApplicationInteraction(
+      slash('d-guest', 'apply', { character: 'Kol', class: 'shaman', spec: 'restoration' }),
+      ports,
+    );
+    expect(content(held)).toMatch(/"type":4/);
+    expect(content(held)).toMatch(
+      /The application limit has been reached. Try again in 30 minutes./,
+    );
   });
 
   it('only answers in the guild server', async () => {

@@ -24,6 +24,7 @@ const MEMBERS: Member[] = PEOPLE.map((id) => ({
   discordId: `d-${id}`,
   displayName: id,
   roleIds: [],
+  inServer: true,
   rank: 'raider',
   tier: 'raider',
   prefs: { dmOptOut: false },
@@ -141,6 +142,27 @@ describe('signup queue', () => {
       characterId: 'char-p1-alt',
       status: 'accepted',
     });
+  });
+
+  it('signup-list gives each queued signup its place in line, whatever the filter', async () => {
+    for (const id of PEOPLE.slice(0, 10)) await answer(id, 'accepted');
+    await answer('p11', 'late');
+    const list = async (statuses?: string[]) => {
+      const result = await registry.execute(
+        {
+          name: 'signup-list',
+          input: { eventId: raid.id, ...(statuses ? { statuses } : {}) },
+          caller: as('p1'),
+        },
+        deps,
+      );
+      return result.data as (Signup & { queuePosition: number | null })[];
+    };
+    const all = await list();
+    expect(all.find((s) => s.memberId === 'p11')?.queuePosition).toBe(1);
+    expect(all.filter((s) => s.queuePosition !== null)).toHaveLength(1);
+    // Only the late answers: the one queued signup keeps its place, not "in" by itself.
+    expect(await list(['late'])).toMatchObject([{ memberId: 'p11', queuePosition: 1 }]);
   });
 
   it('a queued person who steps down is not promoted', async () => {

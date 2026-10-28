@@ -21,6 +21,7 @@ const member = (id: string, displayName: string): Member => ({
   discordId: `d-${id}`,
   displayName,
   roleIds: [],
+  inServer: true,
   rank: 'raider',
   tier: 'raider',
   prefs: { dmOptOut: false },

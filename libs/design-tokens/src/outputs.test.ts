@@ -47,10 +47,17 @@ describe('CSS', () => {
     for (const { theme, tokens: resolved } of themes) {
       const text = css[theme.node as ThemeName];
       for (const token of resolved.values()) {
-        const decl = `  ${cssVarName(token.id)}: `;
-        expect(text.split(decl).length - 1, `${theme.node} ${token.id}`).toBe(1);
-        if (token.alias) expect(text).toContain(`${decl}var(${cssVarName(token.alias)});`);
+        const decl = `  ${cssVarName(token.id)}:`;
+        const count = text.split(`${decl} `).length + text.split(`${decl}\n`).length - 2;
+        expect(count, `${theme.node} ${token.id}`).toBe(1);
+        if (token.alias) expect(text).toContain(`${decl} var(${cssVarName(token.alias)});`);
       }
+    }
+  });
+
+  it('keeps every line within the formatter width, so the generated files pass lint', () => {
+    for (const text of Object.values(committed)) {
+      expect(text.split('\n').filter((line) => line.length > 100)).toEqual([]);
     }
   });
 
@@ -61,6 +68,18 @@ describe('CSS', () => {
     expect(darkCss).toContain('--motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);');
     expect(darkCss).toContain('--color-quality-epic: #a335ee;');
     expect(parchmentCss).toContain('--color-surface-canvas: var(--color-parchment-100);');
+  });
+
+  it('writes shadows as layers whose colors stay live, so parchment moves them', () => {
+    const raised =
+      '  --shadow-raised:\n    inset 0 1px 0 var(--color-highlight-edge), 0 14px 34px var(--color-shadow-strong);';
+    expect(darkCss).toContain(raised);
+    expect(parchmentCss).toContain(raised);
+    expect(darkCss).toContain('--color-shadow-strong: #0b0a1073;');
+    expect(parchmentCss).toContain('--color-shadow-strong: #2b211873;');
+    expect(tokens['vintage-parchment']['shadow.raised']).toBe(
+      'inset 0 1px 0 #faf5ea0f, 0 14px 34px #2b211873',
+    );
   });
 });
 

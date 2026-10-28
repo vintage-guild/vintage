@@ -341,3 +341,23 @@ describe('vintage-signup-card', () => {
     expect(client.run).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('vintage-signup-card queue line', () => {
+  it('says where the member is in line when the raid is full, and nothing otherwise', async () => {
+    const el = await mount<VintageSignupCard>(
+      '<vintage-signup-card event-id="e1" status="accepted" queue-position="3"></vintage-signup-card>',
+    );
+    const line = () => el.shadowRoot?.querySelector('.queue')?.textContent?.trim();
+    expect(line()).toBe(
+      'The raid is full. You’re in line with 2 ahead of you; Random tells you when a spot opens.',
+    );
+    el.queuePosition = 1;
+    await settle();
+    expect(line()).toBe(
+      'The raid is full. You’re next in line; Random tells you when a spot opens.',
+    );
+    el.removeAttribute('queue-position');
+    await settle();
+    expect(line()).toBeUndefined();
+  });
+});

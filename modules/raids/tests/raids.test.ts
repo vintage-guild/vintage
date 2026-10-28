@@ -162,6 +162,27 @@ describe('raids commands', () => {
       ).toEqual([]);
     });
 
+    it("says when signups lock: the schedule's lock hours, or two hours before a one-off", async () => {
+      await ok<Schedule>('schedule-create', { ...tueThu, lockHours: 6 }, leader);
+      const [scheduled] = (await ok<{ created: RaidEvent[] }>('schedule-materialize', {}, leader))
+        .created;
+      const oneOff = await createRaid();
+      const list = await ok<{ event: RaidEvent; locksAt: number }[]>(
+        'raid-list',
+        { to: clock.now() + 7 * DAY },
+        as('aeryn', 'member'),
+      );
+      const lockOf = (id: string | undefined) => list.find((r) => r.event.id === id)?.locksAt;
+      expect(lockOf(scheduled?.id)).toBe((scheduled?.startsAt ?? 0) - 6 * HOUR);
+      expect(lockOf(oneOff.id)).toBe(oneOff.startsAt - 2 * HOUR);
+      const got = await ok<{ locksAt: number }>(
+        'raid-get',
+        { eventId: scheduled?.id },
+        as('aeryn', 'member'),
+      );
+      expect(got.locksAt).toBe((scheduled?.startsAt ?? 0) - 6 * HOUR);
+    });
+
     it('skips paused schedules and bumps the config version on update', async () => {
       const schedule = await ok<Schedule>('schedule-create', tueThu, leader);
       const updated = await ok<Schedule>(

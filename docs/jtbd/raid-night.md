@@ -104,6 +104,16 @@ that** people who committed first stay ahead of me.
 - [ ] Accepted → tentative → accepted puts me behind people who accepted after my first answer.
   Changing character, or switching between accepted and late, keeps my place.
 
+### J19 · On raid day, the site's first screen says whether I'm in and when signups lock
+**When** it's raid day, **I (raider) want** the first screen of the site to say whether I'm in,
+when we pull, and when signups lock, **so I can** get ready without hunting through Discord.
+- [ ] Signed in, the home page's **Your next raid** card shows the raid's time in my zone,
+  "signups lock Wed 6:00 PM EDT" (the schedule's lock hours before the start; two hours for a
+  one-off), and my answer pressed. After the lock it says "locked · roster posted".
+- [ ] In a full raid, the card says where I am in line: "You're next in line", or "in line with
+  N ahead of you", and that Random tells me when a spot opens (J13).
+- [ ] Not yet: "what to bring". That waits on raid notes (`notes` on `RaidEvent`).
+
 ### J24 · Keep the calendar right from the quarters
 **When** plans change, **I (raid leader) want** to add, move, pause, and close out raids on the
 site, **so I can** keep the calendar true without commands (the quarters' Calendar tab).

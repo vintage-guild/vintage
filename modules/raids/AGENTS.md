@@ -44,6 +44,11 @@ directly. Maturity: **core**.
 - **The queue** (`domain/queue.ts`): when more people are going (accepted or late) than the raid
   holds, the earliest are in and the rest are `queued`. Every signup change and removal re-runs
   `syncQueue`; a queued person whose turn comes gets `promotedAt` and a `signup-promoted` event.
+  `signup-list` gives each queued row its `queuePosition` (1 is next), counted over every
+  signup so a status filter never renumbers the line; surfaces show it, never recompute it.
+- **When signups lock** (`domain/timings.ts`): `locksAt` = start minus the schedule's
+  `lockHours`, or `DEFAULT_TIMINGS` for a one-off, the same rule the coordinator's tick source
+  uses. `raid-list` rows and `raid-get` carry it.
   Queued people count as bench in `comp-suggest`.
 - **Identity is read through `RaidsMembers`** (`getCharacter`, `listCharacters`, `getMember`),
   never its tables. Signups snapshot the character's name, class, spec, and role at signup time.

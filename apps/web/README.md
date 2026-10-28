@@ -10,7 +10,7 @@ pnpm --filter @vintage/web build   # dist/
 
 | Route | Page |
 |---|---|
-| `/` | Home, one page of sections ([feature plan](../../docs/features/active/home-page/home-page.plan.md)): the hero (identity pills, headline, figures from `member-list` and `progress-get`); **Raids** (the next raid as a `vintage-signup-card` with the member's own answer via `signup-set`, the rest of the calendar from `raid-list`); **Progress** (`vintage-boss-ledger` from `progress-get`); **Recruiting** (a cream band with the open roles from `recruiting-get`, each row led by its class icon); **Roster** (`vintage-roster-wall` from `member-list`); **News** (the coordinator's log from `coordinator-log` per upcoming raid, and, for members and up, the first open poll from `poll-list` / `poll-get` as a `vintage-poll-card` that votes through `vote-cast`; visitors get a note without asking the server) |
+| `/` | Home, one page of sections ([feature plan](../../docs/features/active/home-page/home-page.plan.md)): the hero (identity pills, headline, figures from `member-list` and `progress-get`); signed out, **About** (`guild-profile-get`'s about lead and sections, linking to `/about`); **Raids** (the next raid as a `vintage-signup-card` with the member's own answer via `signup-set`, when signups lock (`raid-list`'s `locksAt`) and, in a full raid, their place in line (`signup-list`'s `queuePosition`), the rest of the calendar from `raid-list`); **Progress** (`vintage-boss-ledger` from `progress-get`); **Recruiting** (a cream band with the open roles from `recruiting-get`, each row led by its class icon); **Roster** (`vintage-roster-wall` from `member-list`); **News** (the coordinator's log from `coordinator-log` per upcoming raid, and, for members and up, the first open poll from `poll-list` / `poll-get` as a `vintage-poll-card` that votes through `vote-cast`; visitors get a note without asking the server) |
 | `/polls`, `/polls/<id>` | Members and up (by the role view): open polls as voting cards, including ranked ones, which Discord links here for, and the last ten closed ones with their result when the poll shows it (`poll-list`, `poll-get`). Visitors get the sign-in card |
 | `/about` | The guild in its own words: `guild-profile-get`'s lead and sections, edited in the quarters' Guild tab |
 | `/profile` | Your Discord avatar, name, rank, and main, then `vintage-member-prefs`: main character (`character-update`), the time zone raid times show in, and reminder DMs (`member-prefs-set`). A change refreshes the session so times follow a new zone. Sign-in card when signed out; a note when signed in but not in the guild |
@@ -47,7 +47,10 @@ pnpm --filter @vintage/web build   # dist/
   (`PROD_CONVEX_URL`) unless `VITE_CONVEX_URL` says otherwise; if it can't be reached the site
   stays up, signed out.
 - **Fonts** are self-hosted from Fontsource (Bitter variable for display, IBM Plex Sans and
-  Mono), imported in `src/main.ts`; the families are design tokens.
+  Mono), imported in `src/main.ts`; the families are design tokens. `index.html` preloads one
+  file, Bitter's latin upright woff2 (variable, so every weight), for the hero headline; Vite
+  emits it once, at the hashed URL the stylesheet uses. `src/preload.test.ts` keeps the preload
+  pointed at the display family's file.
 - **Art** (`public/art/`, Bloodfen's generated pieces, used with permission; not covered by the
   code license) is listed in `src/content/art.ts`: the hero and its portrait for phones
   (`art-phone-src`), one scene per launch raid behind its ledger row (dimmed until the raids

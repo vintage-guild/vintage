@@ -515,6 +515,50 @@ describe('JTBD: raid night', () => {
     expect(notices[0]!.message.allowed_mentions?.users).toEqual([people[10]!.discordId]);
   });
 
+  it('J19 · on raid day, the site says when signups lock and where I am in line', async () => {
+    const { wed } = await scheduleRaidNights(g);
+    await answer(g, g.aeryn, 'aeryn', wed.id, 'accepted');
+    const [next] = await g.host.ok<{ event: RaidEvent; myStatus: string; locksAt: number }[]>(
+      g.aeryn,
+      'raid-list',
+      {},
+    );
+    expect(next).toMatchObject({ myStatus: 'accepted', locksAt: wed.startsAt - 2 * HOUR });
+
+    // A full dungeon: the sixth and seventh to answer wait in line, and the list says where.
+    const sm = await g.host.ok<RaidEvent>(g.rook, 'raid-create', {
+      name: 'Cathedral run',
+      instance: 'Scarlet Monastery',
+      kind: 'dungeon',
+      size: 5,
+      startsAt: WED,
+      roleTargets: { tank: 1, healer: 1, dps: 3 },
+    });
+    const order: [Caller, string][] = [
+      [g.ana, 'ana'],
+      [g.rook, 'rook'],
+      [g.aeryn, 'aeryn'],
+      [g.bram, 'bram'],
+      [g.cade, 'cade'],
+      [g.dara, 'dara'],
+    ];
+    for (const [who, key] of order) {
+      await answer(g, who, key, sm.id, 'accepted');
+      g.host.clock.advance(60 * 1000);
+    }
+    const rows = await g.host.ok<(Signup & { queuePosition: number | null })[]>(
+      g.dara,
+      'signup-list',
+      { eventId: sm.id },
+    );
+    const place = (memberId: string | undefined) =>
+      rows.find((s) => s.memberId === memberId)?.queuePosition;
+    expect(place(g.dara.memberId)).toBe(1);
+    expect(place(g.ana.memberId)).toBeNull();
+    const got = await g.host.ok<{ locksAt: number }>(g.dara, 'raid-get', { eventId: sm.id });
+    expect(got.locksAt).toBe(WED - 2 * HOUR);
+  });
+
   it('J14 · stepping down to tentative gives up your place in line', async () => {
     const { wed } = await scheduleRaidNights(g);
     await answer(g, g.aeryn, 'aeryn', wed.id, 'accepted');

@@ -1,7 +1,8 @@
 import { roleTargetsSchema, type SignupStatus } from '@vintage/comp-solver';
 import { error, success, tierAllows } from '@vintage/guild-kit';
 import { z } from 'zod';
-import { RAID_STATUSES, type Signup, sizeLabel } from '../contract';
+import { RAID_STATUSES, type Schedule, type Signup, sizeLabel } from '../contract';
+import { locksAt, timingsFor } from '../domain/timings';
 import { command } from '../store';
 import {
   eventNotFound,
@@ -156,7 +157,8 @@ export const raidComplete = command({
 export const raidGet = command({
   name: 'raid-get',
   description:
-    'One raid with signup counts and your own signup. Recruits and up see the full signup list.',
+    'One raid with signup counts, when signups lock, and your own signup. Recruits and up see ' +
+    'the full signup list.',
   tier: 'member',
   input: z.object({ eventId: z.string().min(1) }),
   handler: async ({ eventId }, { caller, guildId, deps }) => {
@@ -165,8 +167,12 @@ export const raidGet = command({
     const signups = await deps.raids.listSignups(guildId, eventId);
     const mine = signups.find((s) => s.memberId === caller.memberId) ?? null;
     const canSeeList = tierAllows(caller.tier, 'recruit');
+    const schedule = event.scheduleId
+      ? await deps.raids.getSchedule(guildId, event.scheduleId)
+      : null;
     return success({
       event,
+      locksAt: locksAt(event, timingsFor(schedule)),
       counts: countByStatus(signups),
       mine,
       ...(canSeeList ? { signups } : {}),
@@ -177,7 +183,8 @@ export const raidGet = command({
 export const raidList = command({
   name: 'raid-list',
   description:
-    'Raids in a time window, soonest first. Defaults to open and locked raids in the next 14 days.',
+    'Raids in a time window, soonest first, with signup counts, your own answer, and when ' +
+    'signups lock. Defaults to open and locked raids in the next 14 days.',
   tier: 'member',
   input: z.object({
     from: instantSchema.optional(),
@@ -193,11 +200,26 @@ export const raidList = command({
       statuses,
       ...(scheduleId ? { scheduleId } : {}),
     });
+    // Each schedule once, however many of its raids are in the window.
+    const schedules = new Map<string, Promise<Schedule | null>>();
+    const scheduleOf = (id: string | null) => {
+      if (!id) return Promise.resolve(null);
+      if (!schedules.has(id)) schedules.set(id, deps.raids.getSchedule(guildId, id));
+      return schedules.get(id) ?? Promise.resolve(null);
+    };
     const withCounts = await Promise.all(
       events.map(async (event) => {
-        const signups = await deps.raids.listSignups(guildId, event.id);
+        const [signups, schedule] = await Promise.all([
+          deps.raids.listSignups(guildId, event.id),
+          scheduleOf(event.scheduleId),
+        ]);
         const mine = signups.find((s) => s.memberId === caller.memberId);
-        return { event, counts: countByStatus(signups), myStatus: mine?.status ?? null };
+        return {
+          event,
+          counts: countByStatus(signups),
+          myStatus: mine?.status ?? null,
+          locksAt: locksAt(event, timingsFor(schedule)),
+        };
       }),
     );
     return success(withCounts, {

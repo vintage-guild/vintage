@@ -1,6 +1,6 @@
 import type { Schedule } from '@vintage/raids/contract';
 import { describe, expect, it } from 'vitest';
-import { describeNights, describeTimings } from './schedules';
+import { describeNights, describeTimings, lockLabel } from './schedules';
 
 /** Mon 2 Nov 2026, noon UTC: after US and UK clocks both went back, so EST and GMT. */
 const NOW = Date.UTC(2026, 10, 2, 12);
@@ -77,5 +77,19 @@ describe('describeTimings', () => {
 
   it('falls back to the one-off raid timings with no schedule', () => {
     expect(describeTimings([])).toContain('Signups post 7 days ahead');
+  });
+});
+
+describe('lockLabel', () => {
+  const locks = Date.UTC(2026, 10, 7, 23); // Sat 7 Nov, 6:00 PM EST
+  it('says when signups lock, in the viewer’s zone', () => {
+    expect(lockLabel('open', locks, NOW, 'America/New_York')).toBe('signups lock Sat 6:00 PM EST');
+  });
+  it('says they close any minute once the time has passed, and locked after', () => {
+    expect(lockLabel('open', locks, locks + 1, 'UTC')).toBe('signups close any minute');
+    expect(lockLabel('locked', locks, locks + 1, 'UTC')).toBe('locked · roster posted');
+  });
+  it('says nothing without a lock time', () => {
+    expect(lockLabel('open', undefined, NOW)).toBe('');
   });
 });

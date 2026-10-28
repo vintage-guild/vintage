@@ -2002,7 +2002,7 @@
     },
     {
       "name": "raid-get",
-      "description": "One raid with signup counts and your own signup. Recruits and up see the full signup list.",
+      "description": "One raid with signup counts, when signups lock, and your own signup. Recruits and up see the full signup list.",
       "tier": "member",
       "mutation": false,
       "destructive": false,
@@ -2022,7 +2022,7 @@
     },
     {
       "name": "raid-list",
-      "description": "Raids in a time window, soonest first. Defaults to open and locked raids in the next 14 days.",
+      "description": "Raids in a time window, soonest first, with signup counts, your own answer, and when signups lock. Defaults to open and locked raids in the next 14 days.",
       "tier": "member",
       "mutation": false,
       "destructive": false,
@@ -3634,7 +3634,7 @@
     },
     {
       "name": "signup-list",
-      "description": "Everyone signed up for a raid, best answer first (accepted before tentative).",
+      "description": "Everyone signed up for a raid, best answer first (accepted before tentative). A queued signup carries its place in line (queuePosition, 1 is next); everyone else has null.",
       "tier": "recruit",
       "mutation": false,
       "destructive": false,

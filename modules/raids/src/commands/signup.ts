@@ -5,7 +5,7 @@ import { type Role, roleFor, roleSchema } from '@vintage/wow-data';
 import { z } from 'zod';
 import type { RaidEvent, Signup } from '../contract';
 import { guessCharacter, type PastSignup, roleForSpec, seriesWindow } from '../domain/guess';
-import { LOSES_PLACE } from '../domain/queue';
+import { LOSES_PLACE, queuePositions } from '../domain/queue';
 import { command, type RaidsDeps } from '../store';
 import { syncQueue } from './queue';
 import { eventNotFound, isLeader, notSignedIn, raidClosed } from './shared';
@@ -265,7 +265,9 @@ export const signupGet = command({
 
 export const signupList = command({
   name: 'signup-list',
-  description: 'Everyone signed up for a raid, best answer first (accepted before tentative).',
+  description:
+    'Everyone signed up for a raid, best answer first (accepted before tentative). A queued ' +
+    'signup carries its place in line (queuePosition, 1 is next); everyone else has null.',
   tier: 'recruit',
   input: z.object({
     eventId: z.string().min(1),
@@ -274,9 +276,13 @@ export const signupList = command({
   handler: async ({ eventId, statuses }, { guildId, deps }) => {
     const event = await deps.raids.getEvent(guildId, eventId);
     if (!event) return eventNotFound();
-    const signups = (await deps.raids.listSignups(guildId, eventId))
+    const all = await deps.raids.listSignups(guildId, eventId);
+    // Positions come from every signup, so a status filter doesn't renumber the line.
+    const positions = queuePositions(all, event.size);
+    const signups = all
       .filter((s) => !statuses || statuses.includes(s.status))
-      .sort((a, b) => statusRank(a) - statusRank(b) || a.signedUpAt - b.signedUpAt);
+      .sort((a, b) => statusRank(a) - statusRank(b) || a.signedUpAt - b.signedUpAt)
+      .map((s) => ({ ...s, queuePosition: positions.get(s.id) ?? null }));
     return success(signups);
   },
 });

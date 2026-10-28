@@ -94,6 +94,7 @@ describe('signup-suggest and a spec for one raid', () => {
       status: 'open',
       roleTargets: null,
       lootMethodId: null,
+      notes: null,
       configVersion: 1,
       ...overrides,
     });

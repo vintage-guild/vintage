@@ -7,6 +7,7 @@ import {
   EVENT_KINDS,
   type EventKind,
   instanceOptional,
+  RAID_NOTES_MAX,
   type RaidEvent,
   sizeFits,
   sizesText,
@@ -70,6 +71,17 @@ export const optionalSizeSchema = groupSizeSchema
   .nullable()
   .optional()
   .transform((v) => v ?? null);
+
+/**
+ * A raid's or schedule's notes: free text up to `RAID_NOTES_MAX` characters, trimmed. Blank or
+ * null means none (null), so a surface clears the notes by sending an empty box.
+ */
+export const notesSchema = z
+  .string()
+  .trim()
+  .max(RAID_NOTES_MAX, { message: `Keep the notes to ${RAID_NOTES_MAX} characters` })
+  .nullable()
+  .transform((v) => v || null);
 
 /** Instance for create inputs: free text, left out (empty) only for `other` (`kindRules`). */
 export const optionalInstanceSchema = z.string().trim().max(60).default('');

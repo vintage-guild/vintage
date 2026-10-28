@@ -74,6 +74,8 @@ export interface Schedule {
   /** Comp targets; null means the default for the kind and size (`defaultRoleTargets`). */
   roleTargets: RoleTargets | null;
   lootMethodId: string | null;
+  /** Default notes each new raid copies when it is created; null for none. */
+  notes: string | null;
   /** Inactive schedules create no new events. */
   active: boolean;
   /** Bumped on every update; events record the version they were created from. */
@@ -102,8 +104,17 @@ export interface RaidEvent {
   status: RaidStatus;
   roleTargets: RoleTargets | null;
   lootMethodId: string | null;
+  /**
+   * What to bring and when to be on ("Fire resist and flasks. On at 7:45."), at most
+   * `RAID_NOTES_MAX` characters; blank lines split paragraphs. Null for none; rows from before
+   * notes existed read as null.
+   */
+  notes: string | null;
   configVersion: number;
 }
+
+/** The longest raid or schedule notes, in characters. */
+export const RAID_NOTES_MAX = 500;
 
 export const ROSTER_STATES = ['pending', 'rostered', 'benched'] as const;
 /** A leader's roster decision for a signup: not decided yet, in a group, or benched. */

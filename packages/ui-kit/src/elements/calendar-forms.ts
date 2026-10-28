@@ -49,6 +49,12 @@ export interface CalendarFormSubmit {
 /** A raid runs 30 minutes to 8 hours, as the raids commands take it. */
 const okDuration = (m: number) => Number.isInteger(m) && m >= 30 && m <= 480;
 
+/** The longest notes the raids commands take (RAID_NOTES_MAX). */
+const NOTES_MAX = 500;
+
+/** Notes as the commands store them: trimmed, and an empty box is none (null). */
+const cleanNotes = (notes: string): string | null => notes.trim() || null;
+
 /** Every IANA zone the browser knows, for the zone field's suggestions. */
 function zoneSuggestions(): string[] {
   const intl = Intl as unknown as { supportedValuesOf?: (key: string) => string[] };
@@ -100,7 +106,8 @@ const formStyles = css`
   }
 
   input,
-  select {
+  select,
+  textarea {
     background: var(--color-surface-canvas);
   }
 `;
@@ -319,6 +326,18 @@ export abstract class KindedForm extends FASTElement {
   }
 }
 
+/** The notes box both forms share: what to bring and when to be on. */
+const notesField = (hint: string) => html<VintageScheduleForm | VintageRaidForm>`
+  <div class="field">
+    <label for="notes">Notes (optional)</label>
+    <textarea id="notes" rows="3" maxlength="${NOTES_MAX}"
+      placeholder="Fire resist and flasks. On at 7:45 for buffs."
+      :value="${(x) => x.notes}"
+      @input="${(x, c) => x.set('notes', (c.event.target as HTMLTextAreaElement).value)}"></textarea>
+    <small>${hint}</small>
+  </div>
+`;
+
 const durationField = html<VintageScheduleForm | VintageRaidForm>`
   <div class="field">
         <label for="duration">Length (minutes)</label>
@@ -402,9 +421,11 @@ const scheduleTemplate = html<VintageScheduleForm>`
       <small>Random posts the signup that many days ahead, reminds anyone who hasn't answered at each reminder, and locks signups before the pull.</small>
     </fieldset>
 
+    ${notesField('Each new raid copies these; change one raid from the agenda. A blank line starts a new paragraph.')}
+
     ${when(
       (x) => x.schedule,
-      html`<p class="note">Raids already created keep their time. Move those one by one from the agenda.</p>`,
+      html`<p class="note">Raids already created keep their time and notes. Edit those one by one from the agenda.</p>`,
     )}
     <p class="status error" role="alert">${(x) => x.problem}</p>
     <p class="actions">
@@ -435,6 +456,7 @@ export class VintageScheduleForm extends KindedForm {
   @observable leadDays = 7;
   @observable lockHours = 2;
   @observable reminders = '72, 24';
+  @observable notes = '';
   @observable problem = '';
 
   connectedCallback(): void {
@@ -454,6 +476,7 @@ export class VintageScheduleForm extends KindedForm {
     this.leadDays = s?.timings.leadDays ?? 7;
     this.lockHours = s?.timings.lockHours ?? 2;
     this.reminders = (s?.timings.reminderHours ?? [72, 24]).join(', ');
+    this.notes = s?.notes ?? '';
     this.problem = '';
   }
 
@@ -521,6 +544,7 @@ export class VintageScheduleForm extends KindedForm {
       leadDays: this.leadDays,
       lockHours: this.lockHours,
       reminderHours: this.reminderHours() ?? [],
+      notes: cleanNotes(this.notes),
     };
   }
 
@@ -547,6 +571,7 @@ export class VintageScheduleForm extends KindedForm {
       leadDays: s.timings.leadDays,
       lockHours: s.timings.lockHours,
       reminderHours: [...s.timings.reminderHours].sort((a, b) => b - a),
+      notes: s.notes ?? null,
     };
     const changed = Object.fromEntries(
       Object.entries(fields).filter(([k, v]) => JSON.stringify(v) !== JSON.stringify(before[k])),
@@ -564,7 +589,7 @@ export class VintageScheduleForm extends KindedForm {
 
 const raidTemplate = html<VintageRaidForm>`
   <form part="form" @submit="${(x, c) => x.submit(c.event)}" novalidate>
-    <h3>${(x) => (x.raid ? `Move ${x.raid.name}` : 'One-off event')}</h3>
+    <h3>${(x) => (x.raid ? `Edit ${x.raid.name}` : 'One-off event')}</h3>
     ${when(
       (x) => x.raid,
       html<VintageRaidForm>`<p class="note">Now ${(x) => (x.raid ? formatWhen(x.raid.startsAt, x.zone) : '')}. Signups and the roster come along.</p>`,
@@ -613,22 +638,23 @@ const raidTemplate = html<VintageRaidForm>`
         `,
       )}
     </div>
+    ${notesField('Members see these on the signup card and in Discord. A blank line starts a new paragraph.')}
     <p class="status error" role="alert">${(x) => x.problem}</p>
     <p class="actions">
-      <button type="submit" class="primary">${(x) => (x.raid ? 'Move the raid' : `Add the ${kindNoun(x.kind)}`)}</button>
+      <button type="submit" class="primary">${(x) => (x.raid ? `Save the ${kindNoun(x.raid.kind)}` : `Add the ${kindNoun(x.kind)}`)}</button>
       <button type="button" @click="${(x) => x.$emit('form-cancel')}">Close</button>
     </p>
   </form>
 `;
 
 /**
- * Adds a one-off raid (`raid-create`) or moves one (`raid-reschedule`), reading the date and
- * time in the chosen zone. Raises `form-submit` / `form-cancel` like the schedule form.
+ * Adds a one-off raid (`raid-create`) or edits one (`raid-reschedule` with its new time, notes,
+ * or both: only what changed), reading the date and time in the chosen zone. Raises `form-submit` / `form-cancel` like the schedule form.
  *
  * @tagname vintage-raid-form
  */
 export class VintageRaidForm extends KindedForm {
-  /** The raid being moved; null adds a one-off. */
+  /** The raid being edited; null adds a one-off. */
   @observable raid: CalendarRaid | null = null;
   @attr({ attribute: 'default-zone' }) defaultZone = '';
   /** The clock, so a time in the past is caught before the server says so (tests pin it). */
@@ -639,6 +665,7 @@ export class VintageRaidForm extends KindedForm {
   @observable time = '20:00';
   @observable zone = '';
   @observable durationMinutes = 180;
+  @observable notes = '';
   @observable problem = '';
 
   connectedCallback(): void {
@@ -660,6 +687,7 @@ export class VintageRaidForm extends KindedForm {
       this.instance = '';
       this.durationMinutes = 180;
     }
+    this.notes = r?.notes ?? '';
     this.date = r ? dayKey(r.startsAt, this.zone) : '';
     this.time = r ? timeOfDay(r.startsAt, this.zone) : '20:00';
     this.problem = '';
@@ -670,28 +698,23 @@ export class VintageRaidForm extends KindedForm {
     this.problem = '';
   }
 
+  /** What's wrong with the fields only a new one-off has (name, instance, kind, length), or empty. */
+  oneOffProblem(): string {
+    if (!this.name.trim()) return `Give the ${kindNoun(this.kind)} a name.`;
+    if (!this.instance.trim() && !instanceOptional(this.kind)) return 'Say which instance it runs.';
+    const kindProblem = this.kindProblem();
+    if (kindProblem) return kindProblem;
+    if (!okDuration(this.durationMinutes)) return `${AKind(this.kind)} runs 30 to 480 minutes.`;
+    return '';
+  }
+
   submit(event: Event): void {
     event.preventDefault();
     const zone = this.zone.trim();
-    if (!this.raid && !this.name.trim()) {
-      this.problem = `Give the ${kindNoun(this.kind)} a name.`;
-      return;
-    }
-    if (!this.raid && !this.instance.trim() && !instanceOptional(this.kind)) {
-      this.problem = 'Say which instance it runs.';
-      return;
-    }
-    const kindProblem = this.raid ? '' : this.kindProblem();
-    if (kindProblem) {
-      this.problem = kindProblem;
-      return;
-    }
+    this.problem = this.raid ? '' : this.oneOffProblem();
+    if (this.problem) return;
     if (!isTimeZone(zone)) {
       this.problem = 'Use a time zone from the list, like America/New_York.';
-      return;
-    }
-    if (!this.raid && !okDuration(this.durationMinutes)) {
-      this.problem = `${AKind(this.kind)} runs 30 to 480 minutes.`;
       return;
     }
     const startsAt = instantFromInputs(this.date, this.time, zone);
@@ -699,18 +722,24 @@ export class VintageRaidForm extends KindedForm {
       this.problem = 'Pick a date and a start time.';
       return;
     }
-    if (startsAt <= this.now) {
+    const moved = !this.raid || startsAt !== this.raid.startsAt;
+    if (moved && startsAt <= this.now) {
       this.problem = 'That time has already passed. Pick a future one.';
       return;
     }
+    const notes = cleanNotes(this.notes);
     if (this.raid) {
-      if (startsAt === this.raid.startsAt) {
-        this.problem = 'That is when it already starts.';
+      const changed = {
+        ...(moved ? { startsAt } : {}),
+        ...(notes === this.raid.notes ? {} : { notes }),
+      };
+      if (Object.keys(changed).length === 0) {
+        this.problem = 'Nothing changed.';
         return;
       }
       this.$emit('form-submit', {
         command: 'raid-reschedule',
-        input: { eventId: this.raid.id, startsAt },
+        input: { eventId: this.raid.id, ...changed },
       });
       return;
     }
@@ -724,6 +753,7 @@ export class VintageRaidForm extends KindedForm {
         roleTargets: this.roleTargets(),
         startsAt,
         durationMinutes: this.durationMinutes,
+        notes,
       },
     });
   }

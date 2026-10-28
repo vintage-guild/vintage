@@ -1862,7 +1862,7 @@
     },
     {
       "name": "raid-create",
-      "description": "Create a one-off event (not from a schedule), open for signups: a raid (10, 20 or 40), a dungeon (5), a battleground (10, 15 or 40), or another event (kind other, e.g. a levelling group: size 1 to 40 or none for open with no cap or queue; instance optional). roleTargets default to the kind: raid comps by size, 1 tank/1 healer/3 dps for dungeons, no tank for battlegrounds, none for other.",
+      "description": "Create a one-off event (not from a schedule), open for signups: a raid (10, 20 or 40), a dungeon (5), a battleground (10, 15 or 40), or another event (kind other, e.g. a levelling group: size 1 to 40 or none for open with no cap or queue; instance optional). roleTargets default to the kind: raid comps by size, 1 tank/1 healer/3 dps for dungeons, no tank for battlegrounds, none for other. notes (up to 500 characters) say what to bring and when to be on; members see them on the signup card.",
       "tier": "leader",
       "mutation": true,
       "destructive": false,
@@ -1961,6 +1961,17 @@
               {
                 "type": "string",
                 "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
               },
               {
                 "type": "null"
@@ -2214,7 +2225,7 @@
     },
     {
       "name": "raid-reschedule",
-      "description": "Move a raid to a new start time. Signups and roster are kept.",
+      "description": "Move a raid to a new start time, change its notes (what to bring, when to be on; empty or null clears them), or both. Give at least one. Signups and roster are kept.",
       "tier": "leader",
       "mutation": true,
       "destructive": false,
@@ -2239,11 +2250,21 @@
                 "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
               }
             ]
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
-          "eventId",
-          "startsAt"
+          "eventId"
         ]
       }
     },
@@ -3258,7 +3279,7 @@
     },
     {
       "name": "schedule-create",
-      "description": "Create a recurring raid night, e.g. Molten Core every Tuesday and Thursday at 20:00 New York time, or a weekly dungeon, battleground, or other event with kind (default raid; other may leave out size and instance). Events are created ahead of time by schedule-materialize.",
+      "description": "Create a recurring raid night, e.g. Molten Core every Tuesday and Thursday at 20:00 New York time, or a weekly dungeon, battleground, or other event with kind (default raid; other may leave out size and instance). notes (what to bring, when to be on) are copied to each raid. Events are created ahead of time by schedule-materialize.",
       "tier": "leader",
       "mutation": true,
       "destructive": false,
@@ -3396,6 +3417,17 @@
                 "type": "null"
               }
             ]
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -3442,7 +3474,7 @@
     },
     {
       "name": "schedule-update",
-      "description": "Change a schedule (time, days, kind, size, timings, comp targets) or pause it with active: false. Raids already created keep their time; use raid-reschedule for those.",
+      "description": "Change a schedule (time, days, kind, size, timings, comp targets, default notes) or pause it with active: false. Raids already created keep their time and notes; use raid-reschedule for those.",
       "tier": "leader",
       "mutation": true,
       "destructive": false,
@@ -3567,6 +3599,17 @@
               {
                 "type": "string",
                 "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
               },
               {
                 "type": "null"

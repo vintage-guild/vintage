@@ -27,6 +27,7 @@ describe('coordinator commands', () => {
     status: 'open',
     roleTargets: null,
     lootMethodId: null,
+    notes: null,
     configVersion: 1,
   };
 

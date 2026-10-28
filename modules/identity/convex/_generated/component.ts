@@ -108,10 +108,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         {
           guildId: string;
           memberId: string;
-          prefs: {
-            dmOptOut: boolean;
-            timezone?: string;
-          };
+          prefs: { dmOptOut: boolean; timezone?: string };
         },
         any,
         Name
@@ -123,6 +120,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           discordId: string;
           displayName: string;
           guildId: string;
+          inServer: boolean;
           rank:
             | "officer"
             | "raid-leader"

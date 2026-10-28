@@ -64,6 +64,7 @@ export async function seedFixtures(host: FixtureHost): Promise<void> {
         instance: raid.instance,
         size: raid.size,
         startsAt: raid.startsAt,
+        notes: raid.notes,
       }),
     );
     const answers = [

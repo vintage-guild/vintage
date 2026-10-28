@@ -42,6 +42,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           kind?: "raid" | "dungeon" | "battleground" | "other";
           lootMethodId: string | null;
           name: string;
+          notes?: string | null;
           roleTargets: { dps: number; healer: number; tank: number } | null;
           scheduleId: string | null;
           size: number | null;
@@ -77,6 +78,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             kind?: "raid" | "dungeon" | "battleground" | "other";
             lootMethodId?: string | null;
             name?: string;
+            notes?: string | null;
             roleTargets?: { dps: number; healer: number; tank: number } | null;
             scheduleId?: string | null;
             size?: number | null;
@@ -108,6 +110,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           kind?: "raid" | "dungeon" | "battleground" | "other";
           lootMethodId: string | null;
           name: string;
+          notes?: string | null;
           recurrence: {
             time: string;
             timeZone: string;
@@ -146,6 +149,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             kind?: "raid" | "dungeon" | "battleground" | "other";
             lootMethodId?: string | null;
             name?: string;
+            notes?: string | null;
             recurrence?: {
               time: string;
               timeZone: string;

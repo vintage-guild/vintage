@@ -33,6 +33,7 @@ const raid = (id: string, overrides: Partial<RaidEvent> = {}): RaidEvent => ({
   status: 'open',
   roleTargets: null,
   lootMethodId: null,
+  notes: null,
   configVersion: 1,
   ...overrides,
 });

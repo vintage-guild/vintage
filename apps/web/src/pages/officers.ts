@@ -98,6 +98,7 @@ export function calendarRaid({ event, counts }: RaidRow): CalendarRaid {
     startsAt: event.startsAt,
     durationMinutes: event.durationMinutes,
     status: event.status,
+    notes: event.notes ?? null,
     counts: counts
       ? {
           accepted: counts.accepted,
@@ -121,6 +122,7 @@ export function calendarSchedule(s: Schedule): CalendarSchedule {
     recurrence: { ...s.recurrence, weekdays: [...s.recurrence.weekdays] },
     durationMinutes: s.durationMinutes,
     timings: { ...s.timings, reminderHours: [...s.timings.reminderHours] },
+    notes: s.notes ?? null,
     active: s.active,
   };
 }

@@ -61,7 +61,9 @@ and posts the final roster and addon import string. Maturity: **core**.
   or a winning time already past creates nothing and goes to the ops channel.
 - **Cards are embeds with three inline role columns** (Components V2 can't do columns), each
   headed by an outline role icon (`head_tank`, `head_healer`, `head_dps`). The description is
-  the time, the lock and size as `-#` subtext, then the status counts spaced with em spaces. Each
+  the time, the lock and size as `-#` subtext, the raid's notes quoted (`> `, a block per
+  paragraph; none when it has none), then the status counts spaced with em spaces. The render
+  hash is over the whole message, so a notes edit refreshes the post on the next tick. Each
   column shows up to `COLUMN_CAP` names then "+N more", so a 40-person card keeps its height; the
   **Roster** button (`roster:<eventId>`) shows everyone privately. `tests/card.test.ts` checks a
   full raid against Discord's embed limits. Icons are the app's own emoji (`emoji('status_late')`,

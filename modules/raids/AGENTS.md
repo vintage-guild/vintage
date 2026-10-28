@@ -49,6 +49,12 @@ directly. Maturity: **core**.
   `lockHours`, or `DEFAULT_TIMINGS` for a one-off, the same rule the coordinator's tick source
   uses. `raid-list` rows and `raid-get` carry it.
   Queued people count as bench in `comp-suggest`.
+- **Raid notes** ("what to bring", J19): `notes` on events and schedules, at most
+  `RAID_NOTES_MAX` (500) characters, trimmed, blank or null for none (`notesSchema`). Set by
+  `raid-create`, changed by `raid-reschedule` (`startsAt`, `notes`, or both; at least one), and a
+  schedule's `notes` are the default `schedule-materialize` copies to each new raid. Editing a
+  schedule's notes leaves raids already created alone. Rows from before notes read as null (the
+  field is optional in the schema; the mappers fill it). Surfaces split paragraphs on blank lines.
 - **Identity is read through `RaidsMembers`** (`getCharacter`, `listCharacters`, `getMember`),
   never its tables. Signups snapshot the character's name, class, spec, and role at signup time.
 - **A spec for one raid** (#148): `signup-set`'s optional `spec` must be one of the character's

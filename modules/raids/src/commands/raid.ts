@@ -10,6 +10,7 @@ import {
   isLive,
   kindRules,
   kindSchema,
+  notesSchema,
   optionalInstanceSchema,
   optionalSizeSchema,
   raidClosed,
@@ -39,7 +40,8 @@ export const raidCreate = command({
     'dungeon (5), a battleground (10, 15 or 40), or another event (kind other, e.g. a ' +
     'levelling group: size 1 to 40 or none for open with no cap or queue; instance optional). ' +
     'roleTargets default to the kind: raid comps by size, 1 tank/1 healer/3 dps for dungeons, ' +
-    'no tank for battlegrounds, none for other.',
+    'no tank for battlegrounds, none for other. notes (up to 500 characters) say what to bring ' +
+    'and when to be on; members see them on the signup card.',
   tier: 'leader',
   mutation: true,
   input: z
@@ -57,6 +59,7 @@ export const raidCreate = command({
         .default(180),
       roleTargets: roleTargetsSchema.nullable().default(null),
       lootMethodId: z.string().min(1).nullable().default(null),
+      notes: notesSchema.default(null),
     })
     .superRefine(kindRules),
   handler: async (input, { guildId, deps, now }) => {
@@ -79,17 +82,36 @@ export const raidCreate = command({
 
 export const raidReschedule = command({
   name: 'raid-reschedule',
-  description: 'Move a raid to a new start time. Signups and roster are kept.',
+  description:
+    'Move a raid to a new start time, change its notes (what to bring, when to be on; empty or ' +
+    'null clears them), or both. Give at least one. Signups and roster are kept.',
   tier: 'leader',
   mutation: true,
-  input: z.object({ eventId: z.string().min(1), startsAt: instantSchema }),
-  handler: async ({ eventId, startsAt }, { guildId, deps, now }) => {
+  input: z
+    .object({
+      eventId: z.string().min(1),
+      startsAt: instantSchema.optional(),
+      notes: notesSchema.optional(),
+    })
+    .refine((i) => i.startsAt !== undefined || i.notes !== undefined, {
+      message: 'Give a new startsAt, notes, or both',
+    }),
+  handler: async ({ eventId, startsAt, notes }, { guildId, deps, now }) => {
     const event = await deps.raids.getEvent(guildId, eventId);
     if (!event) return eventNotFound();
     if (!isLive(event)) return raidClosed(event);
-    if (startsAt <= now()) return inPast();
-    const updated = await deps.raids.updateEvent(guildId, eventId, { startsAt });
-    return success(updated, { reasoning: `${updated.name} moved; signups kept` });
+    if (startsAt !== undefined && startsAt <= now()) return inPast();
+    const updated = await deps.raids.updateEvent(guildId, eventId, {
+      ...(startsAt === undefined ? {} : { startsAt }),
+      ...(notes === undefined ? {} : { notes }),
+    });
+    const what = [
+      startsAt === undefined ? null : 'moved',
+      notes === undefined ? null : 'notes saved',
+    ];
+    return success(updated, {
+      reasoning: `${updated.name} ${what.filter(Boolean).join(' and ')}; signups kept`,
+    });
   },
 });
 

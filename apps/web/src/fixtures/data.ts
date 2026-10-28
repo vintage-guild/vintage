@@ -78,6 +78,8 @@ export interface FixtureRaid {
   size: 10 | 20 | 40;
   /** ISO 8601 with offset; raid nights are 8 pm Eastern. */
   startsAt: string;
+  /** What to bring and when to be on; blank lines split paragraphs. */
+  notes?: string;
   /**
    * Members going (accepted) and tentative, by name. Everyone else has not answered.
    * Only recruits and above can answer (`signup-set` is a recruit command), so the
@@ -196,6 +198,7 @@ export const RAIDS: readonly FixtureRaid[] = [
     instance: 'Azeroth',
     size: 40,
     startsAt: '2026-11-04T20:00:00-05:00',
+    notes: 'Flasks and a stack of fire resistance potions.\n\nOn at 7:45 for buffs; we pull at 8.',
     going: raiders.slice(0, 26).map((m) => m.name),
     tentative: raiders.slice(26, 30).map((m) => m.name),
   },

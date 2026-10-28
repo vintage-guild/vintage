@@ -107,6 +107,7 @@ const template = html<VintageCharacterForm>`
     <violet-select
       label="Role"
       name="role"
+      placeholder="${(x) => x.guessLabel}"
       :value="${(x) => x.rolePick}"
       supporting-text="Pick one when you play another role than the spec says, like a Fury warrior who tanks"
       @change="${(x, c) => x.setRole(fieldValue(c.event))}"

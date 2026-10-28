@@ -199,6 +199,7 @@ const template = html<VintageSignupCard>`
             <violet-select
               label="Role"
               name="role"
+              placeholder="${(x) => x.roleChoices[0]?.[1] ?? 'Guess from spec'}"
               :value="${(x) => x.playRole}"
               ?disabled="${(x) => !x.changeSpecCanExecute}"
               @change="${(x, c) => x.changeRole(fieldValue(c.event))}"

@@ -271,6 +271,8 @@ describe('vintage-signup-card', () => {
         'Melee DPS',
         'Ranged DPS',
       ]);
+      // With no pick, the closed select shows the guess, not Violet's "Select an option".
+      expect(roleSelect(el)?.getAttribute('placeholder')).toBe('Guess from spec (Tank)');
       // The saved role goes with the saved spec; another spec plays its own role.
       expect(el.asLabel).toBe('Brakk · Fury Warrior · Tank');
       el.spec = 'arms';

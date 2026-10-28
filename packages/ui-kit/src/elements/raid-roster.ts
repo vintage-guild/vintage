@@ -30,6 +30,11 @@ export interface RaidRosterSignup {
   status: string;
   note: string | null;
   queued: boolean;
+  /**
+   * Place in line from `signup-list` (1 is next), null when not queued. Absent from a server
+   * older than #192: then `queued` says who waits, in the list's order.
+   */
+  queuePosition?: number | null;
   roster: string;
   group: number | null;
 }
@@ -73,6 +78,10 @@ const ANSWER_WORDS: Record<string, string> = {
 
 /** Statuses after which the leaders' group and bench calls are the roster. */
 const SETTLED = new Set(['locked', 'completed']);
+
+/** Waiting for a spot: by `queuePosition` when the server sends it, else the `queued` flag. */
+const inQueue = (s: RaidRosterSignup) =>
+  s.queuePosition === undefined ? s.queued : s.queuePosition !== null;
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
@@ -393,7 +402,7 @@ export class VintageRaidRoster extends FASTElement {
   }
 
   get roleGroups(): RoleGroup[] {
-    const playing = this.signups.filter((s) => s.status !== 'declined' && !s.queued);
+    const playing = this.signups.filter((s) => s.status !== 'declined' && !inQueue(s));
     return ROLES.map((role) => ({
       key: role,
       label: ROLE_HEADINGS[role],
@@ -401,9 +410,11 @@ export class VintageRaidRoster extends FASTElement {
     })).filter((g) => g.rows.length > 0);
   }
 
-  /** Queued signups in `signup-list`'s order, as one group (none when nobody waits). */
+  /** Who waits, next in line first (else in `signup-list`'s order), as one group or none. */
   get queueGroups(): RoleGroup[] {
-    const rows = this.signups.filter((s) => s.queued);
+    const rows = this.signups
+      .filter(inQueue)
+      .sort((a, b) => (a.queuePosition ?? 0) - (b.queuePosition ?? 0));
     return rows.length ? [{ key: 'queue', label: 'Waiting for a spot', rows }] : [];
   }
 
@@ -411,9 +422,12 @@ export class VintageRaidRoster extends FASTElement {
     return this.signups.filter((s) => s.status === 'declined');
   }
 
-  /** "group 2" or "benched" once the roster is locked; queued rows say "queued". */
+  /** "group 2" or "benched" once the roster is locked; queued rows say their place in line. */
   placement(s: RaidRosterSignup): string {
-    if (s.queued) return `queued · ${roleLabel(s.role).toLowerCase()}`;
+    if (inQueue(s)) {
+      const role = roleLabel(s.role).toLowerCase();
+      return s.queuePosition ? `#${s.queuePosition} in line · ${role}` : `queued · ${role}`;
+    }
     if (!SETTLED.has(this.raid?.status ?? '')) return '';
     if (s.roster === 'benched') return 'benched';
     return s.group === null ? '' : `group ${s.group}`;

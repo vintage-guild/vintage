@@ -28,6 +28,10 @@ describe('raid page helpers', () => {
     expect(raidFacts({ ...event, instance: '', size: null, status: 'open' }, 'UTC')).toBe(
       'Thu, Dec 10, 1:00 AM UTC · open, no cap · signups open',
     );
+    // With `locksAt` (lockLabel's line), the lock time says it instead.
+    expect(raidFacts({ ...event, status: 'open' }, 'UTC', 'signups lock Wed 11:00 PM UTC')).toBe(
+      'Thu, Dec 10, 1:00 AM UTC · Molten Core · 40 players · signups lock Wed 11:00 PM UTC',
+    );
   });
 
   it('turns a refusal for rank into the note, and anything else into what went wrong', () => {

@@ -293,6 +293,7 @@ const GALLERY_RAID_ROSTER: RaidRosterSignup[] = [
   status: status as string,
   note: note as string | null,
   queued: queued as boolean,
+  queuePosition: name === 'Thistle' ? 1 : name === 'Isolde' ? 2 : null,
   roster: name === 'Brannoch' ? 'benched' : group ? 'rostered' : 'pending',
   group: group as number | null,
 }));

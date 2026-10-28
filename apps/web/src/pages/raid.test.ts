@@ -64,16 +64,28 @@ describe('/raids/<id>', () => {
   it('shows a raider the raid, everyone signed up with the queue apart, and the comp', async () => {
     const { page } = await open('Bloodfen', 'Barrow Deeps, first pull');
     expect(page.shadowRoot?.querySelector('h1')?.textContent).toBe('Barrow Deeps, first pull');
-    expect(page.facts).toContain('Barrow Deeps · 10 players · signups open');
+    // A one-off locks two hours before the start (raid-get's locksAt), said as the home card says it.
+    expect(page.locksAt).toBe((page.event?.startsAt ?? 0) - 2 * 3_600_000);
+    expect(page.lockLine).toMatch(/^signups (lock \w+ |close any minute)/);
+    expect(page.facts).toBe(
+      `${page.facts.split(' · ')[0]} · Barrow Deeps · 10 players · ${page.lockLine}`,
+    );
+    expect(card(page)?.lockLabel).toBe(page.lockLine);
     const el = roster(page);
     expect(el.counts?.accepted).toBeGreaterThan(10);
     expect(el.signupsNote).toBe('');
     expect(el.compNote).toBe('');
     expect(el.comp).toMatchObject({ raidSize: 10, selected: 10 });
-    // signup-list says who is queued; the element lists them apart from the roles.
-    const queued = page.signups.filter((s) => s.queued).map((s) => s.characterName);
+    // signup-list numbers the queue; the element lists it in that order, apart from the roles.
+    const queued = page.signups
+      .filter((s) => s.queuePosition)
+      .sort((a, b) => (a.queuePosition ?? 0) - (b.queuePosition ?? 0));
+    expect(queued.map((s) => s.queuePosition)).toEqual(queued.map((_, i) => i + 1));
     expect(queued.length).toBeGreaterThan(0);
-    expect(el.queueGroups[0]?.rows.map((s) => s.characterName)).toEqual(queued);
+    expect(el.queueGroups[0]?.rows.map((s) => s.characterName)).toEqual(
+      queued.map((s) => s.characterName),
+    );
+    expect(el.placement(queued[0]!)).toMatch(/^#1 in line · /);
     expect(el.roleGroups.flatMap((g) => g.rows).some((s) => s.queued)).toBe(false);
     expect(page.mine).toBeNull();
   });
@@ -88,6 +100,9 @@ describe('/raids/<id>', () => {
     expect(card(page)?.status).toBe('accepted');
     const queue = roster(page).queueGroups[0]?.rows.map((s) => s.characterName) ?? [];
     expect(queue.at(-1)).toBe('Bloodfen Il');
+    // Their place in line reaches the card, as on the home page.
+    expect(page.myRow?.queuePosition).toBe(queue.length);
+    expect(card(page)?.queuePosition).toBe(queue.length);
   });
 
   it('gives a recruit the signups and a note where the comp would be', async () => {

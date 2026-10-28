@@ -18,9 +18,11 @@ import {
   raidIdFromPath,
   refusedNote,
   rosterComp,
+  type SignupRow,
   statusWords,
   takesAnswers,
 } from '../raids';
+import { lockLabel } from '../schedules';
 import { canSignIn, currentSession } from '../session';
 import { canSignUp, currentView } from '../view';
 import { pageStyles } from './page-styles';
@@ -71,8 +73,9 @@ const template = html<Page>`
               event-id="${(x) => x.event?.id}"
               event-title="${(x) => x.event?.name}"
               starts-at="${(x) => x.event?.startsAt}"
-              lock-label="${(x) => (x.event ? statusWords(x.event.status) : '')}"
+              lock-label="${(x) => x.lockLine || (x.event ? statusWords(x.event.status) : '')}"
               status="${(x) => x.mine?.status ?? 'none'}"
+              queue-position="${(x) => x.myRow?.queuePosition ?? null}"
               character-id="${(x) => (x.signUpAllowed ? (x.guess?.characterId ?? x.main?.id ?? '') : '')}"
               character-label="${(x) => (x.main ? characterLabel(x.main) : '')}"
               spec="${(x) => x.guess?.spec ?? ''}"
@@ -182,7 +185,9 @@ export class Page extends FASTElement {
   @observable event: RaidEvent | null = null;
   @observable counts: RaidRosterCounts | null = null;
   @observable mine: Signup | null = null;
-  @observable signups: Signup[] = [];
+  /** `raid-get`'s lock time; undefined from a server older than #192. */
+  @observable locksAt: number | undefined = undefined;
+  @observable signups: SignupRow[] = [];
   @observable signupsNote = '';
   @observable comp: RaidRosterComp | null = null;
   @observable compNote = '';
@@ -203,8 +208,19 @@ export class Page extends FASTElement {
     return this.characters.find((c) => c.isMain) ?? this.characters[0] ?? null;
   }
 
+  /** The member's own `signup-list` row, for their place in line. */
+  get myRow(): SignupRow | null {
+    return this.signups.find((s) => s.memberId === this.meId) ?? null;
+  }
+
+  /** "signups lock Sat 6:00 PM EST", as the home card says it; empty without `locksAt`. */
+  get lockLine(): string {
+    const event = this.event;
+    return event ? lockLabel(event.status, this.locksAt, Date.now(), preferredTimeZone()) : '';
+  }
+
   get facts(): string {
-    return this.event ? raidFacts(this.event, preferredTimeZone()) : '';
+    return this.event ? raidFacts(this.event, preferredTimeZone(), this.lockLine) : '';
   }
 
   connectedCallback(): void {
@@ -221,7 +237,7 @@ export class Page extends FASTElement {
     const eventId = this.eventId;
     const [got, list, comp, guess] = await Promise.all([
       client.read<RaidGet>('raid-get', { eventId }),
-      client.read<Signup[]>('signup-list', { eventId }),
+      client.read<SignupRow[]>('signup-list', { eventId }),
       client.read<CompSuggest>('comp-suggest', { eventId }),
       this.signUpAllowed
         ? client.read<SignupGuess | null>('signup-suggest', { eventId })
@@ -242,6 +258,7 @@ export class Page extends FASTElement {
     this.error = '';
     this.event = got.data.event;
     this.counts = got.data.counts;
+    this.locksAt = got.data.locksAt;
     this.mine = got.data.mine;
     this.signups = list.success ? (list.data ?? []) : [];
     this.signupsNote = refusedNote(list, SIGNUPS_NOTE, 'the signups');

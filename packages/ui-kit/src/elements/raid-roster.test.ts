@@ -126,6 +126,26 @@ describe('vintage-raid-roster', () => {
     expect(shadowText(el)).toContain('Nobody has answered yet.');
   });
 
+  it('orders and numbers the queue by signup-list’s queuePosition when the server sends it', async () => {
+    const el = await roster();
+    el.signups = [
+      signup('Stridulent', { queuePosition: null }),
+      signup('Isolde', { role: 'ranged', queued: true, queuePosition: 2 }),
+      signup('Thistle', { role: 'healer', queued: true, queuePosition: 1 }),
+      // The position is the server's word: a stale flag without one isn't in line.
+      signup('Fenwick', { queued: true, queuePosition: null }),
+    ];
+    await settle();
+    expect(rows(el, 'queue')).toEqual([
+      'Thistle Protection going #1 in line · healer',
+      'Isolde Protection going #2 in line · ranged dps',
+    ]);
+    expect(rows(el, 'signups')).toEqual([
+      'Stridulent Protection going',
+      'Fenwick Protection going',
+    ]);
+  });
+
   it('counts an open event without a cap', async () => {
     const el = await roster();
     el.raid = { id: 'e1', size: null, status: 'open' };

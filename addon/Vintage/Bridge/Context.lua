@@ -55,4 +55,88 @@ function Context:BuildSessionContext(params)
 	}
 end
 
+--- "Name", or "Name-Realm" for another realm, as the export carries names. Realm spaces are
+--- dropped, as the raid roster shows them.
+---@param name any
+---@param realm any
+---@return string|nil
+function Context.FullName(name, realm)
+	-- "Unknown" (UNKNOWNOBJECT) is a unit the client hasn't loaded yet, not a name.
+	if type(name) ~= "string" or name == "" or name == rawget(_G, "UNKNOWNOBJECT") then
+		return nil
+	end
+	if type(realm) == "string" and realm ~= "" then
+		return name .. "-" .. (realm:gsub("%s", ""))
+	end
+	return name
+end
+
+local function member(name, realm, group, classFile, online)
+	local full = Context.FullName(Secrets.Public(name), Secrets.Public(realm))
+	if not full then
+		return nil
+	end
+	local entry = { name = full, group = Secrets.Public(group) or 1, online = Secrets.Public(online) == true }
+	classFile = Secrets.Public(classFile)
+	if type(classFile) == "string" and classFile ~= "" then
+		entry.class = classFile:lower()
+	end
+	return entry
+end
+
+--- The group now: the raid roster in a raid, else you and your party (all in group 1). A
+--- member whose name the game keeps secret, or hasn't loaded yet, is counted, not listed.
+---@return table[] members { name, group, class, online }, number hidden
+function Context:BuildGroupSnapshot()
+	local members, hidden = {}, 0
+	local function add(entry)
+		if entry then
+			members[#members + 1] = entry
+		else
+			hidden = hidden + 1
+		end
+	end
+	if IsInRaid() then
+		for index = 1, GetNumGroupMembers() do
+			-- Already "Name-Realm" for another realm.
+			local name, _, subgroup, _, _, classFile, _, online = GetRaidRosterInfo(index)
+			add(member(name, nil, subgroup, classFile, online))
+		end
+		return members, hidden
+	end
+	local units = { "player" }
+	for index = 1, GetNumSubgroupMembers() do
+		units[#units + 1] = "party" .. index
+	end
+	for _, unit in ipairs(units) do
+		local name, realm = UnitName(unit)
+		local _, classFile = UnitClass(unit)
+		add(member(name, realm, 1, classFile, UnitIsConnected(unit)))
+	end
+	return members, hidden
+end
+
+--- The session, the group, the codec, and the clock, for the raid actions.
+---@param params table|nil { text, confirm, label }
+---@return table
+function Context:BuildRaidContext(params)
+	params = type(params) == "table" and params or {}
+	local context = self:BuildSessionContext(params)
+	local members, hidden = self:BuildGroupSnapshot()
+	local groupNames = {}
+	for index, entry in ipairs(members) do
+		groupNames[index] = entry.name
+	end
+	context.text = params.text
+	context.label = params.label
+	context.members = members
+	context.hidden = hidden
+	context.groupNames = groupNames
+	context.codec = ns.BridgeCodec
+	context.now = time()
+	context.exporter = self.FullName(Secrets.Public((UnitName("player")))) or "Unknown"
+	context.addonVersion = C_AddOns.GetAddOnMetadata(ADDON_NAME, "Version") or "0.0.0"
+	return context
+end
+
 return Context

@@ -41,8 +41,8 @@ read_globals = {
 	"LibStub",
 }
 
--- Dev tools read the group themselves (dev only; the real snapshot goes through Bridge/Context)
-files["Dev/**/*.lua"] = {
+-- Group reads: Bridge/Context only (Core stays pure, the View reads through the Executor)
+files["Bridge/**/*.lua"] = {
 	read_globals = {
 		"GetNumGroupMembers",
 		"GetNumSubgroupMembers",

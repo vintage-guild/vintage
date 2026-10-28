@@ -22,7 +22,7 @@ shows, and what `libs/bridge-format` already fixed. Forever is the only target.
 | Import string from the coordinator | `modules/coordinator` `addon-import-get` and the officer-channel post after lock (J07) | ✅ roster and groups; `loot.mode` is `group` and `candidates` is empty until the loot module lands |
 | Addon scaffold (PR1) | `addon/Vintage` | ✅ Core, Bridge, View, lifecycle, settings, minimap button, Mechanic tests; 57 busted specs and the validator. Specs and lint ran locally only on stand-ins (Lua 5.4 under wasmoon, a luaparse lint); CI's Lua 5.1 run is the first real one |
 | Bridge format, Lua side (PR2) | `addon/Vintage/Core/BridgeFormat` | ✅ codec and schemas; 50 busted specs over the golden fixtures (both directions), the envelope limits, and every schema rule. Ran locally on the Lua 5.4 stand-in; CI's Lua 5.1 run is the check that `lua-made.json` is what 5.1 encodes |
-| Dev strings and the retail trial | `addon/Vintage/Dev/DevStrings.lua`, `Tools/retail_toc.py` | ✅ `/vintage dev export` encodes the group as a raid export to copy; `/vintage dev import` reads any pasted bridge string. A gitignored `Vintage_Mainline.toc` loads a source checkout on retail before Forever opens: loading, the window, saved data, and strings, not Forever's raid or loot data. Not yet opened in the game |
+| Import and export in the window | `Core/Actions/raid.lua`, `Core/Roster.lua`, `View/RaidWindow.lua` | ✅ The Roster tab's **Import** pastes the guild's string (`raid-import`, asks before replacing a raid) and lists the roster with each planned group and who is in your group (`raid-status`, refreshed on `GROUP_ROSTER_UPDATE`). The Export tab's **Take a snapshot** (`attendance-snapshot`, manual) and **Make export string** (`raid-export`, carrying the import's guild and raid) show the string ready to copy. The first slice of PR3 and PR5: no invites, groups, loot capture, or automatic snapshots yet. Can be tried on retail before Forever opens (`Tools/retail_toc.py`, a gitignored `Vintage_Mainline.toc`); not yet opened in the game |
 | CI addon lane | `.github/workflows/ci.yml` `addon` job, selected on `addon/**`, `libs/bridge-format/**`, and `libs/design-tokens/generated/lua/**` | 🚧 wired: installs Lua 5.1, busted, and luacheck, then runs `Tools/validate.py` (no longer skips). First CI run pending |
 | Release workflow | `release-addon.yml` | ❌ |
 | FenUI theme from the design tokens | `libs/design-tokens/generated/lua/VintageTokens.lua` | ✅ generated; `pnpm tokens:build` also writes the addon's `Theme/VintageTokens.lua`, which registers both themes with FenUI at login (and again before a window opens, since every embedded FenUI copy resets its tables when it loads) |
@@ -108,7 +108,7 @@ addon/Vintage/
 ├── Tests/                      # busted: Core specs, Bridge specs on a fake host, fixtures, jtbd scenarios
 ├── Tools/                      # validate.py, install_lua_tools.py, toolchain.json (from Weekly)
 ├── .luacheckrc  .pkgmeta  .stylua.toml  CHANGELOG.md  README.md  AGENTS.md
-└── Dev/                        # dev-only (excluded from the package): DevStrings (/vintage dev), fixture loader, fake-drop tool
+└── Dev/                        # dev-only (excluded from the package): fixture loader, fake-drop tool
 ```
 
 Load order in the TOC follows Weekly: libraries, locale, Core, Bridge, the addon entry, Config,
@@ -162,6 +162,7 @@ session = {
   loot = { { itemId = 16800, looter = "Doran", at = ..., count = 1, source = "Onyxia" }, ... },
   itemsSeen = { [16800] = true, ... },          -- exported from global.items
   lastEncounter = { id = 1084, name = "Onyxia", endedAt = ... },
+  lastExport = nil,                             -- the last export string, shown again until a new snapshot
   lastExportAt = nil,
 }
 ```

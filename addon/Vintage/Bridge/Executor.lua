@@ -49,6 +49,60 @@ local registry = {
 			return Result.success({ cleared = result.data.cleared }, result.reasoning)
 		end,
 	},
+
+	["raid-import"] = {
+		changes = true,
+		run = function(params)
+			local result = Actions.Raid.Import(Context:BuildRaidContext(params))
+			if not result.success then
+				return result
+			end
+			ns.db.char.session = result.data.session
+			return Result.success({ title = result.data.title, roster = result.data.roster }, result.reasoning)
+		end,
+	},
+
+	["raid-status"] = {
+		run = function()
+			return Actions.Raid.Status(Context:BuildRaidContext())
+		end,
+	},
+
+	["attendance-snapshot"] = {
+		changes = true,
+		run = function(params)
+			local context = Context:BuildRaidContext(params)
+			local result = Actions.Raid.Snapshot(context)
+			if not result.success then
+				return result
+			end
+			ns.db.char.session = result.data.session
+			local reasoning = result.reasoning
+			if context.hidden > 0 then
+				reasoning = string.format("%s (%d hidden by the game)", reasoning, context.hidden)
+			end
+			return Result.success(
+				{ snapshots = result.data.snapshots, members = result.data.members, hidden = context.hidden },
+				reasoning
+			)
+		end,
+	},
+
+	["raid-export"] = {
+		changes = true,
+		run = function(params)
+			local result = Actions.Raid.Export(Context:BuildRaidContext(params))
+			if not result.success then
+				return result
+			end
+			ns.db.char.session = result.data.session
+			return Result.success({
+				exportString = result.data.exportString,
+				snapshots = result.data.snapshots,
+				loot = result.data.loot,
+			}, result.reasoning)
+		end,
+	},
 }
 
 local function Notify(name, result)

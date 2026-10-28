@@ -98,7 +98,15 @@ describe("Bridge.Executor", function()
 
 	it("lists its actions in kebab-case", function()
 		local names = ns.Executor:List()
-		assert.are.same({ "client-info", "session-clear", "session-get" }, names)
+		assert.are.same({
+			"attendance-snapshot",
+			"client-info",
+			"raid-export",
+			"raid-import",
+			"raid-status",
+			"session-clear",
+			"session-get",
+		}, names)
 		for _, name in ipairs(names) do
 			assert.matches("^[a-z]+%-[a-z]+$", name)
 		end
@@ -163,7 +171,7 @@ describe("Bridge.Executor", function()
 		ns.Executor:Execute("session-clear", { confirm = true })
 		assert.are.equal(2, calls)
 		assert.are.equal(1, #host.errors)
-		assert.matches("listener after \"session%-clear\" failed", host.errors[1])
+		assert.matches('listener after "session%-clear" failed', host.errors[1])
 		host.uptime = host.uptime + 11
 		ns.Executor:Execute("session-clear", { confirm = true })
 		assert.are.equal(2, #host.errors)
@@ -200,7 +208,7 @@ describe("Bridge.Events", function()
 		host:Fire("LOOT_OPENED")
 		assert.are.equal(2, calls)
 		assert.are.equal(1, #host.errors)
-		assert.matches("LOOT_OPENED handler \"broken\" failed", host.errors[1])
+		assert.matches('LOOT_OPENED handler "broken" failed', host.errors[1])
 
 		host.uptime = host.uptime + 11
 		host:Fire("LOOT_OPENED")

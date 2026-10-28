@@ -61,13 +61,18 @@ in a worktree reaches the game only if the junction points at that worktree.
 game data): `python Tools/retail_toc.py` writes `Vintage_Mainline.toc`, a gitignored copy of the
 TOC with retail's interface numbers, which retail loads instead of `Vintage.toc`. Link the
 checkout into `_retail_/Interface/AddOns/Vintage` (`mklink /J`). Re-run the script after the TOC
-changes. Retail proves loading, the window, saved data, and bridge strings; raid, loot, and
-class data differ from Forever, and the addon says it isn't on Forever at login.
+changes. Retail proves loading, the window, saved data, and bridge strings (Roster → Import,
+Export → Take a snapshot, Make export string); raid, loot, and class data differ from Forever,
+and the addon says it isn't on Forever at login.
 
-**Dev tools** (`Dev/`, loaded from the TOC's `#@debug@` block, which the packager strips):
-`/vintage dev export` encodes the group as a raid export to copy into the website, and
-`/vintage dev import` reads any pasted bridge string. They stand in for the Import and Export
-tabs (PR3, PR5) until those land.
+## The window
+
+Everything a raid leader does is a button in the raid window, never only a slash command.
+Each button calls one Executor action and shows its result in the status line at the bottom
+(FenUI's panel subtitle overlaps the tab bar, so the window leaves it empty). Group reads
+(`Context:BuildGroupSnapshot`) go through `Secrets.Public`; a member the game hides is counted,
+not exported. The window's methods (`SubmitImport`, `TakeSnapshot`, `MakeExport`) are what the
+specs drive, since the fake client can't click.
 
 ## Don'ts
 

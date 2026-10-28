@@ -17,7 +17,9 @@ Locales\enUS.lua
 Core\init.lua
 Core\Session.lua
 Core\Migrations.lua
+Core\Roster.lua
 Core\Actions\session.lua
+Core\Actions\raid.lua
 Core\BridgeFormat\schema.lua
 Core\BridgeFormat\codec.lua
 
@@ -43,8 +45,3 @@ View\MinimapButton.lua
 
 # Mechanic integration (optional)
 Mechanic.lua
-
-# Dev: source checkouts only (the packager strips this block)
-#@debug@
-Dev\DevStrings.lua
-#@end-debug@

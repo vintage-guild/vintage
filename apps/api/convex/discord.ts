@@ -13,6 +13,7 @@ import { v } from 'convex/values';
 import { handleAgentInteraction } from '../src/discord-agent';
 import { handleApplicationInteraction } from '../src/discord-applications';
 import { handleCharacterAutocomplete, handleCharacterInteraction } from '../src/discord-characters';
+import { handleEventFormInteraction } from '../src/discord-event-form';
 import {
   FALLBACK_TIME_ZONE,
   handleEventAutocomplete,
@@ -95,14 +96,18 @@ export const interaction = internalMutation({
     });
     if (signup) return signup;
 
-    const event = await handleEventInteraction(incoming, {
+    const eventPorts = {
       discordGuildId,
       guildId: GUILD_ID,
       memberByDiscordId,
-      run: (caller, name, input) => runCommandAs(ctx, caller, name, input),
+      run: (caller: Caller, name: string, input: unknown) => runCommandAs(ctx, caller, name, input),
       afterChange: () => coordinatorScheduler(ctx).runTickNow(GUILD_ID),
       now: () => Date.now(),
-    });
+    };
+    // The New event form first: it takes a bare `/random event create` and its own clicks.
+    const form = await handleEventFormInteraction(incoming, eventPorts);
+    if (form) return form;
+    const event = await handleEventInteraction(incoming, eventPorts);
     if (event) return event;
 
     const poll = await handlePollInteraction(incoming, {

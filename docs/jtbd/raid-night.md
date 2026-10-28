@@ -226,6 +226,29 @@ command, **so I can** open signups without going to the site.
 - [ ] A stale `/random raid` (before the commands are re-registered) gets the private "can't do
   that yet" reply, not a timeout.
 
+### J45 · Make a dungeon from the Discord form, adjust the comp, and post it
+**When** a run comes together in chat, **I (raid leader) want** to fill in a form instead of
+remembering a slash command's options, **so I can** check the event before anyone sees it.
+- [ ] Rook runs `/random event create` with nothing typed. The **New event** form asks for Name
+  (its note says "Submit to set up the event."), Kind, Where, Date and time (naming the guild's
+  zone), and Length in hours (3 already filled in).
+- [ ] He picks Dungeon, Scarlet Monastery, `2026-10-28 7pm`, 2 hours. The private reply previews
+  it: the time as a Discord timestamp and "in N days", 5-player dungeon, "1 tank · 1 healer · 3
+  DPS (the usual comp)", 2 hours, with **Set up event**, **Edit details**, and **Cancel**.
+- [ ] **Set up event** opens **Dungeon details**: Size offers only 5, and Tanks 1, Healers 1,
+  DPS 3 are filled in ("Submit to preview, then Post event."). A raid offers 10/20/40, a
+  battleground 10/15/40 with no Tanks box, and an Event a size box where empty means open.
+- [ ] He sets Healers 2 and DPS 2. The preview shows "1 tank · 2 healers · 2 DPS" and **Post
+  event**, **Edit details**, **Edit size and comp**, and **Cancel**. Counts that add up to more
+  than the size, a past time, or an unreadable one show under "Fix before posting", and **Post
+  event** stays greyed out until they're fixed.
+- [ ] **Post event** turns the preview into "Made **Cathedral run** (Scarlet Monastery, 5-player
+  dungeon) …" with no buttons, and the card goes up with Healers 0/2. Pressing it again (or a
+  second click) makes no second dungeon.
+- [ ] **Cancel** on another draft says "Cancelled, nothing was made." A raider who runs the bare
+  command gets "needs the Raid Leader rank" and no form.
+- [ ] `/random event create` with a name and a start still makes the event at once (J28).
+
 ### J44 · Check the addon's export after the raid
 **When** a raid is over, **I (raid leader) want** to paste the Vintage addon's export string and
 see who was there and what dropped, matched to the raid's signups, **so I can** catch problems

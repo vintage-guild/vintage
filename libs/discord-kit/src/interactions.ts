@@ -99,8 +99,11 @@ export interface Interaction {
       component?: SubmittedField;
     }[];
   };
-  /** The message a component is attached to (Discord sends the whole message). */
-  message?: { id: string; content?: string };
+  /**
+   * The message a component is attached to (Discord sends the whole message), also on a modal
+   * submit when the modal was opened from one of its components.
+   */
+  message?: { id: string; content?: string; embeds?: Embed[] };
 }
 
 /** The user behind an interaction, whether it came from a guild or a DM. */

@@ -98,16 +98,15 @@ const POLL_GROUP = {
   ],
 };
 
-/** The option both event subcommands require; the start time(s) follow it. */
-const EVENT_BASICS = [
-  {
-    type: T.STRING,
-    name: 'name',
-    description: 'The event’s name, e.g. Onyxia run or Westfall levelling',
-    required: true,
-    max_length: 60,
-  },
-];
+const EVENT_NAME = {
+  type: T.STRING,
+  name: 'name',
+  description: 'The event’s name, e.g. Onyxia run or Westfall levelling',
+  max_length: 60,
+};
+
+/** The option pick-night requires; the start times follow it. create takes it optional. */
+const EVENT_BASICS = [{ ...EVENT_NAME, required: true }];
 
 /**
  * The optional options both event subcommands share. Instance and size are optional here only
@@ -173,14 +172,15 @@ const EVENT_GROUP = {
     {
       type: T.SUB_COMMAND,
       name: 'create',
-      description: 'Make a one-off event, open for signups',
+      // Every option is optional: without a name or a start the New event form opens
+      // (apps/api/src/discord-event-form.ts), prefilled with whatever was typed.
+      description: 'Make a one-off event, open for signups (leave out name or start for a form)',
       options: [
-        ...EVENT_BASICS,
+        EVENT_NAME,
         {
           type: T.STRING,
           name: 'start',
           description: 'When, in the guild’s clock: 2026-11-10 20:00 (or 8pm)',
-          required: true,
           max_length: 40,
         },
         ...EVENT_EXTRAS,

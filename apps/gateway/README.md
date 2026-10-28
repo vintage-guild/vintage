@@ -36,6 +36,12 @@ the character remove confirm (`char-rm:…`) are verified here, then forwarded t
 flow (`apps/api/src/discord-signups.ts`) and returns the response this endpoint sends back to
 Discord. Without the two variables, members get a private "not set up yet" reply.
 
+The New event form (`/random event create` with no name or start) works the same way: its modals
+and buttons all use `evform:…` custom ids (`evform:new`, `evform:kind:<kind>`, `evform:next`,
+`evform:edit`, `evform:edit-kind`, `evform:post`, `evform:cancel`) and are forwarded like any
+other click; Convex runs them in `apps/api/src/discord-event-form.ts`. Every `create` option is
+optional so the bare command is valid, which means re-registering the commands after it deploys.
+
 ## Build and deploy
 
 Vercel builds each TypeScript function file on its own, which can't resolve our workspace packages

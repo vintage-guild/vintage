@@ -167,6 +167,15 @@ recorded. The addon can't make an export in game yet (its Export tab is still to
 then, try it with a string from `libs/bridge-format/fixtures/lua-made.json`. Re-register the
 commands after deploying.
 
+`/random event create` with no name or no start opens the **New event** form instead
+(`apps/api/src/discord-event-form.ts`): name, kind, where, date and time, and length, then **Set
+up event** for a second form built for the kind (its sizes, and the tank, healer and DPS counts),
+then a private preview with **Post event**, which runs `raid-create` like the options do. No
+draft is stored: it rides in the preview's embed footer and is checked again on every click.
+Every `create` option is optional now, so **re-register the commands** after deploying (the test
+server first). Until then Discord still requires `name` and `start`, so the typed path works as
+before and the form just can't be opened. No new bot permissions.
+
 The group was `/random raid` until #151. After deploying Convex and the gateway, re-register the
 commands (`pnpm --filter @vintage/gateway register-commands`), the test server first
 (`DISCORD_DEV_GUILD_ID`). Until then a stale `/random raid` gets the private "can't do that yet".

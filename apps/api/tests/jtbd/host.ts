@@ -41,7 +41,12 @@ import {
   handleCharacterAutocomplete,
   handleCharacterInteraction,
 } from '../../src/discord-characters';
-import { handleEventAutocomplete, handleEventInteraction } from '../../src/discord-events';
+import { handleEventFormInteraction } from '../../src/discord-event-form';
+import {
+  type EventPorts,
+  handleEventAutocomplete,
+  handleEventInteraction,
+} from '../../src/discord-events';
 import { handleHelpInteraction } from '../../src/discord-help';
 import { handlePollInteraction } from '../../src/discord-polls';
 import { handleSignupInteraction } from '../../src/discord-signups';
@@ -493,6 +498,15 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     });
   }
 
+  const eventPorts: EventPorts = {
+    discordGuildId: DISCORD_GUILD,
+    guildId: GUILD,
+    memberByDiscordId,
+    run: (caller, name, input) => registry.execute({ name, input, caller }, deps),
+    afterChange: () => deps.scheduler.runTickNow(GUILD),
+    now: clock.now,
+  };
+
   /** `/random event create` and `/random event pick-night`, run through src/discord-events.ts. */
   const eventUi = {
     /** `/random event event:` suggestions while typing, as convex/discord.ts's autocomplete. */
@@ -570,15 +584,28 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
             ],
           },
         },
-        {
-          discordGuildId: DISCORD_GUILD,
-          guildId: GUILD,
-          memberByDiscordId,
-          run: (caller, name, input) => registry.execute({ name, input, caller }, deps),
-          afterChange: () => deps.scheduler.runTickNow(GUILD),
-          now: clock.now,
-        },
+        eventPorts,
       ),
+    /**
+     * A step of the New event form (a bare `/random event create`, a click, or a modal submit),
+     * routed as convex/discord.ts does: the form first, then the event flows.
+     */
+    form: async (discordId: string, interaction: Partial<Interaction>) => {
+      const full: Interaction = {
+        id: 'i',
+        application_id: 'app',
+        token: 'token',
+        type: InteractionType.MESSAGE_COMPONENT,
+        guild_id: DISCORD_GUILD,
+        channel_id: SIGNUP_CHANNEL,
+        member: { user: { id: discordId, username: discordId }, roles: [] },
+        ...interaction,
+      };
+      return (
+        (await handleEventFormInteraction(full, eventPorts)) ??
+        handleEventInteraction(full, eventPorts)
+      );
+    },
   };
 
   /** A `/random character …` interaction from a member, as convex/discord.ts builds it. */

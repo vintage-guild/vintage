@@ -94,10 +94,10 @@ export function parseLocalTime(text: string, timeZone: string): number | null {
 }
 
 /** "Tue, Nov 10 at 8:00 PM (in 2 weeks)" for every reader in their own zone. */
-const when = (ms: number) =>
+export const when = (ms: number) =>
   `${discordTimestamp(ms, TimestampStyle.LONG_DATE_TIME)} (${discordTimestamp(ms, TimestampStyle.RELATIVE)})`;
 
-const NEEDS_LEADER =
+export const NEEDS_LEADER =
   'Making events from Discord needs the Raid Leader rank or higher. Ask a raid leader or officer.';
 
 const unreadable = (text: string, zone: string) =>
@@ -110,7 +110,7 @@ const unreadable = (text: string, zone: string) =>
  * The guild's clock, chosen as the site's calendar does: the first active schedule's zone, else
  * the first schedule's (all paused), else the fallback.
  */
-async function guildTimeZone(ports: EventPorts, caller: Caller): Promise<string> {
+export async function guildTimeZone(ports: EventPorts, caller: Caller): Promise<string> {
   const result = await ports.run(caller, 'schedule-list', { includeInactive: true });
   const schedules = result.success ? ((result.data as Schedule[] | undefined) ?? []) : [];
   const schedule = schedules.find((s) => s.active) ?? schedules[0];
@@ -129,7 +129,7 @@ const kindFrom = (values: OptionValues): EventKind =>
  * the kind's default; dps left out fills the rest, so `healers: 3` on a 10-player battleground
  * means 0/3/7. Undefined when none was given, so the command keeps the kind's default.
  */
-function roleTargetsFrom(values: OptionValues, kind: EventKind): RoleTargets | undefined {
+export function roleTargetsFrom(values: OptionValues, kind: EventKind): RoleTargets | undefined {
   const given = (name: string) => (typeof values[name] === 'number' ? Number(values[name]) : null);
   const [tanks, healers, dps] = [given('tanks'), given('healers'), given('dps')];
   if (tanks === null && healers === null && dps === null) return undefined;
@@ -152,11 +152,11 @@ function kindInput(values: OptionValues) {
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /** "Westfall, open event" or "5-player dungeon": the instance (when given) and the size. */
-const whatText = (e: Pick<RaidEvent, 'instance' | 'kind' | 'size'>) =>
+export const whatText = (e: Pick<RaidEvent, 'instance' | 'kind' | 'size'>) =>
   [e.instance, sizeLabel(e.kind, e.size)].filter(Boolean).join(', ');
 
 /** "1 tank · 1 healer · 3 DPS", or a note that anyone fills any slot. */
-function rolesText(targets: RoleTargets): string {
+export function rolesText(targets: RoleTargets): string {
   if (targets.tank + targets.healer + targets.dps === 0) return 'any roles';
   return [
     plural(targets.tank, 'tank', 'tanks'),
@@ -184,13 +184,14 @@ async function create(ports: EventPorts, caller: Caller, values: OptionValues) {
     );
   }
   await ports.afterChange();
-  const raid = result.data as RaidEvent;
-  return ephemeral(
-    `Made **${raid.name}** (${whatText(raid)}) for ` +
-      `${when(raid.startsAt)}, looking for ${rolesText(targetsOf(raid))}. ` +
-      'Its signup card goes up in the signup channel in a moment.',
-  );
+  return ephemeral(madeText(result.data as RaidEvent));
 }
+
+/** What a raid leader sees once raid-create made the event, from the options or the form. */
+export const madeText = (raid: RaidEvent) =>
+  `Made **${raid.name}** (${whatText(raid)}) for ` +
+  `${when(raid.startsAt)}, looking for ${rolesText(targetsOf(raid))}. ` +
+  'Its signup card goes up in the signup channel in a moment.';
 
 /** "a; b | c" or one per line → the parts, trimmed. */
 const splitTimes = (text: string) =>

@@ -13,7 +13,7 @@
   "dependencies": {
     "@convex-dev/better-auth": "0.12.5",
     "@vintage/guild-kit": "workspace:*",
-    "better-auth": "1.6.33",
+    "better-auth": "1.7.7",
     "convex": "catalog:"
   },
   "devDependencies": {

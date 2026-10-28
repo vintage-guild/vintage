@@ -94,3 +94,4 @@ than no check.
 | 2026-10-27 | The addon targets WoW: Forever only (`## Interface: 16001`) and lives in `addon/Vintage`; `_dev_/Vintage` is a junction to it for Mechanic. |
 | 2026-10-27 | Addon libraries are committed as synced from `_dev_/Libs` and shipped as is (no `.pkgmeta` externals); `addon/Vintage/Tools/validate.py` pins their versions. |
 | 2026-10-27 | Addon actions are kebab-case and mirror the service commands (`session-get`, `raid-import`), not PLAN §3.6's dotted names. |
+| 2026-10-27 | The addon (`addon/Vintage`) is GPL-3.0, since it ships GPL-3.0 FenUI and FenCore; the rest of the repo stays PolyForm Noncommercial. |

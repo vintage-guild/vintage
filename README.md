@@ -67,7 +67,8 @@ Requires Node 24, pnpm 10, and `uv`. Details in [SETUP.md](SETUP.md).
 Code is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE.md): use, change, and
 share it for any noncommercial purpose, keeping the license and its `Required Notice` line (that's
 the attribution). Commercial use needs permission from the project's owner, Jason Falk
-([@Falkicon](https://github.com/Falkicon)). The guild's brand assets are separate and all
+([@Falkicon](https://github.com/Falkicon)). The exception is the WoW addon in `addon/Vintage`,
+which is [GPL-3.0](addon/Vintage/LICENSE) because it ships GPL-3.0 libraries (FenUI, FenCore). The guild's brand assets are separate and all
 rights reserved ([assets/brand/LICENSE.md](assets/brand/LICENSE.md)).
 
 The Vintage logos and brand artwork in [`assets/brand/`](assets/brand/) are **all rights reserved**

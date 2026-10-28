@@ -15,7 +15,9 @@ Signed-off-by: Your Name <you@example.com>
 By signing off a contribution, you:
 
 1. License it to everyone under the project's license, currently the
-   [PolyForm Noncommercial License 1.0.0](LICENSE.md).
+   [PolyForm Noncommercial License 1.0.0](LICENSE.md). A contribution to the WoW addon
+   (`addon/Vintage`) is licensed under the addon's license instead, the
+   [GNU General Public License, version 3](addon/Vintage/LICENSE).
 2. Also grant the project's owner, **Jason Falk** ([@Falkicon](https://github.com/Falkicon)),
    and Jason Falk's successors and assigns, a perpetual, worldwide, non-exclusive,
    royalty-free, irrevocable, **transferable, and sublicensable** license to use, copy,

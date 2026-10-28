@@ -5,7 +5,7 @@
 ## Version: 0.1.0
 ## IconTexture: Interface\Icons\INV_Misc_Head_Dragon_01
 ## X-Website: https://vintageguild.gg
-## X-License: PolyForm-Noncommercial-1.0.0
+## X-License: GPL-3.0
 ## SavedVariables: VintageDB
 ## OptionalDeps: !Mechanic, WTFix
 ## X-WTFix-Managed: 1

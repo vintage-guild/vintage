@@ -408,19 +408,6 @@ end
 local DROP_COLUMN = { icon = 4, item = 26, looter = 300 }
 local ITEM_WIDTH, LOOTER_WIDTH = 266, 150
 local UNKNOWN_ITEM_ICON = "Interface\\Icons\\INV_Misc_QuestionMark"
-local QUALITY_KEYS = { [0] = "poor", "common", "uncommon", "rare", "epic", "legendary" }
-
---- An item quality's color from the design tokens, as hex for a color escape.
----@param quality number|nil
----@return string|nil
-local function qualityHex(quality)
-	local tokens = ns.VintageTokens and ns.VintageTokens.wow and ns.VintageTokens.wow["vintage-dark"]
-	local rgba = tokens and tokens.quality[QUALITY_KEYS[quality]]
-	if not rgba then
-		return nil
-	end
-	return string.format("%02x%02x%02x", rgba[1] * 255 + 0.5, rgba[2] * 255 + 0.5, rgba[3] * 255 + 0.5)
-end
 
 ---@param drops table[] loot-list's drops, newest first
 ---@return table[] list items: a header, then one per drop
@@ -494,7 +481,7 @@ local function renderDrop(row, item)
 	row.icon:SetTexCoord(0, 1, 0, 1)
 	row.icon:SetTexture(item.icon or UNKNOWN_ITEM_ICON)
 	-- An item the client hasn't loaded yet has no quality: its "Item 123" stays muted.
-	local hex = qualityHex(item.quality)
+	local hex = ns.Theme:QualityHex(item.quality)
 	row.item:SetText(hex and string.format("|cff%s%s|r", hex, item.name) or item.name)
 	color(row.item, hex and "textDefault" or "textMuted")
 	row.looter:SetText(item.looter)
@@ -595,6 +582,10 @@ function RaidWindow:Create()
 	ns.Executor:Subscribe(function(name, result)
 		if name == "forming-done" then
 			self:SetMessage(result)
+		end
+		-- A new or cleared raid forgets a half-asked loot method change: its plan may differ.
+		if name == "raid-import" or name == "session-clear" then
+			self.confirmLootMode = false
 		end
 		if frame:IsShown() then
 			self:Refresh()
@@ -866,6 +857,16 @@ function RaidWindow:BuildLoot(F, page)
 	local captionRule = divider(plan)
 	captionRule:SetPoint("TOPLEFT", COLUMN.icon, -(ROW_HEIGHT - 2))
 	captionRule:SetPoint("TOPRIGHT", -GAP, -(ROW_HEIGHT - 2))
+	-- Sets the game's loot method as the plan says; on the caption's line, like a section action.
+	plan.modeButton = F:CreateButton(plan, {
+		text = L["Set loot method"],
+		width = WIDE_BUTTON_WIDTH,
+		height = ROW_HEIGHT - 4,
+		onClick = function()
+			self:SetLootMode()
+		end,
+	})
+	plan.modeButton:SetPoint("TOPRIGHT", -GAP, 0)
 	plan.lines = {}
 	for index = 1, 3 do
 		local name = label(plan, "fontSmall", "textMuted")
@@ -880,6 +881,21 @@ function RaidWindow:BuildLoot(F, page)
 	local list = F:CreateVirtualList(page, { itemHeight = ROW_HEIGHT, renderItem = renderDrop })
 	list:Hide()
 	page.list = list
+end
+
+--- Sets the game's loot method as the import says. The first press asks (the button turns into
+--- Confirm, in gold); the second sets it.
+---@return table ActionResult
+function RaidWindow:SetLootMode()
+	local result = ns.Executor:Execute("loot-mode-set", { confirm = self.confirmLootMode == true })
+	self.confirmLootMode = not result.success and result.error ~= nil and result.error.code == "CONFIRM_REQUIRED"
+	local button = self.pages and self.pages.loot.plan.modeButton
+	if button then
+		button:SetText(self.confirmLootMode and L["Confirm"] or L["Set loot method"])
+		button:SetVariant(self.confirmLootMode and "primary" or nil)
+	end
+	self:SetMessage(result)
+	return result
 end
 
 --- The loot plan (with an import) and the drops under it.
@@ -909,6 +925,8 @@ function RaidWindow:RefreshLootPlan(plan)
 		return
 	end
 	page.plan:SetShown(plan ~= nil)
+	page.plan.modeButton:SetText(self.confirmLootMode and L["Confirm"] or L["Set loot method"])
+	page.plan.modeButton:SetVariant(self.confirmLootMode and "primary" or nil)
 	self.lootPlan = nil
 	if not plan then
 		return
@@ -1029,11 +1047,7 @@ function RaidWindow:SetMessage(result)
 		self.messageIsError = false
 	else
 		local err = result.error or {}
-		local text = tostring(err.message or err.code)
-		if err.suggestion then
-			text = text .. ". " .. err.suggestion
-		end
-		self.message = text
+		self.message = ns.Theme.JoinMessage(err.message or err.code, err.suggestion)
 		self.messageIsError = true
 	end
 	self:RefreshHeader()
@@ -1130,6 +1144,8 @@ function RaidWindow:Hide()
 	if self.frame then
 		self.frame:Hide()
 	end
+	-- A half-asked loot method change doesn't survive closing the window.
+	self.confirmLootMode = false
 	ns.Events:Off("GROUP_ROSTER_UPDATE", "RaidWindow")
 end
 

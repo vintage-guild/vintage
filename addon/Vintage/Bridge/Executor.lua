@@ -251,6 +251,85 @@ local registry = {
 		end,
 	},
 
+	-- The open loot window's items the popup shows, each with the import's ranked candidates
+	-- matched to who may receive it from this corpse.
+	["loot-candidates"] = {
+		run = function()
+			local context = Context:BuildSessionContext()
+			local import = context.session and context.session.import
+			context.slots = ns.LootWindow:IsOpen() and Context:LootSlots() or {}
+			context.eligible = {}
+			for _, slot in ipairs(context.slots) do
+				context.eligible[slot.slot] = Context:MasterLootCandidates(slot.slot)
+			end
+			context.threshold = import and import.loot.threshold or ns.db.profile.lootPopupThreshold
+			context.realm = Context:PlayerRealm()
+			local result = Actions.Loot.Candidates(context)
+			if result.success then
+				result.data.masterLooter = Context:IsMasterLooter()
+			end
+			return result
+		end,
+	},
+
+	-- Gives a loot slot to a candidate, only with confirm = true (the popup asks first). Refuses
+	-- when the slot or the candidate changed since the popup showed them (plan D6).
+	-- { slot, candidateIndex, candidateName (as the game gave it), name, link, itemName, confirm }
+	["loot-give"] = {
+		changes = true,
+		run = function(params)
+			local slot, index = tonumber(params.slot), tonumber(params.candidateIndex)
+			if not (slot and index) then
+				return Result.error("INVALID_PARAMS", "loot-give needs a slot and a candidate")
+			end
+			local nameNow
+			for _, candidate in ipairs(Context:MasterLootCandidates(slot)) do
+				if candidate.index == index then
+					nameNow = candidate.name
+				end
+			end
+			local check = Actions.Loot.CheckGive({
+				isMasterLooter = Context:IsMasterLooter(),
+				link = Context:LootSlotLink(slot),
+				shownLink = params.link,
+				name = nameNow,
+				shownName = params.candidateName,
+				displayName = params.name,
+				itemName = params.itemName,
+				confirm = params.confirm == true,
+			})
+			if not check.success then
+				return check
+			end
+			local given = ns.Game.GiveMasterLoot(slot, index)
+			if not given.success then
+				return given
+			end
+			return check
+		end,
+	},
+
+	-- Sets the game's loot method and threshold as the import says, after a confirm.
+	["loot-mode-set"] = {
+		run = function(params)
+			local context = Context:BuildRaidContext(params)
+			context.method = Context:LootMethod()
+			context.threshold = Context:LootThreshold()
+			context.isMasterLooter = Context:IsMasterLooter()
+			context.isLeader = Context:IsLeader()
+			context.player = context.exporter
+			local plan = Actions.Loot.ModePlan(context)
+			if not plan.success then
+				return plan
+			end
+			local set = ns.Game.SetLootMethod(plan.data.method, plan.data.master, plan.data.threshold)
+			if not set.success then
+				return set
+			end
+			return plan
+		end,
+	},
+
 	["item-record"] = {
 		changes = true,
 		run = function(params)

@@ -34,6 +34,7 @@ Bridge\Game.lua
 Bridge\Forming.lua
 Bridge\Items.lua
 Bridge\Recorder.lua
+Bridge\LootWindow.lua
 Bridge\Executor.lua
 
 # Theme generated from libs/design-tokens (pnpm tokens:build)
@@ -47,6 +48,7 @@ Settings.lua
 # View: FenUI frames that reach Core only through the Executor
 View\Theme.lua
 View\RaidWindow.lua
+View\LootPopup.lua
 View\MinimapButton.lua
 
 # Mechanic integration (optional)

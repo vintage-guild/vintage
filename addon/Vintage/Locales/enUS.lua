@@ -38,6 +38,16 @@ L["Drops"] = true
 L["1 drop"] = true
 L["%d drops"] = true
 L["Item %d"] = true
+L["Loot priority"] = true
+L["Give"] = true
+L["Not here"] = true
+L["No priority list. Use the game's loot menu."] = true
+L["Set loot method"] = true
+L["Loot popup"] = true
+L["When you are the master looter, show who gets each item beside the loot window."] = true
+L["Loot popup quality"] = true
+L["Items without a priority list show from this quality, unless the import sets one."] = true
+L["Confirm"] = true
 L["FenUI did not load. Reinstall Vintage."] = true
 
 -- Import, from any tab

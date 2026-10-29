@@ -214,6 +214,97 @@ function Context:LootFormats()
 	return formats
 end
 
+--- The open loot window's items (coin and currency left out): slot, link, item id, name,
+--- quality, icon, and count.
+---@return table[]
+function Context:LootSlots()
+	local count, info, linkOf =
+		rawget(_G, "GetNumLootItems"), rawget(_G, "GetLootSlotInfo"), rawget(_G, "GetLootSlotLink")
+	local slots = {}
+	if not (count and info and linkOf) then
+		return slots
+	end
+	local total = Secrets.Public(count())
+	for slot = 1, type(total) == "number" and total or 0 do
+		local icon, name, quantity, currencyId, quality, _, _, _, _, isCoin = info(slot)
+		local link = Secrets.Public(linkOf(slot))
+		local itemId = type(link) == "string" and tonumber(link:match("item:(%d+)")) or nil
+		if itemId and not Secrets.Public(currencyId) and not Secrets.Public(isCoin) then
+			slots[#slots + 1] = {
+				slot = slot,
+				link = link,
+				itemId = itemId,
+				name = Secrets.Public(name),
+				quality = Secrets.Public(quality),
+				icon = Secrets.Public(icon),
+				quantity = Secrets.Public(quantity),
+			}
+		end
+	end
+	return slots
+end
+
+--- The link in a loot slot now, to check it still holds what the popup showed.
+---@param slot number
+---@return string|nil
+function Context:LootSlotLink(slot)
+	local linkOf = rawget(_G, "GetLootSlotLink")
+	local link = linkOf and Secrets.Public(linkOf(slot))
+	return type(link) == "string" and link or nil
+end
+
+-- A raid's most members, and so the game's master-loot candidate indexes.
+local MAX_CANDIDATES = 40
+
+--- Who may receive a slot's item from this corpse: the game's master-loot candidates.
+---@param slot number
+---@return table[] { index, name }
+function Context:MasterLootCandidates(slot)
+	local candidate = rawget(_G, "GetMasterLootCandidate")
+	local out = {}
+	if not candidate then
+		return out
+	end
+	for index = 1, MAX_CANDIDATES do
+		local name = Secrets.Public((candidate(slot, index)))
+		if type(name) == "string" and name ~= "" then
+			out[#out + 1] = { index = index, name = name }
+		end
+	end
+	return out
+end
+
+--- The player's realm as names carry it ("Area52"), for telling a namesake apart.
+---@return string|nil
+function Context:PlayerRealm()
+	local getRealm = rawget(_G, "GetNormalizedRealmName")
+	local realm = getRealm and Secrets.Public(getRealm())
+	return type(realm) == "string" and realm ~= "" and realm or nil
+end
+
+--- Whether the player is the master looter.
+---@return boolean
+function Context:IsMasterLooter()
+	local isMasterLooter = rawget(_G, "IsMasterLooter")
+	return isMasterLooter ~= nil and Secrets.Public(isMasterLooter()) == true
+end
+
+--- The group's loot method (an Enum.LootMethod value), when the game says.
+---@return number|nil
+function Context:LootMethod()
+	local party = rawget(_G, "C_PartyInfo")
+	-- Only C_PartyInfo's: the old global answers with method names, not Enum.LootMethod.
+	local getMethod = party and party.GetLootMethod
+	local method = getMethod and Secrets.Public((getMethod()))
+	return type(method) == "number" and method or nil
+end
+
+--- Whether the player leads the group (or is alone).
+---@return boolean
+function Context:IsLeader()
+	return not IsInGroup() or UnitIsGroupLeader("player") == true
+end
+
 --- The group's loot threshold (2 uncommon … 5 legendary), when the game says.
 ---@return number|nil
 function Context:LootThreshold()

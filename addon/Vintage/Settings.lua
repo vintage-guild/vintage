@@ -34,11 +34,42 @@ function Options:Build()
 							ns.MinimapButton:Refresh()
 						end,
 					},
+					lootPopup = {
+						type = "toggle",
+						name = L["Loot popup"],
+						desc = L["When you are the master looter, show who gets each item beside the loot window."],
+						order = 2,
+						width = "full",
+						get = function()
+							return ns.db.profile.lootPopup
+						end,
+						set = function(_, value)
+							ns.db.profile.lootPopup = value
+						end,
+					},
+					lootPopupThreshold = {
+						type = "select",
+						name = L["Loot popup quality"],
+						desc = L["Items without a priority list show from this quality, unless the import sets one."],
+						order = 3,
+						values = {
+							[2] = L["Uncommon"],
+							[3] = L["Rare"],
+							[4] = L["Epic"],
+							[5] = L["Legendary"],
+						},
+						get = function()
+							return ns.db.profile.lootPopupThreshold
+						end,
+						set = function(_, value)
+							ns.db.profile.lootPopupThreshold = value
+						end,
+					},
 					debug = {
 						type = "toggle",
 						name = L["Debug logging"],
 						desc = L["Send debug lines to Mechanic's console, when Mechanic is installed."],
-						order = 2,
+						order = 4,
 						width = "full",
 						get = function()
 							return ns.db.profile.debug

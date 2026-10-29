@@ -103,8 +103,11 @@ describe("Bridge.Executor", function()
 			"client-info",
 			"encounter-record",
 			"item-record",
+			"loot-candidates",
 			"loot-capture",
+			"loot-give",
 			"loot-list",
+			"loot-mode-set",
 			"member-whisper",
 			"raid-arrange",
 			"raid-export",
@@ -115,8 +118,9 @@ describe("Bridge.Executor", function()
 			"session-clear",
 			"session-get",
 		}, names)
+		-- <noun>-<verb>, where the noun may be two words (loot-mode-set, like guild-roles-set).
 		for _, name in ipairs(names) do
-			assert.matches("^[a-z]+%-[a-z]+$", name)
+			assert.is_truthy(name:match("^[a-z]+%-[a-z]+$") or name:match("^[a-z]+%-[a-z]+%-[a-z]+$"), name)
 		end
 	end)
 

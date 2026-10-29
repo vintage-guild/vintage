@@ -2,8 +2,9 @@
 -- Vintage Core actions: loot and item data
 -- loot-capture reads the game's "receives loot" messages into drops; loot-list
 -- joins them with the item data the client revealed, for the Loot tab; ItemEntry
--- shapes that data as the export carries it. Pure: the Bridge passes in the
--- message formats, the item's quality, and the clock.
+-- shapes that data as the export carries it. For the loot popup: loot-candidates
+-- ranks each open slot's item, CheckGive guards loot-give, and ModePlan is
+-- loot-mode-set. Pure: the Bridge passes in what the game shows and the clock.
 --------------------------------------------------------------------------------
 
 local _, ns = ...
@@ -182,6 +183,175 @@ function Loot.List(context)
 		}
 	end
 	return Result.success({ drops = drops }, Core.Plural(#drops, "drop", "drops"))
+end
+
+--------------------------------------------------------------------------------
+-- The loot popup: who gets each item, the checks before a hand-out, the loot method
+--------------------------------------------------------------------------------
+
+-- The game's loot methods (Enum.LootMethod).
+Loot.METHOD = { master = 2, group = 3 }
+-- The popup shows items from this quality without a priority list: epic, unless the import
+-- says otherwise (plan A6).
+Loot.POPUP_THRESHOLD = 4
+local QUALITY_NAMES = { [2] = "uncommon", [3] = "rare", [4] = "epic", [5] = "legendary" }
+
+--- The import's ranked list for an item, best first.
+local function rankedFor(import, itemId)
+	for _, entry in ipairs(import and import.candidates or {}) do
+		if entry.itemId == itemId then
+			return entry.ranked
+		end
+	end
+	return {}
+end
+
+--- "Doran" → "doran-stonemaul" on the player's realm; "Doran-Ashbringer" stays itself. A name
+--- without a realm is someone on the player's realm, never a namesake elsewhere.
+local function fullKey(name, realm)
+	local key = string.lower(name)
+	if realm and not key:find("-", 1, true) then
+		key = key .. "-" .. string.lower(realm)
+	end
+	return key
+end
+
+--- Who the guild's method ranks for an item, matched to the game's master-loot candidates for
+--- the slot (who may receive it from this corpse) by full name; someone not among them can't be
+--- given it.
+local function ranked(import, itemId, eligible, realm)
+	local nameOf = {}
+	for _, character in ipairs(import and import.roster or {}) do
+		nameOf[character.characterId] = character.name
+	end
+	local byName = {}
+	for _, candidate in ipairs(eligible or {}) do
+		byName[fullKey(candidate.name, realm)] = candidate
+	end
+	local out = {}
+	for rank, entry in ipairs(rankedFor(import, itemId)) do
+		local name = nameOf[entry.characterId]
+		if name then
+			local candidate = byName[fullKey(name, realm)]
+			out[#out + 1] = {
+				rank = rank,
+				characterId = entry.characterId,
+				name = name,
+				reason = entry.reason,
+				candidateIndex = candidate and candidate.index or nil,
+				-- The name exactly as the game gives it at that index: loot-give checks it again.
+				candidateName = candidate and candidate.name or nil,
+			}
+		end
+	end
+	return out
+end
+
+--- loot-candidates: the open loot window's items the popup shows (those with a priority list,
+--- and those at or above the threshold), each with its ranked candidates.
+---@param context table { session, slots = { slot, link, itemId, name, quality, icon, quantity }, eligible = { [slot] = { index, name } }, threshold, realm }
+---@return table ActionResult { slots = { slot, link, itemId, name, quality, icon, quantity, ranked } }
+function Loot.Candidates(context)
+	local session = context.session
+	if type(session) ~= "table" then
+		return Result.error("INVALID_CONTEXT", "Session context is missing")
+	end
+	local threshold = context.threshold or Loot.POPUP_THRESHOLD
+	local shown = {}
+	for _, slot in ipairs(context.slots or {}) do
+		local list =
+			ranked(session.import, slot.itemId, context.eligible and context.eligible[slot.slot], context.realm)
+		if #list > 0 or (type(slot.quality) == "number" and slot.quality >= threshold) then
+			shown[#shown + 1] = {
+				slot = slot.slot,
+				link = slot.link,
+				itemId = slot.itemId,
+				name = slot.name,
+				quality = slot.quality,
+				icon = slot.icon,
+				quantity = slot.quantity,
+				ranked = list,
+			}
+		end
+	end
+	return Result.success({ slots = shown }, Core.Plural(#shown, "item", "items"))
+end
+
+--- loot-give's checks before the game call: the player is the master looter, the slot still
+--- holds the item the popup showed, the candidate index still gives exactly the name the popup
+--- showed (ignoring case; never a same-named player from another realm), and the leader
+--- confirmed. Without confirm it answers with the question to ask.
+---@param context table { isMasterLooter, link, shownLink, name, shownName, displayName, itemName, confirm }
+---@return table ActionResult
+function Loot.CheckGive(context)
+	if not context.isMasterLooter then
+		return Result.error("NOT_MASTER_LOOTER", "Only the master looter can give loot")
+	end
+	if type(context.shownLink) ~= "string" or context.link ~= context.shownLink then
+		return Result.error("SLOT_CHANGED", "That loot slot holds something else now", "Pick the item again")
+	end
+	local shownName = context.shownName
+	local who = context.displayName or shownName
+	local same = type(shownName) == "string"
+		and type(context.name) == "string"
+		and string.lower(context.name) == string.lower(shownName)
+	if not same then
+		return Result.error(
+			"CANDIDATE_CHANGED",
+			string.format("%s can't receive it from this corpse", tostring(who)),
+			"They may have left the raid or be out of range"
+		)
+	end
+	if not context.confirm then
+		return Result.error(
+			"CONFIRM_REQUIRED",
+			string.format("Give %s to %s?", tostring(context.itemName or "this item"), who),
+			"Press Confirm to give it"
+		)
+	end
+	-- The game answers later (the slot empties, or an error for full bags): "Giving", not "Gave".
+	return Result.success({}, string.format("Giving %s to %s", tostring(context.itemName or "the item"), who))
+end
+
+--- loot-mode-set: the game's loot method and threshold, as the import sets them. The player
+--- becomes the master looter. Asks before changing anything.
+---@param context table { session, method, threshold, isMasterLooter, isLeader, inRaid, player, confirm }
+---@return table ActionResult { method?, master?, threshold? }
+function Loot.ModePlan(context)
+	local session = context.session
+	if type(session) ~= "table" then
+		return Result.error("INVALID_CONTEXT", "Session context is missing")
+	end
+	local import = session.import
+	if not import then
+		return Result.error("NO_IMPORT", "No raid imported", "Paste the guild's import string with Import")
+	end
+	if not context.inRaid then
+		return Result.error("NOT_IN_RAID", "Set the loot method once the raid has formed")
+	end
+	if not context.isLeader then
+		return Result.error("NOT_LEADER", "Only the raid leader can set the loot method")
+	end
+	local mode = import.loot.mode
+	local method = Loot.METHOD[mode]
+	local threshold = import.loot.threshold
+	local methodMatches = context.method == method and (mode ~= "master" or context.isMasterLooter == true)
+	local thresholdMatches = threshold == nil or context.threshold == threshold
+	if methodMatches and thresholdMatches then
+		return Result.error("NOTHING_TO_DO", "The loot method already matches the import")
+	end
+	local description = mode == "master" and "master loot (you)" or "group loot"
+	if QUALITY_NAMES[threshold] then
+		description = string.format("%s, %s and better", description, QUALITY_NAMES[threshold])
+	end
+	if not context.confirm then
+		return Result.error("CONFIRM_REQUIRED", "Set the loot to " .. description .. "?", "Press Confirm to set it")
+	end
+	return Result.success({
+		method = not methodMatches and method or nil,
+		master = not methodMatches and mode == "master" and context.player or nil,
+		threshold = not thresholdMatches and threshold or nil,
+	}, "Loot set to " .. description)
 end
 
 return Loot

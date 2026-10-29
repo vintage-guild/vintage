@@ -68,8 +68,13 @@ and the addon says it isn't on Forever at login.
 ## The window
 
 Everything a raid leader does is a button in the raid window, never only a slash command.
-Each button calls one Executor action and shows its result in the status line at the bottom
-(FenUI's panel subtitle overlaps the tab bar, so the window leaves it empty). Group reads
+Under the tabs, a bar every tab shares holds the raid's line (or the last button's result, in
+red on an error) and **Import**, which opens a paste area over any tab. Before a raid the bar
+is empty, since each tab's empty state says what to do. FenUI's panel subtitle overlaps the
+tab bar, so the window leaves it empty. Roster lists people by role and Groups by the
+import's planned group, each name in its class color and marked in your group or not; until
+loot capture lands, Loot shows the import's loot plan. Each button calls one Executor action.
+Group reads
 (`Context:BuildGroupSnapshot`) go through `Secrets.Public`; a member the game hides is counted,
 not exported. The window's methods (`SubmitImport`, `TakeSnapshot`, `MakeExport`) are what the
 specs drive, since the fake client can't click.

@@ -6,6 +6,20 @@ local fixtures = dofile("Tests/fixtures/bridge_fixtures.lua").fixtures
 
 local IMPORT = fixtures["raid-import.v1"].encoded
 
+--- List text without its inline color escapes.
+local function plain(text)
+	return (text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+end
+
+--- A list's items as plain text, headers marked with "#".
+local function lines(items)
+	local out = {}
+	for index, item in ipairs(items) do
+		out[index] = (item.isHeader and "# " or "") .. plain(item.text)
+	end
+	return out
+end
+
 local function start()
 	local host = Host.New()
 	_G.VintageDB = nil
@@ -138,7 +152,7 @@ describe("The raid actions through the executor", function()
 			{ name = host:Secret(), group = 1, class = "MAGE", online = true },
 		})
 		assert.are.equal(
-			"Snapshot 1: 1 people (1 hidden by the game)",
+			"Snapshot 1: 1 person (1 hidden by the game)",
 			ns.Executor:Execute("attendance-snapshot").reasoning
 		)
 	end)
@@ -155,30 +169,40 @@ describe("The Roster tab", function()
 	end)
 
 	it("imports a pasted string and lists who is in the group", function()
-		window.pages.roster.importButton.hooks.onClick()
-		assert.is_true(window.pages.roster.paste:IsShown())
+		window.importButton.hooks.onClick()
+		assert.is_true(window.paste:IsShown())
 		assert.is_false(window.pages.roster.list:IsShown())
 		-- Only the paste area's own Import shows, so a press can't clear the paste.
-		assert.is_false(window.pages.roster.importButton:IsShown())
+		assert.is_false(window.importButton:IsShown())
 
 		local result = window:SubmitImport(IMPORT)
 		assert.is_true(result.success)
-		assert.is_false(window.pages.roster.paste:IsShown())
-		assert.is_true(window.pages.roster.importButton:IsShown())
+		assert.is_false(window.paste:IsShown())
+		assert.is_true(window.importButton:IsShown())
 		assert.is_true(window.pages.roster.list:IsShown())
 		assert.is_false(window.pages.roster.empty:IsShown())
 		assert.are.equal("Imported Molten Core — week 1: 5 characters", window:GetStatusText())
-		assert.are.equal("Aeryn  ·  Warrior tank  ·  group 1  ·  in your group", window.rosterItems[1].text)
-		assert.are.equal("Brann  ·  Priest healer  ·  group 1  ·  not in your group", window.rosterItems[2].text)
-		assert.matches("Doran%-Stonemaul.*in your group$", window.rosterItems[4].text)
-		assert.are.equal("Import again", window.pages.roster.importButton:GetText())
+		-- By role, each with how many are in your group; names in class colors.
+		assert.are.same({
+			"# Tanks  ·  1 of 1 in your group",
+			"Aeryn  ·  Warrior tank  ·  group 1  ·  in your group",
+			"# Healers  ·  0 of 2 in your group",
+			"Brann  ·  Priest healer  ·  group 1  ·  not in your group",
+			"Élowen  ·  Druid healer  ·  group 2  ·  not in your group",
+			"# Melee  ·  1 of 1 in your group",
+			"Doran-Stonemaul  ·  Rogue melee  ·  group 1  ·  in your group",
+			"# Ranged  ·  0 of 1 in your group",
+			"Cyra  ·  Mage ranged  ·  group 2  ·  not in your group",
+		}, lines(window.rosterItems))
+		assert.matches("^|cffc69b6dAeryn|r", window.rosterItems[2].text)
+		assert.are.equal("Import again", window.importButton:GetText())
 		assert.are.same({}, host.errors)
 	end)
 
 	it("says why a pasted string was refused, and keeps the paste area open", function()
 		window:BeginImport()
 		window:SubmitImport("great raid everyone")
-		assert.is_true(window.pages.roster.paste:IsShown())
+		assert.is_true(window.paste:IsShown())
 		assert.matches("^The string does not start with !VIN:%. ", window:GetStatusText())
 	end)
 
@@ -187,16 +211,16 @@ describe("The Roster tab", function()
 		window:BeginImport()
 		local asked = window:SubmitImport(IMPORT)
 		assert.are.equal("CONFIRM_REQUIRED", asked.error.code)
-		assert.are.equal("Replace the raid", window.pages.roster.submitButton:GetText())
+		assert.are.equal("Replace the raid", window.submitButton:GetText())
 		assert.matches("^Importing replaces", window:GetStatusText())
 		assert.is_true(window:SubmitImport(IMPORT).success)
-		assert.are.equal("Import", window.pages.roster.submitButton:GetText())
+		assert.are.equal("Import", window.submitButton:GetText())
 	end)
 
 	it("cancels without importing", function()
 		window:BeginImport()
 		window:CancelImport()
-		assert.is_false(window.pages.roster.paste:IsShown())
+		assert.is_false(window.paste:IsShown())
 		assert.is_true(window.pages.roster.empty:IsShown())
 		assert.are.equal("idle", ns.db.char.session.state)
 	end)
@@ -205,7 +229,68 @@ describe("The Roster tab", function()
 		window:SubmitImport(IMPORT)
 		inParty({ { name = "Brann", class = "PRIEST", online = true } })
 		host:Fire("GROUP_ROSTER_UPDATE")
-		assert.are.equal("Brann  ·  Priest healer  ·  group 1  ·  in your group", window.rosterItems[2].text)
+		assert.are.equal("Brann  ·  Priest healer  ·  group 1  ·  in your group", plain(window.rosterItems[4].text))
+	end)
+
+	it("opens the paste area from any tab, says what to paste, and lands on the roster", function()
+		window.tabs:Select("loot")
+		window.importButton.hooks.onClick()
+		assert.is_true(window.paste:IsShown())
+		assert.is_false(window.pages.loot:IsShown())
+		assert.are.equal(
+			"Paste the guild's import string (it starts with !VIN:), then press Import.",
+			window:GetStatusText()
+		)
+		window:SubmitImport(IMPORT)
+		assert.are.equal("roster", window.selected)
+		assert.is_true(window.pages.roster:IsShown())
+	end)
+
+	it("puts the paste away when another tab is picked", function()
+		window:BeginImport()
+		window.tabs:Select("export")
+		assert.is_false(window.paste:IsShown())
+		assert.is_true(window.pages.export:IsShown())
+		assert.are.equal("", window:GetStatusText())
+	end)
+end)
+
+describe("The Groups and Loot tabs", function()
+	local ns, window
+
+	before_each(function()
+		_, ns = start()
+		inParty({ { name = "Doran", realm = "Stonemaul", class = "ROGUE", online = true } })
+		window = ns.RaidWindow
+		window:Show()
+	end)
+
+	it("say what an import would show before there is one", function()
+		assert.is_true(window.pages.groups.empty:IsShown())
+		assert.are.equal(
+			"Import the guild's string to see the groups it plans.",
+			window.pages.groups.empty.subtitleText:GetText()
+		)
+		assert.are.equal("Drops are recorded here during the raid.", window.pages.loot.empty.subtitleText:GetText())
+	end)
+
+	it("show the groups the import plans, and its loot plan", function()
+		window:SubmitImport(IMPORT)
+		assert.is_true(window.pages.groups.list:IsShown())
+		assert.are.same({
+			"# Group 1  ·  2 of 3 in your group",
+			"Aeryn  ·  Warrior tank  ·  in your group",
+			"Brann  ·  Priest healer  ·  not in your group",
+			"Doran-Stonemaul  ·  Rogue melee  ·  in your group",
+			"# Group 2  ·  0 of 2 in your group",
+			"Cyra  ·  Mage ranged  ·  not in your group",
+			"Élowen  ·  Druid healer  ·  not in your group",
+		}, lines(window.groupItems))
+		assert.are.equal("Master loot  ·  epic or better  ·  2 items with a priority list", window.lootPlanText)
+		assert.are.equal(
+			"Master loot  ·  epic or better  ·  2 items with a priority list\nDrops are recorded here during the raid.",
+			window.pages.loot.empty.subtitleText:GetText()
+		)
 	end)
 end)
 
@@ -230,8 +315,8 @@ describe("The Export tab", function()
 
 	it("takes a snapshot, then shows the export string ready to copy", function()
 		window:TakeSnapshot()
-		assert.are.equal("Snapshot 1: 1 people", window:GetStatusText())
-		assert.are.equal("1 snapshots, 0 drops recorded", window.pages.export.summary:GetText())
+		assert.are.equal("Snapshot 1: 1 person", window:GetStatusText())
+		assert.are.equal("Snapshots: 1  ·  Drops: 0", window.pages.export.summary:GetText())
 		assert.is_false(window.pages.export.empty:IsShown())
 
 		local result = window:MakeExport()
@@ -240,7 +325,7 @@ describe("The Export tab", function()
 		assert.is_true(box:IsShown())
 		assert.are.equal(result.data.exportString, box:GetText())
 		assert.matches("^!VIN:1!", box:GetText())
-		assert.matches("^Exported 1 snapshots and 0 drops", window:GetStatusText())
+		assert.matches("^Exported 1 snapshot and 0 drops", window:GetStatusText())
 		assert.are.same({}, host.errors)
 	end)
 
@@ -250,7 +335,7 @@ describe("The Export tab", function()
 		window:Hide()
 		window:Show()
 		assert.are.equal(made, window.pages.export.exportBox:GetText())
-		assert.are.equal("Raid without an import: exported, 1 snapshots", window:GetStatusText())
+		assert.are.equal("Raid without an import: exported, 1 snapshot", window:GetStatusText())
 	end)
 
 	it("hides an export once a later snapshot makes it out of date", function()
@@ -258,7 +343,7 @@ describe("The Export tab", function()
 		window:MakeExport()
 		window:TakeSnapshot()
 		assert.is_false(window.pages.export.exportBox:IsShown())
-		assert.are.equal("2 snapshots, 0 drops recorded", window.pages.export.summary:GetText())
+		assert.are.equal("Snapshots: 2  ·  Drops: 0", window.pages.export.summary:GetText())
 		assert.is_nil(ns.db.char.session.lastExport)
 	end)
 end)

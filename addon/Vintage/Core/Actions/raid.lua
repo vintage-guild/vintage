@@ -71,7 +71,7 @@ function RaidActions.Import(context)
 	fresh.importedAt = context.now
 	return Result.success(
 		{ session = fresh, title = import.raid.title, roster = #import.roster },
-		string.format("Imported %s: %d characters", import.raid.title, #import.roster)
+		string.format("Imported %s: %s", import.raid.title, Core.Plural(#import.roster, "character", "characters"))
 	)
 end
 
@@ -94,10 +94,15 @@ function RaidActions.Status(context)
 			present = present + 1
 		end
 	end
-	return Result.success(
-		{ title = import.raid.title, rows = rows, inGroup = present, total = #rows },
-		string.format("%s: %d of %d in the group", import.raid.title, present, #rows)
-	)
+	local loot = import.loot or {}
+	return Result.success({
+		title = import.raid.title,
+		rows = rows,
+		inGroup = present,
+		total = #rows,
+		-- The loot plan the import carries, for the Loot tab until drops are recorded.
+		loot = { mode = loot.mode, threshold = loot.threshold, prioritized = #(import.candidates or {}) },
+	}, string.format("%s: %d of %d in the group", import.raid.title, present, #rows))
 end
 
 --- attendance-snapshot: record who is in the group now.
@@ -134,7 +139,7 @@ function RaidActions.Snapshot(context)
 		session = updated,
 		snapshots = #attendance,
 		members = #members,
-	}, string.format("Snapshot %d: %d people", #attendance, #members))
+	}, string.format("Snapshot %d: %s", #attendance, Core.Plural(#members, "person", "people")))
 end
 
 --- raid-export: the night as a string for the website. Carries the import's guild and raid
@@ -176,9 +181,9 @@ function RaidActions.Export(context)
 			loot = #payload.loot,
 		},
 		string.format(
-			"Exported %d snapshots and %d drops. Copy the string into the website.",
-			#attendance,
-			#payload.loot
+			"Exported %s and %s. Copy the string into the website.",
+			Core.Plural(#attendance, "snapshot", "snapshots"),
+			Core.Plural(#payload.loot, "drop", "drops")
 		)
 	)
 end

@@ -28,27 +28,50 @@ L["Export"] = true
 L["No raid imported"] = true
 L["Import the guild's string to see the roster and who is in your group."] = true
 L["No groups planned"] = true
-L["Planned and current raid groups appear here after an import."] = true
+L["Import the guild's string to see the groups it plans."] = true
+L["This raid's import plans no groups."] = true
 L["No loot recorded"] = true
 L["Drops are recorded here during the raid."] = true
 L["Nothing to export"] = true
 L["Take a snapshot of the group, then make the string for the website."] = true
 L["FenUI did not load. Reinstall Vintage."] = true
 
--- Roster tab: import
+-- Import, from any tab
 L["Import"] = true
 L["Import again"] = true
 L["Cancel"] = true
 L["Replace the raid"] = true
-L["Paste the guild's import string (it starts with !VIN:)"] = true
+L["Paste the guild's import string (it starts with !VIN:), then press Import."] = true
+
+-- Roster and Groups lists
+L["Tanks"] = true
+L["Healers"] = true
+L["Melee"] = true
+L["Ranged"] = true
+L["Group %d"] = true
+L["Not in a group"] = true
+L["%s  ·  %d of %d in your group"] = true
 L["group %d"] = true
 L["in your group"] = true
 L["not in your group"] = true
 
+-- Loot plan
+L["Master loot"] = true
+L["Group loot"] = true
+L["%s or better"] = true
+L["1 item with a priority list"] = true
+L["%d items with a priority list"] = true
+L["poor"] = true
+L["common"] = true
+L["uncommon"] = true
+L["rare"] = true
+L["epic"] = true
+L["legendary"] = true
+
 -- Export tab
 L["Take a snapshot"] = true
 L["Make export string"] = true
-L["%d snapshots, %d drops recorded"] = true
+L["Snapshots: %d  ·  Drops: %d"] = true
 L["Copy this into the website's Check an export (Ctrl+C)"] = true
 
 -- Minimap button and compartment

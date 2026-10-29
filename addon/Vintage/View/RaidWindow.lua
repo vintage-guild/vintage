@@ -1,9 +1,10 @@
 --------------------------------------------------------------------------------
 -- Vintage View: the raid window (/vintage)
--- A FenUI panel with four tabs: Roster, Groups, Loot, Export. It renders what the
--- Executor returns and never computes. Roster imports the guild's string and lists
--- who is in the group; Export takes attendance snapshots and makes the string for
--- the website. Groups and Loot fill in with later PRs.
+-- A FenUI panel with four tabs: Roster, Groups, Loot, Export. Under the tabs, a
+-- bar that every tab shares: the raid (or the last action's result) and Import.
+-- It renders what the Executor returns and never computes. Roster lists who is in
+-- the group; Export takes attendance snapshots and makes the string for the
+-- website. Groups and Loot fill in with later PRs.
 --------------------------------------------------------------------------------
 
 local ADDON_NAME, ns = ...
@@ -16,9 +17,7 @@ ns.RaidWindow = RaidWindow
 local FRAME_NAME = "VintageRaidWindow"
 local WIDTH, HEIGHT = 640, 440
 local TAB_HEIGHT = 28
-local TOOLBAR_HEIGHT = 32
--- Two lines: an error and what to do about it.
-local STATUS_HEIGHT = 28
+local BAR_HEIGHT = 32
 -- FenUI draws an edit box's label above the box, outside it.
 local LABEL_HEIGHT = 14
 local GAP = 8
@@ -35,7 +34,7 @@ local TABS = {
 		key = "groups",
 		text = L["Groups"],
 		title = L["No groups planned"],
-		subtitle = L["Planned and current raid groups appear here after an import."],
+		subtitle = L["Import the guild's string to see the groups it plans."],
 	},
 	{
 		key = "loot",
@@ -56,26 +55,71 @@ local function capitalize(text)
 	return (tostring(text or ""):gsub("^%l", string.upper))
 end
 
----@param parent Frame
----@param below Frame|nil anchor the region's top under this frame; the parent's top otherwise
----@return Frame
-local function region(parent, below)
-	local frame = CreateFrame("Frame", nil, parent)
-	if below then
-		frame:SetPoint("TOPLEFT", below, "BOTTOMLEFT", 0, -GAP)
-		frame:SetPoint("TOPRIGHT", below, "BOTTOMRIGHT", 0, -GAP)
-	else
-		frame:SetPoint("TOPLEFT")
-		frame:SetPoint("TOPRIGHT")
+-- Class colors (the game's raid colors for Forever's classes), for names in lists.
+local CLASS_COLORS = {
+	warrior = "c69b6d",
+	paladin = "f48cba",
+	hunter = "aad372",
+	rogue = "fff468",
+	priest = "ffffff",
+	shaman = "0070dd",
+	mage = "3fc7eb",
+	warlock = "8788ee",
+	druid = "ff7c0a",
+}
+
+local ROLE_ORDER = { "tank", "healer", "melee", "ranged" }
+local ROLE_HEADERS = { tank = L["Tanks"], healer = L["Healers"], melee = L["Melee"], ranged = L["Ranged"] }
+
+-- Item quality names for the loot threshold (0 poor … 5 legendary).
+local QUALITY = {
+	[0] = L["poor"],
+	[1] = L["common"],
+	[2] = L["uncommon"],
+	[3] = L["rare"],
+	[4] = L["epic"],
+	[5] = L["legendary"],
+}
+
+--- A FenUI color token as an inline color escape: "|cffrrggbb".
+local function colorCode(token)
+	local FenUI = rawget(_G, "FenUI")
+	local r, g, b = 1, 1, 1
+	if FenUI and FenUI.GetColor then
+		r, g, b = FenUI:GetColor(token)
 	end
-	frame:SetPoint("BOTTOM", parent, "BOTTOM")
-	return frame
+	return string.format("|cff%02x%02x%02x", math.floor(r * 255), math.floor(g * 255), math.floor(b * 255))
+end
+
+--- One roster row as list text: the name in its class color, the class and role, where the
+--- import puts them, and whether they are in your group (green) or not (muted).
+local function rowText(row, withGroup)
+	local name = string.format("|cff%s%s|r", CLASS_COLORS[row.class] or "ffffff", row.name)
+	local parts = { name, capitalize(row.class) .. " " .. row.role }
+	if withGroup and row.group then
+		parts[#parts + 1] = string.format(L["group %d"], row.group)
+	end
+	local status = row.inGroup and (colorCode("feedbackSuccess") .. L["in your group"] .. "|r")
+		or (colorCode("textMuted") .. L["not in your group"] .. "|r")
+	parts[#parts + 1] = status
+	return table.concat(parts, "  ·  ")
+end
+
+--- "Tanks  1 of 2 in your group".
+local function headerText(label, rows)
+	local present = 0
+	for _, row in ipairs(rows) do
+		if row.inGroup then
+			present = present + 1
+		end
+	end
+	return string.format(L["%s  ·  %d of %d in your group"], label, present, #rows)
 end
 
 ---@param parent Frame
 ---@return Frame toolbar
 local function toolbar(FenUI, parent)
-	local bar = FenUI:CreateToolbar(parent, { height = TOOLBAR_HEIGHT })
+	local bar = FenUI:CreateToolbar(parent, { height = BAR_HEIGHT })
 	bar:SetPoint("TOPLEFT")
 	bar:SetPoint("TOPRIGHT")
 	return bar
@@ -118,22 +162,11 @@ function RaidWindow:Create()
 	tabBar:SetPoint("TOPRIGHT")
 	tabBar:SetHeight(TAB_HEIGHT)
 
-	-- The session and the last action, under the pages (FenUI's panel subtitle overlaps the
-	-- tab bar, so the window doesn't use it).
-	local status = safeZone:CreateFontString(nil, "OVERLAY")
-	status:SetFontObject(FenUI:GetFont("fontSmall"))
-	status:SetPoint("BOTTOMLEFT")
-	status:SetPoint("BOTTOMRIGHT")
-	status:SetHeight(STATUS_HEIGHT)
-	status:SetJustifyH("LEFT")
-	status:SetJustifyV("TOP")
-	status:SetWordWrap(true)
-	status:SetMaxLines(2)
-	self.status = status
+	self:BuildBar(FenUI, safeZone, tabBar)
 
 	local content = CreateFrame("Frame", nil, safeZone)
-	content:SetPoint("TOPLEFT", tabBar, "BOTTOMLEFT", 0, -GAP)
-	content:SetPoint("BOTTOMRIGHT", 0, STATUS_HEIGHT + GAP)
+	content:SetPoint("TOPLEFT", self.bar, "BOTTOMLEFT", 0, -GAP)
+	content:SetPoint("BOTTOMRIGHT")
 
 	self.pages = {}
 	local tabDefs = {}
@@ -146,11 +179,17 @@ function RaidWindow:Create()
 		tabDefs[#tabDefs + 1] = { key = tab.key, text = tab.text }
 	end
 	self:BuildRoster(FenUI, self.pages.roster)
+	self:BuildRoster(FenUI, self.pages.groups)
 	self:BuildExport(FenUI, self.pages.export)
+	self:BuildPaste(FenUI, content)
 
 	self.tabs = FenUI:CreateTabGroup(tabBar, {
 		tabs = tabDefs,
 		onChange = function(key)
+			-- Moving to another tab puts the paste away.
+			if self.importing then
+				self:CancelImport()
+			end
 			self:ShowPage(key)
 		end,
 	})
@@ -172,36 +211,55 @@ function RaidWindow:Create()
 end
 
 --------------------------------------------------------------------------------
--- Roster: import and who is in the group
+-- The bar every tab shares: the raid or the last result, and Import
 --------------------------------------------------------------------------------
 
-function RaidWindow:BuildRoster(FenUI, page)
-	page.toolbar = toolbar(FenUI, page)
-	page.importButton = page.toolbar:AddButton({
+function RaidWindow:BuildBar(FenUI, parent, tabBar)
+	local bar = CreateFrame("Frame", nil, parent)
+	bar:SetPoint("TOPLEFT", tabBar, "BOTTOMLEFT", 0, -GAP)
+	bar:SetPoint("TOPRIGHT", tabBar, "BOTTOMRIGHT", 0, -GAP)
+	bar:SetHeight(BAR_HEIGHT)
+
+	self.importButton = FenUI:CreateButton(bar, {
 		text = L["Import"],
 		width = BUTTON_WIDTH,
 		onClick = function()
 			self:BeginImport()
 		end,
 	})
+	self.importButton:SetPoint("RIGHT")
 
-	local list = FenUI:CreateVirtualList(page, {})
-	list:SetPoint("TOPLEFT", page.toolbar, "BOTTOMLEFT", 0, -GAP)
-	list:SetPoint("BOTTOMRIGHT")
-	list:Hide()
-	page.list = list
+	-- The panel's own subtitle overlaps FenUI's tab bar, so the raid's line lives here.
+	local status = bar:CreateFontString(nil, "OVERLAY")
+	status:SetFontObject(FenUI:GetFont("fontSmall"))
+	status:SetPoint("LEFT")
+	status:SetPoint("RIGHT", self.importButton, "LEFT", -GAP, 0)
+	status:SetHeight(BAR_HEIGHT)
+	status:SetJustifyH("LEFT")
+	status:SetJustifyV("MIDDLE")
+	status:SetWordWrap(true)
+	-- Two lines: an error and what to do about it.
+	status:SetMaxLines(2)
+	self.status = status
+	self.bar = bar
+end
 
-	-- The paste area replaces the list while importing.
-	local paste = region(page, page.toolbar)
+--------------------------------------------------------------------------------
+-- Import: a paste area over the tabs' content
+--------------------------------------------------------------------------------
+
+function RaidWindow:BuildPaste(FenUI, content)
+	local paste = CreateFrame("Frame", nil, content)
+	paste:SetAllPoints()
 	paste:Hide()
-	local actions = FenUI:CreateToolbar(paste, { height = TOOLBAR_HEIGHT })
+	local actions = FenUI:CreateToolbar(paste, { height = BAR_HEIGHT })
 	actions:SetPoint("BOTTOMLEFT")
 	actions:SetPoint("BOTTOMRIGHT")
-	page.submitButton = actions:AddButton({
+	self.submitButton = actions:AddButton({
 		text = L["Import"],
 		width = BUTTON_WIDTH,
 		onClick = function()
-			self:SubmitImport(page.pasteBox:GetText())
+			self:SubmitImport(self.pasteBox:GetText())
 		end,
 	})
 	actions:AddButton({
@@ -211,92 +269,202 @@ function RaidWindow:BuildRoster(FenUI, page)
 			self:CancelImport()
 		end,
 	})
-	page.pasteBox = FenUI:CreateMultiLineEditBox(paste, {
-		label = L["Paste the guild's import string (it starts with !VIN:)"],
-	})
-	page.pasteBox:SetPoint("TOPLEFT", 0, -LABEL_HEIGHT)
-	page.pasteBox:SetPoint("BOTTOMRIGHT", actions, "TOPRIGHT", 0, GAP)
-	page.paste = paste
+	-- What to paste is said in the bar above, so the box gets the whole area.
+	self.pasteBox = FenUI:CreateMultiLineEditBox(paste, {})
+	self.pasteBox:SetPoint("TOPLEFT")
+	self.pasteBox:SetPoint("BOTTOMRIGHT", actions, "TOPRIGHT", 0, GAP)
+	self.paste = paste
 end
 
---- Opens the paste area.
+--- Opens the paste area over whichever tab is showing.
 function RaidWindow:BeginImport()
 	if not self:Create() then
 		return
 	end
-	self:ShowPage("roster")
 	self.importing = true
 	self.confirmImport = false
-	local page = self.pages.roster
-	page.pasteBox:Clear()
-	page.submitButton:SetText(L["Import"])
-	self:RefreshRoster()
-	page.pasteBox:SelectAll()
+	self.message = L["Paste the guild's import string (it starts with !VIN:), then press Import."]
+	self.messageIsError = false
+	self.pasteBox:Clear()
+	self.submitButton:SetText(L["Import"])
+	self:RefreshImporting()
+	self:RefreshStatus()
+	self.pasteBox:SelectAll()
 end
 
 function RaidWindow:CancelImport()
 	self.importing = false
 	self.confirmImport = false
-	self:RefreshRoster()
+	self.message = nil
+	self:RefreshImporting()
+	self:RefreshStatus()
 end
 
 --- Imports a pasted string. A session that already holds a raid asks first: the button turns
---- into "Replace the raid", and the next press confirms.
+--- into "Replace the raid", and the next press confirms. A successful import shows the roster.
 ---@param text string
 ---@return table ActionResult
 function RaidWindow:SubmitImport(text)
 	local result = ns.Executor:Execute("raid-import", { text = text, confirm = self.confirmImport })
-	local page = self.pages and self.pages.roster
 	if not result.success and result.error and result.error.code == "CONFIRM_REQUIRED" then
 		self.confirmImport = true
-		if page then
-			page.submitButton:SetText(L["Replace the raid"])
+		if self.submitButton then
+			self.submitButton:SetText(L["Replace the raid"])
 		end
 		self:SetMessage(result)
 		return result
 	end
 	self.confirmImport = false
-	if page then
-		page.submitButton:SetText(L["Import"])
-	end
-	if result.success then
-		self.importing = false
+	if self.submitButton then
+		self.submitButton:SetText(L["Import"])
 	end
 	self:SetMessage(result)
+	if result.success then
+		self.importing = false
+		self:RefreshImporting()
+		if self.tabs then
+			self.tabs:Select("roster")
+		end
+	end
 	self:Refresh()
 	return result
 end
 
---- The roster from raid-status, or the empty state.
-function RaidWindow:RefreshRoster()
-	local page = self.pages and self.pages.roster
-	if not page then
+--- The paste area replaces the pages while importing, and its own Import replaces the bar's
+--- (a second press of the bar's would clear the paste).
+function RaidWindow:RefreshImporting()
+	if not self.paste then
 		return
 	end
-	page.paste:SetShown(self.importing == true)
-	-- The paste area has its own Import; a second one above it would clear the paste.
-	page.importButton:SetShown(not self.importing)
-	if self.importing then
-		page.list:Hide()
-		page.empty:Hide()
+	local importing = self.importing == true
+	self.paste:SetShown(importing)
+	self.importButton:SetShown(not importing)
+	for key, page in pairs(self.pages) do
+		page:SetShown(not importing and key == self.selected)
+	end
+end
+
+--------------------------------------------------------------------------------
+-- Roster (by role), Groups (as the import plans them), and the Loot plan
+--------------------------------------------------------------------------------
+
+function RaidWindow:BuildRoster(FenUI, page)
+	local list = FenUI:CreateVirtualList(page, {})
+	list:SetAllPoints()
+	list:Hide()
+	page.list = list
+end
+
+---@param rows table[] raid-status rows
+---@return table[] list items: a header per role, then its people
+local function byRole(rows)
+	local items = {}
+	for _, role in ipairs(ROLE_ORDER) do
+		local inRole = {}
+		for _, row in ipairs(rows) do
+			if row.role == role then
+				inRole[#inRole + 1] = row
+			end
+		end
+		if #inRole > 0 then
+			items[#items + 1] =
+				{ key = "role:" .. role, text = headerText(ROLE_HEADERS[role], inRole), isHeader = true }
+			for _, row in ipairs(inRole) do
+				items[#items + 1] = { key = row.characterId, text = rowText(row, true), indent = 1 }
+			end
+		end
+	end
+	return items
+end
+
+---@param rows table[] raid-status rows
+---@return table[] list items: a header per planned group, then its people; nil when none
+local function byGroup(rows)
+	local groups, unplaced = {}, {}
+	for _, row in ipairs(rows) do
+		if row.group then
+			groups[row.group] = groups[row.group] or {}
+			table.insert(groups[row.group], row)
+		else
+			unplaced[#unplaced + 1] = row
+		end
+	end
+	local items = {}
+	for group = 1, 8 do
+		local members = groups[group]
+		if members then
+			local label = string.format(L["Group %d"], group)
+			items[#items + 1] = { key = "group:" .. group, text = headerText(label, members), isHeader = true }
+			for _, row in ipairs(members) do
+				items[#items + 1] = { key = row.characterId, text = rowText(row, false), indent = 1 }
+			end
+		end
+	end
+	if #items == 0 then
+		return nil
+	end
+	if #unplaced > 0 then
+		items[#items + 1] = { key = "group:none", text = headerText(L["Not in a group"], unplaced), isHeader = true }
+		for _, row in ipairs(unplaced) do
+			items[#items + 1] = { key = row.characterId, text = rowText(row, false), indent = 1 }
+		end
+	end
+	return items
+end
+
+--- Roster, Groups, and the Loot plan from raid-status, or their empty states.
+function RaidWindow:RefreshRoster()
+	local roster = self.pages and self.pages.roster
+	if not roster then
 		return
 	end
 	local result = ns.Executor:Execute("raid-status")
 	local rows = result.success and result.data.rows or {}
-	local items = {}
-	for _, row in ipairs(rows) do
-		local parts = { capitalize(row.class) .. " " .. row.role }
-		if row.group then
-			parts[#parts + 1] = string.format(L["group %d"], row.group)
-		end
-		parts[#parts + 1] = row.inGroup and L["in your group"] or L["not in your group"]
-		items[#items + 1] = { key = row.characterId, text = row.name .. "  ·  " .. table.concat(parts, "  ·  ") }
-	end
-	page.list:SetItems(items)
-	page.list:SetShown(#items > 0)
-	page.empty:SetShown(#items == 0)
-	page.importButton:SetText(result.success and L["Import again"] or L["Import"])
+
+	local items = byRole(rows)
+	roster.list:SetItems(items)
+	roster.list:SetShown(#items > 0)
+	roster.empty:SetShown(#items == 0)
 	self.rosterItems = items
+
+	local groups = self.pages.groups
+	local groupItems = byGroup(rows) or {}
+	groups.list:SetItems(groupItems)
+	groups.list:SetShown(#groupItems > 0)
+	groups.empty:SetShown(#groupItems == 0)
+	groups.empty:SetSubtitle(
+		result.success and L["This raid's import plans no groups."]
+			or L["Import the guild's string to see the groups it plans."]
+	)
+	self.groupItems = groupItems
+
+	self:RefreshLootPlan(result.success and result.data.loot or nil)
+	self.importButton:SetText(result.success and L["Import again"] or L["Import"])
+end
+
+--- Until drops are recorded, the Loot tab says how the import plans to hand out loot.
+---@param plan table|nil raid-status's loot { mode, threshold, prioritized }
+function RaidWindow:RefreshLootPlan(plan)
+	local page = self.pages and self.pages.loot
+	if not page then
+		return
+	end
+	if not plan then
+		page.empty:SetSubtitle(L["Drops are recorded here during the raid."])
+		self.lootPlanText = nil
+		return
+	end
+	local method = plan.mode == "master" and L["Master loot"] or L["Group loot"]
+	local parts = { method }
+	if plan.threshold and QUALITY[plan.threshold] then
+		parts[#parts + 1] = string.format(L["%s or better"], QUALITY[plan.threshold])
+	end
+	if plan.prioritized > 0 then
+		parts[#parts + 1] = plan.prioritized == 1 and L["1 item with a priority list"]
+			or string.format(L["%d items with a priority list"], plan.prioritized)
+	end
+	self.lootPlanText = table.concat(parts, "  ·  ")
+	page.empty:SetSubtitle(self.lootPlanText .. "\n" .. L["Drops are recorded here during the raid."])
 end
 
 --------------------------------------------------------------------------------
@@ -363,7 +531,7 @@ function RaidWindow:RefreshExport(summary)
 	end
 	local snapshots = summary and summary.snapshots or 0
 	local lastExport = summary and summary.lastExport
-	page.summary:SetText(string.format(L["%d snapshots, %d drops recorded"], snapshots, summary and summary.loot or 0))
+	page.summary:SetText(string.format(L["Snapshots: %d  ·  Drops: %d"], snapshots, summary and summary.loot or 0))
 	page.summary:SetShown(snapshots > 0 or lastExport ~= nil)
 	page.exportBox:SetText(lastExport or "")
 	page.exportBox:SetShown(lastExport ~= nil)
@@ -379,14 +547,12 @@ function RaidWindow:ShowPage(key)
 	if not self.pages or not self.pages[key] then
 		return
 	end
-	for pageKey, page in pairs(self.pages) do
-		page:SetShown(pageKey == key)
-	end
 	self.selected = key
+	self:RefreshImporting()
 end
 
---- Shows an action's result in the status line until the next one: its reasoning, or its
---- error and what to do about it.
+--- Shows an action's result in the bar until the next one: its reasoning, or its error and
+--- what to do about it.
 ---@param result table ActionResult
 function RaidWindow:SetMessage(result)
 	if result.success then
@@ -404,14 +570,17 @@ function RaidWindow:SetMessage(result)
 	self:RefreshStatus()
 end
 
---- The status line: the last action's message, else the session's own line.
----@param reasoning string|nil session-get's reasoning, when it was just read
-function RaidWindow:RefreshStatus(reasoning)
+--- The bar's line: the last action's message, else the raid. Nothing before a raid: the tab's
+--- own empty state says what to do.
+---@param summary table|nil session-get's data, when it was just read
+---@param reasoning string|nil session-get's reasoning, with summary
+function RaidWindow:RefreshStatus(summary, reasoning)
 	if not self.status then
 		return
 	end
-	if reasoning then
-		self.sessionLine = reasoning
+	if summary then
+		local idle = summary.state == "idle" and (summary.snapshots or 0) == 0
+		self.sessionLine = not idle and reasoning or nil
 	end
 	local FenUI = rawget(_G, "FenUI")
 	local token = self.message and self.messageIsError and "feedbackError" or "textMuted"
@@ -431,16 +600,17 @@ function RaidWindow:Refresh()
 	end
 	local result = ns.Executor:Execute("session-get")
 	if result.success then
-		self:RefreshStatus(result.reasoning)
+		self:RefreshStatus(result.data, result.reasoning)
 		self:RefreshExport(result.data)
 	else
-		self:RefreshStatus(result.error and result.error.message or "")
+		self.sessionLine = result.error and result.error.message or nil
+		self:RefreshStatus()
 		self:RefreshExport(nil)
 	end
 	self:RefreshRoster()
 end
 
---- The text in the status line now.
+--- The text in the bar now.
 ---@return string
 function RaidWindow:GetStatusText()
 	return self.status and self.status:GetText() or ""

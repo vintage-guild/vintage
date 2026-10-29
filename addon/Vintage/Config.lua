@@ -14,6 +14,10 @@ ns.Config = Config
 Config.defaults = {
 	profile = {
 		debug = false,
+		-- The loot popup beside the loot window, for the master looter.
+		lootPopup = true,
+		-- Without the import's threshold, the popup shows items from this quality (4 epic).
+		lootPopupThreshold = 4,
 		minimap = { hide = false },
 		window = { point = "CENTER", relativePoint = "CENTER", x = 0, y = 0 },
 	},

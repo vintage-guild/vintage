@@ -11,8 +11,8 @@ Load the `vintage-addon` skill before changing anything here.
 | Folder | Holds | Rule |
 |---|---|---|
 | `Core/` | Session reducer, migrations, actions returning ActionResult; `BridgeFormat/`: the `!VIN:1!` codec and payload schemas, the Lua twin of `libs/bridge-format` | Pure Lua 5.1. No WoW API, no `LibStub`; runs in busted and Mechanic's sandbox |
-| `Bridge/` | `Secrets`, `BridgeStrings` (`ns.BridgeCodec` over the embedded LibSerialize and LibDeflate), `Context` (every game read), `Events`, `Executor` (the action registry), `Game` (every call that changes the group), `Forming` (the invite and arrange queue), `Recorder` (events into actions), `Items` (item data) | The only layer that calls WoW APIs. Every returned field passes `Secrets.Public` |
-| `View/` | FenUI raid window, theme registration, minimap button | Calls `ns.Executor:Execute(name, params)`; never Core or WoW game state directly |
+| `Bridge/` | `Secrets`, `BridgeStrings` (`ns.BridgeCodec` over the embedded LibSerialize and LibDeflate), `Context` (every game read), `Events`, `Executor` (the action registry), `Game` (every call that changes the group or the loot), `Forming` (the invite and arrange queue), `Recorder` (events into actions), `Items` (item data), `LootWindow` (whether a loot window is open) | The only layer that calls WoW APIs. Every returned field passes `Secrets.Public` |
+| `View/` | FenUI raid window, loot popup, theme registration, minimap button | Calls `ns.Executor:Execute(name, params)`; never Core or WoW game state directly |
 | `Theme/VintageTokens.lua` | FenUI theme generated from `libs/design-tokens` | Never edit; `pnpm tokens:build` writes it |
 | `Vintage.lua`, `Config.lua`, `Settings.lua` | AceAddon lifecycle and slash commands, AceDB (`VintageDB`), AceConfig | Slash commands are Executor actions plus a printed result |
 | `Mechanic.lua` | Optional MechanicLib registration: in-game tests, tools, debug log | A no-op without `!Mechanic` |
@@ -106,6 +106,15 @@ raid records "end" first. Nothing is recorded automatically outside a raid group
 the next day can't land in the imported raid's export.
 Item data goes to `VintageDB.global.items` through `Bridge/Items.lua`, which asks the client
 to load an unknown item once per session and records it on `ITEM_DATA_LOAD_RESULT`.
+
+The loot popup (`View/LootPopup.lua`) opens beside the game's loot window for the master
+looter: each item with an import priority list (or at the threshold) and its ranked
+candidates, matched to the game's master-loot candidates for that slot by full name (a name
+without a realm is the player's realm; never a namesake from another realm). Give never hands out
+on one press (plan D6): the first press runs `loot-give` without `confirm`, which checks the
+slot still holds the item and the candidate index still means that person, and the row turns
+into Confirm; only Confirm on the same row sends `confirm = true`. **Set loot method** on the
+Loot tab sets the import's method and threshold the same way (`loot-mode-set`, leader only).
 
 Layout rules (`View/RaidWindow.lua` constants): 16px margins and one left edge for tabs,
 header, and content; 8px between related things, 12px between bands; section captions in

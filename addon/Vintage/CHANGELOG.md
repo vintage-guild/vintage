@@ -23,6 +23,11 @@ All notable changes to the Vintage addon. The version is the `## Version` line i
 - Drops are recorded from loot messages: who got which item, from which boss, at or above the
   loot threshold. The Loot tab lists them in their quality color, and the export carries the
   drops with the items' names, quality, and item level.
+- A loot popup for the master looter, beside the loot window: who the guild's priority list
+  says gets each item and why, and **Give**, which always asks to confirm first. Items without
+  a list show from epic (or the import's threshold); both are in the settings.
+- **Set loot method** on the Loot tab sets master loot (you) and the import's threshold, after
+  a confirm.
 - `/vintage status`, `/vintage clear`, `/vintage settings`, `/vintage debug`, and `/vintage help`.
 - A minimap button, an addon compartment entry, and a settings page with profiles.
 - The raid session is saved per character and survives `/reload`.

@@ -1,8 +1,9 @@
 --------------------------------------------------------------------------------
 -- Vintage Bridge: the calls that change the game
--- Invites, raid conversion, raid group moves, and whispers. Each is guarded: the
--- API exists on this client, the player may do it (leader or assistant), and no
--- roster change is tried in combat. Each returns an ActionResult; nothing throws.
+-- Invites, raid conversion, raid group moves, whispers, the loot method, and master
+-- loot. Each is guarded: the API exists on this client, the player may do it (leader
+-- or assistant), and no roster change is tried in combat. Each returns an
+-- ActionResult; nothing throws.
 --------------------------------------------------------------------------------
 
 local _, ns = ...
@@ -117,6 +118,51 @@ function Game.SwapSubgroups(a, b)
 	return guarded("swap people between groups", true, function()
 		swap(a, b)
 	end)
+end
+
+--- Hands a master-loot slot to a candidate (by the game's candidate index). Only loot-give calls
+--- it, after the leader confirmed; the game itself refuses anyone but the master looter.
+---@param slot number
+---@param candidateIndex number
+function Game.GiveMasterLoot(slot, candidateIndex)
+	local give = api(rawget(_G, "GiveMasterLoot"))
+	if not give then
+		return missingApi("give loot")
+	end
+	local ok, err = pcall(give, slot, candidateIndex)
+	if not ok then
+		return Result.error("GAME_REFUSED", "The game refused to give loot: " .. tostring(err))
+	end
+	return Result.success(nil)
+end
+
+--- Sets the loot method (with the master looter's name for master loot) and the threshold.
+--- Either may be nil to leave it. Only the group's leader may.
+---@param method number|nil an Enum.LootMethod value
+---@param master string|nil
+---@param threshold number|nil
+function Game.SetLootMethod(method, master, threshold)
+	-- Only C_PartyInfo's: the old global takes method names, not Enum.LootMethod.
+	local setMethod = api(party().SetLootMethod)
+	local setThreshold = api(rawget(_G, "SetLootThreshold"))
+	if (method and not setMethod) or (threshold and not setThreshold) then
+		return missingApi("set the loot method")
+	end
+	if IsInGroup() and UnitIsGroupLeader("player") ~= true then
+		return Result.error("NOT_LEADER", "Only the raid leader can set the loot method")
+	end
+	local ok, err = pcall(function()
+		if method and setMethod(method, master) == false then
+			error("SetLootMethod returned false", 0)
+		end
+		if threshold then
+			setThreshold(threshold)
+		end
+	end)
+	if not ok then
+		return Result.error("GAME_REFUSED", "The game refused to set the loot method: " .. tostring(err))
+	end
+	return Result.success(nil)
 end
 
 --- Opens a whisper to a character in the chat box.

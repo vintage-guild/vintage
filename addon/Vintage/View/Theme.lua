@@ -48,6 +48,33 @@ function Theme:Ensure()
 	end
 end
 
+local QUALITY_KEYS = { [0] = "poor", "common", "uncommon", "rare", "epic", "legendary" }
+
+--- An item quality's color from the design tokens, as hex for a color escape ("a335ee").
+---@param quality number|nil
+---@return string|nil
+function Theme:QualityHex(quality)
+	local tokens = ns.VintageTokens and ns.VintageTokens.wow and ns.VintageTokens.wow["vintage-dark"]
+	local rgba = tokens and tokens.quality[QUALITY_KEYS[quality]]
+	if not rgba then
+		return nil
+	end
+	return string.format("%02x%02x%02x", rgba[1] * 255 + 0.5, rgba[2] * 255 + 0.5, rgba[3] * 255 + 0.5)
+end
+
+--- An error's message and what to do about it as one line: "Not now. Try later", or
+--- "Give it to Doran? Press Confirm" when the message already ends in punctuation.
+---@param message any
+---@param suggestion string|nil
+---@return string
+function Theme.JoinMessage(message, suggestion)
+	local text = tostring(message)
+	if not suggestion then
+		return text
+	end
+	return text .. (text:match("[%.%?!]$") and " " or ". ") .. suggestion
+end
+
 --- Whether a theme is registered with FenUI.
 ---@param name string
 ---@return boolean

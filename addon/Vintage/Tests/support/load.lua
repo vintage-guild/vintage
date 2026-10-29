@@ -48,6 +48,7 @@ Load.BRIDGE = {
 	"Bridge/Forming.lua",
 	"Bridge/Items.lua",
 	"Bridge/Recorder.lua",
+	"Bridge/LootWindow.lua",
 	"Bridge/Executor.lua",
 }
 

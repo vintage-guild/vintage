@@ -75,6 +75,9 @@ function Vintage:OnEnable()
 	-- Loot, boss kills, and item data, recorded as they happen.
 	ns.Items:Initialize()
 	ns.Recorder:Initialize()
+	-- The loot popup beside the game's loot window, for the master looter.
+	ns.LootWindow:Initialize()
+	ns.LootPopup:Initialize()
 	ns.Debug("Enabled")
 end
 

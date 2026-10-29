@@ -279,7 +279,14 @@ local registry = {
 			local context = Context:BuildRaidContext()
 			context.items = ns.db.global.items
 			context.realm = Context:PlayerRealm()
-			return Actions.Loot.Preview(context)
+			local result = Actions.Loot.Preview(context)
+			-- Ask the client for names it doesn't know yet; item-record refreshes the popup.
+			for _, slot in ipairs(result.success and result.data.slots or {}) do
+				if slot.itemId > 0 and not ns.db.global.items[slot.itemId] then
+					ns.Items:Record(slot.itemId)
+				end
+			end
+			return result
 		end,
 	},
 

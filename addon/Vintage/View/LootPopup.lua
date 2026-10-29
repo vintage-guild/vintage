@@ -153,7 +153,12 @@ function LootPopup:Create()
 		height = 200,
 		theme = ns.Theme.DEFAULT,
 		closable = true,
+		movable = true,
 		background = "surfacePanel",
+		-- Dragged somewhere: it opens there from now on, not beside the loot window.
+		onMoved = function()
+			self:SavePosition()
+		end,
 	})
 	frame:SetFrameStrata("HIGH")
 	frame:Hide()
@@ -179,14 +184,31 @@ function LootPopup:Create()
 	return frame
 end
 
---- Beside the game's loot window when it is there, else in the middle of the screen.
+--- Where the leader dragged it; else beside the game's loot window when it is there, else in the
+--- middle of the screen.
 function LootPopup:Place()
 	local lootFrame = rawget(_G, "LootFrame")
+	local saved = ns.db.profile.lootPopupPosition
 	self.frame:ClearAllPoints()
-	if lootFrame and lootFrame.IsShown and lootFrame:IsShown() then
+	if saved then
+		self.frame:SetPoint(saved.point, UIParent, saved.relativePoint, saved.x, saved.y)
+	elseif lootFrame and lootFrame.IsShown and lootFrame:IsShown() then
 		self.frame:SetPoint("TOPLEFT", lootFrame, "TOPRIGHT", GAP, 0)
 	else
 		self.frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+	end
+end
+
+function LootPopup:SavePosition()
+	local point, _, relativePoint, x, y = self.frame:GetPoint(1)
+	ns.db.profile.lootPopupPosition = { point = point, relativePoint = relativePoint, x = x, y = y }
+end
+
+--- Forgets a dragged position: the popup opens beside the loot window again.
+function LootPopup:ResetPosition()
+	ns.db.profile.lootPopupPosition = nil
+	if self:IsShown() then
+		self:Place()
 	end
 end
 
@@ -218,7 +240,6 @@ function LootPopup:Refresh()
 	end
 	self.frame:SetTitle(self.preview and L["Loot priority (preview)"] or L["Loot priority"])
 	self.items = rows(data.slots)
-	self.list:SetItems(self.items)
 	self.frame:SetHeight(TITLE_HEIGHT + math.min(#self.items, MAX_ROWS) * ROW_HEIGHT + MESSAGE_HEIGHT + MARGIN)
 	if not self.frame:IsShown() then
 		self.armed = nil
@@ -227,6 +248,14 @@ function LootPopup:Refresh()
 		self:Place()
 		self.frame:Show()
 	end
+	-- After Show: FenUI's list sizes its rows from its own width, which is 0 while the popup is
+	-- hidden. Once more next frame, when the new height has laid out.
+	self.list:SetItems(self.items)
+	C_Timer.After(0, function()
+		if self:IsShown() then
+			self.list:Refresh()
+		end
+	end)
 end
 
 --- Shows the popup with sample rows, for trying it without a master-loot corpse (Mechanic's
@@ -315,7 +344,7 @@ end
 --- indexes move when someone leaves). Called once at login.
 function LootPopup:Initialize()
 	ns.Executor:Subscribe(function(name)
-		if name == "loot-window" or name == "loot-give" then
+		if name == "loot-window" or name == "loot-give" or (name == "item-record" and self:IsShown()) then
 			self:Refresh()
 		end
 	end)

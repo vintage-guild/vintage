@@ -116,9 +116,12 @@ slot still holds the item and the candidate index still means that person, and t
 into Confirm; only Confirm on the same row sends `confirm = true`. **Set loot method** on the
 Loot tab sets the import's method and threshold the same way (`loot-mode-set`, leader only).
 Without a master-loot corpse (retail has master loot turned off), Mechanic's **Preview loot
-popup** tool shows it with `loot-preview`'s sample rows: the import's ranked items with your
-group as the candidates. Give and Confirm behave as usual, but a preview never calls
-`loot-give`, and a real loot window ends the preview.
+popup** tool shows it with `loot-preview`'s sample rows: the import's items with everyone on
+its roster as candidates (your group first), so Give shows even alone. Give and Confirm behave
+as usual, but a preview never calls `loot-give`, and a real loot window ends the preview. The
+popup can be dragged; it opens where it was left (Settings → Reset loot popup position).
+FenUI's list sizes rows from its own width, which is 0 while hidden: fill a list after its
+frame shows.
 
 Layout rules (`View/RaidWindow.lua` constants): 16px margins and one left edge for tabs,
 header, and content; 8px between related things, 12px between bands; section captions in

@@ -95,6 +95,19 @@ describe("loot-candidates", function()
 	end)
 end)
 
+describe("loot-preview", function()
+	it("offers everyone ranked, alone too, so Give shows; the group comes first", function()
+		local slots =
+			Loot.Preview({ session = session, members = { { name = "Aeryn" } }, realm = "Stonemaul" }).data.slots
+		local ranked = slots[1].ranked
+		assert.are.same({ "Doran-Stonemaul", "Aeryn" }, { ranked[1].name, ranked[2].name })
+		assert.is_number(ranked[1].candidateIndex)
+		assert.are.equal(1, ranked[2].candidateIndex)
+		-- The import's other item lists nobody.
+		assert.are.same({}, slots[2].ranked)
+	end)
+end)
+
 describe("loot-give's checks", function()
 	local function check(changes)
 		local context = {

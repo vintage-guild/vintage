@@ -277,6 +277,69 @@ function Loot.Candidates(context)
 	return Result.success({ slots = shown }, Core.Plural(#shown, "item", "items"))
 end
 
+-- The preview shows at most this many of the import's ranked items.
+local PREVIEW_ITEMS = 3
+
+--- loot-preview: sample popup rows for trying the popup without a master-loot corpse: the
+--- import's items (ranked or not), with everyone on its roster standing in for the game's
+--- candidates (the group first), so Give shows even alone; without an import, one sample item
+--- ranked by the group. It is
+--- never a real loot window, and the popup gives nothing in preview.
+---@param context table { session, members = { name }, items, realm }
+---@return table ActionResult { slots, preview = true }
+function Loot.Preview(context)
+	local session = context.session
+	if type(session) ~= "table" then
+		return Result.error("INVALID_CONTEXT", "Session context is missing")
+	end
+	local import = session.import
+	local members = context.members or {}
+	-- A mockup: the group, then the rest of the roster, all as if the game offered them.
+	local eligible, inGroup = {}, {}
+	for index, member in ipairs(members) do
+		eligible[index] = { index = index, name = member.name }
+		inGroup[fullKey(member.name, context.realm)] = true
+	end
+	for _, character in ipairs(import and import.roster or {}) do
+		if not inGroup[fullKey(character.name, context.realm)] then
+			eligible[#eligible + 1] = { index = #eligible + 1, name = character.name }
+		end
+	end
+	local items = type(context.items) == "table" and context.items or {}
+	local slots = {}
+	-- Every kind of row: ranked items, and an item the import lists with nobody ranked.
+	for _, entry in ipairs(import and import.candidates or {}) do
+		if #slots < PREVIEW_ITEMS then
+			local info = Loot.ItemEntry(entry.itemId, items[entry.itemId])
+			slots[#slots + 1] = {
+				slot = #slots + 1,
+				link = "preview:" .. entry.itemId,
+				itemId = entry.itemId,
+				name = info and info.name or string.format("Item %d", entry.itemId),
+				quality = info and info.quality or 4,
+				icon = info and info.icon or nil,
+				ranked = ranked(import, entry.itemId, eligible, context.realm),
+			}
+		end
+	end
+	if #slots == 0 then
+		local list = {}
+		for index = 1, math.min(#members, 5) do
+			local name = members[index].name
+			list[index] = {
+				rank = index,
+				characterId = "preview:" .. index,
+				name = name,
+				reason = "Sample reason",
+				candidateIndex = index,
+				candidateName = name,
+			}
+		end
+		slots[1] = { slot = 1, link = "preview:0", itemId = 0, name = "Sample item", quality = 4, ranked = list }
+	end
+	return Result.success({ slots = slots, preview = true }, "Preview: nothing is given")
+end
+
 --- loot-give's checks before the game call: the player is the master looter, the slot still
 --- holds the item the popup showed, the candidate index still gives exactly the name the popup
 --- showed (ignoring case; never a same-named player from another realm), and the leader

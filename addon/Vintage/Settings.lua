@@ -65,6 +65,15 @@ function Options:Build()
 							ns.db.profile.lootPopupThreshold = value
 						end,
 					},
+					lootPopupPosition = {
+						type = "execute",
+						name = L["Reset loot popup position"],
+						desc = L["Open the loot popup beside the loot window again, after dragging it."],
+						order = 3.5,
+						func = function()
+							ns.LootPopup:ResetPosition()
+						end,
+					},
 					debug = {
 						type = "toggle",
 						name = L["Debug logging"],

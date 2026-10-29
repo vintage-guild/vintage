@@ -14,6 +14,7 @@ Load.CORE = {
 	"Core/Forming.lua",
 	"Core/Actions/session.lua",
 	"Core/Actions/raid.lua",
+	"Core/Actions/loot.lua",
 	"Core/BridgeFormat/schema.lua",
 	"Core/BridgeFormat/codec.lua",
 }
@@ -45,6 +46,8 @@ Load.BRIDGE = {
 	"Bridge/Events.lua",
 	"Bridge/Game.lua",
 	"Bridge/Forming.lua",
+	"Bridge/Items.lua",
+	"Bridge/Recorder.lua",
 	"Bridge/Executor.lua",
 }
 

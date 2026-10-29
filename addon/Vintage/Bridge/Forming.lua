@@ -80,17 +80,6 @@ function Invites:Clear()
 	self.entries = {}
 end
 
---- A pattern for one of the game's "%s ..." messages, capturing the name.
-local function namePattern(format)
-	if type(format) ~= "string" then
-		return nil
-	end
-	-- Escape the pattern characters, then turn the "%s" into a capture.
-	local escaped = format:gsub("([%^%$%(%)%.%[%]%*%+%-%?])", "%%%1")
-	local pattern = escaped:gsub("%%s", "(.+)")
-	return "^" .. pattern .. "$"
-end
-
 --- Reads an invite answer from a system message.
 ---@param message string
 ---@return string|nil name, string|nil state
@@ -105,7 +94,7 @@ function Invites:Read(message)
 		-- "No player named '%s' is currently playing."
 		ERR_BAD_PLAYER_NAME_S = "offline",
 	}) do
-		local pattern = namePattern(rawget(_G, global))
+		local pattern = Core.FormatPattern(rawget(_G, global))
 		local name = pattern and message:match(pattern)
 		if name then
 			return name, state
@@ -136,6 +125,10 @@ function Runner:Cancel()
 end
 
 local function finish(result)
+	-- Which run ended, for listeners (a finished Arrange takes the raid's start snapshot).
+	if result.success and type(result.data) == "table" then
+		result.data.kind = running and running.kind or nil
+	end
 	running = nil
 	ns.Events:Off("GROUP_ROSTER_UPDATE", "Forming")
 	ns.Executor:Notify("forming-done", result)

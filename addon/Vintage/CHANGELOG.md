@@ -17,6 +17,12 @@ All notable changes to the Vintage addon. The version is the `## Version` line i
   and offers **Invite** and **Whisper** on hover.
 - **Take a snapshot** and **Make export string** on the Export tab: record who is in the group
   and copy the string into the website's Check an export.
+- The night records itself in a raid: a snapshot at the first pull (or when Arrange groups
+  finishes), one at each boss kill (named after the boss), and one at the end when you make the
+  export string.
+- Drops are recorded from loot messages: who got which item, from which boss, at or above the
+  loot threshold. The Loot tab lists them in their quality color, and the export carries the
+  drops with the items' names, quality, and item level.
 - `/vintage status`, `/vintage clear`, `/vintage settings`, `/vintage debug`, and `/vintage help`.
 - A minimap button, an addon compartment entry, and a settings page with profiles.
 - The raid session is saved per character and survives `/reload`.

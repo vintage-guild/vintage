@@ -201,9 +201,17 @@ describe("The raid window", function()
 			return execute(self, name, params)
 		end
 		ns.RaidWindow:Show()
-		assert.are.same({ "session-get", "raid-status" }, executed)
+		assert.are.same({ "session-get", "raid-status", "loot-list" }, executed)
 		ns.Executor:Execute("session-clear", { confirm = true })
-		assert.are.same({ "session-get", "raid-status", "session-clear", "session-get", "raid-status" }, executed)
+		assert.are.same({
+			"session-get",
+			"raid-status",
+			"loot-list",
+			"session-clear",
+			"session-get",
+			"raid-status",
+			"loot-list",
+		}, executed)
 	end)
 
 	it("registers its themes again when a FenUI copy that loaded later wiped them", function()

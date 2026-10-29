@@ -45,6 +45,7 @@ read_globals = {
 -- Group reads: Bridge/Context only (Core stays pure, the View reads through the Executor)
 files["Bridge/**/*.lua"] = {
 	read_globals = {
+		"date",
 		"GetNumGroupMembers",
 		"GetNumSubgroupMembers",
 		"GetRaidRosterInfo",

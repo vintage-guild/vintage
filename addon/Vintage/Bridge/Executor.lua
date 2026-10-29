@@ -12,6 +12,7 @@ local Core = ns.Core
 local Result = Core.Result
 local Actions = Core.Actions
 local Context = ns.Context
+local Secrets = ns.Secrets
 
 local Executor = {}
 ns.Executor = Executor
@@ -177,6 +178,7 @@ local registry = {
 		changes = true,
 		run = function(params)
 			local context = Context:BuildRaidContext(params)
+			context.automatic = params.automatic == true
 			local result = Actions.Raid.Snapshot(context)
 			if not result.success then
 				return result
@@ -193,6 +195,69 @@ local registry = {
 		end,
 	},
 
+	-- A boss attempt ended (ENCOUNTER_END): remembered as the source of the next drops; a kill
+	-- in a raid takes a snapshot labelled with the boss.
+	["encounter-record"] = {
+		changes = true,
+		run = function(params)
+			local context = Context:BuildRaidContext()
+			context.encounter = { id = params.id, name = params.name, killed = params.killed == true }
+			local result = Actions.Raid.Encounter(context)
+			if not result.success then
+				return result
+			end
+			ns.db.char.session = result.data.session
+			return Result.success(
+				{ snapshot = result.data.snapshot, snapshots = result.data.snapshots },
+				result.reasoning
+			)
+		end,
+	},
+
+	-- A loot message (CHAT_MSG_LOOT): recorded when someone in the raid receives an item at or
+	-- above the import's loot threshold (or the game's), then its item data is recorded too.
+	["loot-capture"] = {
+		changes = true,
+		run = function(params)
+			local context = Context:BuildRaidContext()
+			local drop = Actions.Loot.Read(Secrets.Public(params.message), Context:LootFormats(), context.exporter)
+			if not drop then
+				return Result.error("NOT_A_DROP", "Not a loot message")
+			end
+			local import = context.session and context.session.import
+			context.drop = drop
+			context.quality = Context:ItemQuality(drop.itemId)
+			context.threshold = import and import.loot and import.loot.threshold or Context:LootThreshold()
+			local result = Actions.Loot.Capture(context)
+			if not result.success then
+				return result
+			end
+			ns.db.char.session = result.data.session
+			ns.Items:Record(drop.itemId)
+			return Result.success({ drop = result.data.drop }, result.reasoning)
+		end,
+	},
+
+	["loot-list"] = {
+		run = function()
+			local context = Context:BuildSessionContext()
+			context.items = ns.db.global.items
+			local result = Actions.Loot.List(context)
+			-- The time of day each drop arrived, as the Loot tab shows it.
+			for _, drop in ipairs(result.success and result.data.drops or {}) do
+				drop.time = date("%H:%M", drop.at)
+			end
+			return result
+		end,
+	},
+
+	["item-record"] = {
+		changes = true,
+		run = function(params)
+			return ns.Items:Record(params.itemId)
+		end,
+	},
+
 	["raid-export"] = {
 		changes = true,
 		run = function(params)
@@ -205,6 +270,7 @@ local registry = {
 				exportString = result.data.exportString,
 				snapshots = result.data.snapshots,
 				loot = result.data.loot,
+				items = result.data.items,
 			}, result.reasoning)
 		end,
 	},

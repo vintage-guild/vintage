@@ -199,6 +199,8 @@ describe("Inviting the roster", function()
 		ns.Executor:Execute("raid-import", { text = bigImport(ns, 25) })
 		ns.Executor:Execute("raid-invite")
 		host:RunTimers()
+		-- Inviting doesn't say the raid has formed: no start snapshot yet.
+		assert.are.same({}, ns.db.char.session.attendance)
 		-- Shuffle: the game put people in join order; scramble groups 1 and 2 further.
 		g.members[2].group, g.members[7].group = 2, 1
 
@@ -211,6 +213,20 @@ describe("Inviting the roster", function()
 			assert.are.equal(planned[m.index], m.group, m.name)
 		end
 		assert.are.equal("NOTHING_TO_DO", ns.Executor:Execute("raid-arrange").error.code)
+		-- A finished Arrange takes the raid's start snapshot, of everyone now in it.
+		local attendance = ns.db.char.session.attendance
+		assert.are.same({ "start", 25 }, { attendance[1].label, #attendance[1].members })
+		assert.are.equal(1, #attendance)
+	end)
+
+	it("lets a row's single invite leave the start snapshot alone", function()
+		local host, ns = start()
+		ns.Executor:Execute("raid-import", { text = bigImport(ns, 5) })
+		ns.Executor:Execute("raid-invite", { name = "RaiderB" })
+		host:RunTimers()
+		ns.Executor:Execute("raid-invite", { name = "RaiderC" })
+		host:RunTimers()
+		assert.are.same({}, ns.db.char.session.attendance)
 	end)
 
 	it("marks a decline, doesn't invite them again, and shows it on their row", function()

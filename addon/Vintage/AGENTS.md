@@ -11,7 +11,7 @@ Load the `vintage-addon` skill before changing anything here.
 | Folder | Holds | Rule |
 |---|---|---|
 | `Core/` | Session reducer, migrations, actions returning ActionResult; `BridgeFormat/`: the `!VIN:1!` codec and payload schemas, the Lua twin of `libs/bridge-format` | Pure Lua 5.1. No WoW API, no `LibStub`; runs in busted and Mechanic's sandbox |
-| `Bridge/` | `Secrets`, `BridgeStrings` (`ns.BridgeCodec` over the embedded LibSerialize and LibDeflate), `Context` (every game read), `Events`, `Executor` (the action registry) | The only layer that calls WoW APIs. Every returned field passes `Secrets.Public` |
+| `Bridge/` | `Secrets`, `BridgeStrings` (`ns.BridgeCodec` over the embedded LibSerialize and LibDeflate), `Context` (every game read), `Events`, `Executor` (the action registry), `Game` (every call that changes the group), `Forming` (the invite and arrange queue), `Recorder` (events into actions), `Items` (item data) | The only layer that calls WoW APIs. Every returned field passes `Secrets.Public` |
 | `View/` | FenUI raid window, theme registration, minimap button | Calls `ns.Executor:Execute(name, params)`; never Core or WoW game state directly |
 | `Theme/VintageTokens.lua` | FenUI theme generated from `libs/design-tokens` | Never edit; `pnpm tokens:build` writes it |
 | `Vintage.lua`, `Config.lua`, `Settings.lua` | AceAddon lifecycle and slash commands, AceDB (`VintageDB`), AceConfig | Slash commands are Executor actions plus a printed result |
@@ -74,8 +74,8 @@ button's result, in red on an error), and **Import**, which opens a paste area o
 Before a raid the header is empty, since each tab's empty state says what to do. FenUI's panel
 subtitle overlaps the tab bar, so the window leaves it empty. Roster lists people by role and
 Groups by the import's planned group, in columns (class icon, name in class color, class,
-group or role, and a check for who is in your group); until loot capture lands, Loot shows the
-import's loot plan. Each button calls one Executor action. Rows show Invite and Whisper on
+group or role, and a check for who is in your group); Loot shows the import's loot plan and
+the drops recorded so far. Each button calls one Executor action. Rows show Invite and Whisper on
 hover. Invites and group moves run as a queue (`Bridge/Forming.lua`): one game call, then wait
 (0.3 s between invites; a move waits for `GROUP_ROSTER_UPDATE` or 2 s; a full party waits up to
 10 s or until an invite answer), read the group again, and ask `Core.Forming` for the next step.
@@ -83,6 +83,16 @@ A generation counter cancels a run on stop or a new import, and a move the game 
 step, unchanged group) ends the run with `NO_PROGRESS`. Invite answers come from
 `CHAT_MSG_SYSTEM`; an unanswered invite counts as not sent after 90 s. Every call that changes
 the group goes through `Bridge/Game.lua`, which checks the API, leadership, and combat.
+
+The night records itself (`Bridge/Recorder.lua` turns events into actions): `CHAT_MSG_LOOT`
+becomes `loot-capture` (in a raid group, at or above the import's loot threshold, else the game's;
+the last kill within 5 minutes is the drop's `source`), `ENCOUNTER_END` becomes
+`encounter-record` (a kill takes a snapshot labelled with the boss), and the first pull
+(`ENCOUNTER_START`) or a finished Arrange takes the one "start" snapshot. `raid-export` in a
+raid records "end" first. Nothing is recorded automatically outside a raid group, so a party
+the next day can't land in the imported raid's export.
+Item data goes to `VintageDB.global.items` through `Bridge/Items.lua`, which asks the client
+to load an unknown item once per session and records it on `ITEM_DATA_LOAD_RESULT`.
 
 Layout rules (`View/RaidWindow.lua` constants): 16px margins and one left edge for tabs,
 header, and content; 8px between related things, 12px between bands; section captions in

@@ -33,7 +33,11 @@ L["This raid's import plans no groups."] = true
 L["No loot recorded"] = true
 L["Drops are recorded here during the raid."] = true
 L["Nothing to export"] = true
-L["Take a snapshot of the group, then make the string for the website."] = true
+L["Each boss kill takes a snapshot, and so does making the string."] = true
+L["Drops"] = true
+L["1 drop"] = true
+L["%d drops"] = true
+L["Item %d"] = true
 L["FenUI did not load. Reinstall Vintage."] = true
 
 -- Import, from any tab

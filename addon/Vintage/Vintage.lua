@@ -72,6 +72,9 @@ function Vintage:OnEnable()
 	ns.MinimapButton:Initialize()
 	-- Invite answers (declined, in another group) arrive as system messages.
 	ns.Forming:Initialize()
+	-- Loot, boss kills, and item data, recorded as they happen.
+	ns.Items:Initialize()
+	ns.Recorder:Initialize()
 	ns.Debug("Enabled")
 end
 

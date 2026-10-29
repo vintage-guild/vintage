@@ -51,4 +51,56 @@ function Core.Plural(count, one, many)
 	return string.format("%d %s", count, count == 1 and one or many)
 end
 
+--- A copy of a list.
+---@param list table|nil
+---@return table
+function Core.CopyList(list)
+	local out = {}
+	for index, value in ipairs(list or {}) do
+		out[index] = value
+	end
+	return out
+end
+
+--- A shallow copy of a table with changes applied, so a failed action changes nothing.
+---@param record table
+---@param changes table
+---@return table
+function Core.With(record, changes)
+	local out = {}
+	for k, v in pairs(record) do
+		out[k] = v
+	end
+	for k, v in pairs(changes) do
+		out[k] = v
+	end
+	return out
+end
+
+--- Text cut to at most `max` bytes without splitting a UTF-8 character (the export's limits).
+---@param text string
+---@param max number
+---@return string
+function Core.Truncate(text, max)
+	if #text <= max then
+		return text
+	end
+	-- Drop a trailing lead byte and its continuation bytes: the character may be cut short.
+	return (text:sub(1, max):gsub("[\192-\255][\128-\191]*$", ""))
+end
+
+--- A Lua pattern for one of the game's message formats ("%s receives loot: %s."): each "%s"
+--- captures text and each "%d" a number.
+---@param format any
+---@return string|nil
+function Core.FormatPattern(format)
+	if type(format) ~= "string" or format == "" then
+		return nil
+	end
+	-- Escape the pattern characters, then turn the placeholders into captures.
+	local pattern = format:gsub("([%^%$%(%)%.%[%]%*%+%-%?])", "%%%1")
+	pattern = pattern:gsub("%%s", "(.+)"):gsub("%%d", "(%%d+)")
+	return "^" .. pattern .. "$"
+end
+
 return Core

@@ -3,7 +3,7 @@
 -- A FenUI panel with four tabs: Roster, Groups, Loot, Export. Under the tabs, a
 -- header every tab shares: the raid's name, a line about it (or the last result),
 -- and Import. Roster lists people by role and Groups by planned group, in columns;
--- Loot shows the import's loot plan; Export takes snapshots and makes the string
+-- Loot shows the import's loot plan and the drops; Export takes snapshots and makes the string
 -- for the website. It renders what the Executor returns and never computes.
 --
 -- Layout: 16px margins all round, one left edge for tabs, header, and content;
@@ -65,7 +65,7 @@ local TABS = {
 		key = "export",
 		text = L["Export"],
 		title = L["Nothing to export"],
-		subtitle = L["Take a snapshot of the group, then make the string for the website."],
+		subtitle = L["Each boss kill takes a snapshot, and so does making the string."],
 	},
 }
 
@@ -314,11 +314,45 @@ local function buildActions(row)
 	row:HookScript("OnLeave", leave)
 end
 
+--- A section header's parts: the caption (the row's own text), a tally, and a hairline.
+local function buildHeader(row)
+	row.tally = label(row, "fontCaption", "textMuted")
+	row.tally:SetPoint("RIGHT", -GAP, 0)
+	row.tally:SetJustifyH("RIGHT")
+	row.rule = divider(row)
+	row.rule:SetPoint("BOTTOMLEFT", COLUMN.icon, 2)
+	row.rule:SetPoint("BOTTOMRIGHT", -GAP, 2)
+end
+
+--- Shows or hides a row's header parts; a header row reads, it doesn't hover or click.
+local function renderHeader(row, item)
+	local isHeader = item.isHeader == true
+	row.text:SetShown(isHeader)
+	row.tally:SetShown(isHeader)
+	row.rule:SetShown(isHeader)
+	if not isHeader then
+		row.hover:Show()
+		row:Enable()
+		return false
+	end
+	row.text:SetFontObject(FenUI():GetFont("fontCaption"))
+	row.text:SetText(string.upper(item.title))
+	row.text:ClearAllPoints()
+	row.text:SetPoint("BOTTOMLEFT", COLUMN.icon, 6)
+	color(row.text, "textHeading")
+	row.tally:ClearAllPoints()
+	row.tally:SetPoint("BOTTOMRIGHT", -GAP, 6)
+	row.tally:SetText(item.tally)
+	row.hover:Hide()
+	row:Disable()
+	return true
+end
+
 --- Draws one list row. Rows are pooled, so every part is set or hidden each time.
 local function renderRow(row, item)
-	local F = FenUI()
 	if not row.vintage then
 		buildActions(row)
+		buildHeader(row)
 		row.vintage = true
 		row.icon = row:CreateTexture(nil, "ARTWORK")
 		row.icon:SetSize(ICON_SIZE, ICON_SIZE)
@@ -338,42 +372,20 @@ local function renderRow(row, item)
 		row.statusIcon = row:CreateTexture(nil, "ARTWORK")
 		row.statusIcon:SetSize(14, 14)
 		row.statusIcon:SetPoint("RIGHT", row.status, "LEFT", -4, 0)
-		row.tally = label(row, "fontCaption", "textMuted")
-		row.tally:SetPoint("RIGHT", -GAP, 0)
-		row.tally:SetJustifyH("RIGHT")
-		row.rule = divider(row)
-		row.rule:SetPoint("BOTTOMLEFT", COLUMN.icon, 2)
-		row.rule:SetPoint("BOTTOMRIGHT", -GAP, 2)
 	end
 	-- Lists here are for reading: no selection mark.
 	row.bg:Hide()
 	row.accent:Hide()
 
 	local isHeader = item.isHeader == true
-	row.text:SetShown(isHeader)
-	row.tally:SetShown(isHeader)
-	row.rule:SetShown(isHeader)
 	for _, part in ipairs({ row.icon, row.name, row.classLabel, row.detail, row.status, row.statusIcon }) do
 		part:SetShown(not isHeader)
 	end
 	row.actions:Hide()
-
-	if isHeader then
-		row.text:SetFontObject(F:GetFont("fontCaption"))
-		row.text:SetText(string.upper(item.title))
-		row.text:ClearAllPoints()
-		row.text:SetPoint("BOTTOMLEFT", COLUMN.icon, 6)
-		color(row.text, "textHeading")
-		row.tally:ClearAllPoints()
-		row.tally:SetPoint("BOTTOMRIGHT", -GAP, 6)
-		row.tally:SetText(item.tally)
-		row.hover:Hide()
-		row:Disable()
+	if renderHeader(row, item) then
 		return
 	end
 
-	row.hover:Show()
-	row:Enable()
 	local coords = CLASS_ICON_COORDS[item.class]
 	row.icon:SetTexture(coords and CLASS_ICONS or nil)
 	if coords then
@@ -390,6 +402,103 @@ local function renderRow(row, item)
 	if row:IsMouseOver() then
 		showActions(row, true)
 	end
+end
+
+-- Drop columns: the item's icon, the item in its quality color, who got it, then where and when.
+local DROP_COLUMN = { icon = 4, item = 26, looter = 300 }
+local ITEM_WIDTH, LOOTER_WIDTH = 266, 150
+local UNKNOWN_ITEM_ICON = "Interface\\Icons\\INV_Misc_QuestionMark"
+local QUALITY_KEYS = { [0] = "poor", "common", "uncommon", "rare", "epic", "legendary" }
+
+--- An item quality's color from the design tokens, as hex for a color escape.
+---@param quality number|nil
+---@return string|nil
+local function qualityHex(quality)
+	local tokens = ns.VintageTokens and ns.VintageTokens.wow and ns.VintageTokens.wow["vintage-dark"]
+	local rgba = tokens and tokens.quality[QUALITY_KEYS[quality]]
+	if not rgba then
+		return nil
+	end
+	return string.format("%02x%02x%02x", rgba[1] * 255 + 0.5, rgba[2] * 255 + 0.5, rgba[3] * 255 + 0.5)
+end
+
+---@param drops table[] loot-list's drops, newest first
+---@return table[] list items: a header, then one per drop
+local function lootItems(drops)
+	if #drops == 0 then
+		return {}
+	end
+	local tally = count(#drops, L["1 drop"], L["%d drops"])
+	local items =
+		{ { key = "drops", isHeader = true, title = L["Drops"], tally = tally, text = L["Drops"] .. "  " .. tally } }
+	for index, drop in ipairs(drops) do
+		local name = drop.name or string.format(L["Item %d"], drop.itemId)
+		if drop.count and drop.count > 1 then
+			name = name .. " x" .. drop.count
+		end
+		local when = drop.time or ""
+		local detail = drop.source and (drop.source .. "  ·  " .. when) or when
+		items[#items + 1] = {
+			key = "drop:" .. index,
+			itemId = drop.itemId,
+			name = name,
+			quality = drop.quality,
+			icon = drop.icon,
+			looter = drop.looter,
+			detail = detail,
+			text = table.concat({ name, drop.looter, detail }, "  ·  "),
+		}
+	end
+	return items
+end
+
+--- Draws one drop row; hovering shows the item's tooltip.
+local function renderDrop(row, item)
+	if not row.vintage then
+		buildHeader(row)
+		row.vintage = true
+		row.icon = row:CreateTexture(nil, "ARTWORK")
+		row.icon:SetSize(ICON_SIZE, ICON_SIZE)
+		row.icon:SetPoint("LEFT", DROP_COLUMN.icon, 0)
+		row.item = label(row, "fontBody", "textDefault")
+		row.item:SetPoint("LEFT", DROP_COLUMN.item, 0)
+		row.item:SetWidth(ITEM_WIDTH)
+		row.looter = label(row, "fontSmall", "textDefault")
+		row.looter:SetPoint("LEFT", DROP_COLUMN.looter, 0)
+		row.looter:SetWidth(LOOTER_WIDTH)
+		row.detail = label(row, "fontSmall", "textMuted")
+		row.detail:SetPoint("RIGHT", -GAP, 0)
+		row.detail:SetJustifyH("RIGHT")
+		row:HookScript("OnEnter", function()
+			local data = row.itemData
+			if data and data.itemId and GameTooltip.SetItemByID then
+				GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
+				GameTooltip:SetItemByID(data.itemId)
+				GameTooltip:Show()
+			end
+		end)
+		row:HookScript("OnLeave", function()
+			GameTooltip:Hide()
+		end)
+	end
+	row.bg:Hide()
+	row.accent:Hide()
+
+	local isHeader = item.isHeader == true
+	for _, part in ipairs({ row.icon, row.item, row.looter, row.detail }) do
+		part:SetShown(not isHeader)
+	end
+	if renderHeader(row, item) then
+		return
+	end
+	row.icon:SetTexCoord(0, 1, 0, 1)
+	row.icon:SetTexture(item.icon or UNKNOWN_ITEM_ICON)
+	-- An item the client hasn't loaded yet has no quality: its "Item 123" stays muted.
+	local hex = qualityHex(item.quality)
+	row.item:SetText(hex and string.format("|cff%s%s|r", hex, item.name) or item.name)
+	color(row.item, hex and "textDefault" or "textMuted")
+	row.looter:SetText(item.looter)
+	row.detail:SetText(item.detail)
 end
 
 --------------------------------------------------------------------------------
@@ -741,10 +850,10 @@ function RaidWindow:RefreshLists(status)
 end
 
 --------------------------------------------------------------------------------
--- Loot: the import's plan until drops are recorded
+-- Loot: the import's plan, then the drops recorded so far
 --------------------------------------------------------------------------------
 
-function RaidWindow:BuildLoot(_, page)
+function RaidWindow:BuildLoot(F, page)
 	local plan = CreateFrame("Frame", nil, page)
 	plan:SetPoint("TOPLEFT")
 	plan:SetPoint("TOPRIGHT")
@@ -767,6 +876,30 @@ function RaidWindow:BuildLoot(_, page)
 		plan.lines[index] = { name = name, value = value }
 	end
 	page.plan = plan
+
+	local list = F:CreateVirtualList(page, { itemHeight = ROW_HEIGHT, renderItem = renderDrop })
+	list:Hide()
+	page.list = list
+end
+
+--- The loot plan (with an import) and the drops under it.
+---@param plan table|nil raid-status's loot { mode, threshold, prioritized }
+---@param drops table[] loot-list's drops
+function RaidWindow:RefreshLoot(plan, drops)
+	local page = self.pages and self.pages.loot
+	if not page then
+		return
+	end
+	self.lootItems = lootItems(drops)
+	page.list:ClearAllPoints()
+	if plan then
+		page.list:SetPoint("TOPLEFT", page.plan, "BOTTOMLEFT", 0, -BAND)
+	else
+		page.list:SetPoint("TOPLEFT")
+	end
+	page.list:SetPoint("BOTTOMRIGHT")
+	showList(page, self.lootItems)
+	self:RefreshLootPlan(plan)
 end
 
 ---@param plan table|nil raid-status's loot { mode, threshold, prioritized }
@@ -872,8 +1005,6 @@ function RaidWindow:RefreshExport(summary)
 	page.exportBox:SetText(lastExport or "")
 	page.exportBox:SetShown(lastExport ~= nil)
 	page.empty:SetShown(snapshots == 0 and lastExport == nil)
-	-- Until there is a snapshot, the next step is taking one.
-	page.exportButton:SetVariant(snapshots > 0 and "primary" or nil)
 end
 
 --------------------------------------------------------------------------------
@@ -961,7 +1092,8 @@ function RaidWindow:Refresh()
 	end
 	self:RefreshHeader()
 	self:RefreshLists(status)
-	self:RefreshLootPlan(status and status.loot or nil)
+	local loot = ns.Executor:Execute("loot-list")
+	self:RefreshLoot(status and status.loot or nil, loot.success and loot.data.drops or {})
 	self:RefreshExport(summary)
 	self.importButton:SetText(status and L["Import again"] or L["Import"])
 end

@@ -1,12 +1,15 @@
 """Tests for Tools/validate.py's checks. Run by validate.py's "Validation tooling tests" stage."""
 
+import os
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "Tools"))
 
+import release  # noqa: E402
 import validate  # noqa: E402
 
 
@@ -69,10 +72,104 @@ class Package(unittest.TestCase):
             root = Path(root)
             write(root, validate.TOC, "Core.lua\n")
             write(root, "Core.lua", "")
-            write(root, ".pkgmeta", "package-as: Vintage\nignore:\n  - Tools\n")
-            files = {validate.TOC, "Core.lua", ".pkgmeta", "Tests/a_spec.lua", "Tools/validate.py"}
+            write(root, ".pkgmeta", "package-as: Vintage\nmanual-changelog: CHANGELOG.md\nignore:\n  - Tools\n")
+            files = {validate.TOC, "Core.lua", ".pkgmeta", "CHANGELOG.md", "Tests/a_spec.lua", "Tools/validate.py"}
             self.assertEqual(validate.check_package(root, files),
                              [".pkgmeta: development file would ship: Tests/a_spec.lua"])
+
+    def test_reads_settings_and_the_nested_changelog_name(self):
+        source = ("package-as: Vintage # folder\nmanual-changelog:\n  filename: CHANGELOG.md\n"
+                  "  markup-type: markdown\nignore:\n  - Tests\n")
+        self.assertEqual(validate.package_settings(source),
+                         {"package-as": "Vintage", "manual-changelog": "CHANGELOG.md", "ignore": ""})
+
+    def test_package_name_externals_and_release_notes(self):
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            write(root, validate.TOC, "Core.lua\n")
+            write(root, "Core.lua", "")
+            files = {validate.TOC, "Core.lua", ".pkgmeta", "CHANGELOG.md"}
+            write(root, ".pkgmeta", "package-as: Vintage\nmanual-changelog: CHANGELOG.md\n")
+            self.assertEqual(validate.check_package(root, files), [])
+            write(root, ".pkgmeta", "package-as: VintageAddon\nmanual-changelog: CHANGELOG.md\n"
+                                    "externals:\n  Libs/LibStub: https://repos.wowace.com/wow/libstub/trunk\n")
+            self.assertEqual(validate.check_package(root, files), [
+                ".pkgmeta: package-as must be Vintage, the TOC's folder name",
+                ".pkgmeta: no externals; libraries ship as committed in Libs/",
+            ])
+            write(root, ".pkgmeta", "package-as: Vintage\n")
+            self.assertEqual(validate.check_package(root, files),
+                             [".pkgmeta: manual-changelog must name CHANGELOG.md for the release notes"])
+            write(root, ".pkgmeta", "package-as: Vintage\nmanual-changelog: CHANGELOG.md\nignore:\n  - CHANGELOG.md\n")
+            self.assertEqual(validate.check_package(root, files),
+                             [".pkgmeta: manual-changelog CHANGELOG.md must exist and ship"])
+
+
+class Release(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.root = Path(self.dir.name)
+
+    def tearDown(self):
+        self.dir.cleanup()
+
+    def test_a_tag_must_name_the_toc_version_and_the_toc_the_project(self):
+        write(self.root, validate.TOC, "## Version: 0.1.0\n## X-Curse-Project-ID: 123456\n")
+        self.assertEqual(release.check_tag(self.root, "addon-v0.1.0"), [])
+        self.assertEqual(release.check_tag(self.root, "addon-v0.1.1"),
+                         ["Tag addon-v0.1.1 does not match Vintage.toc ## Version: 0.1.0 (expected addon-v0.1.0)"])
+        write(self.root, validate.TOC, "## Version: 0.1.0\n## X-Curse-Project-ID:\n")
+        self.assertEqual(release.check_tag(self.root, "addon-v0.1.0"),
+                         ["Vintage.toc: no numeric ## X-Curse-Project-ID, so nothing would upload"])
+        write(self.root, validate.TOC, "## Title: Vintage\n")
+        self.assertEqual(release.check_tag(self.root, "addon-v0.1.0"), ["Vintage.toc: no ## Version line"])
+
+    def test_the_version_must_be_x_y_z_since_it_becomes_a_git_tag(self):
+        write(self.root, validate.TOC, "## Version: 1.2.0-beta.1\n")
+        self.assertEqual(release.toc_version(self.root), "1.2.0-beta.1")
+        for bad in ("-l", "0.1", "v0.1.0"):
+            write(self.root, validate.TOC, f"## Version: {bad}\n")
+            with self.assertRaises(ValueError):
+                release.toc_version(self.root)
+        self.assertEqual(release.check_tag(self.root, "addon-vv0.1.0"),
+                         ["Vintage.toc: ## Version v0.1.0 is not X.Y.Z"])
+
+    def test_dot_paths_and_ignored_files_do_not_ship(self):
+        write(self.root, ".pkgmeta", "package-as: Vintage\nignore:\n  - Tests\n  - Libs/A/Docs\n")
+        files = {validate.TOC, ".pkgmeta", ".luacheckrc", "Core.lua", "Tests/a_spec.lua", "Libs/A/a.lua",
+                 "Libs/A/Docs/a.md", "Libs/A/.github/ci.yml", "CHANGELOG.md"}
+        self.assertEqual(release.package_files(self.root, files),
+                         ["CHANGELOG.md", "Core.lua", "Libs/A/a.lua", validate.TOC])
+
+    def test_stage_copies_tracked_files_into_a_tagged_repository(self):
+        addon = self.root / "addon"
+        write(addon, validate.TOC, "## Version: 0.2.0\r\nCore.lua\r\n")
+        write(addon, "Core.lua", "return 1\n")
+        write(addon, "Vintage_Mainline.toc", "untracked\n")
+        subprocess.run(["git", "init", "-q"], cwd=addon, check=True)
+        subprocess.run(["git", "-c", "core.autocrlf=false", "add", validate.TOC, "Core.lua"], cwd=addon, check=True)
+        target = self.root / "stage"
+        self.assertEqual(release.stage(addon, target), "0.2.0")
+        self.assertEqual(sorted(path.name for path in target.iterdir()), [".git", "Core.lua", validate.TOC])
+        self.assertEqual((target / validate.TOC).read_bytes(), b"## Version: 0.2.0\r\nCore.lua\r\n")
+        tag = subprocess.run(["git", "tag", "--points-at", "HEAD"], cwd=target, capture_output=True,
+                             text=True, check=True)
+        self.assertEqual(tag.stdout.strip(), "0.2.0")
+        with self.assertRaises(ValueError):
+            release.stage(addon, target)
+
+    def test_stage_refuses_a_tracked_symlink(self):
+        addon = self.root / "addon"
+        write(addon, validate.TOC, "## Version: 0.2.0\n")
+        write(self.root, "outside.txt", "not the addon's\n")
+        try:
+            os.symlink(self.root / "outside.txt", addon / "Leak.lua")
+        except OSError:
+            self.skipTest("this machine can't create symlinks")
+        subprocess.run(["git", "init", "-q"], cwd=addon, check=True)
+        subprocess.run(["git", "-c", "core.symlinks=true", "add", "-A"], cwd=addon, check=True)
+        with self.assertRaisesRegex(ValueError, "Leak.lua"):
+            release.stage(addon, self.root / "stage")
 
 
 class Libraries(unittest.TestCase):

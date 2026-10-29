@@ -108,6 +108,7 @@ describe("Bridge.Executor", function()
 			"loot-give",
 			"loot-list",
 			"loot-mode-set",
+			"loot-preview",
 			"member-whisper",
 			"raid-arrange",
 			"raid-export",

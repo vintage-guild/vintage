@@ -115,6 +115,10 @@ on one press (plan D6): the first press runs `loot-give` without `confirm`, whic
 slot still holds the item and the candidate index still means that person, and the row turns
 into Confirm; only Confirm on the same row sends `confirm = true`. **Set loot method** on the
 Loot tab sets the import's method and threshold the same way (`loot-mode-set`, leader only).
+Without a master-loot corpse (retail has master loot turned off), Mechanic's **Preview loot
+popup** tool shows it with `loot-preview`'s sample rows: the import's ranked items with your
+group as the candidates. Give and Confirm behave as usual, but a preview never calls
+`loot-give`, and a real loot window ends the preview.
 
 Layout rules (`View/RaidWindow.lua` constants): 16px margins and one left edge for tabs,
 header, and content; 8px between related things, 12px between bands; section captions in

@@ -272,6 +272,17 @@ local registry = {
 		end,
 	},
 
+	-- Sample popup rows from the import and the group, for trying the popup without a corpse
+	-- (Mechanic's "Preview loot popup"). Reads only; there is nothing to give.
+	["loot-preview"] = {
+		run = function()
+			local context = Context:BuildRaidContext()
+			context.items = ns.db.global.items
+			context.realm = Context:PlayerRealm()
+			return Actions.Loot.Preview(context)
+		end,
+	},
+
 	-- Gives a loot slot to a candidate, only with confirm = true (the popup asks first). Refuses
 	-- when the slot or the candidate changed since the popup showed them (plan D6).
 	-- { slot, candidateIndex, candidateName (as the game gave it), name, link, itemName, confirm }

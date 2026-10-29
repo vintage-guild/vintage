@@ -43,30 +43,44 @@ L["Cancel"] = true
 L["Replace the raid"] = true
 L["Paste the guild's import string (it starts with !VIN:), then press Import."] = true
 
+-- The header
+L["Raid without an import"] = true
+L["1 character"] = true
+L["%d characters"] = true
+L["%d in your group"] = true
+L["1 snapshot"] = true
+L["%d snapshots"] = true
+
 -- Roster and Groups lists
 L["Tanks"] = true
 L["Healers"] = true
 L["Melee"] = true
 L["Ranged"] = true
+L["Tank"] = true
+L["Healer"] = true
 L["Group %d"] = true
 L["Not in a group"] = true
-L["%s  ·  %d of %d in your group"] = true
-L["group %d"] = true
-L["in your group"] = true
-L["not in your group"] = true
+L["%d / %d in group"] = true
+L["In group"] = true
+L["Not in group"] = true
 
 -- Loot plan
+L["Loot plan"] = true
+L["Loot method"] = true
 L["Master loot"] = true
 L["Group loot"] = true
+L["Threshold"] = true
 L["%s or better"] = true
-L["1 item with a priority list"] = true
-L["%d items with a priority list"] = true
-L["poor"] = true
-L["common"] = true
-L["uncommon"] = true
-L["rare"] = true
-L["epic"] = true
-L["legendary"] = true
+L["Not set"] = true
+L["Priority lists"] = true
+L["1 item"] = true
+L["%d items"] = true
+L["Poor"] = true
+L["Common"] = true
+L["Uncommon"] = true
+L["Rare"] = true
+L["Epic"] = true
+L["Legendary"] = true
 
 -- Export tab
 L["Take a snapshot"] = true

@@ -1,10 +1,14 @@
 --------------------------------------------------------------------------------
 -- Vintage View: the raid window (/vintage)
 -- A FenUI panel with four tabs: Roster, Groups, Loot, Export. Under the tabs, a
--- bar that every tab shares: the raid (or the last action's result) and Import.
--- It renders what the Executor returns and never computes. Roster lists who is in
--- the group; Export takes attendance snapshots and makes the string for the
--- website. Groups and Loot fill in with later PRs.
+-- header every tab shares: the raid's name, a line about it (or the last result),
+-- and Import. Roster lists people by role and Groups by planned group, in columns;
+-- Loot shows the import's loot plan; Export takes snapshots and makes the string
+-- for the website. It renders what the Executor returns and never computes.
+--
+-- Layout: 16px margins all round, one left edge for tabs, header, and content;
+-- 8px between related things, 12px between bands; gold only for the action that
+-- moves the night forward.
 --------------------------------------------------------------------------------
 
 local ADDON_NAME, ns = ...
@@ -15,13 +19,26 @@ local RaidWindow = {}
 ns.RaidWindow = RaidWindow
 
 local FRAME_NAME = "VintageRaidWindow"
-local WIDTH, HEIGHT = 640, 440
+local WIDTH, HEIGHT = 680, 520
+local MARGIN = 16
+local GAP = 8
+local BAND = 12
 local TAB_HEIGHT = 28
-local BAR_HEIGHT = 32
+local HEADER_HEIGHT = 36
+local TOOLBAR_HEIGHT = 28
+local ROW_HEIGHT = 24
+local ICON_SIZE = 16
 -- FenUI draws an edit box's label above the box, outside it.
 local LABEL_HEIGHT = 14
-local GAP = 8
-local BUTTON_WIDTH = 150
+local BUTTON_WIDTH = 136
+-- For labels longer than a word or two ("Make export string").
+local WIDE_BUTTON_WIDTH = 168
+-- An export is a few hundred characters: a box about six lines tall holds it.
+local EXPORT_BOX_HEIGHT = 120
+
+-- Roster and Groups columns, from the row's left edge.
+local COLUMN = { icon = 4, name = 26, class = 200, detail = 310 }
+local NAME_WIDTH, CLASS_WIDTH, DETAIL_WIDTH = 166, 100, 90
 
 local TABS = {
 	{
@@ -68,62 +85,245 @@ local CLASS_COLORS = {
 	druid = "ff7c0a",
 }
 
+-- Class icons: one sheet, a square per class (the game's own CLASS_ICON_TCOORDS).
+local CLASS_ICONS = "Interface\\WorldStateFrame\\Icons-Classes"
+local CLASS_ICON_COORDS = {
+	warrior = { 0, 0.25, 0, 0.25 },
+	mage = { 0.25, 0.49609375, 0, 0.25 },
+	rogue = { 0.49609375, 0.7421875, 0, 0.25 },
+	druid = { 0.7421875, 0.98828125, 0, 0.25 },
+	hunter = { 0, 0.25, 0.25, 0.5 },
+	shaman = { 0.25, 0.49609375, 0.25, 0.5 },
+	priest = { 0.49609375, 0.7421875, 0.25, 0.5 },
+	warlock = { 0.7421875, 0.98828125, 0.25, 0.5 },
+	paladin = { 0, 0.25, 0.5, 0.75 },
+}
+local IN_GROUP_ICON = "Interface\\RaidFrame\\ReadyCheck-Ready"
+
 local ROLE_ORDER = { "tank", "healer", "melee", "ranged" }
 local ROLE_HEADERS = { tank = L["Tanks"], healer = L["Healers"], melee = L["Melee"], ranged = L["Ranged"] }
+local ROLE_NAMES = { tank = L["Tank"], healer = L["Healer"], melee = L["Melee"], ranged = L["Ranged"] }
 
 -- Item quality names for the loot threshold (0 poor … 5 legendary).
 local QUALITY = {
-	[0] = L["poor"],
-	[1] = L["common"],
-	[2] = L["uncommon"],
-	[3] = L["rare"],
-	[4] = L["epic"],
-	[5] = L["legendary"],
+	[0] = L["Poor"],
+	[1] = L["Common"],
+	[2] = L["Uncommon"],
+	[3] = L["Rare"],
+	[4] = L["Epic"],
+	[5] = L["Legendary"],
 }
 
---- A FenUI color token as an inline color escape: "|cffrrggbb".
-local function colorCode(token)
-	local FenUI = rawget(_G, "FenUI")
-	local r, g, b = 1, 1, 1
-	if FenUI and FenUI.GetColor then
-		r, g, b = FenUI:GetColor(token)
-	end
-	return string.format("|cff%02x%02x%02x", math.floor(r * 255), math.floor(g * 255), math.floor(b * 255))
+local function FenUI()
+	return rawget(_G, "FenUI")
 end
 
---- One roster row as list text: the name in its class color, the class and role, where the
---- import puts them, and whether they are in your group (green) or not (muted).
-local function rowText(row, withGroup)
-	local name = string.format("|cff%s%s|r", CLASS_COLORS[row.class] or "ffffff", row.name)
-	local parts = { name, capitalize(row.class) .. " " .. row.role }
-	if withGroup and row.group then
-		parts[#parts + 1] = string.format(L["group %d"], row.group)
+---@param token string a FenUI color token
+local function color(fontString, token)
+	local F = FenUI()
+	if F and F.GetColor then
+		local r, g, b = F:GetColor(token)
+		fontString:SetTextColor(r, g, b)
 	end
-	local status = row.inGroup and (colorCode("feedbackSuccess") .. L["in your group"] .. "|r")
-		or (colorCode("textMuted") .. L["not in your group"] .. "|r")
-	parts[#parts + 1] = status
-	return table.concat(parts, "  ·  ")
 end
 
---- "Tanks  1 of 2 in your group".
-local function headerText(label, rows)
+---@param parent Frame
+---@param font string a FenUI font token
+---@param token string a FenUI color token
+---@return FontString
+local function label(parent, font, token)
+	local fs = parent:CreateFontString(nil, "OVERLAY")
+	fs:SetFontObject(FenUI():GetFont(font))
+	fs:SetJustifyH("LEFT")
+	fs:SetWordWrap(false)
+	color(fs, token)
+	return fs
+end
+
+---@param parent Frame
+---@return Texture a 1px divider in the subtle border color
+local function divider(parent)
+	local line = parent:CreateTexture(nil, "ARTWORK")
+	line:SetHeight(1)
+	line:SetColorTexture(FenUI():GetColor("borderSubtle"))
+	return line
+end
+
+--- "1 character", "10 characters".
+local function count(n, one, many)
+	return n == 1 and one or string.format(many, n)
+end
+
+--------------------------------------------------------------------------------
+-- List items and rows
+--------------------------------------------------------------------------------
+
+--- A section header: "TANKS" and "1 / 2 in group".
+local function header(key, title, rows)
 	local present = 0
 	for _, row in ipairs(rows) do
 		if row.inGroup then
 			present = present + 1
 		end
 	end
-	return string.format(L["%s  ·  %d of %d in your group"], label, present, #rows)
+	local tally = string.format(L["%d / %d in group"], present, #rows)
+	return {
+		key = key,
+		isHeader = true,
+		title = title,
+		tally = tally,
+		text = title .. "  " .. tally,
+	}
 end
 
----@param parent Frame
----@return Frame toolbar
-local function toolbar(FenUI, parent)
-	local bar = FenUI:CreateToolbar(parent, { height = BAR_HEIGHT })
-	bar:SetPoint("TOPLEFT")
-	bar:SetPoint("TOPRIGHT")
-	return bar
+--- A person: name in class color, class, a detail column (group or role), in group or not.
+local function person(row, detail)
+	local status = row.inGroup and L["In group"] or L["Not in group"]
+	return {
+		key = row.characterId,
+		class = row.class,
+		name = row.name,
+		classLabel = capitalize(row.class),
+		detail = detail,
+		inGroup = row.inGroup,
+		text = table.concat({ row.name, capitalize(row.class), detail or "", status }, "  ·  "),
+	}
 end
+
+---@param rows table[] raid-status rows
+---@return table[] list items: a header per role, then its people
+local function byRole(rows)
+	local items = {}
+	for _, role in ipairs(ROLE_ORDER) do
+		local inRole = {}
+		for _, row in ipairs(rows) do
+			if row.role == role then
+				inRole[#inRole + 1] = row
+			end
+		end
+		if #inRole > 0 then
+			items[#items + 1] = header("role:" .. role, ROLE_HEADERS[role], inRole)
+			for _, row in ipairs(inRole) do
+				items[#items + 1] = person(row, row.group and string.format(L["Group %d"], row.group) or "")
+			end
+		end
+	end
+	return items
+end
+
+---@param rows table[] raid-status rows
+---@return table[] list items: a header per planned group, then its people (none without groups)
+local function byGroup(rows)
+	local groups, unplaced = {}, {}
+	for _, row in ipairs(rows) do
+		if row.group then
+			groups[row.group] = groups[row.group] or {}
+			table.insert(groups[row.group], row)
+		else
+			unplaced[#unplaced + 1] = row
+		end
+	end
+	local items = {}
+	for group = 1, 8 do
+		local members = groups[group]
+		if members then
+			items[#items + 1] = header("group:" .. group, string.format(L["Group %d"], group), members)
+			for _, row in ipairs(members) do
+				items[#items + 1] = person(row, ROLE_NAMES[row.role])
+			end
+		end
+	end
+	if #items > 0 and #unplaced > 0 then
+		items[#items + 1] = header("group:none", L["Not in a group"], unplaced)
+		for _, row in ipairs(unplaced) do
+			items[#items + 1] = person(row, ROLE_NAMES[row.role])
+		end
+	end
+	return items
+end
+
+--- Draws one list row. Rows are pooled, so every part is set or hidden each time.
+local function renderRow(row, item)
+	local F = FenUI()
+	if not row.vintage then
+		row.vintage = true
+		row.icon = row:CreateTexture(nil, "ARTWORK")
+		row.icon:SetSize(ICON_SIZE, ICON_SIZE)
+		row.icon:SetPoint("LEFT", COLUMN.icon, 0)
+		row.name = label(row, "fontBody", "textDefault")
+		row.name:SetPoint("LEFT", COLUMN.name, 0)
+		row.name:SetWidth(NAME_WIDTH)
+		row.classLabel = label(row, "fontSmall", "textMuted")
+		row.classLabel:SetPoint("LEFT", COLUMN.class, 0)
+		row.classLabel:SetWidth(CLASS_WIDTH)
+		row.detail = label(row, "fontSmall", "textMuted")
+		row.detail:SetPoint("LEFT", COLUMN.detail, 0)
+		row.detail:SetWidth(DETAIL_WIDTH)
+		row.status = label(row, "fontSmall", "textMuted")
+		row.status:SetPoint("RIGHT", -GAP, 0)
+		row.status:SetJustifyH("RIGHT")
+		row.statusIcon = row:CreateTexture(nil, "ARTWORK")
+		row.statusIcon:SetSize(14, 14)
+		row.statusIcon:SetPoint("RIGHT", row.status, "LEFT", -4, 0)
+		row.tally = label(row, "fontCaption", "textMuted")
+		row.tally:SetPoint("RIGHT", -GAP, 0)
+		row.tally:SetJustifyH("RIGHT")
+		row.rule = divider(row)
+		row.rule:SetPoint("BOTTOMLEFT", COLUMN.icon, 2)
+		row.rule:SetPoint("BOTTOMRIGHT", -GAP, 2)
+	end
+	-- Lists here are for reading: no selection mark.
+	row.bg:Hide()
+	row.accent:Hide()
+
+	local isHeader = item.isHeader == true
+	row.text:SetShown(isHeader)
+	row.tally:SetShown(isHeader)
+	row.rule:SetShown(isHeader)
+	for _, part in ipairs({ row.icon, row.name, row.classLabel, row.detail, row.status, row.statusIcon }) do
+		part:SetShown(not isHeader)
+	end
+
+	if isHeader then
+		row.text:SetFontObject(F:GetFont("fontCaption"))
+		row.text:SetText(string.upper(item.title))
+		row.text:ClearAllPoints()
+		row.text:SetPoint("BOTTOMLEFT", COLUMN.icon, 6)
+		color(row.text, "textHeading")
+		row.tally:ClearAllPoints()
+		row.tally:SetPoint("BOTTOMRIGHT", -GAP, 6)
+		row.tally:SetText(item.tally)
+		row.hover:Hide()
+		row:Disable()
+		return
+	end
+
+	row.hover:Show()
+	row:Enable()
+	local coords = CLASS_ICON_COORDS[item.class]
+	row.icon:SetTexture(coords and CLASS_ICONS or nil)
+	if coords then
+		row.icon:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
+	end
+	row.name:SetText(string.format("|cff%s%s|r", CLASS_COLORS[item.class] or "ffffff", item.name))
+	row.classLabel:SetText(item.classLabel)
+	row.detail:SetText(item.detail or "")
+	if item.inGroup then
+		row.status:SetText(L["In group"])
+		color(row.status, "feedbackSuccess")
+		row.statusIcon:SetTexture(IN_GROUP_ICON)
+		row.statusIcon:Show()
+	else
+		row.status:SetText(L["Not in group"])
+		-- Quiet, so the few who are in the group stand out.
+		color(row.status, "textDisabled")
+		row.statusIcon:Hide()
+	end
+end
+
+--------------------------------------------------------------------------------
+-- The window
+--------------------------------------------------------------------------------
 
 --- Builds the window on first use. Returns nil when FenUI did not load.
 ---@return table|nil frame
@@ -131,14 +331,14 @@ function RaidWindow:Create()
 	if self.frame then
 		return self.frame
 	end
-	local FenUI = rawget(_G, "FenUI")
-	if not (FenUI and FenUI.CreatePanel) then
+	local F = FenUI()
+	if not (F and F.CreatePanel) then
 		ns.Vintage:Print(L["FenUI did not load. Reinstall Vintage."])
 		return nil
 	end
 	ns.Theme:Ensure()
 
-	local frame = FenUI:CreatePanel(UIParent, {
+	local frame = F:CreatePanel(UIParent, {
 		name = FRAME_NAME,
 		title = ADDON_NAME,
 		width = WIDTH,
@@ -156,16 +356,21 @@ function RaidWindow:Create()
 	-- Escape closes the window.
 	table.insert(UISpecialFrames, FRAME_NAME)
 
-	local safeZone = frame:GetSafeZone()
-	local tabBar = CreateFrame("Frame", nil, safeZone)
+	-- One inner area with the window's margins: tabs, header, and content share its left edge.
+	local inner = CreateFrame("Frame", nil, frame:GetSafeZone())
+	inner:SetPoint("TOPLEFT", MARGIN, 0)
+	inner:SetPoint("BOTTOMRIGHT", -MARGIN, MARGIN)
+
+	local tabBar = CreateFrame("Frame", nil, inner)
 	tabBar:SetPoint("TOPLEFT")
 	tabBar:SetPoint("TOPRIGHT")
 	tabBar:SetHeight(TAB_HEIGHT)
 
-	self:BuildBar(FenUI, safeZone, tabBar)
+	self:BuildHeader(F, inner, tabBar)
 
-	local content = CreateFrame("Frame", nil, safeZone)
-	content:SetPoint("TOPLEFT", self.bar, "BOTTOMLEFT", 0, -GAP)
+	local content = CreateFrame("Frame", nil, inner)
+	-- Below the header's divider (GAP under it) with a band of space.
+	content:SetPoint("TOPLEFT", self.header, "BOTTOMLEFT", 0, -(GAP + 1 + BAND))
 	content:SetPoint("BOTTOMRIGHT")
 
 	self.pages = {}
@@ -174,16 +379,17 @@ function RaidWindow:Create()
 		local page = CreateFrame("Frame", nil, content)
 		page:SetAllPoints()
 		page:Hide()
-		page.empty = FenUI:CreateEmptyState(page, { title = tab.title, subtitle = tab.subtitle })
+		page.empty = F:CreateEmptyState(page, { title = tab.title, subtitle = tab.subtitle })
 		self.pages[tab.key] = page
 		tabDefs[#tabDefs + 1] = { key = tab.key, text = tab.text }
 	end
-	self:BuildRoster(FenUI, self.pages.roster)
-	self:BuildRoster(FenUI, self.pages.groups)
-	self:BuildExport(FenUI, self.pages.export)
-	self:BuildPaste(FenUI, content)
+	self:BuildList(F, self.pages.roster)
+	self:BuildList(F, self.pages.groups)
+	self:BuildLoot(F, self.pages.loot)
+	self:BuildExport(F, self.pages.export)
+	self:BuildPaste(F, content)
 
-	self.tabs = FenUI:CreateTabGroup(tabBar, {
+	self.tabs = F:CreateTabGroup(tabBar, {
 		tabs = tabDefs,
 		onChange = function(key)
 			-- Moving to another tab puts the paste away.
@@ -211,16 +417,16 @@ function RaidWindow:Create()
 end
 
 --------------------------------------------------------------------------------
--- The bar every tab shares: the raid or the last result, and Import
+-- The header every tab shares: the raid, a line about it, and Import
 --------------------------------------------------------------------------------
 
-function RaidWindow:BuildBar(FenUI, parent, tabBar)
+function RaidWindow:BuildHeader(F, parent, tabBar)
 	local bar = CreateFrame("Frame", nil, parent)
-	bar:SetPoint("TOPLEFT", tabBar, "BOTTOMLEFT", 0, -GAP)
-	bar:SetPoint("TOPRIGHT", tabBar, "BOTTOMRIGHT", 0, -GAP)
-	bar:SetHeight(BAR_HEIGHT)
+	bar:SetPoint("TOPLEFT", tabBar, "BOTTOMLEFT", 0, -BAND)
+	bar:SetPoint("TOPRIGHT", tabBar, "BOTTOMRIGHT", 0, -BAND)
+	bar:SetHeight(HEADER_HEIGHT)
 
-	self.importButton = FenUI:CreateButton(bar, {
+	self.importButton = F:CreateButton(bar, {
 		text = L["Import"],
 		width = BUTTON_WIDTH,
 		onClick = function()
@@ -229,39 +435,33 @@ function RaidWindow:BuildBar(FenUI, parent, tabBar)
 	})
 	self.importButton:SetPoint("RIGHT")
 
-	-- The panel's own subtitle overlaps FenUI's tab bar, so the raid's line lives here.
-	local status = bar:CreateFontString(nil, "OVERLAY")
-	status:SetFontObject(FenUI:GetFont("fontSmall"))
-	status:SetPoint("LEFT")
-	status:SetPoint("RIGHT", self.importButton, "LEFT", -GAP, 0)
-	status:SetHeight(BAR_HEIGHT)
-	status:SetJustifyH("LEFT")
-	status:SetJustifyV("MIDDLE")
-	status:SetWordWrap(true)
-	-- Two lines: an error and what to do about it.
-	status:SetMaxLines(2)
-	self.status = status
-	self.bar = bar
+	-- The panel's own subtitle overlaps FenUI's tab bar, so the raid's name lives here.
+	self.title = label(bar, "fontHeading", "textHeading")
+	self.title:SetPoint("TOPLEFT")
+	self.title:SetPoint("RIGHT", self.importButton, "LEFT", -BAND, 0)
+
+	self.status = label(bar, "fontSmall", "textMuted")
+	self.status:SetPoint("BOTTOMLEFT")
+	self.status:SetPoint("RIGHT", self.importButton, "LEFT", -BAND, 0)
+
+	local rule = divider(bar)
+	rule:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 0, -GAP)
+	rule:SetPoint("TOPRIGHT", bar, "BOTTOMRIGHT", 0, -GAP)
+	self.header = bar
 end
 
 --------------------------------------------------------------------------------
 -- Import: a paste area over the tabs' content
 --------------------------------------------------------------------------------
 
-function RaidWindow:BuildPaste(FenUI, content)
+function RaidWindow:BuildPaste(F, content)
 	local paste = CreateFrame("Frame", nil, content)
 	paste:SetAllPoints()
 	paste:Hide()
-	local actions = FenUI:CreateToolbar(paste, { height = BAR_HEIGHT })
+	-- Actions at the bottom right, the one that moves forward last (and gold).
+	local actions = F:CreateToolbar(paste, { height = TOOLBAR_HEIGHT, align = "right", gap = GAP })
 	actions:SetPoint("BOTTOMLEFT")
 	actions:SetPoint("BOTTOMRIGHT")
-	self.submitButton = actions:AddButton({
-		text = L["Import"],
-		width = BUTTON_WIDTH,
-		onClick = function()
-			self:SubmitImport(self.pasteBox:GetText())
-		end,
-	})
 	actions:AddButton({
 		text = L["Cancel"],
 		width = BUTTON_WIDTH,
@@ -269,10 +469,18 @@ function RaidWindow:BuildPaste(FenUI, content)
 			self:CancelImport()
 		end,
 	})
-	-- What to paste is said in the bar above, so the box gets the whole area.
-	self.pasteBox = FenUI:CreateMultiLineEditBox(paste, {})
+	self.submitButton = actions:AddButton({
+		text = L["Import"],
+		width = BUTTON_WIDTH,
+		variant = "primary",
+		onClick = function()
+			self:SubmitImport(self.pasteBox:GetText())
+		end,
+	})
+	-- What to paste is said in the header, so the box gets the whole area.
+	self.pasteBox = F:CreateMultiLineEditBox(paste, {})
 	self.pasteBox:SetPoint("TOPLEFT")
-	self.pasteBox:SetPoint("BOTTOMRIGHT", actions, "TOPRIGHT", 0, GAP)
+	self.pasteBox:SetPoint("BOTTOMRIGHT", actions, "TOPRIGHT", 0, BAND)
 	self.paste = paste
 end
 
@@ -288,7 +496,7 @@ function RaidWindow:BeginImport()
 	self.pasteBox:Clear()
 	self.submitButton:SetText(L["Import"])
 	self:RefreshImporting()
-	self:RefreshStatus()
+	self:RefreshHeader()
 	self.pasteBox:SelectAll()
 end
 
@@ -297,7 +505,7 @@ function RaidWindow:CancelImport()
 	self.confirmImport = false
 	self.message = nil
 	self:RefreshImporting()
-	self:RefreshStatus()
+	self:RefreshHeader()
 end
 
 --- Imports a pasted string. A session that already holds a raid asks first: the button turns
@@ -330,8 +538,8 @@ function RaidWindow:SubmitImport(text)
 	return result
 end
 
---- The paste area replaces the pages while importing, and its own Import replaces the bar's
---- (a second press of the bar's would clear the paste).
+--- The paste area replaces the pages while importing, and its own Import replaces the
+--- header's (a second press of the header's would clear the paste).
 function RaidWindow:RefreshImporting()
 	if not self.paste then
 		return
@@ -345,160 +553,133 @@ function RaidWindow:RefreshImporting()
 end
 
 --------------------------------------------------------------------------------
--- Roster (by role), Groups (as the import plans them), and the Loot plan
+-- Roster (by role) and Groups (as the import plans them)
 --------------------------------------------------------------------------------
 
-function RaidWindow:BuildRoster(FenUI, page)
-	local list = FenUI:CreateVirtualList(page, {})
+function RaidWindow:BuildList(F, page)
+	local list = F:CreateVirtualList(page, { itemHeight = ROW_HEIGHT, renderItem = renderRow })
 	list:SetAllPoints()
 	list:Hide()
 	page.list = list
 end
 
----@param rows table[] raid-status rows
----@return table[] list items: a header per role, then its people
-local function byRole(rows)
-	local items = {}
-	for _, role in ipairs(ROLE_ORDER) do
-		local inRole = {}
-		for _, row in ipairs(rows) do
-			if row.role == role then
-				inRole[#inRole + 1] = row
-			end
-		end
-		if #inRole > 0 then
-			items[#items + 1] =
-				{ key = "role:" .. role, text = headerText(ROLE_HEADERS[role], inRole), isHeader = true }
-			for _, row in ipairs(inRole) do
-				items[#items + 1] = { key = row.characterId, text = rowText(row, true), indent = 1 }
-			end
-		end
-	end
-	return items
+---@param page Frame
+---@param items table[]
+local function showList(page, items)
+	page.list:SetItems(items)
+	page.list:SetShown(#items > 0)
+	page.empty:SetShown(#items == 0)
 end
 
----@param rows table[] raid-status rows
----@return table[] list items: a header per planned group, then its people; nil when none
-local function byGroup(rows)
-	local groups, unplaced = {}, {}
-	for _, row in ipairs(rows) do
-		if row.group then
-			groups[row.group] = groups[row.group] or {}
-			table.insert(groups[row.group], row)
-		else
-			unplaced[#unplaced + 1] = row
-		end
-	end
-	local items = {}
-	for group = 1, 8 do
-		local members = groups[group]
-		if members then
-			local label = string.format(L["Group %d"], group)
-			items[#items + 1] = { key = "group:" .. group, text = headerText(label, members), isHeader = true }
-			for _, row in ipairs(members) do
-				items[#items + 1] = { key = row.characterId, text = rowText(row, false), indent = 1 }
-			end
-		end
-	end
-	if #items == 0 then
-		return nil
-	end
-	if #unplaced > 0 then
-		items[#items + 1] = { key = "group:none", text = headerText(L["Not in a group"], unplaced), isHeader = true }
-		for _, row in ipairs(unplaced) do
-			items[#items + 1] = { key = row.characterId, text = rowText(row, false), indent = 1 }
-		end
-	end
-	return items
-end
+---@param status table|nil raid-status's data
+function RaidWindow:RefreshLists(status)
+	local rows = status and status.rows or {}
+	self.rosterItems = byRole(rows)
+	showList(self.pages.roster, self.rosterItems)
 
---- Roster, Groups, and the Loot plan from raid-status, or their empty states.
-function RaidWindow:RefreshRoster()
-	local roster = self.pages and self.pages.roster
-	if not roster then
-		return
-	end
-	local result = ns.Executor:Execute("raid-status")
-	local rows = result.success and result.data.rows or {}
-
-	local items = byRole(rows)
-	roster.list:SetItems(items)
-	roster.list:SetShown(#items > 0)
-	roster.empty:SetShown(#items == 0)
-	self.rosterItems = items
-
-	local groups = self.pages.groups
-	local groupItems = byGroup(rows) or {}
-	groups.list:SetItems(groupItems)
-	groups.list:SetShown(#groupItems > 0)
-	groups.empty:SetShown(#groupItems == 0)
-	groups.empty:SetSubtitle(
-		result.success and L["This raid's import plans no groups."]
+	self.groupItems = byGroup(rows)
+	showList(self.pages.groups, self.groupItems)
+	self.pages.groups.empty:SetSubtitle(
+		status and L["This raid's import plans no groups."]
 			or L["Import the guild's string to see the groups it plans."]
 	)
-	self.groupItems = groupItems
-
-	self:RefreshLootPlan(result.success and result.data.loot or nil)
-	self.importButton:SetText(result.success and L["Import again"] or L["Import"])
 end
 
---- Until drops are recorded, the Loot tab says how the import plans to hand out loot.
+--------------------------------------------------------------------------------
+-- Loot: the import's plan until drops are recorded
+--------------------------------------------------------------------------------
+
+function RaidWindow:BuildLoot(_, page)
+	local plan = CreateFrame("Frame", nil, page)
+	plan:SetPoint("TOPLEFT")
+	plan:SetPoint("TOPRIGHT")
+	plan:SetHeight(4 * ROW_HEIGHT)
+	plan:Hide()
+	-- A caption like the lists' section headers.
+	local caption = label(plan, "fontCaption", "textHeading")
+	caption:SetPoint("TOPLEFT", COLUMN.icon, -GAP)
+	caption:SetText(string.upper(L["Loot plan"]))
+	local captionRule = divider(plan)
+	captionRule:SetPoint("TOPLEFT", COLUMN.icon, -(ROW_HEIGHT - 2))
+	captionRule:SetPoint("TOPRIGHT", -GAP, -(ROW_HEIGHT - 2))
+	plan.lines = {}
+	for index = 1, 3 do
+		local name = label(plan, "fontSmall", "textMuted")
+		name:SetPoint("TOPLEFT", COLUMN.icon, -index * ROW_HEIGHT - 4)
+		name:SetWidth(120)
+		local value = label(plan, "fontBody", "textDefault")
+		value:SetPoint("LEFT", name, "RIGHT", BAND, 0)
+		plan.lines[index] = { name = name, value = value }
+	end
+	page.plan = plan
+end
+
 ---@param plan table|nil raid-status's loot { mode, threshold, prioritized }
 function RaidWindow:RefreshLootPlan(plan)
 	local page = self.pages and self.pages.loot
 	if not page then
 		return
 	end
+	page.plan:SetShown(plan ~= nil)
+	self.lootPlan = nil
 	if not plan then
-		page.empty:SetSubtitle(L["Drops are recorded here during the raid."])
-		self.lootPlanText = nil
 		return
 	end
-	local method = plan.mode == "master" and L["Master loot"] or L["Group loot"]
-	local parts = { method }
-	if plan.threshold and QUALITY[plan.threshold] then
-		parts[#parts + 1] = string.format(L["%s or better"], QUALITY[plan.threshold])
+	local values = {
+		{ L["Loot method"], plan.mode == "master" and L["Master loot"] or L["Group loot"] },
+		{
+			L["Threshold"],
+			QUALITY[plan.threshold] and string.format(L["%s or better"], QUALITY[plan.threshold]) or L["Not set"],
+		},
+		{
+			L["Priority lists"],
+			count(plan.prioritized, L["1 item"], L["%d items"]),
+		},
+	}
+	for index, pair in ipairs(values) do
+		page.plan.lines[index].name:SetText(pair[1])
+		page.plan.lines[index].value:SetText(pair[2])
 	end
-	if plan.prioritized > 0 then
-		parts[#parts + 1] = plan.prioritized == 1 and L["1 item with a priority list"]
-			or string.format(L["%d items with a priority list"], plan.prioritized)
-	end
-	self.lootPlanText = table.concat(parts, "  ·  ")
-	page.empty:SetSubtitle(self.lootPlanText .. "\n" .. L["Drops are recorded here during the raid."])
+	self.lootPlan = values
 end
 
 --------------------------------------------------------------------------------
 -- Export: snapshots and the string for the website
 --------------------------------------------------------------------------------
 
-function RaidWindow:BuildExport(FenUI, page)
-	page.toolbar = toolbar(FenUI, page)
-	page.toolbar:AddButton({
+function RaidWindow:BuildExport(F, page)
+	local bar = F:CreateToolbar(page, { height = TOOLBAR_HEIGHT, gap = GAP })
+	bar:SetPoint("TOPLEFT")
+	bar:SetPoint("TOPRIGHT")
+	bar:AddButton({
 		text = L["Take a snapshot"],
-		width = BUTTON_WIDTH,
+		width = WIDE_BUTTON_WIDTH,
 		onClick = function()
 			self:TakeSnapshot()
 		end,
 	})
-	page.toolbar:AddButton({
+	page.exportButton = bar:AddButton({
 		text = L["Make export string"],
-		width = BUTTON_WIDTH,
+		width = WIDE_BUTTON_WIDTH,
+		variant = "primary",
 		onClick = function()
 			self:MakeExport()
 		end,
 	})
+	page.toolbar = bar
 
-	page.summary = page:CreateFontString(nil, "OVERLAY")
-	page.summary:SetFontObject(FenUI:GetFont("fontSmall"))
-	page.summary:SetPoint("TOPLEFT", page.toolbar, "BOTTOMLEFT", 0, -GAP)
-	page.summary:SetJustifyH("LEFT")
+	-- What has been recorded, on the same line as the buttons that record it.
+	page.summary = label(page, "fontSmall", "textMuted")
+	page.summary:SetPoint("RIGHT", bar, "RIGHT", 0, 0)
+	page.summary:SetJustifyH("RIGHT")
 
-	page.exportBox = FenUI:CreateMultiLineEditBox(page, {
+	page.exportBox = F:CreateMultiLineEditBox(page, {
 		label = L["Copy this into the website's Check an export (Ctrl+C)"],
 		readOnly = true,
 	})
-	page.exportBox:SetPoint("TOPLEFT", page.summary, "BOTTOMLEFT", 0, -(GAP + LABEL_HEIGHT))
-	page.exportBox:SetPoint("BOTTOMRIGHT")
+	page.exportBox:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 0, -(BAND + LABEL_HEIGHT))
+	page.exportBox:SetPoint("TOPRIGHT", bar, "BOTTOMRIGHT", 0, -(BAND + LABEL_HEIGHT))
+	page.exportBox:SetHeight(EXPORT_BOX_HEIGHT)
 	page.exportBox:Hide()
 end
 
@@ -536,10 +717,12 @@ function RaidWindow:RefreshExport(summary)
 	page.exportBox:SetText(lastExport or "")
 	page.exportBox:SetShown(lastExport ~= nil)
 	page.empty:SetShown(snapshots == 0 and lastExport == nil)
+	-- Until there is a snapshot, the next step is taking one.
+	page.exportButton:SetVariant(snapshots > 0 and "primary" or nil)
 end
 
 --------------------------------------------------------------------------------
--- The window
+-- Header text and refresh
 --------------------------------------------------------------------------------
 
 ---@param key string
@@ -551,8 +734,8 @@ function RaidWindow:ShowPage(key)
 	self:RefreshImporting()
 end
 
---- Shows an action's result in the bar until the next one: its reasoning, or its error and
---- what to do about it.
+--- Shows an action's result under the raid's name until the next one: its reasoning, or its
+--- error and what to do about it.
 ---@param result table ActionResult
 function RaidWindow:SetMessage(result)
 	if result.success then
@@ -567,53 +750,77 @@ function RaidWindow:SetMessage(result)
 		self.message = text
 		self.messageIsError = true
 	end
-	self:RefreshStatus()
+	self:RefreshHeader()
 end
 
---- The bar's line: the last action's message, else the raid. Nothing before a raid: the tab's
---- own empty state says what to do.
----@param summary table|nil session-get's data, when it was just read
----@param reasoning string|nil session-get's reasoning, with summary
-function RaidWindow:RefreshStatus(summary, reasoning)
-	if not self.status then
+--- The header: the raid's name and a line about it, or the last action's message. Nothing
+--- before a raid, since each tab's empty state says what to do.
+function RaidWindow:RefreshHeader()
+	if not self.title then
 		return
 	end
-	if summary then
-		local idle = summary.state == "idle" and (summary.snapshots or 0) == 0
-		self.sessionLine = not idle and reasoning or nil
-	end
-	local FenUI = rawget(_G, "FenUI")
-	local token = self.message and self.messageIsError and "feedbackError" or "textMuted"
-	if FenUI and FenUI.GetColor then
-		local r, g, b = FenUI:GetColor(token)
-		if r then
-			self.status:SetTextColor(r, g, b)
-		end
-	end
-	self.status:SetText(self.message or self.sessionLine or "")
+	self.title:SetText(self.raidTitle or "")
+	self.status:SetText(self.message or self.raidLine or "")
+	color(self.status, self.message and self.messageIsError and "feedbackError" or "textMuted")
+	-- Gold for Import only while there is no raid: then it is the next step.
+	self.importButton:SetVariant(self.raidTitle == nil and "primary" or nil)
 end
 
---- Re-reads the session and redraws the pages.
+---@param summary table|nil session-get's data
+---@param status table|nil raid-status's data
+function RaidWindow:DescribeRaid(summary, status)
+	self.raidTitle, self.raidLine = nil, nil
+	if not summary then
+		return
+	end
+	if summary.title then
+		local parts = {
+			capitalize(summary.state),
+			count(summary.roster, L["1 character"], L["%d characters"]),
+		}
+		if status then
+			parts[#parts + 1] = string.format(L["%d in your group"], status.inGroup)
+		end
+		self.raidTitle, self.raidLine = summary.title, table.concat(parts, "  ·  ")
+	elseif summary.snapshots > 0 then
+		self.raidTitle = L["Raid without an import"]
+		self.raidLine = capitalize(summary.state)
+			.. "  ·  "
+			.. count(summary.snapshots, L["1 snapshot"], L["%d snapshots"])
+	end
+end
+
+--- Re-reads the session and the roster, and redraws everything.
 function RaidWindow:Refresh()
 	if not self.frame then
 		return
 	end
-	local result = ns.Executor:Execute("session-get")
-	if result.success then
-		self:RefreshStatus(result.data, result.reasoning)
-		self:RefreshExport(result.data)
-	else
-		self.sessionLine = result.error and result.error.message or nil
-		self:RefreshStatus()
-		self:RefreshExport(nil)
+	local session = ns.Executor:Execute("session-get")
+	local summary = session.success and session.data or nil
+	local raid = ns.Executor:Execute("raid-status")
+	local status = raid.success and raid.data or nil
+
+	self:DescribeRaid(summary, status)
+	if not session.success then
+		self.raidLine = session.error and session.error.message or nil
 	end
-	self:RefreshRoster()
+	self:RefreshHeader()
+	self:RefreshLists(status)
+	self:RefreshLootPlan(status and status.loot or nil)
+	self:RefreshExport(summary)
+	self.importButton:SetText(status and L["Import again"] or L["Import"])
 end
 
---- The text in the bar now.
+--- The line under the raid's name now.
 ---@return string
 function RaidWindow:GetStatusText()
 	return self.status and self.status:GetText() or ""
+end
+
+--- The raid's name in the header now.
+---@return string
+function RaidWindow:GetTitleText()
+	return self.title and self.title:GetText() or ""
 end
 
 function RaidWindow:Show()
@@ -626,7 +833,7 @@ function RaidWindow:Show()
 	-- Who is in the group changes while the window is open.
 	ns.Events:On("GROUP_ROSTER_UPDATE", "RaidWindow", function()
 		if frame:IsShown() then
-			self:RefreshRoster()
+			self:Refresh()
 		end
 	end)
 	self:Refresh()

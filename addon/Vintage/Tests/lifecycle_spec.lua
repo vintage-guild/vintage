@@ -184,7 +184,8 @@ describe("The raid window", function()
 		ns.db.char.session.state = "live"
 		ns.db.char.session.attendance = { { at = 1, members = {} } }
 		ns.RaidWindow:Refresh()
-		assert.are.equal("Raid without an import: live, 1 snapshot", ns.RaidWindow:GetStatusText())
+		assert.are.equal("Raid without an import", ns.RaidWindow:GetTitleText())
+		assert.are.equal("Live  ·  1 snapshot", ns.RaidWindow:GetStatusText())
 		ns.Executor:Execute("session-clear", { confirm = true })
 		-- Before a raid the bar is empty: each tab's empty state says what to do.
 		assert.are.equal("", ns.RaidWindow:GetStatusText())

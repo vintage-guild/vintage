@@ -181,21 +181,25 @@ describe("The Roster tab", function()
 		assert.is_true(window.importButton:IsShown())
 		assert.is_true(window.pages.roster.list:IsShown())
 		assert.is_false(window.pages.roster.empty:IsShown())
+		-- The header: the raid's name, and what just happened under it.
+		assert.are.equal("Molten Core — week 1", window:GetTitleText())
 		assert.are.equal("Imported Molten Core — week 1: 5 characters", window:GetStatusText())
-		-- By role, each with how many are in your group; names in class colors.
+		-- By role, each with how many are in your group.
 		assert.are.same({
-			"# Tanks  ·  1 of 1 in your group",
-			"Aeryn  ·  Warrior tank  ·  group 1  ·  in your group",
-			"# Healers  ·  0 of 2 in your group",
-			"Brann  ·  Priest healer  ·  group 1  ·  not in your group",
-			"Élowen  ·  Druid healer  ·  group 2  ·  not in your group",
-			"# Melee  ·  1 of 1 in your group",
-			"Doran-Stonemaul  ·  Rogue melee  ·  group 1  ·  in your group",
-			"# Ranged  ·  0 of 1 in your group",
-			"Cyra  ·  Mage ranged  ·  group 2  ·  not in your group",
+			"# Tanks  1 / 1 in group",
+			"Aeryn  ·  Warrior  ·  Group 1  ·  In group",
+			"# Healers  0 / 2 in group",
+			"Brann  ·  Priest  ·  Group 1  ·  Not in group",
+			"Élowen  ·  Druid  ·  Group 2  ·  Not in group",
+			"# Melee  1 / 1 in group",
+			"Doran-Stonemaul  ·  Rogue  ·  Group 1  ·  In group",
+			"# Ranged  0 / 1 in group",
+			"Cyra  ·  Mage  ·  Group 2  ·  Not in group",
 		}, lines(window.rosterItems))
-		assert.matches("^|cffc69b6dAeryn|r", window.rosterItems[2].text)
+		assert.are.equal("warrior", window.rosterItems[2].class)
+		-- Gold for Import only while there is no raid.
 		assert.are.equal("Import again", window.importButton:GetText())
+		assert.is_nil(window.importButton.config.variant)
 		assert.are.same({}, host.errors)
 	end)
 
@@ -229,7 +233,16 @@ describe("The Roster tab", function()
 		window:SubmitImport(IMPORT)
 		inParty({ { name = "Brann", class = "PRIEST", online = true } })
 		host:Fire("GROUP_ROSTER_UPDATE")
-		assert.are.equal("Brann  ·  Priest healer  ·  group 1  ·  in your group", plain(window.rosterItems[4].text))
+		assert.are.equal("Brann  ·  Priest  ·  Group 1  ·  In group", plain(window.rosterItems[4].text))
+		-- With no message showing, the line under the raid's name counts them.
+		window.message = nil
+		window:RefreshHeader()
+		assert.are.equal("Imported  ·  5 characters  ·  2 in your group", window:GetStatusText())
+	end)
+
+	it("makes Import the gold, primary action until there is a raid", function()
+		assert.are.equal("primary", window.importButton.config.variant)
+		assert.are.equal("", window:GetTitleText())
 	end)
 
 	it("opens the paste area from any tab, says what to paste, and lands on the roster", function()
@@ -278,19 +291,21 @@ describe("The Groups and Loot tabs", function()
 		window:SubmitImport(IMPORT)
 		assert.is_true(window.pages.groups.list:IsShown())
 		assert.are.same({
-			"# Group 1  ·  2 of 3 in your group",
-			"Aeryn  ·  Warrior tank  ·  in your group",
-			"Brann  ·  Priest healer  ·  not in your group",
-			"Doran-Stonemaul  ·  Rogue melee  ·  in your group",
-			"# Group 2  ·  0 of 2 in your group",
-			"Cyra  ·  Mage ranged  ·  not in your group",
-			"Élowen  ·  Druid healer  ·  not in your group",
+			"# Group 1  2 / 3 in group",
+			"Aeryn  ·  Warrior  ·  Tank  ·  In group",
+			"Brann  ·  Priest  ·  Healer  ·  Not in group",
+			"Doran-Stonemaul  ·  Rogue  ·  Melee  ·  In group",
+			"# Group 2  0 / 2 in group",
+			"Cyra  ·  Mage  ·  Ranged  ·  Not in group",
+			"Élowen  ·  Druid  ·  Healer  ·  Not in group",
 		}, lines(window.groupItems))
-		assert.are.equal("Master loot  ·  epic or better  ·  2 items with a priority list", window.lootPlanText)
-		assert.are.equal(
-			"Master loot  ·  epic or better  ·  2 items with a priority list\nDrops are recorded here during the raid.",
-			window.pages.loot.empty.subtitleText:GetText()
-		)
+		-- The loot plan as label and value, above the empty state.
+		assert.are.same({
+			{ "Loot method", "Master loot" },
+			{ "Threshold", "Epic or better" },
+			{ "Priority lists", "2 items" },
+		}, window.lootPlan)
+		assert.is_true(window.pages.loot.plan:IsShown())
 	end)
 end)
 
@@ -335,7 +350,8 @@ describe("The Export tab", function()
 		window:Hide()
 		window:Show()
 		assert.are.equal(made, window.pages.export.exportBox:GetText())
-		assert.are.equal("Raid without an import: exported, 1 snapshot", window:GetStatusText())
+		assert.are.equal("Raid without an import", window:GetTitleText())
+		assert.are.equal("Exported  ·  1 snapshot", window:GetStatusText())
 	end)
 
 	it("hides an export once a later snapshot makes it out of date", function()

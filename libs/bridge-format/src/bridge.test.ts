@@ -9,6 +9,7 @@ import { encodeForPrint } from './print';
 import type { RaidExport, RaidImport } from './schemas';
 
 const raidImport = FIXTURES['raid-import.v1']?.payload as RaidImport;
+const raidImportWithBench = FIXTURES['raid-import-bench.v1']?.payload as RaidImport;
 const raidExport = FIXTURES['raid-export.v1']?.payload as RaidExport;
 
 function errorCode<T>(result: BridgeResult<T>): BridgeErrorCode | 'ok' {
@@ -184,6 +185,38 @@ describe('import references', () => {
   it('reports non-UTF-8 text as corrupt', () => {
     const text = PREFIX + encodeForPrint(deflateSync(Uint8Array.from([1, 0x22, 0xff, 0xfe])));
     expect(errorCode(decodeBridge(text))).toBe('CORRUPT');
+  });
+
+  it('refuses a bench character who is also rostered, or benched twice', () => {
+    const [first] = raidImportWithBench.bench ?? [];
+    const rostered = {
+      ...raidImportWithBench,
+      bench: [{ ...first!, characterId: 'c_brann' }],
+    };
+    const twice = {
+      ...raidImportWithBench,
+      bench: [first!, { ...first!, reason: 'queued' as const }],
+    };
+    const issuePaths = (payload: RaidImport) => {
+      const result = encodeBridge(payload);
+      const issues = (result.ok ? [] : (result.error.details?.issues ?? [])) as { path: string }[];
+      return issues.map((i) => i.path);
+    };
+    expect(issuePaths(rostered)).toEqual(['bench.0.characterId']);
+    expect(issuePaths(twice)).toEqual(['bench.1.characterId']);
+  });
+
+  it('decodes an import without a bench, as older strings are', () => {
+    const { bench: _, ...withoutBench } = raidImportWithBench;
+    const decoded = decodeRaidImport(encoded(encodeBridge(withoutBench)));
+    expect(decoded).toEqual({ ok: true, value: withoutBench });
+    expect(decoded.ok && 'bench' in decoded.value).toBe(false);
+  });
+
+  it('refuses a bench reason it does not know', () => {
+    const [first] = raidImportWithBench.bench ?? [];
+    const bad = { ...raidImportWithBench, bench: [{ ...first!, reason: 'late' }] };
+    expect(errorCode(encodeBridge(bad as never))).toBe('INVALID_PAYLOAD');
   });
 
   it('refuses loot candidates who are not rostered', () => {

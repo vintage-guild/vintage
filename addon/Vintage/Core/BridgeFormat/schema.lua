@@ -265,6 +265,9 @@ Schema.ROLES = { "tank", "healer", "melee", "ranged" }
 local class = OneOf(unpack(Schema.CLASSES))
 local role = OneOf(unpack(Schema.ROLES))
 
+-- Why a bench character isn't rostered (schemas.ts BENCH_REASONS).
+Schema.BENCH_REASONS = { "standby", "queued", "benched" }
+
 local raidImport = Object({
 	{ "v", Literal(1) },
 	{ "kind", Literal("raid-import") },
@@ -283,6 +286,22 @@ local raidImport = Object({
 			}),
 			80
 		),
+	},
+	-- Optional, so imports from before the bench still decode.
+	{
+		"bench",
+		Array(
+			Object({
+				{ "characterId", id },
+				{ "name", unitName },
+				{ "class", class },
+				{ "spec", String(1, 32), OPTIONAL },
+				{ "role", role },
+				{ "reason", OneOf(unpack(Schema.BENCH_REASONS)) },
+			}),
+			80
+		),
+		OPTIONAL,
 	},
 	{ "groups", Array(Object({ { "group", raidGroup }, { "characterIds", Array(id, 5) } }), 8) },
 	{
@@ -380,7 +399,8 @@ local function CheckUnique(values, pathOf, issues)
 end
 
 --- Ids, groups, and items are unique; groups and candidates only name rostered characters;
---- no one sits in two groups (schemas.ts checkImportReferences).
+--- no one sits in two groups; no one is both rostered and on the bench
+--- (schemas.ts checkImportReferences).
 local function CheckImportReferences(value, issues)
 	local rostered, rosterIds = {}, {}
 	for i, entry in ipairs(value.roster) do
@@ -390,6 +410,19 @@ local function CheckImportReferences(value, issues)
 	CheckUnique(rosterIds, function(i)
 		return { "roster", i - 1, "characterId" }
 	end, issues)
+
+	local bench, benchIds = value.bench or {}, {}
+	for i, entry in ipairs(bench) do
+		benchIds[i] = entry.characterId
+	end
+	CheckUnique(benchIds, function(i)
+		return { "bench", i - 1, "characterId" }
+	end, issues)
+	for i, characterId in ipairs(benchIds) do
+		if rostered[characterId] then
+			Issue(issues, { "bench", i - 1, "characterId" }, "also on the roster")
+		end
+	end
 
 	local groupNumbers = {}
 	for i, group in ipairs(value.groups) do

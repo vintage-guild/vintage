@@ -27,6 +27,18 @@ export const rosterEntrySchema = z.object({
   role: roleSchema,
 });
 
+/**
+ * Why a bench character isn't on the roster: they answered Standby, they wait in the queue past
+ * the raid size, or the leader or the comp benched them.
+ */
+export const BENCH_REASONS = ['standby', 'queued', 'benched'] as const;
+export type BenchReason = (typeof BENCH_REASONS)[number];
+/** The most bench entries an import carries. */
+export const BENCH_MAX = 80;
+
+/** Someone who could fill in: a roster entry for a character who isn't rostered, and why. */
+export const benchEntrySchema = rosterEntrySchema.extend({ reason: z.enum(BENCH_REASONS) });
+
 export const raidGroupSchema = z.object({
   group: raidGroup,
   characterIds: z.array(id).max(5),
@@ -62,6 +74,8 @@ const raidImportV1Object = z.object({
   generatedAt: unixSeconds,
   raid: z.object({ eventId: id, title: z.string().min(1).max(100), startsAt: unixSeconds }),
   roster: z.array(rosterEntrySchema).max(80),
+  /** Optional, so imports from before the bench still decode. */
+  bench: z.array(benchEntrySchema).max(BENCH_MAX).optional(),
   groups: z.array(raidGroupSchema).max(8),
   loot: lootSettingsSchema,
   candidates: z.array(itemCandidatesSchema).max(1000),
@@ -82,7 +96,7 @@ function checkUnique<T>(values: T[], path: (i: number) => (string | number)[], i
 
 /**
  * Ids, groups, and items are unique; groups and candidates only name rostered characters;
- * no one sits in two groups.
+ * no one sits in two groups; no one is both rostered and on the bench.
  */
 function checkImportReferences(value: RaidImportShape, ctx: z.RefinementCtx): void {
   const issue: Issue = (path, message) => ctx.addIssue({ code: 'custom', path, message });
@@ -96,6 +110,15 @@ function checkImportReferences(value: RaidImportShape, ctx: z.RefinementCtx): vo
     (i) => ['roster', i, 'characterId'],
     issue,
   );
+  const bench = value.bench ?? [];
+  checkUnique(
+    bench.map((b) => b.characterId),
+    (i) => ['bench', i, 'characterId'],
+    issue,
+  );
+  bench.forEach((b, i) => {
+    if (rostered.has(b.characterId)) issue(['bench', i, 'characterId'], 'also on the roster');
+  });
   checkUnique(
     value.groups.map((g) => g.group),
     (i) => ['groups', i, 'group'],

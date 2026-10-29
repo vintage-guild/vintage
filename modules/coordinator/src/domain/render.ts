@@ -1,6 +1,6 @@
 // Discord messages the coordinator sends. Pure: data in, discord-kit MessageData out. Times use
 // Discord timestamp markup so everyone sees their own local time (PLAN §6.2).
-import { encodeBridge } from '@vintage/bridge-format';
+import { BENCH_MAX, type BenchReason, encodeBridge } from '@vintage/bridge-format';
 import { type CompResult, compRoleOf, solveComp } from '@vintage/comp-solver';
 import { discordTimestamp, type MessageData, TimestampStyle } from '@vintage/discord-kit';
 import { compSize, eventTemplate, RANK_PRIORITY, type Signup } from '@vintage/raids/contract';
@@ -201,16 +201,28 @@ export function finalRoster(
 }
 
 /**
+ * Why a bench signup sits out: they answered Standby, they wait in the queue, or the leader (or
+ * the comp, for size) benched them.
+ */
+export function benchReason(s: Signup): BenchReason {
+  if (s.status === 'bench') return 'standby';
+  return s.queued && s.roster !== 'benched' ? 'queued' : 'benched';
+}
+
+/**
  * The addon import string (libs/bridge-format) for a raid: who goes by the comp, with their
- * groups. Shared by the officer-channel post and `addon-import-get`, so both give the same string.
+ * groups, and the bench the leader can fill in from. Shared by the officer-channel post and
+ * `addon-import-get`, so both give the same string. `withBench: false` leaves the bench out, for a
+ * post that would otherwise be too long.
  */
 export function buildImportString(
   tick: TickEvent,
   members: TickMember[],
   guildId: string,
   now: number,
+  { withBench = true }: { withBench?: boolean } = {},
 ): { characters: number; encoded: ReturnType<typeof encodeBridge> } {
-  const { going } = finalRoster(tick, members);
+  const { going, bench } = finalRoster(tick, members);
   const groups = new Map<number, string[]>();
   for (const s of going) {
     if (s.group !== null) groups.set(s.group, [...(groups.get(s.group) ?? []), s.characterId]);
@@ -231,6 +243,15 @@ export function buildImportString(
       class: s.class,
       spec: s.spec,
       role: s.role,
+    })),
+    // In pick order; past the cap, the last ones are left out rather than failing the import.
+    bench: (withBench ? bench.slice(0, BENCH_MAX) : []).map((s) => ({
+      characterId: s.characterId,
+      name: s.characterName,
+      class: s.class,
+      spec: s.spec,
+      role: s.role,
+      reason: benchReason(s),
     })),
     groups: [...groups].map(([group, characterIds]) => ({ group, characterIds })),
     // Loot methods arrive with the loot module (Phase 2); until then the addon leaves loot alone.
@@ -260,11 +281,18 @@ export function renderImportString(
       allowed_mentions: { parse: [] },
     };
   }
-  const content = `${header}\n\`\`\`\n${encoded.value}\n\`\`\``;
+  const block = (text: string) => `\n\`\`\`\n${text}\n\`\`\``;
+  const content = header + block(encoded.value);
+  if (content.length <= MAX_CONTENT) return { content, allowed_mentions: { parse: [] } };
+  // The bench goes first: a string without it still forms the raid.
+  const lean = buildImportString(tick, members, guildId, now, { withBench: false }).encoded;
+  const leanContent = lean.ok
+    ? `${header}${block(lean.value)}\nThe bench is left out to fit; the website's import string has it.`
+    : '';
   return {
     content:
-      content.length <= MAX_CONTENT
-        ? content
+      leanContent && leanContent.length <= MAX_CONTENT
+        ? leanContent
         : `${header}\nIt is too long for one message (${encoded.value.length} characters); use the website export.`,
     allowed_mentions: { parse: [] },
   };

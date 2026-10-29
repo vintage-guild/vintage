@@ -377,6 +377,20 @@ describe("Bridge payload schema", function()
 		}, issuePaths(check(import)))
 	end)
 
+	it("checks the bench: optional, with a known reason, off the roster, and listed once", function()
+		local benched = copy(F.fixtures["raid-import-bench.v1"].payload)
+		assert.is_true(check(benched).success)
+		assert.is_nil(import.bench) -- an import from before the bench
+		assert.is_true(check(import).success)
+
+		benched.bench[1].reason = "late"
+		benched.bench[2].characterId = "c_brann" -- also rostered
+		benched.bench[3].characterId = "c_fenna" -- benched twice
+		assert.are.same({ "bench.0.reason" }, issuePaths(check(benched)))
+		benched.bench[1].reason = "standby"
+		assert.are.same({ "bench.2.characterId", "bench.1.characterId" }, issuePaths(check(benched)))
+	end)
+
 	it("checks the export's snapshots, loot, and items", function()
 		export.attendance[1].members[1].group = 9
 		export.attendance[1].members[2].online = "yes"

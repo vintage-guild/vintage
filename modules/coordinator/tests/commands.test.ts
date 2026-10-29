@@ -163,6 +163,68 @@ describe('coordinator commands', () => {
     });
   });
 
+  it("puts the leader's bench in the import, with why each one sits out", async () => {
+    const signup = (n: number, patch: Partial<Signup>): Signup => ({
+      id: `signup-${n}`,
+      guildId: 'guild-test',
+      eventId: 'raid-1',
+      memberId: `member-${n}`,
+      characterId: `char-${n}`,
+      characterName: `Raider${'abcd'[n]}`,
+      class: 'priest',
+      spec: 'holy',
+      role: 'healer',
+      status: 'accepted',
+      note: null,
+      signedUpAt: clock.now() - (10 - n) * 3600 * 1000,
+      updatedAt: clock.now(),
+      roster: 'benched',
+      group: null,
+      queued: false,
+      promotedAt: null,
+      ...patch,
+    });
+    const signups = [
+      signup(0, { roster: 'rostered', group: 1 }),
+      signup(1, { status: 'bench' }),
+      signup(2, { queued: true }),
+      signup(3, { class: 'mage', spec: 'frost', role: 'ranged' }),
+    ];
+    deps = createMemoryCoordinatorDeps(() => ({
+      guildId: 'guild-test',
+      events: [{ event, timings: DEFAULT_TIMINGS, signups }],
+      members: [],
+    }));
+
+    const got = await run('addon-import-get', { eventId: 'raid-1' });
+    expect(got).toMatchObject({ data: { characters: 1 } });
+    const decoded = decodeRaidImport((got as { data: { importString: string } }).data.importString);
+    expect(decoded).toMatchObject({
+      ok: true,
+      value: {
+        roster: [{ characterId: 'char-0' }],
+        bench: [
+          {
+            characterId: 'char-1',
+            name: 'Raiderb',
+            class: 'priest',
+            role: 'healer',
+            reason: 'standby',
+          },
+          // Queued, but the leader benched them: the leader's call is the reason.
+          { characterId: 'char-2', reason: 'benched' },
+          {
+            characterId: 'char-3',
+            class: 'mage',
+            spec: 'frost',
+            role: 'ranged',
+            reason: 'benched',
+          },
+        ],
+      },
+    });
+  });
+
   it('rejects channel ids that are not Discord snowflakes', async () => {
     expect(
       await run('coordinator-config-set', { signupChannelId: '#raid-signups' }, officer),

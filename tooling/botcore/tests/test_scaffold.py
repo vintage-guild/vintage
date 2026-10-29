@@ -101,10 +101,12 @@ def test_registers_the_module_one_line_per_shared_file(repo: Path) -> None:
 
 
 def test_skips_files_that_already_list_the_module(repo: Path) -> None:
-    result = scaffold_module(repo, "loot")  # already a commit scope and an issue Area
+    # A planned module: already a commit scope and an issue Area, with no CODEOWNERS line yet.
+    # When it ships, pick another such name (loot was this until modules/loot landed).
+    result = scaffold_module(repo, "wishlist")
     for relative in ["commitlint.config.mjs", *SHARED[3:]]:
         assert _changes(repo, relative) == ([], []), relative
-    assert _changes(repo, ".github/CODEOWNERS") == ([], ["modules/loot/ @Falkicon"])
+    assert _changes(repo, ".github/CODEOWNERS") == ([], ["modules/wishlist/ @Falkicon"])
     assert not any(step.startswith((".github", "commitlint")) for step in result.next_steps)
 
 

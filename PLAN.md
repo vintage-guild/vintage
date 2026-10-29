@@ -214,7 +214,7 @@ One addon named **Vintage**, distributed on **CurseForge** so guild members inst
 
 Local development: `_dev_/Vintage` is a junction to the monorepo's `addon/Vintage`, so Mechanic finds it like the sibling addons; Mechanic's `addon.sync` links it into `_forever_/Interface/AddOns/Vintage` so `/reload` runs the checkout. The scaffold landed 2026-10-27 ([plan](docs/features/active/vintage-addon/vintage-addon.plan.md)).
 
-Release: version in `Vintage.toc`, `X-Curse-Project-ID` in the TOC, tag `addon-vX.Y.Z` → `BigWigsMods/packager@v2` with `-t addon/Vintage` (its top-level-directory option, so packaging from the monorepo subdirectory is supported) uploads to CurseForge with the `CF_API_TOKEN` secret, optionally Wago.
+Release: version in `Vintage.toc`, `X-Curse-Project-ID` in the TOC, tag `addon-vX.Y.Z` → `BigWigsMods/packager@v2` uploads to CurseForge with the `CF_API_TOKEN` secret, optionally Wago. The packager's `-t` needs a folder holding `.git`, so the workflow stages the addon's tracked files as a one-commit repository and points `-t` there ([plan](docs/features/active/vintage-addon/vintage-addon.plan.md) D11).
 
 If the addon grows large, raid and loot features can later split into load-on-demand child addons shipped in the same CurseForge package. Start with one addon.
 
@@ -597,7 +597,7 @@ Modeled on Lushly's `ci.yml` (closest stack match: pnpm + turbo + Vercel + AFD +
 **Other workflows**
 
 - `full-validation.yml` (reusable): everything, regardless of diff. Runs when a PR gets the `ci:full-validation` label, on demand, and weekly.
-- `release-addon.yml`: on an `addon-v*` tag, `BigWigsMods/packager@v2` with `-t addon/Vintage` builds the addon and uploads to CurseForge (`CF_API_TOKEN` secret).
+- `release-addon.yml`: on an `addon-v*` tag, `BigWigsMods/packager@v2` builds a staged copy of `addon/Vintage` and uploads to CurseForge (`CF_API_TOKEN` secret); run by hand, it is a dry run.
 - `dependency-audit.yml` (daily) and Dependabot with `dependabot-auto-merge.yml` for safe updates.
 - `convex-preview-reaper.yml`: cleans up stale Convex preview deployments (Lushly's Neon-reaper idea, applied to Convex).
 - Previews: Vercel's GitHub integration per PR, plus a Convex preview deployment wired to it.
@@ -676,7 +676,7 @@ AFD, botcore, Mechanic, FenCore, FenUI, MechanicLib, Violet, FAST-AF, and the AF
 | FAST-AF | Publish `element` and `violet-elements` to npm (§3.9). Vendored in `vendor/` meanwhile | To file |
 | FAST-AF | Ultraviolet stack naming (Ultra vs. Violet) and the broken VISION link | Filed: [lushly-dev/fast-af#165](https://github.com/lushly-dev/fast-af/issues/165) |
 | FenUI | Per-frame theme colors: `RegisterTheme` exists, but token colors apply only through `SetGlobalTheme`, which restyles every FenUI addon (Q13). Also, every embedded copy resets `FenUI.Themes` and `FenUI.Tokens` when it loads, wiping themes other addons registered | To file. Vintage registers its themes at login, re-checks before opening a window, and never switches the global theme |
-| Mechanic | Sandbox API stubs for Forever (Mainline family plus the 1.60.1 removals); release commands passing the packager's `-t` option for a monorepo subdirectory (§3.6) | To check in Phase 1–2 |
+| Mechanic | Sandbox API stubs for Forever (Mainline family plus the 1.60.1 removals); release commands for a monorepo subdirectory (§3.6): the packager's `-t` alone fails there, since it needs `$topdir/.git`; Vintage stages a copy instead | To check in Phase 1–2 |
 
 ---
 
@@ -731,7 +731,7 @@ Phase 0 has about ten days and one maintainer, so it is cut to the minimum that 
 
 - [x] `libs/bridge-format` + Lua side with shared fixtures (#23: TS side #49; Lua side `addon/Vintage/Core/BridgeFormat`, 2026-10-27)
 - [ ] Addon: import roster → invite all → arrange groups (FenUI), attendance snapshot, loot capture, item data capture, export string; `vintage-addon` skill
-- [ ] CurseForge project **Vintage**; `release-addon.yml` with `BigWigsMods/packager@v2 -t addon/Vintage`
+- [ ] CurseForge project **Vintage**; `release-addon.yml` with `BigWigsMods/packager@v2` (workflow built 2026-10-29, not yet run; the project and secret are human steps, #25)
 - [ ] `loot` host module + `libs/loot-core`; first two methods (likely soft-reserve + council, per Q5)
 - [ ] `wishlist` module; wishlists feed council candidates
 - [ ] Addon loot popup showing precomputed candidates

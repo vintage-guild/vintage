@@ -259,9 +259,36 @@ def _normalize(parts):
     return out or ["."]
 
 
+def package_settings(source):
+    """The top-level `key: value` lines of .pkgmeta, plus the nested manual-changelog filename."""
+    settings, section = {}, None
+    for line in source.splitlines():
+        stripped = line.split(" #", 1)[0].strip()
+        if not stripped or stripped.startswith("#") or ":" not in stripped:
+            continue
+        key, value = (part.strip().strip("'\"") for part in stripped.split(":", 1))
+        if not line[0].isspace():
+            section = key
+            settings[key] = value
+        elif section == "manual-changelog" and key == "filename":
+            settings[section] = value
+    return settings
+
+
 def check_package(root, files):
-    ignores = package_ignores(read(root, ".pkgmeta"))
+    source = read(root, ".pkgmeta")
+    ignores = package_ignores(source)
+    settings = package_settings(source)
     errors = check_manifest(root, files, release=True, ignores=ignores)
+    if settings.get("package-as") != PurePosixPath(TOC).stem:
+        errors.append(f".pkgmeta: package-as must be {PurePosixPath(TOC).stem}, the TOC's folder name")
+    if "externals" in settings:
+        errors.append(".pkgmeta: no externals; libraries ship as committed in Libs/")
+    changelog = settings.get("manual-changelog")
+    if not changelog:
+        errors.append(".pkgmeta: manual-changelog must name CHANGELOG.md for the release notes")
+    elif changelog not in files or is_ignored(changelog, ignores):
+        errors.append(f".pkgmeta: manual-changelog {changelog} must exist and ship")
     for name in sorted(files):
         if name.split("/")[0] in DEV_FOLDERS and not is_ignored(name, ignores):
             errors.append(f".pkgmeta: development file would ship: {name}")

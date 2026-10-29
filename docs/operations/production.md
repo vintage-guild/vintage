@@ -76,6 +76,35 @@ scheduled backups) is still open (PLAN.md §8, Phase 0).
   or `DISCORD_CLIENT_SECRET` refuses sign-in with an error naming them (`apps/api/src/auth-env.ts`)
   instead of falling back to defaults.
 
+## Addon releases
+
+A tag `addon-vX.Y.Z` runs `.github/workflows/release-addon.yml`, which packages `addon/Vintage`
+and uploads it to CurseForge; running the workflow by hand from `main` is a dry run that keeps the
+zip as a run artifact ([plan](../features/active/vintage-addon/vintage-addon.plan.md#release-25),
+`addon/Vintage/AGENTS.md` "Releasing"). Not yet run.
+
+**Set up once (maintainer), in this order (#25):**
+
+1. Create the CurseForge project **Vintage** from the author account, for WoW: Forever.
+2. Add its project id as `## X-Curse-Project-ID: <id>` in `addon/Vintage/Vintage.toc` (a PR).
+   A tag release fails without it, since the packager would otherwise skip the upload and pass.
+3. In GitHub → Settings → Environments, create `curseforge` (or open it, if a run already made
+   it: GitHub creates a missing environment with no rules) and set Deployment branches and tags
+   to only the branch `main` and tags matching `addon-v*`. Confirm the rule shows just those two.
+4. In GitHub → Settings → Rules, add a tag ruleset for `addon-v*` that restricts creating,
+   updating, and deleting those tags to the maintainer, with no bypass list. Required: a tag run
+   uses the workflow file at the tagged commit, so anyone who could push an `addon-v*` tag on an
+   edited workflow could read the token. Optional extra: a required reviewer on `curseforge`,
+   which also stops an agent session that holds the maintainer's own credentials.
+5. Create a CurseForge API token (author account → API tokens) and add it to the `curseforge`
+   environment as the secret `CF_API_TOKEN`, never as a repository secret.
+6. Run **Release addon** by hand on `main` and check the zip in the run's artifacts.
+7. Date the version's `CHANGELOG.md` entry, merge, then tag `main`: `git tag addon-v0.1.0` and
+   push the tag.
+
+The workflow pins `BigWigsMods/packager` to a commit SHA, unlike `ci.yml`'s major tags, because
+it receives the publish token; keep third-party actions that get a secret on SHA pins.
+
 ## Secrets
 
 Names and what each does are in SETUP.md and the gateway README; values live only in the Convex
@@ -92,6 +121,7 @@ keep the production bot token off machines that run agents where you can.
 | `DISCORD_BOT_TOKEN` | Reset in the Developer Portal, then update everywhere it's set | Convex, `apps/api/.env.local` |
 | `VINTAGE_CONFIRM_SECRET` | Pending confirm tokens stop working (they expire in 5 minutes anyway) | Convex |
 | `CONVEX_DEPLOY_KEY` | Create a new key, update the GitHub environment secret, revoke the old one | Convex dashboard, GitHub |
+| `CF_API_TOKEN` | Create a new token, update the `curseforge` environment secret, revoke the old one | CurseForge, GitHub |
 
 Rotate a secret as soon as it may have leaked: pasted into a chat or an issue, printed in a log,
 or read by an agent session.

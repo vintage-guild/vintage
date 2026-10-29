@@ -24,7 +24,7 @@ shows, and what `libs/bridge-format` already fixed. Forever is the only target.
 | Bridge format, Lua side (PR2) | `addon/Vintage/Core/BridgeFormat` | ✅ codec and schemas; 50 busted specs over the golden fixtures (both directions), the envelope limits, and every schema rule. Ran locally on the Lua 5.4 stand-in; CI's Lua 5.1 run is the check that `lua-made.json` is what 5.1 encodes |
 | Import and export in the window | `Core/Actions/raid.lua`, `Core/Roster.lua`, `View/RaidWindow.lua` | ✅ **Import**, in a bar every tab shares, pastes the guild's string (`raid-import`, asks before replacing a raid). Roster lists people by role and Groups by the planned group, each marked in your group or not (`raid-status`, refreshed on `GROUP_ROSTER_UPDATE`); Loot shows the import's loot plan until drops are recorded. The Export tab's **Take a snapshot** (`attendance-snapshot`, manual) and **Make export string** (`raid-export`, carrying the import's guild and raid) show the string ready to copy. The first slice of PR3 and PR5: no invites, groups, loot capture, or automatic snapshots yet. Can be tried on retail before Forever opens (`Tools/retail_toc.py`, a gitignored `Vintage_Mainline.toc`); tried on retail 12.1.5 on 2026-10-28 with a generated import: import, the lists, snapshot, and an export the TS decoder read |
 | CI addon lane | `.github/workflows/ci.yml` `addon` job, selected on `addon/**`, `libs/bridge-format/**`, and `libs/design-tokens/generated/lua/**` | 🚧 wired: installs Lua 5.1, busted, and luacheck, then runs `Tools/validate.py` (no longer skips). First CI run pending |
-| Release workflow | `release-addon.yml` | ❌ |
+| Release workflow | `.github/workflows/release-addon.yml`, `Tools/release.py`, `.pkgmeta` | 🚧 built (D11): a tag `addon-vX.Y.Z` checks the tag, TOC, and token, then packages and uploads; a manual run is a dry run that keeps the zip. Never run: the CurseForge project, `CF_API_TOKEN`, and the first dry-run dispatch are human steps (#25) |
 | FenUI theme from the design tokens | `libs/design-tokens/generated/lua/VintageTokens.lua` | ✅ generated; `pnpm tokens:build` also writes the addon's `Theme/VintageTokens.lua`, which registers both themes with FenUI at login (and again before a window opens, since every embedded FenUI copy resets its tables when it loads) |
 | Addon reviewer agent | `.claude/agents/vintage-addon-reviewer.md` | ✅ checklist written for a Weekly-layout addon |
 | Forever client | `C:\Program Files (x86)\World of Warcraft\_forever_` | ✅ installed, `Wow.exe` 1.60.1.70532, 50 addons; Forever addons (Attune, WTFix) declare `## Interface: 16001` |
@@ -69,6 +69,7 @@ PLAN §5.3), DKP or standings, automatic hand-outs, Retail support, translations
 | D8 | **State lives in AceDB `VintageDB`:** `char.session` (the current raid, survives `/reload`), `global.items` (item data seen, across characters), `profile` (settings), each with its own `schemaVersion` and ordered migrations (Weekly's `ConfigMigrations` rule: never put `schemaVersion` in defaults) | A disconnect mid-raid must not lose the night. Forever has had SavedVariables loss (WTFix exists for it): the TOC declares `## X-WTFix-Managed: 1` like Weekly, and the export can always be rebuilt from the session |
 | D9 | **The FenUI theme comes from the design tokens.** `pnpm tokens:build` also writes `addon/Vintage/Theme/VintageTokens.lua`; a check fails when it is stale. The addon registers `VintageDark` and `VintageParchment` through `FenUI:RegisterTheme`. **Q13, answered in PR1:** FenUI applies a theme's colors only through `SetGlobalTheme`, which restyles every FenUI addon and prints to chat, so Vintage registers its themes, names one on its panel (border pack only), and never switches the global theme. Vintage colors on Vintage windows alone need a per-frame token hook upstream in FenUI. Also found: FenUI is a plain global with no version guard, and each embedded copy resets `FenUI.Themes` and `FenUI.Tokens` when it loads, so Vintage registers at login and re-checks before building a window | One palette on the site, in Discord embeds, and in game (`vintage-design-tokens` skill) |
 | D10 | **Roster names are matched the way the game shows them:** `Name` on the player's realm, `Name-Realm` otherwise, compared case-insensitively after `Ambiguate(name, "none")` | The import's `unitName` already follows this rule (bridge-format), and cross-realm raiders cost nothing extra to support |
+| D11 | **The packager runs on a staged copy, not on `-t addon/Vintage`** (2026-10-29). `Tools/release.py stage` copies the addon's tracked files into a one-commit repository tagged with the TOC version (`0.1.0`), and `BigWigsMods/packager@v2` runs with `-t` on that | The packager requires `$topdir/.git` to be a folder (`release.sh`, "No Git, SVN, or Hg checkout found"), so a monorepo subfolder fails. The staged copy also keeps untracked files (a local `Vintage_Mainline.toc`) out, keeps the checkout's CRLF TOC, and names the zip and the CurseForge file after the version rather than the `addon-v` tag. Its cost: the packager sees no history, which `manual-changelog` doesn't need |
 
 ## Architecture
 
@@ -345,14 +346,29 @@ A gate is added only after it has been watched failing once (AGENTS.md).
   `## IconTexture`, `## X-Website: https://vintageguild.gg`, `## X-License: GPL-3.0`. **Decided
   2026-10-27:** the addon is GPL-3.0 (`addon/Vintage/LICENSE`), because it ships GPL-3.0 FenUI
   and FenCore; the rest of the monorepo stays PolyForm Noncommercial.
-- `.pkgmeta`: `package-as: Vintage`; `ignore:` Weekly's list (`.github`, `Tests`, `Tools`, `Dev`,
-  `AGENTS.md`, `CONTRIBUTING.md`, lint and format configs) but not `CHANGELOG.md`, which
-  `manual-changelog: CHANGELOG.md` turns into the release notes; no `externals` (D3).
-- `.github/workflows/release-addon.yml`: on tag `addon-v*`, check the tag matches the TOC version,
-  then `BigWigsMods/packager@v2` with `args: -t addon/Vintage` and `CF_API_TOKEN`; a dry run
-  (`-d`) on `workflow_dispatch` so the first real tag is not the first run.
+  **Built 2026-10-29:** every line but `X-Curse-Project-ID`, which waits for the project.
+- `.pkgmeta`: `package-as: Vintage`; `ignore:` Weekly's list (`Tests`, `Tools`, `Dev`,
+  `AGENTS.md`, lint and format configs, library docs) but not `CHANGELOG.md`, which
+  `manual-changelog: CHANGELOG.md` turns into the release notes; no `externals` (D3). The
+  packager also drops every dot-path and untracked file. `validate.py` checks `package-as`
+  against the TOC, no `externals`, that the changelog exists and ships, and that no development
+  folder ships. `python Tools/release.py files` lists what the package holds (158 files on
+  2026-10-29: the addon's own 30 and the embedded libraries with their licenses).
+- `.github/workflows/release-addon.yml` (built 2026-10-29, never run): on tag `addon-v*`,
+  `release.py check-tag` fails unless the tag is `addon-v` + the TOC version and the TOC has a
+  numeric `X-Curse-Project-ID` (without one the packager skips the upload and still succeeds),
+  and the step fails without `CF_API_TOKEN`. Then `validate.py --static`, `release.py stage`
+  (D11), and `BigWigsMods/packager@v2` with `-t <staged copy>`. On `workflow_dispatch` it adds
+  `-d` (no upload, no token passed) so the first real tag is not the first run. Both keep the
+  zip as a run artifact. Actions are pinned to major tags like `ci.yml`.
 - CurseForge project **Vintage** (human: Falkicon's author account), game version Forever 1.60.1.
 - `CHANGELOG.md` in the addon, Keep-a-Changelog style; `pnpm` never versions the addon.
+- **Human steps before `addon-v0.1.0`:** create the CurseForge project; add its id as
+  `## X-Curse-Project-ID` in `Vintage.toc` (a PR); create the `curseforge` environment (only
+  `main` and `addon-v*` tags) and add `CF_API_TOKEN` to it (a CurseForge API token from the
+  author account), never as a repository secret; run **Release addon** once by hand on `main`
+  and check the zip; date the `0.1.0` CHANGELOG entry; then push the tag. Steps in
+  [production.md](../../../operations/production.md#addon-releases).
 
 ## Work breakdown
 
@@ -368,7 +384,7 @@ verified live from Nov 4.
 | **PR4 Invite and arrange** | #24 | `raid-invite` queue with `ConvertToRaid`, `raid-arrange` move plan with swaps, `loot-mode-set` with confirm, Groups tab | On the fake host: a 25-name import forms a raid in ≤ 26 roster updates and arranges into the planned groups; live: a 5-person test after Nov 4. **Built 2026-10-28** (`Core/Forming.lua`, `Bridge/Game.lua`, `Bridge/Forming.lua`): Invite missing and Arrange groups in the window, plus Invite and Whisper on each row on hover (`member-whisper`); invite answers (declined, in another group, offline) read from system messages; a move the game ignores ends the run with `NO_PROGRESS`. On the fake host a 25-name import forms the raid in at most 26 roster updates and arranges into the planned groups. `loot-mode-set` moved to PR6 with the rest of loot. Not yet run with real players |
 | **PR5 Attendance, loot, items, export** | #24 | `attendance-snapshot` on form / `ENCOUNTER_END` / export / manual, `loot-capture`, `item-record`, `raid-export`, Loot and Export tabs | The export string decodes on the website side (`decodeRaidExport`) with the attendance, loot, and items the fake host produced; the J-job spec passes |
 | **PR6 Loot popup** | #28 | `loot-mode-set` with confirm (moved from PR4), `loot-candidates`, `loot-give` with confirm, `LootPopup.lua`, settings for threshold and auto-popup | A `LOOT_OPENED` with item 16800 on the fake host shows "1. Doran — Soft-reserved (1 of 2)"; Give asks to confirm and calls `GiveMasterLoot(slot, index)` once; live hand-out checked per the spike |
-| **PR7 Release** | #25 | `release-addon.yml`, `X-Curse-Project-ID`, CHANGELOG, `addon-v0.1.0` | Installed from CurseForge on the Forever client (human) |
+| **PR7 Release** | #25 | `release-addon.yml`, `X-Curse-Project-ID`, CHANGELOG, `addon-v0.1.0` | Installed from CurseForge on the Forever client (human). **Workflow and packaging built 2026-10-29** (D11), not yet run; the project id, the secret, the dry run, and the tag remain (see Release) |
 | **Spike** | #21 | The table above filled in, Blizzard source exported, Mechanic gaps filed | Nov 4–6, interleaved with PR3–PR6 |
 
 Web-side work this plan needs but does not own: `candidates` and `loot.mode` in the import once

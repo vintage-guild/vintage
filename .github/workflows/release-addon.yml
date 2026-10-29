@@ -1,0 +1,63 @@
+name: Release addon
+
+# A tag addon-vX.Y.Z packages addon/Vintage with BigWigsMods/packager and uploads it to
+# CurseForge. Run by hand (workflow_dispatch) it is a dry run: it packages without uploading and
+# keeps the zip as a run artifact, so the first real tag is not the workflow's first run.
+#
+# The packager wants its top-level folder to hold `.git`, so Tools/release.py stages the addon's
+# tracked files as a one-commit repository tagged with the TOC version, and the packager runs
+# there. Human steps before the first tag: docs/operations/production.md, "Addon releases".
+on:
+  push:
+    tags: ['addon-v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-addon-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    # CF_API_TOKEN is a secret of this environment, which allows only main and addon-v* tags: a
+    # workflow edited on another branch can't read it. A tag runs the workflow at the tagged
+    # commit, so the tag ruleset (only the maintainer creates addon-v* tags) is what guards a
+    # tag release (docs/operations/production.md, "Addon releases").
+    environment: curseforge
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Check the tag, the TOC, and the token
+        if: github.event_name == 'push'
+        env:
+          TAG: ${{ github.ref_name }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: |
+          python3 addon/Vintage/Tools/release.py check-tag "$TAG"
+          if [ -z "$CF_API_TOKEN" ]; then
+            echo "::error::The CF_API_TOKEN secret is not set, so nothing would upload."
+            exit 1
+          fi
+      - name: Validate the addon (static)
+        run: python3 addon/Vintage/Tools/validate.py --static
+      - name: Stage the addon as its own repository
+        run: python3 addon/Vintage/Tools/release.py stage "$RUNNER_TEMP/Vintage"
+      - name: Package (and upload on a tag)
+        # A SHA, not @v2 like ci.yml's actions: this third-party action receives the publish
+        # token. Dependabot updates the pin.
+        uses: BigWigsMods/packager@e50a250f8705041e40f2fa1ddcb280a686d65aa0 # v2.6.1
+        with:
+          args: -t ${{ runner.temp }}/Vintage ${{ github.event_name != 'push' && '-d' || '' }}
+          pandoc: 'false'
+        env:
+          CF_API_TOKEN: ${{ github.event_name == 'push' && secrets.CF_API_TOKEN || '' }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Vintage-${{ github.sha }}
+          path: ${{ runner.temp }}/Vintage/.release/*.zip
+          if-no-files-found: error

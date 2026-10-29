@@ -42,4 +42,13 @@ function Core.Count(tbl)
 	return count
 end
 
+--- "1 snapshot", "3 snapshots".
+---@param count number
+---@param one string
+---@param many string
+---@return string
+function Core.Plural(count, one, many)
+	return string.format("%d %s", count, count == 1 and one or many)
+end
+
 return Core

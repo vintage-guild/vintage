@@ -28,27 +28,64 @@ L["Export"] = true
 L["No raid imported"] = true
 L["Import the guild's string to see the roster and who is in your group."] = true
 L["No groups planned"] = true
-L["Planned and current raid groups appear here after an import."] = true
+L["Import the guild's string to see the groups it plans."] = true
+L["This raid's import plans no groups."] = true
 L["No loot recorded"] = true
 L["Drops are recorded here during the raid."] = true
 L["Nothing to export"] = true
 L["Take a snapshot of the group, then make the string for the website."] = true
 L["FenUI did not load. Reinstall Vintage."] = true
 
--- Roster tab: import
+-- Import, from any tab
 L["Import"] = true
 L["Import again"] = true
 L["Cancel"] = true
 L["Replace the raid"] = true
-L["Paste the guild's import string (it starts with !VIN:)"] = true
-L["group %d"] = true
-L["in your group"] = true
-L["not in your group"] = true
+L["Paste the guild's import string (it starts with !VIN:), then press Import."] = true
+
+-- The header
+L["Raid without an import"] = true
+L["1 character"] = true
+L["%d characters"] = true
+L["%d in your group"] = true
+L["1 snapshot"] = true
+L["%d snapshots"] = true
+
+-- Roster and Groups lists
+L["Tanks"] = true
+L["Healers"] = true
+L["Melee"] = true
+L["Ranged"] = true
+L["Tank"] = true
+L["Healer"] = true
+L["Group %d"] = true
+L["Not in a group"] = true
+L["%d / %d in group"] = true
+L["In group"] = true
+L["Not in group"] = true
+
+-- Loot plan
+L["Loot plan"] = true
+L["Loot method"] = true
+L["Master loot"] = true
+L["Group loot"] = true
+L["Threshold"] = true
+L["%s or better"] = true
+L["Not set"] = true
+L["Priority lists"] = true
+L["1 item"] = true
+L["%d items"] = true
+L["Poor"] = true
+L["Common"] = true
+L["Uncommon"] = true
+L["Rare"] = true
+L["Epic"] = true
+L["Legendary"] = true
 
 -- Export tab
 L["Take a snapshot"] = true
 L["Make export string"] = true
-L["%d snapshots, %d drops recorded"] = true
+L["Snapshots: %d  ·  Drops: %d"] = true
 L["Copy this into the website's Check an export (Ctrl+C)"] = true
 
 -- Minimap button and compartment

@@ -66,9 +66,18 @@ function Session.Summary(session)
 
 	local reasoning
 	if summary.title then
-		reasoning = string.format("%s: %s, %d characters", summary.title, summary.state, summary.roster)
+		reasoning = string.format(
+			"%s: %s, %s",
+			summary.title,
+			summary.state,
+			Core.Plural(summary.roster, "character", "characters")
+		)
 	elseif summary.snapshots > 0 then
-		reasoning = string.format("Raid without an import: %s, %d snapshots", summary.state, summary.snapshots)
+		reasoning = string.format(
+			"Raid without an import: %s, %s",
+			summary.state,
+			Core.Plural(summary.snapshots, "snapshot", "snapshots")
+		)
 	else
 		reasoning = "No raid imported"
 	end

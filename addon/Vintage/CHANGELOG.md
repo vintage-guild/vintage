@@ -9,8 +9,8 @@ All notable changes to the Vintage addon. The version is the `## Version` line i
 
 - The addon scaffold for WoW: Forever (1.60.1, interface 16001).
 - `/vintage` opens the raid window with Roster, Groups, Loot, and Export tabs.
-- **Import** on the Roster tab: paste the guild's string to see the roster, each planned group,
-  and who is in your group. Importing over a raid asks first.
+- **Import**, on every tab: paste the guild's string to see the roster by role, the planned
+  groups, who is in your group, and the loot plan. Importing over a raid asks first.
 - **Take a snapshot** and **Make export string** on the Export tab: record who is in the group
   and copy the string into the website's Check an export.
 - `/vintage status`, `/vintage clear`, `/vintage settings`, `/vintage debug`, and `/vintage help`.

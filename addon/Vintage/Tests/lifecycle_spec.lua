@@ -182,8 +182,13 @@ describe("The raid window", function()
 	it("follows the session after an action", function()
 		ns.RaidWindow:Show()
 		ns.db.char.session.state = "live"
+		ns.db.char.session.attendance = { { at = 1, members = {} } }
+		ns.RaidWindow:Refresh()
+		assert.are.equal("Raid without an import", ns.RaidWindow:GetTitleText())
+		assert.are.equal("Live  ·  1 snapshot", ns.RaidWindow:GetStatusText())
 		ns.Executor:Execute("session-clear", { confirm = true })
-		assert.are.equal("No raid imported", ns.RaidWindow:GetStatusText())
+		-- Before a raid the bar is empty: each tab's empty state says what to do.
+		assert.are.equal("", ns.RaidWindow:GetStatusText())
 		-- The panel subtitle overlaps FenUI's tab bar, so the window keeps it empty.
 		assert.are.equal("", ns.RaidWindow.frame:GetSubtitle())
 	end)

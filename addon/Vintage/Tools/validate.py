@@ -19,6 +19,8 @@ import subprocess
 import sys
 import xml.etree.ElementTree as ET
 
+import retail_toc
+
 ROOT = Path(__file__).resolve().parent.parent
 TOC = "Vintage.toc"
 REPO_THEME = Path("../../libs/design-tokens/generated/lua/VintageTokens.lua")
@@ -408,10 +410,26 @@ def check_version(root):
     return []
 
 
+def check_retail_toc(root):
+    """A local Vintage_Mainline.toc (gitignored, for trying the addon on retail) matches
+    Vintage.toc: retail loads it instead, so a stale copy leaves new files unloaded."""
+    name = retail_toc.TARGET.name
+    if not (root / name).exists():
+        return []
+    try:
+        expected = retail_toc.render(read(root, TOC))
+    except ValueError as error:
+        return [str(error)]
+    if read(root, name) != expected:
+        return [f"{name} is out of date with {TOC}; run python Tools/retail_toc.py"]
+    return []
+
+
 def static_errors(root):
     files = repository_files(root)
     return (check_localization(root, files) + check_manifest(root, files) + check_package(root, files)
-            + check_libraries(root) + check_theme(root) + check_bridge_fixtures(root) + check_version(root))
+            + check_libraries(root) + check_theme(root) + check_bridge_fixtures(root) + check_version(root)
+            + check_retail_toc(root))
 
 
 # ---------------------------------------------------------------------------
@@ -476,7 +494,7 @@ def main(argv=None):
         errors = static_errors(ROOT)
         if errors:
             raise RuntimeError("\n".join(errors))
-        print("Localization, manifest, package, library, theme, and version checks passed.", flush=True)
+        print("Localization, manifest, package, library, theme, version, and retail TOC checks passed.", flush=True)
 
     if not args.static:
         stage("Tool versions", versions_check)

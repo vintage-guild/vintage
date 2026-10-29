@@ -61,7 +61,8 @@ in a worktree reaches the game only if the junction points at that worktree.
 game data): `python Tools/retail_toc.py` writes `Vintage_Mainline.toc`, a gitignored copy of the
 TOC with retail's interface numbers, which retail loads instead of `Vintage.toc`. Link the
 checkout into `_retail_/Interface/AddOns/Vintage` (`mklink /J`). Re-run the script after the TOC
-changes. Retail proves loading, the window, saved data, and bridge strings (Roster → Import,
+changes (a stale copy leaves new files unloaded; `validate.py` fails while it differs), then
+restart the client, since a `/reload` may not see new files. Retail proves loading, the window, saved data, and bridge strings (Roster → Import,
 Export → Take a snapshot, Make export string); raid, loot, and class data differ from Forever,
 and the addon says it isn't on Forever at login.
 

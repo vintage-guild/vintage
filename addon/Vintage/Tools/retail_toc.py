@@ -18,15 +18,23 @@ TARGET = ROOT / "Vintage_Mainline.toc"
 RETAIL_INTERFACES = "120105, 120107"
 
 
-def main() -> int:
-    text = SOURCE.read_text(encoding="utf-8")
+def render(text: str) -> str:
+    """The retail TOC for this Vintage.toc text. validate.py compares a local copy with it, so a
+    copy written before the TOC changed is caught."""
     retail, count = re.subn(
         r"^## Interface: .*$", f"## Interface: {RETAIL_INTERFACES}", text, count=1, flags=re.MULTILINE
     )
     if count != 1:
-        print(f"{SOURCE.name}: no ## Interface line", file=sys.stderr)
+        raise ValueError(f"{SOURCE.name}: no ## Interface line")
+    return retail.rstrip("\n") + "\n\n# Local retail copy of Vintage.toc from Tools/retail_toc.py; never shipped.\n"
+
+
+def main() -> int:
+    try:
+        retail = render(SOURCE.read_text(encoding="utf-8"))
+    except ValueError as error:
+        print(error, file=sys.stderr)
         return 1
-    retail = retail.rstrip("\n") + "\n\n# Local retail copy of Vintage.toc from Tools/retail_toc.py; never shipped.\n"
     TARGET.write_text(retail, encoding="utf-8", newline="\r\n")
     print(f"Wrote {TARGET.name} (## Interface: {RETAIL_INTERFACES}).")
     return 0

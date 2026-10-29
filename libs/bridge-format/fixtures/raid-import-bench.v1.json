@@ -1,0 +1,118 @@
+{
+  "description": "An import with a bench: standby, queued, and benched characters off the roster",
+  "payload": {
+    "v": 1,
+    "kind": "raid-import",
+    "guildId": "g_vintage",
+    "generatedAt": 1793000000,
+    "raid": {
+      "eventId": "evt_mc_0001",
+      "title": "Molten Core — week 1",
+      "startsAt": 1793052000
+    },
+    "roster": [
+      {
+        "characterId": "c_aeryn",
+        "name": "Aeryn",
+        "class": "warrior",
+        "spec": "protection",
+        "role": "tank"
+      },
+      {
+        "characterId": "c_brann",
+        "name": "Brann",
+        "class": "priest",
+        "spec": "holy",
+        "role": "healer"
+      },
+      {
+        "characterId": "c_cyra",
+        "name": "Cyra",
+        "class": "mage",
+        "role": "ranged"
+      },
+      {
+        "characterId": "c_doran",
+        "name": "Doran-Stonemaul",
+        "class": "rogue",
+        "role": "melee"
+      },
+      {
+        "characterId": "c_elowen",
+        "name": "Élowen",
+        "class": "druid",
+        "spec": "restoration",
+        "role": "healer"
+      }
+    ],
+    "groups": [
+      {
+        "group": 1,
+        "characterIds": [
+          "c_aeryn",
+          "c_brann",
+          "c_doran"
+        ]
+      },
+      {
+        "group": 2,
+        "characterIds": [
+          "c_cyra",
+          "c_elowen"
+        ]
+      }
+    ],
+    "loot": {
+      "methodId": "softres",
+      "methodVersion": 1,
+      "configVersion": 3,
+      "mode": "master",
+      "threshold": 4
+    },
+    "candidates": [
+      {
+        "itemId": 16800,
+        "ranked": [
+          {
+            "characterId": "c_doran",
+            "reason": "Soft-reserved (1 of 2)"
+          },
+          {
+            "characterId": "c_aeryn",
+            "reason": "Soft-reserved (2 of 2)"
+          }
+        ]
+      },
+      {
+        "itemId": 17076,
+        "ranked": []
+      }
+    ],
+    "bench": [
+      {
+        "characterId": "c_fenna",
+        "name": "Fenna",
+        "class": "paladin",
+        "spec": "holy",
+        "role": "healer",
+        "reason": "standby"
+      },
+      {
+        "characterId": "c_garrick",
+        "name": "Garrick",
+        "class": "hunter",
+        "role": "ranged",
+        "reason": "queued"
+      },
+      {
+        "characterId": "c_hollis",
+        "name": "Hollis-Stonemaul",
+        "class": "warlock",
+        "spec": "affliction",
+        "role": "ranged",
+        "reason": "benched"
+      }
+    ]
+  },
+  "encoded": "!VIN:1!TjvVUnrqqyHJjymbjukIeefPJ)IcwYs2PGIuHVGc4cAUi5cAo2B35UBX7T7XS7zl3HChTw8aGsbpaw8ea1iTkVaiXJapbm35GukOCN9BM57N5gFnkb088tsxZZziJ7aCSa5XPGwZI4kM1ILmfti1HAwbeDw9hjiWSgnADmTizriAuqsoWuagAlbEyUrTyIV1kECgdrjFQVDsELMMUFB8vxvQtYhQGkq47MGmDgis9TwYJPEvsRVnoNHkdHB7Y796MA9p3z0qbRs57Gn8UUz)U(DUGLMQKCN0OVGtCskyoW27WePdkgl6m6l1Ryki6DOVfjpHHE67uU35MuxFeSaodebhnmWKgC8Z2aIb4I)hOJ)hO73j8B(h0DDgObKwOyK7O3)RwVijdnvL06)(1mv7j(dOHwZdTF)OgiBDO)H9s4X8fiJuoOmZbT)X3eZQKkXyXQS4zsTJLbHtLAXAKjf9LfLg0fQmg3Kl5gDQmBcGws63Azb4YnuJOLOmX4l3u4Q)3kSWiGKcMLy0kxobGmBXTdRN7ZrygODJfRHzU4cE8GbdgUKsy0zB01pFxKt6uq5EVXOCGo4udcb)(JFoyoatdgMGM65(wk39hSj(qPHc8Orngz3q6AzkLvLOXbnzvn0hrNgLOeSocjXeYD66VJFh)DpJ(9j(2HfK(9BhEkzs1PDD599TJqtwfv)pVSolV2Pr3Ocqbq9SFkbtGvsbD19JpTXDBg(As6oQVAsS7ST(la"
+}

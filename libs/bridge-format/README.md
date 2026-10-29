@@ -43,6 +43,11 @@ LibDeflate pick different matches), so compare decoded values, not encoded strin
 - Every object has a required field: LibSerialize writes `{}` the same as an empty array.
 - Inside an import, characters are referred to by `characterId`; groups and candidates must name
   rostered characters.
+- An import's optional `bench` lists who could fill in (up to 80): roster entries for characters
+  who are not on the roster, each with a `reason` (`standby`: they answered Standby; `queued`:
+  waiting past the raid size; `benched`: the leader or the comp sat them out). A bench character
+  is never also rostered, and is listed once. Imports without `bench` still decode, so it stays
+  schema v1 (`raid-import-bench.v1` is the fixture; `raid-import.v1` keeps an import without one).
 
 ## Errors
 

@@ -52,6 +52,39 @@ const raidImport: RaidImport = {
   ],
 };
 
+/**
+ * The same raid with a bench: one per reason. Kept apart from `raidImport`, whose committed
+ * strings carry no bench and so keep proving that older imports decode.
+ */
+const raidImportWithBench: RaidImport = {
+  ...raidImport,
+  bench: [
+    {
+      characterId: 'c_fenna',
+      name: 'Fenna',
+      class: 'paladin',
+      spec: 'holy',
+      role: 'healer',
+      reason: 'standby',
+    },
+    {
+      characterId: 'c_garrick',
+      name: 'Garrick',
+      class: 'hunter',
+      role: 'ranged',
+      reason: 'queued',
+    },
+    {
+      characterId: 'c_hollis',
+      name: 'Hollis-Stonemaul',
+      class: 'warlock',
+      spec: 'affliction',
+      role: 'ranged',
+      reason: 'benched',
+    },
+  ],
+};
+
 const raidExport: RaidExport = {
   v: 1,
   kind: 'raid-export',
@@ -174,6 +207,10 @@ export const FIXTURES: Record<string, Fixture> = {
   'raid-import.v1': {
     description: 'Web → game import: roster, groups, loot settings, ranked candidates',
     payload: raidImport,
+  },
+  'raid-import-bench.v1': {
+    description: 'An import with a bench: standby, queued, and benched characters off the roster',
+    payload: raidImportWithBench,
   },
   'raid-export.v1': {
     description: 'Game → web export: attendance snapshots, loot received, item data seen',

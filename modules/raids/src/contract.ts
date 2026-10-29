@@ -242,6 +242,51 @@ export interface ExportCheck {
   warnings: ExportWarning[];
 }
 
+/**
+ * Someone the recorded export saw in the raid (raid-export-record). Being in any snapshot counts
+ * as attending (decided with #29, 2026-10-29); `snapshots` and `labels` keep how much of the
+ * night they were there for, so a loot method can weigh it.
+ */
+export interface RaidAttendance {
+  id: string;
+  guildId: string;
+  eventId: string;
+  /** As the game showed it: `Name`, or `Name-Realm`. */
+  name: string;
+  class: string | null;
+  /** The raid signup the name matched; null for someone not signed up. */
+  characterId: string | null;
+  memberId: string | null;
+  /** How many of the export's snapshots they were in. */
+  snapshots: number;
+  /** The labels of those snapshots (`start`, a boss, `end`, `manual`), unlabelled ones left out. */
+  labels: string[];
+  /** UTC epoch ms of the first and last snapshot they were in. */
+  firstSeenAt: number;
+  lastSeenAt: number;
+}
+
+/** One person's attendance before it is stored. */
+export type RaidAttendanceInput = Omit<RaidAttendance, 'id' | 'guildId' | 'eventId'>;
+
+/** The export a raid's attendance and loot were recorded from; one per raid. */
+export interface RaidRecord {
+  id: string;
+  guildId: string;
+  eventId: string;
+  /** Who exported and when: the same export pasted again changes nothing. */
+  exportKey: string;
+  exporter: string;
+  /** UTC epoch ms. */
+  exportedAt: number;
+  addonVersion: string;
+  snapshots: number;
+  attended: number;
+  drops: number;
+  recordedAt: number;
+  recordedBy: string;
+}
+
 export const RAIDS_COMMANDS = [
   'schedule-create',
   'schedule-update',
@@ -264,6 +309,8 @@ export const RAIDS_COMMANDS = [
   'roster-remove',
   'comp-suggest',
   'raid-export-check',
+  'raid-export-record',
+  'attendance-list',
 ] as const;
 export type RaidsCommandName = (typeof RAIDS_COMMANDS)[number];
 
@@ -285,5 +332,18 @@ export interface RaidsEvents {
     scheduleId: string | null;
     startsAt: number;
     attendees: { memberId: string; characterId: string }[];
+  };
+  /**
+   * An officer recorded the addon's export for a raid (raid-export-record): attendance and loot
+   * are stored. Comes after `raid-completed` when the record also completed the raid. The raid
+   * summary post (#29) starts from here.
+   */
+  'raid-recorded': {
+    eventId: string;
+    /** Signed-up people the export saw; pick-ups aren't members of the raid. */
+    attendees: { memberId: string; characterId: string }[];
+    drops: number;
+    /** A different export was recorded for this raid before. */
+    replaced: boolean;
   };
 }

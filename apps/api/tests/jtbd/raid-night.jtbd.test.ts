@@ -355,6 +355,70 @@ describe('JTBD: raid night', () => {
     expect(after.signups).toEqual(before.signups);
   });
 
+  it('J46 · an officer records the addon’s export: attendance and loot are kept and the raid is done', async () => {
+    const { wed } = await scheduleRaidNights(g);
+    for (const key of ['aeryn', 'bram', 'cade'] as const) {
+      await answer(g, g[key], key, wed.id, 'accepted');
+    }
+    g.host.clock.advance(WED + 4 * HOUR - g.host.clock.now()); // the raid is over
+    const exportString = luaMade.strings[RAID_NIGHT_EXPORT]!;
+    const input = { exportString, eventId: wed.id };
+
+    // Officers record; raid leaders only check. Over MCP it's listed the same way.
+    expect(await g.host.run(g.rook, 'raid-export-record', input)).toMatchObject({
+      success: false,
+      error: { code: 'COMMAND_NOT_FOUND' },
+    });
+    expect(await g.host.mcp.tools(g.ana.discordId!)).toContain('raid-export-record');
+    expect(await g.host.mcp.tools(g.rook.discordId!)).not.toContain('raid-export-record');
+
+    // The preview says what will be kept before anything is.
+    const preview = await g.host.preview<{
+      completes: boolean;
+      replaces: unknown;
+      attendance: unknown[];
+      drops: unknown[];
+      check: ExportCheck;
+    }>(g.ana, 'raid-export-record', input);
+    expect(preview).toMatchObject({ completes: true, replaces: null });
+    expect([preview.attendance.length, preview.drops.length]).toEqual([3, 2]);
+    expect(preview.check.absent.map((a) => a.characterName)).toEqual(['Cadence']);
+    expect(
+      (await g.host.ok<{ record: unknown }>(g.aeryn, 'attendance-list', { eventId: wed.id }))
+        .record,
+    ).toBeNull();
+    const recorded = await g.host.run(g.ana, 'raid-export-record', input);
+    expect(recorded).toMatchObject({
+      success: true,
+      reasoning: 'Recorded Raid night: 3 attended, 2 drops; completes Raid night',
+    });
+
+    // Raiders see who came, and members what dropped; the raid is done.
+    const { attendance } = await g.host.ok<{
+      attendance: { name: string; characterId: string | null; snapshots: number }[];
+    }>(g.aeryn, 'attendance-list', { eventId: wed.id });
+    expect(attendance.map((a) => [a.name, a.characterId, a.snapshots])).toEqual([
+      ['Aeryn', g.chars.aeryn, 3],
+      ['Bramble', g.chars.bram, 3],
+      ['Doran-Stonemaul', null, 2],
+    ]);
+    const { drops } = await g.host.ok<{
+      drops: { itemName: string | null; looter: string; count: number }[];
+    }>(g.pip, 'loot-list', { eventId: wed.id });
+    expect(drops.map((d) => [d.itemName, d.looter, d.count])).toEqual([
+      ['Arcanist Boots', 'Bramble', 1],
+      ['Lava Core', 'Doran-Stonemaul', 2],
+    ]);
+    const raid = await g.host.ok<{ event: RaidEvent }>(g.aeryn, 'raid-get', { eventId: wed.id });
+    expect(raid.event.status).toBe('completed');
+
+    // Pasting the same export again keeps what's there.
+    expect(await g.host.run(g.ana, 'raid-export-record', input)).toMatchObject({
+      success: true,
+      data: { unchanged: true },
+    });
+  });
+
   it('J08 · an officer cancels one night; it stays cancelled and nobody is chased for it', async () => {
     const { thu } = await scheduleRaidNights(g);
     await g.host.ok(g.ana, 'raid-cancel', { eventId: thu.id });

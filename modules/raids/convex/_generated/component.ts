@@ -90,6 +90,53 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         Name
       >;
     };
+    records: {
+      attendance: FunctionReference<
+        "query",
+        "internal",
+        { eventId: string; guildId: string },
+        any,
+        Name
+      >;
+      get: FunctionReference<
+        "query",
+        "internal",
+        { eventId: string; guildId: string },
+        any,
+        Name
+      >;
+      put: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          attendance: Array<{
+            characterId: string | null;
+            class: string | null;
+            firstSeenAt: number;
+            labels: Array<string>;
+            lastSeenAt: number;
+            memberId: string | null;
+            name: string;
+            snapshots: number;
+          }>;
+          record: {
+            addonVersion: string;
+            attended: number;
+            drops: number;
+            eventId: string;
+            exportKey: string;
+            exportedAt: number;
+            exporter: string;
+            guildId: string;
+            recordedAt: number;
+            recordedBy: string;
+            snapshots: number;
+          };
+        },
+        any,
+        Name
+      >;
+    };
     schedules: {
       get: FunctionReference<
         "query",

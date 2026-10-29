@@ -7,6 +7,7 @@ import { type CoordinatorDeps, coordinatorCommands } from '@vintage/coordinator/
 import type { AnyGuildCommand } from '@vintage/guild-kit';
 import { type IdentityDeps, identityCommands } from '@vintage/identity/commands';
 import { type InsightsDeps, insightsCommands } from '@vintage/insights/commands';
+import { type LootDeps, lootCommands } from '@vintage/loot/commands';
 import { type PollsDeps, pollsCommands } from '@vintage/polls/commands';
 import { type ProgressDeps, progressCommands } from '@vintage/progress/commands';
 import { type RaidsDeps, raidsCommands } from '@vintage/raids/commands';
@@ -22,7 +23,8 @@ export type VintageDeps = IdentityDeps &
   SiteDeps &
   AgentDeps &
   ApplicationsDeps &
-  InsightsDeps;
+  InsightsDeps &
+  LootDeps;
 
 const moduleCommands: readonly AnyGuildCommand<VintageDeps>[] = [
   ...identityCommands,
@@ -34,6 +36,7 @@ const moduleCommands: readonly AnyGuildCommand<VintageDeps>[] = [
   ...agentCommands,
   ...applicationsCommands,
   ...insightsCommands,
+  ...lootCommands,
 ];
 
 /** Every module's commands, plus `help-get`, which reads their tiers to fit help to each reader. */

@@ -87,4 +87,5 @@ export declare const components: {
   agent: import("@vintage/agent/_generated/component.js").ComponentApi<"agent">;
   applications: import("@vintage/applications/_generated/component.js").ComponentApi<"applications">;
   insights: import("@vintage/insights/_generated/component.js").ComponentApi<"insights">;
+  loot: import("@vintage/loot/_generated/component.js").ComponentApi<"loot">;
 };

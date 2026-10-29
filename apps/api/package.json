@@ -30,6 +30,7 @@
     "@vintage/guild-kit": "workspace:*",
     "@vintage/identity": "workspace:*",
     "@vintage/insights": "workspace:*",
+    "@vintage/loot": "workspace:*",
     "@vintage/polls": "workspace:*",
     "@vintage/progress": "workspace:*",
     "@vintage/raids": "workspace:*",

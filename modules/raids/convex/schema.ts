@@ -119,6 +119,33 @@ export const signupFields = {
   promotedAt: v.optional(v.union(v.number(), v.null())),
 };
 
+export const recordFields = {
+  guildId: v.string(),
+  eventId: v.string(),
+  exportKey: v.string(),
+  exporter: v.string(),
+  exportedAt: v.number(),
+  addonVersion: v.string(),
+  snapshots: v.number(),
+  attended: v.number(),
+  drops: v.number(),
+  recordedAt: v.number(),
+  recordedBy: v.string(),
+};
+
+export const attendanceFields = {
+  guildId: v.string(),
+  eventId: v.string(),
+  name: v.string(),
+  class: v.union(v.string(), v.null()),
+  characterId: v.union(v.string(), v.null()),
+  memberId: v.union(v.string(), v.null()),
+  snapshots: v.number(),
+  labels: v.array(v.string()),
+  firstSeenAt: v.number(),
+  lastSeenAt: v.number(),
+};
+
 // Every table carries guildId and is read through a guild-scoped index.
 export default defineSchema({
   schedules: defineTable(scheduleFields).index('by_guild', ['guildId']),
@@ -130,4 +157,7 @@ export default defineSchema({
     .index('by_guild_event_member', ['guildId', 'eventId', 'memberId'])
     // A member's history across raids, for signup-suggest's series guess.
     .index('by_guild_member', ['guildId', 'memberId', 'signedUpAt']),
+  // The export a raid was recorded from (raid-export-record): one per raid.
+  raidRecords: defineTable(recordFields).index('by_guild_event', ['guildId', 'eventId']),
+  attendance: defineTable(attendanceFields).index('by_guild_event', ['guildId', 'eventId']),
 });

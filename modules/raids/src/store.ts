@@ -1,6 +1,16 @@
 import { commandsFor } from '@vintage/guild-kit';
 import type { Character, Member } from '@vintage/identity/contract';
-import type { RaidEvent, RaidStatus, RaidsEvents, Schedule, Signup } from './contract';
+import type { LootDropInput } from '@vintage/loot/contract';
+import type {
+  RaidAttendance,
+  RaidAttendanceInput,
+  RaidEvent,
+  RaidRecord,
+  RaidStatus,
+  RaidsEvents,
+  Schedule,
+  Signup,
+} from './contract';
 
 /**
  * The raids module's data port. Commands depend on this, not on Convex: production wires it
@@ -43,6 +53,13 @@ export interface RaidsStore {
     patch: Partial<Omit<Signup, 'id' | 'guildId' | 'eventId' | 'memberId'>>,
   ): Promise<Signup>;
   deleteSignup(guildId: string, signupId: string): Promise<void>;
+
+  /** The export recorded for a raid, if any. */
+  getRecord(guildId: string, eventId: string): Promise<RaidRecord | null>;
+  /** A raid's recorded attendance, sorted by name. */
+  listAttendance(guildId: string, eventId: string): Promise<RaidAttendance[]>;
+  /** Records an export for a raid, replacing any earlier record and its attendance. */
+  putRecord(record: Omit<RaidRecord, 'id'>, attendance: RaidAttendanceInput[]): Promise<RaidRecord>;
 }
 
 /**
@@ -65,10 +82,20 @@ export interface RaidsEventSink {
   ): Promise<void>;
 }
 
+/**
+ * Where raids puts the loot an export recorded. apps/api adapts the loot module's store to
+ * this; raids never touches loot's tables (PLAN §4.3, §5.1).
+ */
+export interface RaidsLoot {
+  /** Replaces every drop recorded for a raid. */
+  replaceDrops(guildId: string, eventId: string, drops: LootDropInput[]): Promise<unknown>;
+}
+
 export interface RaidsDeps {
   raids: RaidsStore;
   members: RaidsMembers;
   events: RaidsEventSink;
+  raidLoot: RaidsLoot;
 }
 
 export const command = commandsFor<RaidsDeps>();

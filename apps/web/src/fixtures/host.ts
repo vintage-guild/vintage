@@ -28,7 +28,11 @@ import { type ProgressDeps, progressCommands } from '@vintage/progress/commands'
 import { createMemoryProgressStore } from '@vintage/progress/testing';
 import { type RaidsDeps, raidsCommands } from '@vintage/raids/commands';
 import { DEFAULT_TIMINGS } from '@vintage/raids/contract';
-import { createMemoryRaidsStore, createRecordingEventSink } from '@vintage/raids/testing';
+import {
+  createMemoryRaidsLoot,
+  createMemoryRaidsStore,
+  createRecordingEventSink,
+} from '@vintage/raids/testing';
 import { type SiteDeps, siteCommands } from '@vintage/site/commands';
 import { createMemorySiteStore } from '@vintage/site/testing';
 import type { CommandClient } from '@vintage/ui-kit';
@@ -143,6 +147,8 @@ export function createFixtureHost(
       getMember: (g, id) => identity.getMember(g, id),
     },
     events: createRecordingEventSink(),
+    // Recorded drops stay in memory; the dev site has no loot module yet.
+    raidLoot: createMemoryRaidsLoot(),
     progress: createMemoryProgressStore(),
     site: createMemorySiteStore(),
     // Applications in dev: no labeling or Discord post; the quarters' desk reads the store.

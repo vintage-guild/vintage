@@ -19,3 +19,4 @@ when they affect every contributor, in the Decisions table in [AGENTS.md](../../
 | Character choice (guess, switch, spec per raid) | active | [character-choice](active/character-choice/character-choice.plan.md) |
 | Officers’ assistant (Random in a side panel) | completed | [officers-assistant](completed/officers-assistant/officers-assistant.plan.md) |
 | The Vintage addon (form the raid, attendance, loot popup, export) | active | [vintage-addon](active/vintage-addon/vintage-addon.plan.md) |
+| Post-raid: record the addon's export (#29) | active | [post-raid-record](active/post-raid-record/post-raid-record.plan.md) |

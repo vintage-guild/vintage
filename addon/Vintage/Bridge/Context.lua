@@ -1,8 +1,8 @@
 --------------------------------------------------------------------------------
 -- Vintage Bridge: context builders
 -- Reads the game and saved state into plain tables for Core actions. Every game
--- read in the addon happens here; game mutations get their own Bridge file when
--- the first one arrives (invites, PR4).
+-- read in the addon happens here; every call that changes the game is in
+-- Bridge/Game.lua.
 --------------------------------------------------------------------------------
 
 local ADDON_NAME, ns = ...
@@ -84,11 +84,13 @@ local function member(name, realm, group, classFile, online)
 	return entry
 end
 
---- The group now: the raid roster in a raid, else you and your party (all in group 1). A
---- member whose name the game keeps secret, or hasn't loaded yet, is counted, not listed.
----@return table[] members { name, group, class, online }, number hidden
+--- The group now: the raid roster in a raid (with each member's raid index, for moves), else
+--- you and your party (all in group 1). A member whose name the game keeps secret, or hasn't
+--- loaded yet, is counted, not listed; in a raid, their groups are counted too, so a move is
+--- never planned into a group that is really full.
+---@return table[] members { name, group, class, online, index? }, number hidden, table hiddenGroups
 function Context:BuildGroupSnapshot()
-	local members, hidden = {}, 0
+	local members, hidden, hiddenGroups = {}, 0, {}
 	local function add(entry)
 		if entry then
 			members[#members + 1] = entry
@@ -100,9 +102,18 @@ function Context:BuildGroupSnapshot()
 		for index = 1, GetNumGroupMembers() do
 			-- Already "Name-Realm" for another realm.
 			local name, _, subgroup, _, _, classFile, _, online = GetRaidRosterInfo(index)
-			add(member(name, nil, subgroup, classFile, online))
+			local entry = member(name, nil, subgroup, classFile, online)
+			if entry then
+				entry.index = index
+			else
+				local group = Secrets.Public(subgroup)
+				if type(group) == "number" then
+					hiddenGroups[group] = (hiddenGroups[group] or 0) + 1
+				end
+			end
+			add(entry)
 		end
-		return members, hidden
+		return members, hidden, hiddenGroups
 	end
 	local units = { "player" }
 	for index = 1, GetNumSubgroupMembers() do
@@ -113,7 +124,7 @@ function Context:BuildGroupSnapshot()
 		local _, classFile = UnitClass(unit)
 		add(member(name, realm, 1, classFile, UnitIsConnected(unit)))
 	end
-	return members, hidden
+	return members, hidden, hiddenGroups
 end
 
 --- The session, the group, the codec, and the clock, for the raid actions.
@@ -122,7 +133,7 @@ end
 function Context:BuildRaidContext(params)
 	params = type(params) == "table" and params or {}
 	local context = self:BuildSessionContext(params)
-	local members, hidden = self:BuildGroupSnapshot()
+	local members, hidden, hiddenGroups = self:BuildGroupSnapshot()
 	local groupNames = {}
 	for index, entry in ipairs(members) do
 		groupNames[index] = entry.name
@@ -132,6 +143,15 @@ function Context:BuildRaidContext(params)
 	context.members = members
 	context.hidden = hidden
 	context.groupNames = groupNames
+	context.inRaid = IsInRaid() == true
+	context.size = math.max(1, #members + hidden)
+	if ns.Invites then
+		ns.Invites:Forget(members)
+		context.invites = ns.Invites:States()
+	else
+		context.invites = {}
+	end
+	context.hiddenGroups = hiddenGroups
 	context.codec = ns.BridgeCodec
 	context.now = time()
 	context.exporter = self.FullName(Secrets.Public((UnitName("player")))) or "Unknown"

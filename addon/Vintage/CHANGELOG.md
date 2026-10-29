@@ -11,6 +11,10 @@ All notable changes to the Vintage addon. The version is the `## Version` line i
 - `/vintage` opens the raid window with Roster, Groups, Loot, and Export tabs.
 - **Import**, on every tab: paste the guild's string to see the roster by role, the planned
   groups, who is in your group, and the loot plan. Importing over a raid asks first.
+- **Invite missing** on the Roster tab invites the roster, tanks and healers first, and makes a
+  raid as soon as two are in; **Arrange groups** on the Groups tab moves everyone into their
+  planned group. Each row shows whether someone is in, invited, declined, or in another group,
+  and offers **Invite** and **Whisper** on hover.
 - **Take a snapshot** and **Make export string** on the Export tab: record who is in the group
   and copy the string into the website's Check an export.
 - `/vintage status`, `/vintage clear`, `/vintage settings`, `/vintage debug`, and `/vintage help`.

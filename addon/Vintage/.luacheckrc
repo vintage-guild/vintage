@@ -22,6 +22,7 @@ globals = {
 read_globals = {
 	-- WoW API
 	"C_AddOns",
+	"C_Timer",
 	"CreateFrame",
 	"GetBuildInfo",
 	"GetTime",
@@ -47,9 +48,12 @@ files["Bridge/**/*.lua"] = {
 		"GetNumGroupMembers",
 		"GetNumSubgroupMembers",
 		"GetRaidRosterInfo",
+		"IsInGroup",
 		"IsInRaid",
 		"UnitClass",
 		"UnitIsConnected",
+		"UnitIsGroupAssistant",
+		"UnitIsGroupLeader",
 		"UnitName",
 	},
 }

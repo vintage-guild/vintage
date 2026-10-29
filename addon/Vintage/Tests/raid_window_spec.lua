@@ -84,9 +84,9 @@ describe("Context:BuildGroupSnapshot", function()
 		local members, hidden = ns.Context:BuildGroupSnapshot()
 		assert.are.equal(0, hidden)
 		assert.are.same({
-			{ name = "Aeryn", group = 1, class = "warrior", online = true },
-			{ name = "Doran-Stonemaul", group = 2, class = "rogue", online = false },
-			{ name = "Vyra-Area52", group = 2, class = "evoker", online = true },
+			{ name = "Aeryn", group = 1, class = "warrior", online = true, index = 1 },
+			{ name = "Doran-Stonemaul", group = 2, class = "rogue", online = false, index = 2 },
+			{ name = "Vyra-Area52", group = 2, class = "evoker", online = true, index = 3 },
 		}, members)
 	end)
 

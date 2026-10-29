@@ -74,7 +74,14 @@ Before a raid the header is empty, since each tab's empty state says what to do.
 subtitle overlaps the tab bar, so the window leaves it empty. Roster lists people by role and
 Groups by the import's planned group, in columns (class icon, name in class color, class,
 group or role, and a check for who is in your group); until loot capture lands, Loot shows the
-import's loot plan. Each button calls one Executor action.
+import's loot plan. Each button calls one Executor action. Rows show Invite and Whisper on
+hover. Invites and group moves run as a queue (`Bridge/Forming.lua`): one game call, then wait
+(0.3 s between invites; a move waits for `GROUP_ROSTER_UPDATE` or 2 s; a full party waits up to
+10 s or until an invite answer), read the group again, and ask `Core.Forming` for the next step.
+A generation counter cancels a run on stop or a new import, and a move the game ignores (same
+step, unchanged group) ends the run with `NO_PROGRESS`. Invite answers come from
+`CHAT_MSG_SYSTEM`; an unanswered invite counts as not sent after 90 s. Every call that changes
+the group goes through `Bridge/Game.lua`, which checks the API, leadership, and combat.
 
 Layout rules (`View/RaidWindow.lua` constants): 16px margins and one left edge for tabs,
 header, and content; 8px between related things, 12px between bands; section captions in

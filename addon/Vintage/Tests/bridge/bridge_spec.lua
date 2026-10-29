@@ -101,9 +101,13 @@ describe("Bridge.Executor", function()
 		assert.are.same({
 			"attendance-snapshot",
 			"client-info",
+			"member-whisper",
+			"raid-arrange",
 			"raid-export",
 			"raid-import",
+			"raid-invite",
 			"raid-status",
+			"raid-stop",
 			"session-clear",
 			"session-get",
 		}, names)

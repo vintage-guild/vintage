@@ -156,5 +156,25 @@ class ThemeAndVersion(unittest.TestCase):
             self.assertEqual(validate.check_version(root), [])
 
 
+class RetailToc(unittest.TestCase):
+    def test_no_local_retail_copy_is_fine(self):
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            write(root, validate.TOC, "## Interface: 16001\nCore\\A.lua\n")
+            self.assertEqual(validate.check_retail_toc(root), [])
+
+    def test_a_copy_written_before_the_toc_changed_is_reported(self):
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            target = validate.retail_toc.TARGET.name
+            write(root, validate.TOC, "## Interface: 16001\nCore\\A.lua\n")
+            # As retail_toc.py writes it: CRLF line endings.
+            write(root, target, validate.retail_toc.render("## Interface: 16001\nCore\\A.lua\n").replace("\n", "\r\n"))
+            self.assertEqual(validate.check_retail_toc(root), [])
+            write(root, validate.TOC, "## Interface: 16001\nCore\\A.lua\nCore\\B.lua\n")
+            self.assertEqual(validate.check_retail_toc(root),
+                             [f"{target} is out of date with {validate.TOC}; run python Tools/retail_toc.py"])
+
+
 if __name__ == "__main__":
     unittest.main()

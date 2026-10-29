@@ -31,6 +31,8 @@ local ICON_SIZE = 16
 -- FenUI draws an edit box's label above the box, outside it.
 local LABEL_HEIGHT = 14
 local BUTTON_WIDTH = 136
+-- A row's own buttons (Invite, Whisper), shown on hover.
+local ACTION_WIDTH = 72
 -- For labels longer than a word or two ("Make export string").
 local WIDE_BUTTON_WIDTH = 168
 -- An export is a few hundred characters: a box about six lines tall holds it.
@@ -176,9 +178,25 @@ local function header(key, title, rows)
 	}
 end
 
---- A person: name in class color, class, a detail column (group or role), in group or not.
-local function person(row, detail)
-	local status = row.inGroup and L["In group"] or L["Not in group"]
+-- Where someone is, as the status column says it: label, color token, and the check mark.
+local STATUS = {
+	["in"] = { label = L["In group"], token = "feedbackSuccess", check = true },
+	invited = { label = L["Invited"], token = "feedbackInfo" },
+	declined = { label = L["Declined"], token = "feedbackError" },
+	busy = { label = L["In another group"], token = "feedbackWarning" },
+	offline = { label = L["Offline"], token = "textDisabled" },
+	missing = { label = L["Not in group"], token = "textDisabled" },
+}
+
+--- A person: name in class color, class, a detail column (group or role), and where they are.
+--- With checkGroup, someone in the raid but outside their planned group says which group
+--- they are in (in yellow): Arrange will move them.
+local function person(row, detail, checkGroup)
+	local status = STATUS[row.state] or STATUS.missing
+	local text, token, check = status.label, status.token, status.check
+	if checkGroup and row.inGroup and row.subgroup and row.group and row.subgroup ~= row.group then
+		text, token, check = string.format(L["In group %d"], row.subgroup), "feedbackWarning", false
+	end
 	return {
 		key = row.characterId,
 		class = row.class,
@@ -186,7 +204,11 @@ local function person(row, detail)
 		classLabel = capitalize(row.class),
 		detail = detail,
 		inGroup = row.inGroup,
-		text = table.concat({ row.name, capitalize(row.class), detail or "", status }, "  ·  "),
+		state = row.state,
+		status = text,
+		statusToken = token,
+		statusCheck = check == true,
+		text = table.concat({ row.name, capitalize(row.class), detail or "", text }, "  ·  "),
 	}
 end
 
@@ -229,23 +251,74 @@ local function byGroup(rows)
 		if members then
 			items[#items + 1] = header("group:" .. group, string.format(L["Group %d"], group), members)
 			for _, row in ipairs(members) do
-				items[#items + 1] = person(row, ROLE_NAMES[row.role])
+				items[#items + 1] = person(row, ROLE_NAMES[row.role], true)
 			end
 		end
 	end
 	if #items > 0 and #unplaced > 0 then
 		items[#items + 1] = header("group:none", L["Not in a group"], unplaced)
 		for _, row in ipairs(unplaced) do
-			items[#items + 1] = person(row, ROLE_NAMES[row.role])
+			items[#items + 1] = person(row, ROLE_NAMES[row.role], true)
 		end
 	end
 	return items
+end
+
+--- On hover, a person's row trades its status for its actions: Invite (when not in the group)
+--- and Whisper. Leaving onto a row's own button keeps them (the row still has the mouse).
+local function showActions(row, show)
+	local item = row.itemData
+	local isPerson = show and item and not item.isHeader
+	row.actions:SetShown(isPerson == true)
+	row.inviteButton:SetShown(isPerson == true and not item.inGroup)
+	row.status:SetShown(not isPerson and item ~= nil and not item.isHeader)
+	row.statusIcon:SetShown(not isPerson and item ~= nil and item.statusCheck == true)
+end
+
+local function buildActions(row)
+	local F = FenUI()
+	local actions = CreateFrame("Frame", nil, row)
+	actions:SetPoint("TOPRIGHT", -GAP, 0)
+	actions:SetPoint("BOTTOMRIGHT", -GAP, 0)
+	actions:SetWidth(2 * ACTION_WIDTH + 4)
+	actions:Hide()
+	local function leave()
+		if not row:IsMouseOver() then
+			showActions(row, false)
+		end
+	end
+	row.whisperButton = F:CreateButton(actions, {
+		text = L["Whisper"],
+		width = ACTION_WIDTH,
+		height = ROW_HEIGHT - 4,
+		onClick = function()
+			RaidWindow:WhisperName(row.itemData and row.itemData.name)
+		end,
+		onLeave = leave,
+	})
+	row.whisperButton:SetPoint("RIGHT")
+	row.inviteButton = F:CreateButton(actions, {
+		text = L["Invite"],
+		width = ACTION_WIDTH,
+		height = ROW_HEIGHT - 4,
+		onClick = function()
+			RaidWindow:InviteName(row.itemData and row.itemData.name)
+		end,
+		onLeave = leave,
+	})
+	row.inviteButton:SetPoint("RIGHT", row.whisperButton, "LEFT", -4, 0)
+	row.actions = actions
+	row:HookScript("OnEnter", function()
+		showActions(row, true)
+	end)
+	row:HookScript("OnLeave", leave)
 end
 
 --- Draws one list row. Rows are pooled, so every part is set or hidden each time.
 local function renderRow(row, item)
 	local F = FenUI()
 	if not row.vintage then
+		buildActions(row)
 		row.vintage = true
 		row.icon = row:CreateTexture(nil, "ARTWORK")
 		row.icon:SetSize(ICON_SIZE, ICON_SIZE)
@@ -283,6 +356,7 @@ local function renderRow(row, item)
 	for _, part in ipairs({ row.icon, row.name, row.classLabel, row.detail, row.status, row.statusIcon }) do
 		part:SetShown(not isHeader)
 	end
+	row.actions:Hide()
 
 	if isHeader then
 		row.text:SetFontObject(F:GetFont("fontCaption"))
@@ -308,16 +382,13 @@ local function renderRow(row, item)
 	row.name:SetText(string.format("|cff%s%s|r", CLASS_COLORS[item.class] or "ffffff", item.name))
 	row.classLabel:SetText(item.classLabel)
 	row.detail:SetText(item.detail or "")
-	if item.inGroup then
-		row.status:SetText(L["In group"])
-		color(row.status, "feedbackSuccess")
-		row.statusIcon:SetTexture(IN_GROUP_ICON)
-		row.statusIcon:Show()
-	else
-		row.status:SetText(L["Not in group"])
-		-- Quiet, so the few who are in the group stand out.
-		color(row.status, "textDisabled")
-		row.statusIcon:Hide()
+	-- "Not in group" stays quiet (textDisabled), so the people who are in stand out.
+	row.status:SetText(item.status)
+	color(row.status, item.statusToken)
+	row.statusIcon:SetTexture(IN_GROUP_ICON)
+	row.statusIcon:SetShown(item.statusCheck == true)
+	if row:IsMouseOver() then
+		showActions(row, true)
 	end
 end
 
@@ -383,8 +454,12 @@ function RaidWindow:Create()
 		self.pages[tab.key] = page
 		tabDefs[#tabDefs + 1] = { key = tab.key, text = tab.text }
 	end
-	self:BuildList(F, self.pages.roster)
-	self:BuildList(F, self.pages.groups)
+	self:BuildList(F, self.pages.roster, function()
+		self:ToggleRun("invite")
+	end)
+	self:BuildList(F, self.pages.groups, function()
+		self:ToggleRun("arrange")
+	end)
 	self:BuildLoot(F, self.pages.loot)
 	self:BuildExport(F, self.pages.export)
 	self:BuildPaste(F, content)
@@ -408,7 +483,10 @@ function RaidWindow:Create()
 
 	-- The Executor notifies only after actions that change saved state, so this refresh
 	-- (which reads) can't trigger itself.
-	ns.Executor:Subscribe(function()
+	ns.Executor:Subscribe(function(name, result)
+		if name == "forming-done" then
+			self:SetMessage(result)
+		end
 		if frame:IsShown() then
 			self:Refresh()
 		end
@@ -556,11 +634,64 @@ end
 -- Roster (by role) and Groups (as the import plans them)
 --------------------------------------------------------------------------------
 
-function RaidWindow:BuildList(F, page)
+--- A list with one action above it: Invite missing (Roster) or Arrange groups (Groups).
+function RaidWindow:BuildList(F, page, onAction)
+	local bar = F:CreateToolbar(page, { height = TOOLBAR_HEIGHT, gap = GAP })
+	bar:SetPoint("TOPLEFT")
+	bar:SetPoint("TOPRIGHT")
+	bar:Hide()
+	page.actionButton = bar:AddButton({ text = "", width = WIDE_BUTTON_WIDTH, onClick = onAction })
+	page.toolbar = bar
+
 	local list = F:CreateVirtualList(page, { itemHeight = ROW_HEIGHT, renderItem = renderRow })
-	list:SetAllPoints()
+	list:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 0, -BAND)
+	list:SetPoint("BOTTOMRIGHT")
 	list:Hide()
 	page.list = list
+end
+
+---@param button Button
+---@param text string
+---@param enabled boolean
+---@param primary boolean
+local function setAction(button, text, enabled, primary)
+	button:SetText(text)
+	button:SetEnabled(enabled)
+	button.vintageEnabled = enabled
+	button:SetVariant(primary and enabled and "primary" or nil)
+end
+
+--- Starts inviting or arranging, or stops the run that's going.
+---@param kind string "invite" | "arrange"
+function RaidWindow:ToggleRun(kind)
+	if self.running then
+		self:SetMessage(ns.Executor:Execute("raid-stop"))
+	else
+		self:SetMessage(ns.Executor:Execute(kind == "invite" and "raid-invite" or "raid-arrange"))
+	end
+	self:Refresh()
+end
+
+--- A row's Invite.
+---@param name string|nil
+function RaidWindow:InviteName(name)
+	if not name then
+		return
+	end
+	self:SetMessage(ns.Executor:Execute("raid-invite", { name = name }))
+	self:Refresh()
+end
+
+--- A row's Whisper: opens the chat box; says so only when it can't.
+---@param name string|nil
+function RaidWindow:WhisperName(name)
+	if not name then
+		return
+	end
+	local result = ns.Executor:Execute("member-whisper", { name = name })
+	if not result.success then
+		self:SetMessage(result)
+	end
 end
 
 ---@param page Frame
@@ -583,6 +714,30 @@ function RaidWindow:RefreshLists(status)
 		status and L["This raid's import plans no groups."]
 			or L["Import the guild's string to see the groups it plans."]
 	)
+
+	-- The actions above the lists: gold when there is work to do, "Stop" while it runs.
+	local running = status and status.running or nil
+	self.running = running
+	local roster, groups = self.pages.roster, self.pages.groups
+	roster.toolbar:SetShown(status ~= nil)
+	groups.toolbar:SetShown(status ~= nil and #self.groupItems > 0)
+	if not status then
+		return
+	end
+	if running == "invite" then
+		setAction(roster.actionButton, L["Stop inviting"], true, false)
+	elseif status.toInvite > 0 then
+		setAction(roster.actionButton, string.format(L["Invite missing (%d)"], status.toInvite), running == nil, true)
+	else
+		setAction(roster.actionButton, L["Invite missing"], false, false)
+	end
+	if running == "arrange" then
+		setAction(groups.actionButton, L["Stop arranging"], true, false)
+	elseif status.inRaid and status.misplaced > 0 then
+		setAction(groups.actionButton, string.format(L["Arrange groups (%d)"], status.misplaced), running == nil, true)
+	else
+		setAction(groups.actionButton, L["Arrange groups"], false, false)
+	end
 end
 
 --------------------------------------------------------------------------------

@@ -75,9 +75,11 @@ function RaidActions.Import(context)
 	)
 end
 
---- raid-status: the imported roster, each character marked in the group or not.
----@param context table { session, groupNames }
----@return table ActionResult { title, rows, inGroup, total }
+--- raid-status: the imported roster, each character marked in the group (and which raid group),
+--- invited, declined, or missing; how many still need an invite, and how many sit outside their
+--- planned group.
+---@param context table { session, members | groupNames, invites, inRaid }
+---@return table ActionResult { title, rows, inGroup, total, toInvite, misplaced, inRaid, loot }
 function RaidActions.Status(context)
 	local session = context.session
 	if type(session) ~= "table" then
@@ -87,12 +89,19 @@ function RaidActions.Status(context)
 	if not import then
 		return Result.error("NO_IMPORT", "No raid imported", "Paste the guild's import string with Import")
 	end
-	local rows = Roster.Rows(import, context.groupNames)
-	local present = 0
+	local members = context.members or context.groupNames
+	local rows = Roster.Rows(import, members, context.invites)
+	local present, toInvite = 0, 0
 	for _, row in ipairs(rows) do
 		if row.inGroup then
 			present = present + 1
+		elseif row.state == "missing" or row.state == "offline" then
+			toInvite = toInvite + 1
 		end
+	end
+	local misplaced = 0
+	if context.inRaid and context.members then
+		misplaced = Core.Forming.Misplaced(import, context.members)
 	end
 	local loot = import.loot or {}
 	return Result.success({
@@ -100,6 +109,9 @@ function RaidActions.Status(context)
 		rows = rows,
 		inGroup = present,
 		total = #rows,
+		toInvite = toInvite,
+		misplaced = misplaced,
+		inRaid = context.inRaid == true,
 		-- The loot plan the import carries, for the Loot tab until drops are recorded.
 		loot = { mode = loot.mode, threshold = loot.threshold, prioritized = #(import.candidates or {}) },
 	}, string.format("%s: %d of %d in the group", import.raid.title, present, #rows))
@@ -131,7 +143,12 @@ function RaidActions.Snapshot(context)
 			"Export it, then clear the session"
 		)
 	end
-	attendance[#attendance + 1] = { at = context.now, label = context.label or "manual", members = members }
+	-- Only what the export carries (the group read also has raid indexes for arranging).
+	local recorded = {}
+	for index, member in ipairs(members) do
+		recorded[index] = { name = member.name, class = member.class, group = member.group, online = member.online }
+	end
+	attendance[#attendance + 1] = { at = context.now, label = context.label or "manual", members = recorded }
 	local updated = with(session, { state = "live", attendance = attendance })
 	-- The last export no longer holds the whole night; make a new one.
 	updated.lastExport, updated.lastExportAt = nil, nil

@@ -63,6 +63,21 @@ L["Not in a group"] = true
 L["%d / %d in group"] = true
 L["In group"] = true
 L["Not in group"] = true
+L["Invited"] = true
+L["Declined"] = true
+L["In another group"] = true
+L["Offline"] = true
+L["In group %d"] = true
+
+-- Forming the raid
+L["Invite"] = true
+L["Whisper"] = true
+L["Invite missing"] = true
+L["Invite missing (%d)"] = true
+L["Stop inviting"] = true
+L["Arrange groups"] = true
+L["Arrange groups (%d)"] = true
+L["Stop arranging"] = true
 
 -- Loot plan
 L["Loot plan"] = true

@@ -70,6 +70,8 @@ function Vintage:OnEnable()
 	-- loads, and other addons that embed FenUI may load after Vintage.
 	ns.Theme:Register()
 	ns.MinimapButton:Initialize()
+	-- Invite answers (declined, in another group) arrive as system messages.
+	ns.Forming:Initialize()
 	ns.Debug("Enabled")
 end
 

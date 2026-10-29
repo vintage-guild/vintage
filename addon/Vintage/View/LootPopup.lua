@@ -4,7 +4,8 @@
 -- (or at the loot threshold), its candidates best first with the website's reason,
 -- and Give. Give asks first: the button turns into Confirm and the question shows
 -- below, and only the second press gives the item (plan D6). It renders what
--- loot-candidates returns and never computes.
+-- loot-candidates returns and never computes. Preview (Mechanic's tool) shows
+-- loot-preview's sample rows instead and only pretends to give.
 --------------------------------------------------------------------------------
 
 local ADDON_NAME, ns = ...
@@ -156,6 +157,11 @@ function LootPopup:Create()
 	})
 	frame:SetFrameStrata("HIGH")
 	frame:Hide()
+	-- Closing the popup ends a preview.
+	frame:HookScript("OnHide", function()
+		self.preview = false
+		self.armed = nil
+	end)
 
 	local inner = CreateFrame("Frame", nil, frame:GetSafeZone())
 	inner:SetPoint("TOPLEFT", MARGIN, 0)
@@ -185,12 +191,21 @@ function LootPopup:Place()
 end
 
 --- Reads the open loot window again and shows the popup when the master looter has something to
---- hand out; hides it otherwise.
+--- hand out; hides it otherwise. A real loot window ends a preview; without one, a preview
+--- shows loot-preview's sample rows.
 function LootPopup:Refresh()
 	local result = ns.Executor:Execute("loot-candidates")
 	local data = result.success and result.data or nil
-	local show = data ~= nil and data.masterLooter and #data.slots > 0 and ns.db.profile.lootPopup
-	if not show then
+	local real = data ~= nil and data.masterLooter and #data.slots > 0 and ns.db.profile.lootPopup
+	if real then
+		self.preview = false
+	elseif self.preview then
+		local preview = ns.Executor:Execute("loot-preview")
+		data = preview.success and preview.data or nil
+	else
+		data = nil
+	end
+	if not (data and #data.slots > 0) then
 		self.armed = nil
 		self.items = nil
 		if self.frame then
@@ -201,15 +216,39 @@ function LootPopup:Refresh()
 	if not self:Create() then
 		return
 	end
+	self.frame:SetTitle(self.preview and L["Loot priority (preview)"] or L["Loot priority"])
 	self.items = rows(data.slots)
 	self.list:SetItems(self.items)
 	self.frame:SetHeight(TITLE_HEIGHT + math.min(#self.items, MAX_ROWS) * ROW_HEIGHT + MESSAGE_HEIGHT + MARGIN)
 	if not self.frame:IsShown() then
 		self.armed = nil
-		self.message:SetText("")
+		self.message:SetText(self.preview and L["Preview: Give and Confirm work as usual, but nothing is given."] or "")
+		color(self.message, "textMuted")
 		self:Place()
 		self.frame:Show()
 	end
+end
+
+--- Shows the popup with sample rows, for trying it without a master-loot corpse (Mechanic's
+--- "Preview loot popup"). Give and Confirm behave as usual but never reach the game.
+function LootPopup:Preview()
+	self.preview = true
+	self:Refresh()
+end
+
+--- A preview row's Give: asks, then on Confirm says what it would have given. Never calls
+--- loot-give, so the game is never asked to hand anything out.
+local function previewGive(self, item, confirming)
+	if confirming then
+		self.armed, self.armedAt, self.armedName = nil, nil, nil
+		self.message:SetText(string.format(L["Preview: would give %s to %s"], item.itemName, item.name))
+	else
+		self.armed, self.armedAt, self.armedName = item.key, GetTime(), item.candidateName
+		self.message:SetText(string.format(L["Preview: give %s to %s? Press Confirm."], item.itemName, item.name))
+	end
+	color(self.message, "textDefault")
+	self.list:SetItems(self.items or {})
+	return { success = confirming, preview = true }
 end
 
 --- A row's Give: the first press asks (loot-give without confirm checks the slot and the person,
@@ -226,6 +265,9 @@ function LootPopup:Give(item)
 	local confirming = self.armed == item.key and self.armedName == item.candidateName
 	if confirming and GetTime() - (self.armedAt or 0) < LootPopup.CONFIRM_DELAY then
 		return nil
+	end
+	if self.preview then
+		return previewGive(self, item, confirming)
 	end
 	local result = ns.Executor:Execute("loot-give", {
 		slot = item.slot,

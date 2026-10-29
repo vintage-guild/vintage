@@ -326,6 +326,78 @@ describe("The loot popup", function()
 	end)
 end)
 
+describe("Previewing the loot popup", function()
+	--- Fails the spec if anything asks the game, or the Executor, to give loot.
+	local function forbidGiving(ns)
+		_G.GiveMasterLoot = function()
+			error("GiveMasterLoot called in preview")
+		end
+		local execute = ns.Executor.Execute
+		ns.Executor.Execute = function(self, name, params)
+			assert(name ~= "loot-give", "loot-give called in preview")
+			return execute(self, name, params)
+		end
+	end
+
+	it("shows the import's ranked items with the group as candidates, without a corpse", function()
+		local _, ns = start({ masterLooter = false })
+		ns.LootPopup:Preview()
+		assert.is_true(ns.LootPopup:IsShown())
+		assert.are.equal("Loot priority (preview)", ns.LootPopup.frame:GetTitle())
+		assert.are.same({
+			"Item 16800",
+			"1. Doran-Stonemaul  —  Soft-reserved (1 of 2)",
+			"2. Aeryn  —  Soft-reserved (2 of 2)",
+		}, lines(ns))
+		-- Both are in the group, so both can be "given" to.
+		assert.are.same({ 2, 1 }, { rowFor(ns, "Doran-Stonemaul").candidateIndex, rowFor(ns, "Aeryn").candidateIndex })
+	end)
+
+	it("asks and confirms as usual but never gives", function()
+		local host, ns = start({ masterLooter = false })
+		forbidGiving(ns)
+		ns.LootPopup:Preview()
+		local doran = rowFor(ns, "Doran-Stonemaul")
+		ns.LootPopup:Give(doran)
+		assert.are.equal("Preview: give Item 16800 to Doran-Stonemaul? Press Confirm.", ns.LootPopup:GetMessageText())
+		-- The double-click guard holds in preview too.
+		assert.is_nil(ns.LootPopup:Give(doran))
+		host.uptime = host.uptime + 1
+		local confirmed = ns.LootPopup:Give(doran)
+		assert.is_true(confirmed.preview)
+		assert.are.equal("Preview: would give Item 16800 to Doran-Stonemaul", ns.LootPopup:GetMessageText())
+	end)
+
+	it("ranks the group on a sample item without an import", function()
+		local _, ns = start({ masterLooter = false })
+		ns.Executor:Execute("session-clear", { confirm = true })
+		ns.LootPopup:Preview()
+		assert.are.same({
+			"Sample item",
+			"1. Aeryn  —  Sample reason",
+			"2. Doran-Stonemaul  —  Sample reason",
+		}, lines(ns))
+	end)
+
+	it("gives way to a real loot window, and ends when closed", function()
+		local host, ns, loot = start()
+		ns.LootPopup:Preview()
+		host:Fire("LOOT_OPENED", false, false)
+		assert.is_false(ns.LootPopup.preview)
+		assert.are.equal("Loot priority", ns.LootPopup.frame:GetTitle())
+		assert.are.equal("Arcanist Boots", lines(ns)[1])
+		host:Fire("LOOT_CLOSED")
+		assert.is_false(ns.LootPopup:IsShown())
+
+		ns.LootPopup:Preview()
+		ns.LootPopup.frame:Hide()
+		assert.is_false(ns.LootPopup.preview)
+		loot.masterLooter = false
+		host:Fire("GROUP_ROSTER_UPDATE")
+		assert.is_false(ns.LootPopup:IsShown())
+	end)
+end)
+
 describe("Set loot method on the Loot tab", function()
 	it("asks, then sets master loot to the player and the import's threshold", function()
 		local _, ns, loot = start()

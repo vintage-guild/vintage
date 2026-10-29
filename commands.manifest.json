@@ -573,6 +573,26 @@
       }
     },
     {
+      "name": "attendance-list",
+      "description": "Who attended a raid, as recorded from the addon export (raid-export-record): each person seen, how many snapshots they were in and which, and their signup when they had one. Empty until an officer records the raid.",
+      "tier": "recruit",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "eventId"
+        ]
+      }
+    },
+    {
       "name": "character-add",
       "description": "Register one of your characters (main or alt). role is optional: leave it out to guess it from the spec, or pick one (a Fury warrior who tanks).",
       "tier": "member",
@@ -1224,6 +1244,26 @@
         "required": [
           "raidId",
           "bossId"
+        ]
+      }
+    },
+    {
+      "name": "loot-list",
+      "description": "What dropped in a raid and who looted it, in the order it was looted, as recorded from the addon export (raid-export-record). Empty until an officer records the raid.",
+      "tier": "member",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "eventId"
         ]
       }
     },
@@ -1992,6 +2032,31 @@
       "tier": "leader",
       "mutation": false,
       "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "exportString": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000000
+          },
+          "eventId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "exportString"
+        ]
+      }
+    },
+    {
+      "name": "raid-export-record",
+      "description": "Record a raid export string from the Vintage addon: who attended (anyone in a snapshot) and what dropped, under the raid’s loot method. Completes the raid if it isn’t already. Shows the check first; confirm to record. A different export for the same raid replaces the earlier one; the same export again changes nothing. Pass eventId when the export names no raid.",
+      "tier": "officer",
+      "mutation": true,
+      "destructive": true,
       "input": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",

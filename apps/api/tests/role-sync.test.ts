@@ -7,6 +7,7 @@ import { createMemoryCoordinatorDeps } from '@vintage/coordinator/testing';
 import type { MemberSyncInput } from '@vintage/identity/commands';
 import { createMemoryIdentityDeps } from '@vintage/identity/testing';
 import { createMemoryInsightsDeps } from '@vintage/insights/testing';
+import { createMemoryLootDeps } from '@vintage/loot/testing';
 import { createMemoryPollsDeps } from '@vintage/polls/testing';
 import { createMemoryProgressDeps } from '@vintage/progress/testing';
 import { createMemoryRaidsDeps } from '@vintage/raids/testing';
@@ -176,6 +177,7 @@ describe('runRoleSync', () => {
       ...createMemoryAgentDeps().deps,
       ...createMemoryApplicationsDeps().deps,
       ...createMemoryInsightsDeps().deps,
+      ...createMemoryLootDeps(),
     };
     const registry = testRegistry<VintageDeps>(commands);
     const system = makeCaller('officer', { surface: 'system', memberId: undefined });

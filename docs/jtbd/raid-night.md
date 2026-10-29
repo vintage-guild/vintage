@@ -292,6 +292,23 @@ before attendance and loot are recorded. The check records nothing.
   `libs/bridge-format/fixtures/lua-made.json`, written by the addon's own codec. For a live run,
   any string from that file works, or one from the addon once its Export tab lands.
 
+### J46 · Record the addon's export after the raid
+**When** a raid is over and the export checks out, **I (officer) want** to record it, **so I can**
+keep who attended and what dropped, under the raid's loot method, and close the raid.
+- [ ] Rook (Raid Leader) can't record: `raid-export-record` isn't listed for him over `/mcp`, and
+  running it says it doesn't exist. Ana (Officer) sees it.
+- [ ] Ana runs `raid-export-record` with the export and Wednesday's raid. The preview says
+  "Records Raid night: 3 attended, 2 drops; completes Raid night" and carries the same check as
+  J44 (Cadence signed up but not seen, `Doran-Stonemaul` not signed up). Nothing is stored yet:
+  `attendance-list` has no record.
+- [ ] Confirming says "Recorded Raid night: …". `attendance-list` (a raider) shows Aeryn and
+  Bramble in 3 snapshots and `Doran-Stonemaul` in 2, with no signup; `loot-list` (any member)
+  shows Arcanist Boots → Bramble and Lava Core ×2 → Doran-Stonemaul; `raid-get` says completed.
+- [ ] Recording the same string again changes nothing and says it's already recorded. A different
+  export for the raid replaces the first after its own preview.
+- The website button and the Discord summary post come later (#29); until then, run it over
+  `/mcp` or `npx convex run commands:runAsSystem`.
+
 ### J31 · Run a dungeon with the same signups
 **When** a few of us want a dungeon, **I (raid leader) want** the same signup card with a
 dungeon's comp, **so I can** fill five spots without a raid's rules getting in the way.

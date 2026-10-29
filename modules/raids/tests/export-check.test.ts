@@ -1,10 +1,16 @@
 import { encodeBridge, type RaidExport } from '@vintage/bridge-format';
 import type { Caller } from '@vintage/guild-kit';
 import type { Character, Member } from '@vintage/identity/contract';
-import { fixedClock, makeCaller, TEST_GUILD_ID, testRegistry } from '@vintage/testing';
+import {
+  fixedClock,
+  makeCaller,
+  previewAndConfirm,
+  TEST_GUILD_ID,
+  testRegistry,
+} from '@vintage/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { raidsCommands } from '../src/commands';
-import type { ExportCheck, RaidEvent, Signup } from '../src/contract';
+import type { ExportCheck, RaidAttendance, RaidEvent, RaidRecord, Signup } from '../src/contract';
 import { checkExport, expectedSignups } from '../src/domain/export-check';
 import type { RaidsDeps } from '../src/store';
 import { createMemoryRaidsDeps } from '../src/testing';
@@ -406,5 +412,243 @@ describe('expectedSignups', () => {
       eventSource: null,
     });
     expect(check.absent).toEqual([]);
+  });
+});
+
+describe('raid-export-record', () => {
+  let clock: ReturnType<typeof fixedClock>;
+  let registry: ReturnType<typeof testRegistry<RaidsDeps>>;
+  let deps: ReturnType<typeof createMemoryRaidsDeps>;
+  let raid: RaidEvent;
+  const officer = makeCaller('officer', { memberId: 'officer-1' });
+  const leader = makeCaller('leader', { memberId: 'leader-1' });
+  const as = (memberId: string) => makeCaller('raider', { memberId });
+
+  const ok = async <T>(name: string, input: unknown, caller: Caller): Promise<T> => {
+    const result = await registry.execute({ name, input, caller }, deps);
+    if (!result.success) throw new Error(`${name} failed: ${JSON.stringify(result.error)}`);
+    return result.data as T;
+  };
+  const record = (input: unknown, caller: Caller = officer) =>
+    previewAndConfirm(registry, { name: 'raid-export-record', input, caller }, deps);
+  const attendance = (eventId = raid.id) =>
+    ok<{ record: RaidRecord | null; attendance: RaidAttendance[] }>(
+      'attendance-list',
+      { eventId },
+      as('aeryn'),
+    );
+  const raidEvents = () => deps.events.emitted.filter((e) => e.type.startsWith('raid-'));
+
+  beforeEach(async () => {
+    clock = fixedClock(RAID_START - 2 * DAY);
+    registry = testRegistry<RaidsDeps>([...raidsCommands], clock);
+    deps = createMemoryRaidsDeps(MEMBERS, CHARACTERS);
+    raid = await ok<RaidEvent>(
+      'raid-create',
+      { name: 'Molten Core', instance: 'Molten Core', size: 10, startsAt: RAID_START },
+      leader,
+    );
+    for (const who of ['aeryn', 'bram', 'cade']) {
+      await ok('signup-set', { eventId: raid.id, characterId: who, status: 'accepted' }, as(who));
+    }
+    clock.advance(2 * DAY + 6 * HOUR);
+  });
+
+  it('is for officers', async () => {
+    expect(
+      await registry.execute(
+        {
+          name: 'raid-export-record',
+          input: { exportString: encode(nightExport()), eventId: raid.id },
+          caller: leader,
+        },
+        deps,
+      ),
+    ).toMatchObject({ error: { code: 'COMMAND_NOT_FOUND' } });
+  });
+
+  it('previews the record without saving it', async () => {
+    const preview = await registry.execute(
+      {
+        name: 'raid-export-record',
+        input: { exportString: encode(nightExport()), eventId: raid.id },
+        caller: officer,
+      },
+      deps,
+    );
+    expect(preview).toMatchObject({
+      success: true,
+      data: {
+        confirmToken: expect.any(String),
+        preview: {
+          event: { id: raid.id, status: 'open' },
+          replaces: null,
+          completes: true,
+          check: { unknownNames: ['Doran-Stonemaul'], absent: [{ characterId: 'cade' }] },
+        },
+      },
+    });
+    expect((await attendance()).record).toBeNull();
+    expect(deps.raidLoot.drops.size).toBe(0);
+    expect(raidEvents()).toEqual([]);
+  });
+
+  it('records who was in any snapshot and what dropped, then completes the raid', async () => {
+    const { result } = await record({ exportString: encode(nightExport()), eventId: raid.id });
+    expect(result).toMatchObject({
+      success: true,
+      reasoning: 'Recorded Molten Core: 3 attended, 2 drops; completes Molten Core',
+      data: { event: { status: 'completed' } },
+    });
+
+    const { record: saved, attendance: people } = await attendance();
+    expect(saved).toMatchObject({
+      guildId: G,
+      eventId: raid.id,
+      exporter: 'Aeryn',
+      exportedAt: 1_793_070_000_000,
+      snapshots: 3,
+      attended: 3,
+      drops: 2,
+      recordedBy: 'officer-1',
+    });
+    expect(people.map((p) => [p.name, p.characterId, p.snapshots, p.labels])).toEqual([
+      ['Aeryn', 'aeryn', 3, ['start', 'Lucifron']],
+      ['Bramble', 'bram', 3, ['start', 'Lucifron']],
+      ['Doran-Stonemaul', null, 2, ['start', 'Lucifron']],
+    ]);
+    expect(people[0]).toMatchObject({
+      class: 'warrior',
+      memberId: 'aeryn',
+      firstSeenAt: 1_793_059_300_000,
+      lastSeenAt: 1_793_066_500_000,
+    });
+
+    expect(deps.raidLoot.drops.get(`${G}/${raid.id}`)).toEqual([
+      {
+        itemId: 16_800,
+        itemName: 'Arcanist Boots',
+        count: 1,
+        looter: 'Bramble',
+        characterId: 'bram',
+        memberId: 'bram',
+        at: 1_793_063_000_000,
+        source: 'Lucifron',
+        lootMethodId: raid.lootMethodId,
+        recordedAt: clock.now(),
+      },
+      expect.objectContaining({ itemId: 17_011, looter: 'Doran-Stonemaul', count: 2 }),
+    ]);
+
+    const attendees = [
+      { memberId: 'aeryn', characterId: 'aeryn' },
+      { memberId: 'bram', characterId: 'bram' },
+    ];
+    expect(raidEvents()).toEqual([
+      {
+        guildId: G,
+        type: 'raid-completed',
+        payload: { eventId: raid.id, scheduleId: null, startsAt: RAID_START, attendees },
+      },
+      {
+        guildId: G,
+        type: 'raid-recorded',
+        payload: { eventId: raid.id, attendees, drops: 2, replaced: false },
+      },
+    ]);
+  });
+
+  it('uses the raid the export names when the officer names none', async () => {
+    const { result } = await record({
+      exportString: encode(nightExport({ guildId: G, eventId: raid.id })),
+    });
+    expect(result).toMatchObject({ success: true, data: { event: { id: raid.id } } });
+  });
+
+  it('changes nothing when the same export is pasted again', async () => {
+    const exportString = encode(nightExport());
+    await record({ exportString, eventId: raid.id });
+    const before = await attendance();
+    const emitted = deps.events.emitted.length;
+
+    const { preview, result } = await record({ exportString, eventId: raid.id });
+    expect(preview).toMatchObject({ data: { preview: { unchanged: true } } });
+    expect(result).toMatchObject({
+      success: true,
+      data: { unchanged: true, record: before.record },
+      reasoning: 'Molten Core already has this export recorded; nothing changed',
+    });
+    expect(await attendance()).toEqual(before);
+    expect(deps.events.emitted).toHaveLength(emitted);
+  });
+
+  it('replaces the earlier record when a different export is confirmed', async () => {
+    await record({ exportString: encode(nightExport()), eventId: raid.id });
+    const later = nightExport({
+      exportedAt: 1_793_071_000,
+      attendance: [{ at: 1_793_066_500, label: 'end', members: members('Aeryn') }],
+      loot: [],
+    });
+    const { preview, result } = await record({ exportString: encode(later), eventId: raid.id });
+    expect(preview).toMatchObject({
+      data: { preview: { replaces: { exporter: 'Aeryn', attended: 3 }, completes: false } },
+    });
+    expect(result).toMatchObject({
+      success: true,
+      reasoning: 'Recorded Molten Core: 1 attended, 0 drops; replaces the export recorded before',
+    });
+    const { attendance: people } = await attendance();
+    expect(people.map((p) => p.name)).toEqual(['Aeryn']);
+    expect(deps.raidLoot.drops.get(`${G}/${raid.id}`)).toEqual([]);
+    expect(raidEvents().map((e) => e.type)).toEqual([
+      'raid-completed',
+      'raid-recorded',
+      'raid-recorded',
+    ]);
+    expect(deps.events.emitted.at(-1)).toMatchObject({
+      type: 'raid-recorded',
+      payload: { replaced: true, drops: 0 },
+    });
+  });
+
+  it('refuses an export it cannot place on a raid that happened', async () => {
+    const run = async (input: unknown) => (await record(input)).result;
+    expect(await run({ exportString: encode(nightExport()) })).toMatchObject({
+      error: { code: 'RAID_NOT_MATCHED', suggestion: expect.stringContaining('eventId') },
+    });
+    expect(
+      await run({ exportString: encode(nightExport({ attendance: [] })), eventId: raid.id }),
+    ).toMatchObject({ error: { code: 'EXPORT_EMPTY' } });
+    expect(await run({ exportString: encode(nightExport()), eventId: 'nope' })).toMatchObject({
+      error: { code: 'RAID_NOT_FOUND' },
+    });
+
+    const next = await ok<RaidEvent>(
+      'raid-create',
+      { name: 'Onyxia', instance: 'Onyxia’s Lair', size: 40, startsAt: clock.now() + DAY },
+      leader,
+    );
+    expect(await run({ exportString: encode(nightExport()), eventId: next.id })).toMatchObject({
+      error: { code: 'RAID_NOT_STARTED' },
+    });
+    await previewAndConfirm(
+      registry,
+      { name: 'raid-cancel', input: { eventId: next.id }, caller: leader },
+      deps,
+    );
+    clock.advance(2 * DAY);
+    expect(await run({ exportString: encode(nightExport()), eventId: next.id })).toMatchObject({
+      error: { code: 'RAID_CANCELLED' },
+    });
+  });
+
+  it('shows attendance to recruits and up, empty until recorded', async () => {
+    expect(await attendance()).toMatchObject({ record: null, attendance: [] });
+    expect(
+      await registry.execute(
+        { name: 'attendance-list', input: { eventId: raid.id }, caller: makeCaller('member') },
+        deps,
+      ),
+    ).toMatchObject({ error: { code: 'COMMAND_NOT_FOUND' } });
   });
 });

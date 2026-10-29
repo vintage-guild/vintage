@@ -9,6 +9,7 @@
  */
 
 import type * as raidEvents from "../raidEvents.js";
+import type * as records from "../records.js";
 import type * as schedules from "../schedules.js";
 import type * as signups from "../signups.js";
 
@@ -21,6 +22,7 @@ import { anyApi, componentsGeneric } from "convex/server";
 
 const fullApi: ApiFromModules<{
   raidEvents: typeof raidEvents;
+  records: typeof records;
   schedules: typeof schedules;
   signups: typeof signups;
 }> = anyApi as any;

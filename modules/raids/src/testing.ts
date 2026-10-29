@@ -1,16 +1,28 @@
 import type { Character, Member } from '@vintage/identity/contract';
-import type { RaidEvent, RaidsEvents, Schedule, Signup } from './contract';
-import type { RaidsDeps, RaidsEventSink, RaidsMembers, RaidsStore } from './store';
+import type { LootDropInput } from '@vintage/loot/contract';
+import type {
+  RaidAttendance,
+  RaidEvent,
+  RaidRecord,
+  RaidsEvents,
+  Schedule,
+  Signup,
+} from './contract';
+import type { RaidsDeps, RaidsEventSink, RaidsLoot, RaidsMembers, RaidsStore } from './store';
 
 /** In-memory RaidsStore for tests and local agents. Same behavior contract as the Convex component. */
 export function createMemoryRaidsStore(): RaidsStore & {
   schedules: Map<string, Schedule>;
   events: Map<string, RaidEvent>;
   signups: Map<string, Signup>;
+  records: Map<string, RaidRecord>;
+  attendance: Map<string, RaidAttendance>;
 } {
   const schedules = new Map<string, Schedule>();
   const events = new Map<string, RaidEvent>();
   const signups = new Map<string, Signup>();
+  const records = new Map<string, RaidRecord>();
+  const attendance = new Map<string, RaidAttendance>();
   let seq = 0;
   const id = (prefix: string) => `${prefix}_${++seq}`;
   const inGuild = <T extends { guildId: string }>(value: T | undefined, guildId: string) =>
@@ -24,6 +36,8 @@ export function createMemoryRaidsStore(): RaidsStore & {
     schedules,
     events,
     signups,
+    records,
+    attendance,
     async listSchedules(guildId, filter = {}) {
       return [...schedules.values()]
         .filter(
@@ -109,6 +123,33 @@ export function createMemoryRaidsStore(): RaidsStore & {
     async deleteSignup(guildId, signupId) {
       if (inGuild(signups.get(signupId), guildId)) signups.delete(signupId);
     },
+
+    async getRecord(guildId, eventId) {
+      return (
+        [...records.values()].find((r) => r.guildId === guildId && r.eventId === eventId) ?? null
+      );
+    },
+    async listAttendance(guildId, eventId) {
+      return [...attendance.values()]
+        .filter((a) => a.guildId === guildId && a.eventId === eventId)
+        .sort((a, b) => a.name.localeCompare(b.name));
+    },
+    async putRecord(input, people) {
+      const { guildId, eventId } = input;
+      for (const r of records.values()) {
+        if (r.guildId === guildId && r.eventId === eventId) records.delete(r.id);
+      }
+      for (const a of attendance.values()) {
+        if (a.guildId === guildId && a.eventId === eventId) attendance.delete(a.id);
+      }
+      for (const person of people) {
+        const row = { ...person, id: id('attendance'), guildId, eventId };
+        attendance.set(row.id, row);
+      }
+      const record = { ...input, id: id('record') };
+      records.set(record.id, record);
+      return record;
+    },
   };
 }
 
@@ -142,16 +183,29 @@ export function createRecordingEventSink(): RaidsEventSink & { emitted: EmittedE
   };
 }
 
+/** Keeps the drops raids hands to loot, by raid, so tests can read them back. */
+export function createMemoryRaidsLoot(): RaidsLoot & { drops: Map<string, LootDropInput[]> } {
+  const drops = new Map<string, LootDropInput[]>();
+  return {
+    drops,
+    async replaceDrops(guildId, eventId, list) {
+      drops.set(`${guildId}/${eventId}`, list);
+    },
+  };
+}
+
 export function createMemoryRaidsDeps(
   members: Member[] = [],
   characters: Character[] = [],
 ): RaidsDeps & {
   raids: ReturnType<typeof createMemoryRaidsStore>;
   events: ReturnType<typeof createRecordingEventSink>;
+  raidLoot: ReturnType<typeof createMemoryRaidsLoot>;
 } {
   return {
     raids: createMemoryRaidsStore(),
     members: createMemoryRaidsMembers(members, characters),
     events: createRecordingEventSink(),
+    raidLoot: createMemoryRaidsLoot(),
   };
 }

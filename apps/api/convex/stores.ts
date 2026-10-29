@@ -22,6 +22,7 @@ import type { IdentityDeps, IdentityStore } from '@vintage/identity/commands';
 import type { Character, GuildRank, Member, RoleRankMap } from '@vintage/identity/contract';
 import type { InsightsDeps, InsightsStore } from '@vintage/insights/commands';
 import type { InsightFinding, InsightRun } from '@vintage/insights/contract';
+import type { LootDeps, LootStore } from '@vintage/loot/commands';
 import type { PollsDeps, PollsEventSink, PollsStore } from '@vintage/polls/commands';
 import type { Poll } from '@vintage/polls/contract';
 import type { ProgressDeps, ProgressStore } from '@vintage/progress/commands';
@@ -174,6 +175,12 @@ export function raidsStore(ctx: Ctx): RaidsStore {
     deleteSignup: async (guildId, signupId) => {
       await writable(ctx).runMutation(raids.signups.remove, { guildId, signupId });
     },
+
+    getRecord: (guildId, eventId) => ctx.runQuery(raids.records.get, { guildId, eventId }),
+    listAttendance: (guildId, eventId) =>
+      ctx.runQuery(raids.records.attendance, { guildId, eventId }),
+    putRecord: (record, attendance) =>
+      writable(ctx).runMutation(raids.records.put, { record, attendance }),
   };
 }
 
@@ -199,7 +206,22 @@ export function raidsDeps(ctx: Ctx): RaidsDeps {
       getMember: (guildId, memberId) => people.getMember(guildId, memberId),
     },
     events: eventSink(ctx),
+    raidLoot: lootStore(ctx),
   };
+}
+
+const loot = components.loot;
+
+export function lootStore(ctx: Ctx): LootStore {
+  return {
+    listDrops: (guildId, eventId) => ctx.runQuery(loot.drops.list, { guildId, eventId }),
+    replaceDrops: (guildId, eventId, drops) =>
+      writable(ctx).runMutation(loot.drops.replace, { guildId, eventId, drops }),
+  };
+}
+
+export function lootDeps(ctx: Ctx): LootDeps {
+  return { loot: lootStore(ctx) };
 }
 
 const polls = components.polls;

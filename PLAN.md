@@ -735,7 +735,7 @@ Phase 0 has about ten days and one maintainer, so it is cut to the minimum that 
 - [ ] `loot` host module + `libs/loot-core`; first two methods (likely soft-reserve + council, per Q5)
 - [ ] `wishlist` module; wishlists feed council candidates
 - [ ] Addon loot popup showing precomputed candidates
-- [ ] Post-raid: paste export → attendance + loot recorded → bot posts raid summary. The read-only first step is in: `raid-export-check` reads an export and matches it to the raid on the site, in Discord, and over MCP (J44, 2026-10-27); recording waits on the loot module (#26)
+- [ ] Post-raid: paste export → attendance + loot recorded → bot posts raid summary. The read-only first step is in: `raid-export-check` reads an export and matches it to the raid on the site, in Discord, and over MCP (J44, 2026-10-27); recording is in too: `raid-export-record` (officers) stores attendance in raids and drops in a new `loot` module, and completes the raid (J46, 2026-10-29; [post-raid-record](docs/features/active/post-raid-record/post-raid-record.plan.md)); the summary post and the website and Discord buttons are next
 
 **Done when:** the end-to-end loop works for a real raid: coordinator → roster → addon forms raid → loot recorded under the chosen method → summary posted.
 

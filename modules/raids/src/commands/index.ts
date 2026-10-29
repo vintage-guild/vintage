@@ -1,5 +1,5 @@
 import { compSuggest } from './comp';
-import { raidExportCheck } from './export';
+import { attendanceList, raidExportCheck, raidExportRecord } from './export';
 import { raidCancel, raidComplete, raidCreate, raidGet, raidList, raidReschedule } from './raid';
 import { rosterBench, rosterLock, rosterMove, rosterRemove, rosterUnlock } from './roster';
 import { scheduleCreate, scheduleList, scheduleMaterialize, scheduleUpdate } from './schedule';
@@ -12,7 +12,7 @@ export {
   wallClock,
   zonedTime,
 } from '../domain/recurrence';
-export type { RaidsDeps, RaidsEventSink, RaidsMembers, RaidsStore } from '../store';
+export type { RaidsDeps, RaidsEventSink, RaidsLoot, RaidsMembers, RaidsStore } from '../store';
 
 /** Every raids command, registered by apps/api through guild-kit. */
 export const raidsCommands = [
@@ -37,4 +37,6 @@ export const raidsCommands = [
   rosterRemove,
   compSuggest,
   raidExportCheck,
+  raidExportRecord,
+  attendanceList,
 ] as const;

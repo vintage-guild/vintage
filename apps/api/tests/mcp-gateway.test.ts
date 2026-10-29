@@ -7,6 +7,7 @@ import type { Caller } from '@vintage/guild-kit';
 import { toManifest } from '@vintage/guild-kit';
 import { createMemoryIdentityDeps } from '@vintage/identity/testing';
 import { createMemoryInsightsDeps } from '@vintage/insights/testing';
+import { createMemoryLootDeps } from '@vintage/loot/testing';
 import { createMemoryPollsDeps } from '@vintage/polls/testing';
 import { createMemoryProgressDeps } from '@vintage/progress/testing';
 import { createMemoryRaidsDeps } from '@vintage/raids/testing';
@@ -129,6 +130,7 @@ async function guild() {
     ...createMemoryAgentDeps().deps,
     ...createMemoryApplicationsDeps().deps,
     ...createMemoryInsightsDeps().deps,
+    ...createMemoryLootDeps(),
   };
   const registry = testRegistry<VintageDeps>(commands);
   const system = makeCaller('officer', { surface: 'system', memberId: undefined });

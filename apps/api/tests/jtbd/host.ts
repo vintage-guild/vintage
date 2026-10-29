@@ -23,6 +23,7 @@ import { systemCaller, toManifest } from '@vintage/guild-kit';
 import type { Character } from '@vintage/identity/contract';
 import { createMemoryIdentityDeps } from '@vintage/identity/testing';
 import { createMemoryInsightsStore } from '@vintage/insights/testing';
+import { createMemoryLootStore } from '@vintage/loot/testing';
 import { buildPollCard, renderPollPost } from '@vintage/polls/commands';
 import type { Poll } from '@vintage/polls/contract';
 import {
@@ -93,6 +94,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     GUILD,
   );
   const raids = createMemoryRaidsStore();
+  const loot = createMemoryLootStore();
   const events = createRecordingEventSink();
   const coordinator = createMemoryCoordinatorStore();
   const polls = createMemoryPollsStore();
@@ -126,6 +128,8 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
       getMember: (g, id) => identity.getMember(g, id),
     },
     events,
+    raidLoot: loot,
+    loot,
     coordinator,
     tickSource,
     scheduler: { runTickNow: async (g) => void ticksRequested.push(g) },

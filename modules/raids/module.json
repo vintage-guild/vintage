@@ -2,6 +2,6 @@
   "name": "raids",
   "maturity": "core",
   "owners": ["@Falkicon"],
-  "dependsOn": ["identity"],
+  "dependsOn": ["identity", "loot"],
   "description": "Recurring schedules, raid events, signups, and rosters (PLAN §3.3, §3.11)."
 }

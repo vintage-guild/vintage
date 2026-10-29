@@ -20,6 +20,7 @@ import {
   identityDeps,
   identityStore,
   insightsDeps,
+  lootDeps,
   pollsDeps,
   progressDeps,
   raidsDeps,
@@ -53,6 +54,7 @@ export const deps = (ctx: Ctx, options: { agentDelivery?: AgentDelivery } = {}):
   ),
   ...applicationsDeps(ctx),
   ...insightsDeps(ctx),
+  ...lootDeps(ctx),
 });
 
 /** The website caller: the signed-in member from the token's Discord id (convex/auth.ts), else public. */

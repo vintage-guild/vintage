@@ -20,6 +20,7 @@
     "@vintage/comp-solver": "workspace:*",
     "@vintage/guild-kit": "workspace:*",
     "@vintage/identity": "workspace:*",
+    "@vintage/loot": "workspace:*",
     "@vintage/wow-data": "workspace:*",
     "convex": "catalog:",
     "zod": "catalog:"

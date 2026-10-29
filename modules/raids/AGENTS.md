@@ -11,10 +11,11 @@ directly. Maturity: **core**.
 | `src/contract.ts` | Public types (`Schedule`, `RaidEvent`, `Signup`), command names, events. The only import other modules may use |
 | `src/domain/recurrence.ts` | Pure: a weekly recurrence in an IANA zone → start times (DST-safe) |
 | `src/domain/export-check.ts` | Pure: an addon export (`@vintage/bridge-format` `raid-export`) matched to a raid's signups by name, with or without the realm |
-| `src/store.ts` | `RaidsStore` port, `RaidsMembers` (what raids reads from identity), `RaidsEventSink`, `RaidsDeps`, `command` |
-| `src/commands/` | `schedule-*`, `raid-*`, `signup-*`, `roster-*`, `comp-suggest`, `raid-export-check` (read-only: an addon export matched to its raid, #29) |
+| `src/domain/export-record.ts` | Pure: the attendance and drops `raid-export-record` stores from a checked export |
+| `src/store.ts` | `RaidsStore` port, `RaidsMembers` (what raids reads from identity), `RaidsEventSink`, `RaidsLoot` (where recorded drops go: the loot module), `RaidsDeps`, `command` |
+| `src/commands/` | `schedule-*`, `raid-*`, `signup-*`, `roster-*`, `comp-suggest`, `raid-export-check` (read-only: an addon export matched to its raid), `raid-export-record` and `attendance-list` (#29) |
 | `src/testing.ts` | Memory store, members, and a recording event sink, same behavior as the component |
-| `convex/` | The `raids` Convex component: `schedules`, `raidEvents`, `signups` tables |
+| `convex/` | The `raids` Convex component: `schedules`, `raidEvents`, `signups`, `raidRecords`, `attendance` tables |
 
 ## Rules
 
@@ -85,11 +86,21 @@ directly. Maturity: **core**.
   export has no plain `Name` and no second realm's, and is flagged `matchedWithoutRealm`.
   `warnings` (OTHER_GUILD, OTHER_RAID, TIMES_APART: no snapshot from 2 hours before the start to
   10 after) are plain sentences every surface shows as they are.
+- **`raid-export-record`** (officer, destructive, #29) stores what `raid-export-check` matched:
+  everyone in any snapshot attended (`attendance`, with snapshot count, labels, first and last
+  seen), the record (`raidRecords`, one per raid, `exportKey` = exporter@exportedAt), and the
+  drops through `RaidsLoot` to the loot module, under the raid's `lootMethodId`. The same export
+  again changes nothing; a different one replaces the record, its attendance and drops. It
+  completes a live raid. Refuses no raid (`RAID_NOT_MATCHED`), cancelled, not started, and an
+  export with no snapshots (`EXPORT_EMPTY`). Standby counts as attended once the export carries
+  it (#222). `attendance-list` (recruit) reads it back. Decisions:
+  [post-raid-record](../../docs/features/active/post-raid-record/post-raid-record.plan.md).
 - **Leaders override** (tier `leader`): signing up anyone's character, changing locked raids,
   and every `roster-*` command. `raid-cancel` and `roster-remove` are destructive (confirm flow).
 - **Events:** `signup-changed` on every real change (not on a no-op re-answer) and on removal
   (`to: null`), then `signup-promoted` for anyone it moved up; `raid-completed` with attendance
-  from `raid-complete`.
+  from `raid-complete`, or from `raid-export-record` when it completes the raid; `raid-recorded` on
+  every record (`replaced` when it replaced one).
 - **Comp priority comes from guild rank** (`RANK_PRIORITY` in `comp.ts`): raiders and above,
   then flex raiders, then recruits. Gate on tier, rank only orders.
 - Nullable fields use `null`, not `undefined`, so Convex patches can clear them.

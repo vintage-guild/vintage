@@ -384,3 +384,63 @@ describe("The Export tab after a reload", function()
 		assert.is_true(ns.RaidWindow.pages.export.exportBox:IsShown())
 	end)
 end)
+
+describe("The Standby section", function()
+	local BENCH_IMPORT = fixtures["raid-import-bench.v1"].encoded
+	local STARTS_AT = 1793052000
+	local host, ns, window
+
+	before_each(function()
+		host, ns = start()
+		inParty({ { name = "Doran", realm = "Stonemaul", class = "ROGUE", online = true } })
+		window = ns.RaidWindow
+		window:Show()
+		ns.Executor:Execute("raid-import", { text = BENCH_IMPORT })
+	end)
+
+	--- The rows from the Standby header on.
+	local function standby()
+		local all = lines(window.rosterItems)
+		for index, line in ipairs(all) do
+			if line:match("^# Standby") then
+				return { unpack(all, index) }
+			end
+		end
+		return {}
+	end
+
+	it("lists the bench after the roles, each with why they're on it", function()
+		window:Refresh()
+		assert.are.same({
+			"# Standby  0 / 3 in group",
+			"Fenna  ·  Paladin  ·  Healer  ·  Standby",
+			"Garrick  ·  Hunter  ·  Ranged  ·  Queued",
+			"Hollis-Stonemaul  ·  Warlock  ·  Ranged  ·  Benched",
+		}, standby())
+	end)
+
+	it("says what the raid is short of once it has started, and nothing before", function()
+		window:Refresh()
+		assert.is_nil(window:GetStatusText():match("Short"))
+		host.clock = STARTS_AT + 60
+		window:Refresh()
+		-- Aeryn and Doran are in; Brann and Élowen (healers) and Cyra (ranged) are not.
+		assert.matches("Short 2 healers, 1 ranged$", window:GetStatusText())
+	end)
+
+	it("invites someone from the bench with the row's Invite", function()
+		inParty({})
+		_G.IsInGroup = function()
+			return false
+		end
+		local invited = {}
+		_G.C_PartyInfo = {
+			InviteUnit = function(name)
+				invited[#invited + 1] = name
+			end,
+		}
+		window:InviteName("Fenna")
+		assert.are.same({ "Fenna" }, invited)
+		assert.are.equal("Inviting Fenna", window:GetStatusText())
+	end)
+end)

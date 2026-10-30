@@ -15,6 +15,9 @@ All notable changes to the Vintage addon. The version is the `## Version` line i
   raid as soon as two are in; **Arrange groups** on the Groups tab moves everyone into their
   planned group. Each row shows whether someone is in, invited, declined, offline, or in another group,
   and offers **Invite** and **Whisper** on hover.
+- A **Standby** section on the Roster tab: the import's bench, each with why they're on it
+  (standby, queued, benched), and **Invite** on hover. Once the raid's start time has passed,
+  the header says what's short ("Short 1 healer") and the bench of those roles comes first.
 - **Take a snapshot** and **Make export string** on the Export tab: record who is in the group
   and copy the string into the website's Check an export.
 - The night records itself in a raid: a snapshot at the first pull (or when Arrange groups

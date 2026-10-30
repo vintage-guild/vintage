@@ -63,9 +63,10 @@ end
 
 --- raid-status: the imported roster, each character marked in the group (and which raid group),
 --- invited, declined, or missing; how many still need an invite, and how many sit outside their
---- planned group.
+--- planned group. Also the bench, and once the raid's start time has passed, which roles are
+--- short (`short`, role → count), with the bench of those roles first.
 ---@param context table { session, members | groupNames, invites, inRaid }
----@return table ActionResult { title, rows, inGroup, total, toInvite, misplaced, inRaid, loot }
+---@return table ActionResult { title, rows, bench, started, short, inGroup, total, toInvite, misplaced, inRaid, loot }
 function RaidActions.Status(context)
 	local session = context.session
 	if type(session) ~= "table" then
@@ -89,8 +90,16 @@ function RaidActions.Status(context)
 	if context.inRaid and context.members then
 		misplaced = Core.Forming.Misplaced(import, context.members)
 	end
+	-- Once the raid's start time has passed, who is missing counts as short, and the bench
+	-- lists the roles the raid is short of first.
+	local started = type(context.now) == "number" and context.now >= import.raid.startsAt
+	local bench = Roster.BenchRows(import, members, context.invites)
+	local short = started and Roster.Short(rows, bench) or {}
 	local loot = import.loot or {}
 	return Result.success({
+		bench = Roster.OrderBench(bench, short),
+		started = started,
+		short = short,
 		title = import.raid.title,
 		rows = rows,
 		inGroup = present,

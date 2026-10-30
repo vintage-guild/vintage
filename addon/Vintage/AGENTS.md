@@ -87,7 +87,9 @@ button's result, in red on an error), and **Import**, which opens a paste area o
 Before a raid the header is empty, since each tab's empty state says what to do. FenUI's panel
 subtitle overlaps the tab bar, so the window leaves it empty. Roster lists people by role and
 Groups by the import's planned group, in columns (class icon, name in class color, class,
-group or role, and a check for who is in your group); Loot shows the import's loot plan and
+group or role, and a check for who is in your group), then the import's bench under Standby
+(why each is on it; the roles the raid is short of first, and "Short 1 healer" in the header
+once the raid's start time has passed, less any bench person of that role who came in); Loot shows the import's loot plan and
 the drops recorded so far. Each button calls one Executor action. Rows show Invite and Whisper on
 hover. Invites and group moves run as a queue (`Bridge/Forming.lua`): one game call, then wait
 (0.3 s between invites; a move waits for `GROUP_ROSTER_UPDATE` or 2 s; a full party waits up to

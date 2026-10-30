@@ -104,7 +104,8 @@ the group goes through `Bridge/Game.lua`, which checks the API, leadership, and 
 The night records itself (`Bridge/Recorder.lua` turns events into actions): `CHAT_MSG_LOOT`
 becomes `loot-capture` (in a raid group, at or above the import's loot threshold, else the game's;
 the last kill within 5 minutes is the drop's `source`), `ENCOUNTER_END` becomes
-`encounter-record` (a kill takes a snapshot labelled with the boss), and the first pull
+`encounter-record` (every attempt goes in the export's `encounters`, from the pull
+`encounter-start` remembered to its end; a kill takes a snapshot labelled with the boss), and the first pull
 (`ENCOUNTER_START`) or a finished Arrange takes the one "start" snapshot. `raid-export` in a
 raid records "end" first. Nothing is recorded automatically outside a raid group, so a party
 the next day can't land in the imported raid's export.

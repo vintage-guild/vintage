@@ -229,3 +229,37 @@ describe("The Loot tab and the export", function()
 		assert.are.equal("evt_mc_0001", decoded.data.eventId)
 	end)
 end)
+
+describe("Recording boss attempts", function()
+	it("records each pull to its end, and the window counts kills and wipes", function()
+		local host, ns = start()
+		ns.Executor:Execute("raid-import", { text = IMPORT })
+		ns.RaidWindow:Show()
+		host:Fire("ENCOUNTER_START", 663, "Lucifron", 9, 40)
+		host.clock = host.clock + 300
+		host:Fire("ENCOUNTER_END", 663, "Lucifron", 9, 40, 0)
+		host.clock = host.clock + 300
+		host:Fire("ENCOUNTER_START", 663, "Lucifron", 9, 40)
+		host.clock = host.clock + 300
+		host:Fire("ENCOUNTER_END", 663, "Lucifron", 9, 40, 1)
+
+		local attempts = ns.db.char.session.encounters
+		assert.are.same({ false, true }, { attempts[1].killed, attempts[2].killed })
+		assert.are.equal(attempts[2].endedAt - 300, attempts[2].startedAt)
+		assert.are.equal(40, attempts[1].size)
+
+		ns.RaidWindow:Refresh()
+		assert.are.equal(
+			"Snapshots: 2  ·  Drops: 0  ·  Kills: 1  ·  Wipes: 1",
+			ns.RaidWindow.pages.export.summary:GetText()
+		)
+		assert.matches("1 kill, 1 wipe", ns.RaidWindow:GetStatusText())
+	end)
+
+	it("records nothing from a party's boss", function()
+		local host, ns = start({ party = true })
+		host:Fire("ENCOUNTER_START", 639, "Edwin VanCleef", 1, 5)
+		host:Fire("ENCOUNTER_END", 639, "Edwin VanCleef", 1, 5, 1)
+		assert.is_nil(ns.db.char.session.encounters)
+	end)
+end)

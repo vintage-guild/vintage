@@ -195,6 +195,21 @@ local registry = {
 		end,
 	},
 
+	-- A boss was pulled (ENCOUNTER_START): remembered until it ends, for the attempt's start time
+	-- and the group's size.
+	["encounter-start"] = {
+		run = function(params)
+			local context = Context:BuildRaidContext()
+			context.encounter = { id = params.id, name = params.name, size = params.size }
+			local result = Actions.Raid.EncounterStart(context)
+			if not result.success then
+				return result
+			end
+			ns.db.char.session = result.data.session
+			return Result.success({}, result.reasoning)
+		end,
+	},
+
 	-- A boss attempt ended (ENCOUNTER_END): remembered as the source of the next drops; a kill
 	-- in a raid takes a snapshot labelled with the boss.
 	["encounter-record"] = {

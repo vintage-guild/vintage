@@ -60,9 +60,19 @@ function Session.Summary(session)
 		snapshots = session.attendance and #session.attendance or 0,
 		loot = session.loot and #session.loot or 0,
 		items = Core.Count(session.itemsSeen),
+		kills = 0,
+		wipes = 0,
 		lastExport = session.lastExport,
 		lastExportAt = session.lastExportAt,
 	}
+
+	for _, attempt in ipairs(session.encounters or {}) do
+		if attempt.killed then
+			summary.kills = summary.kills + 1
+		else
+			summary.wipes = summary.wipes + 1
+		end
+	end
 
 	local reasoning
 	if summary.title then

@@ -136,7 +136,14 @@ L["Legendary"] = true
 -- Export tab
 L["Take a snapshot"] = true
 L["Make export string"] = true
-L["Snapshots: %d  ·  Drops: %d"] = true
+L["Snapshots: %d"] = true
+L["Drops: %d"] = true
+L["Kills: %d"] = true
+L["Wipes: %d"] = true
+L["1 kill"] = true
+L["%d kills"] = true
+L["1 wipe"] = true
+L["%d wipes"] = true
 L["Copy this into the website's Check an export (Ctrl+C)"] = true
 
 -- Minimap button and compartment

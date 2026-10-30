@@ -391,6 +391,17 @@ describe("Bridge payload schema", function()
 		assert.are.same({ "bench.2.characterId", "bench.1.characterId" }, issuePaths(check(benched)))
 	end)
 
+	it("checks the export's standby list: optional, with a known reason and a name", function()
+		local stoodBy = copy(F.fixtures["raid-export-standby.v1"].payload)
+		assert.is_true(check(stoodBy).success)
+		assert.is_nil(export.standby) -- an export from before the standby list
+		assert.is_true(check(export).success)
+
+		stoodBy.standby[1].reason = "late"
+		stoodBy.standby[2].name = "G"
+		assert.are.same({ "standby.0.reason", "standby.1.name" }, issuePaths(check(stoodBy)))
+	end)
+
 	it("checks the export's snapshots, loot, and items", function()
 		export.attendance[1].members[1].group = 9
 		export.attendance[1].members[2].online = "yes"

@@ -310,6 +310,25 @@ describe('raid-export-check', () => {
     expect(reasoning).toContain('1 declined but came');
   });
 
+  it('lists the bench people who stood by, and keeps them out of the missing', async () => {
+    const payload = nightExport({
+      standby: [
+        { characterId: 'c_fenna', name: 'Fenna', reason: 'standby' },
+        { characterId: 'c_garrick', name: 'Garrick', reason: 'queued' },
+      ],
+    });
+    const { data, reasoning } = await check({ exportString: encode(payload), eventId: raid.id });
+    expect(data.standby).toEqual([
+      { characterId: 'c_fenna', name: 'Fenna', reason: 'standby' },
+      { characterId: 'c_garrick', name: 'Garrick', reason: 'queued' },
+    ]);
+    expect(reasoning).toContain('2 stood by');
+    // An export from before the list has none.
+    expect(
+      (await check({ exportString: encode(nightExport()), eventId: raid.id })).data.standby,
+    ).toEqual([]);
+  });
+
   it('does not count a benched signup as missing', async () => {
     const signups = await ok<Signup[]>('signup-list', { eventId: raid.id }, leader);
     const cade = signups.find((s) => s.characterId === 'cade');

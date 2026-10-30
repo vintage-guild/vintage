@@ -304,6 +304,100 @@ return {
 				v = 1,
 			},
 		},
+		["raid-export-standby.v1"] = {
+			description = "An export with the bench people who stood by: one standby, one queued",
+			encoded = "!VIN:1!1evVUnrqqyaJj2oribviKqYIceYOy504c68f8Hojle6iksuDm7UtUSK721E2DpWTwcQOY1uy5hbxqdD5baTpaGaXJapbSxSt1o7OVFMz(U53UeecT6uKmsTkDq)J6pynyTOsako2B4Jb7tF)V)XxslagwKASazPsSKfy884uEbym0haIKAknN0UPnIuqjMocP5kMwviv47I97XMss0y9TB47KgrGs5pOUFujKJ(2n9DIoEob(doFNN)8R(BVyIJlpJ0k)DEyaRV1v097hOsyfQSjInyLnRKNnyWGJwJFCQMSOyuqG)0C1ID)j)(uUtwiselZZQKkBWZuPfln9(mD1oKiAVaN5KtNO5xM8Qtp5TVECw84XNej5A1dUvZVZQXNiAnA1Y6Qjb)l(KVZFhrCqjn2UrAT1qZCqH0oV9AJJTt5gd9pQvKX3z5eOc6ESMqF39IUqQeBiqkoC7ygveeOx82T)x3iWz0kwDpK(3l0Hl2HVXQvyj4kygTJ4O)ExJwKY1oLT5wJEI)UuiPuc28Ed3WphiGhujrq8SZqLccrqC9lJqWeUU9g6F2sEwEDoYVW3HE5UQ(Szo0HI7x14)a",
+			payload = {
+				addonVersion = "0.1.0",
+				attendance = {
+					{
+						at = 1793052300,
+						label = "start",
+						members = {
+							{
+								class = "warrior",
+								group = 1,
+								name = "Aeryn",
+								online = true,
+							},
+							{
+								class = "priest",
+								group = 1,
+								name = "Brann",
+								online = true,
+							},
+							{
+								class = "mage",
+								group = 2,
+								name = "Cyra",
+								online = false,
+							},
+						},
+					},
+					{
+						at = 1793055900,
+						label = "Lucifron",
+						members = {
+							{
+								class = "warrior",
+								group = 1,
+								name = "Aeryn",
+								online = true,
+							},
+						},
+					},
+				},
+				eventId = "evt_mc_0001",
+				exportedAt = 1793066400,
+				exporter = "Aeryn",
+				guildId = "g_vintage",
+				items = {
+					{
+						classId = 4,
+						equipLoc = "INVTYPE_FEET",
+						icon = 132539,
+						itemId = 16800,
+						itemLevel = 66,
+						name = "Arcanist Boots",
+						quality = 4,
+						subclassId = 1,
+					},
+					{
+						itemId = 17011,
+						name = "Lava Core",
+						quality = 3,
+					},
+				},
+				kind = "raid-export",
+				loot = {
+					{
+						at = 1793056000,
+						itemId = 16800,
+						looter = "Doran-Stonemaul",
+						source = "Lucifron",
+					},
+					{
+						at = 1793056100,
+						count = 2,
+						itemId = 17011,
+						looter = "Brann",
+					},
+				},
+				standby = {
+					{
+						characterId = "c_fenna",
+						name = "Fenna",
+						reason = "standby",
+					},
+					{
+						characterId = "c_garrick",
+						name = "Garrick",
+						reason = "queued",
+					},
+				},
+				v = 1,
+			},
+		},
 		["raid-export.v1"] = {
 			description = "Game → web export: attendance snapshots, loot received, item data seen",
 			encoded = "!VIN:1!1avZQnvquy1ySjPfbDLiieCHibA52nDH7UtnbUqqKXsbxfN7mhJJo3zspZmxnBdORCvw7Iqw4dq36U(aiNhaLw6JqFc6KM0DNZhF)C(o393NjukN9ya9ANLNT3(7LTuecGvjSsO3bpxeE5Np)V)KBeLGH7dcmGvqvzsXRgWLgH3JFvGO2H8XOloPbZkQaEoGtTLoRrBHpmG2QCcQbFGA3G6WzOWAPDwHZQeJbQDtQd7WPOG25tBY8F)IU)SHrP(JOZsp4PjUuRBKtBNKIqnydfQtH6WOk5OSSS9xcFBIddGkpzWfnxmBZosBJJJAJQqnF8OATnKYKRdqLV3pWB6qHQ9m4KOEYqN8SI3C8rV)T9hnOF)JyAPZ(K718pLR4xOALVy(QPHP8nFN6CzokfwTp0L5CbpEsuy0HPTx6JLBCUXb0ZAX8uN5df1IUh6qG6Uf7lAR6uuOv7U(mzMKb9gSU9))ojn5lkxHb4vV2L(y7(UGZcvIOP07IOeOhDlBfx6I2qZ1b9c6HpUUX1a",
@@ -604,6 +698,7 @@ return {
 		["error-unknown-kind"] = "!VIN:1!JrZukXs0iR7ZKdoLDM5LYLkkXmtr3ssnNuli)IkrOYygWd",
 		["raid-export-empty.v1"] = "!VIN:1!JX2ouIPKs(5fwQfvCM5NxqgONH6zWIsSKssnVusmVKtLRfLAffKFrLKAkowIgz9awxqtq5xuqoMArvMxqzwsQ5wmxoLDM5LYMkkXmtrxiY7uo5NFjCjuzmd4",
 		["raid-export-night.v1"] = "!VIN:1!99ymVnrqquyb2oX2jecuHqcPiObzPefOifU7oWwYswi0sKfuHN7UHWc7TJZS7AiTwcxrvkdnrUJoef0av5xW8BiIFbi(bWD(mIo623(M3NEVRm)cilJSJq2PjRA)9EWE7Va8E0Mb2uS7b3f83)nx(XFQmqcAuopWEohZtks0TVk1aoh)oGznXQJykmPwSfYrveYNytiRrBXX9L1tMWA05Lw1K2Cmd5jgu2S0rX0rbuA1qA)Rhtmy39zEYI5qWuCWQgC2VL6Zggs1VIjRSw3ICsZLWKnQWixRsULS5RlLxFjrz7)X4Z1L6pSyzYAD(VXhVaF)eI9ywuzSV9LzR0SSHs7XCxN58YLpiR1m84GEYqk9Ibpz0HV4P9Ez)E9omwNs2BD1gFpP8(bznJo)0YxdXPO5ds7lJ4uWQD(DIjY74JdGr7pP1cxizf5Ahi3UzStAF6qykSZJigL7SE8B12SVYGoB3QsfBka0PF1c)0ZlYeDEs5FfTDRehf4uuUXF9)HkLcwFJk03t2(MtR9N",
+		["raid-export-standby.v1"] = "!VIN:1!1evVUnrqqyaJj2oribviKqYIceYOy504c68fSrNKfcDefjQoMD3jol5UzTNDVdCRLGkQCnfw(rWfPHU8aG2haqG4rGNa2l2uTZo67NzMVBE5vGszOtr2QnusVUh1T3AW5qsbKe70)XG7PV)xF)ljzGaZsSoGDCoMlcmE(OezgyT8haM1gozcBkMwlIGCmzaYZjHHY0e(Ur(9etznAD(M18TsIyGi)bv9JYHjOVzDFROJNZG)GZ355p(Q)2lgxi1NXgYFNhgW6BCnD)(bQmwIKlwTblDP5Y0E96D0A8JtnSdvdcc876RwS7p73NNuOZuXQLtsl1Kl4zI2H52oFMVEhIvnxGZk0thBKxf)Qtp5TVEy6OHdpjsln0dUv9VjQWhRAmy1YQQXb)Z(KV1FgWsG0wx7iJXz5zfqM2nV5ABHyNY167FuJiRV1YXqj0(ydJ(27fDHMuByqRoC7ygLfeOZOTB)pVrGZGvIQEi)3xycxSdFJZqyouKjSMcwI(79F0QePPGC13A0t83LdjfPeZ70FJ8CGbzqLyfltpdjccrWOQxbJGnCD703)SLY0jv5O8cFl(L7Q6kMvGfO6(L1(3p",
 		["raid-export.v1"] = "!VIN:1!1azWQnvquyy1ySjPLc6krqi0fsjql3UPlC3DQjWfcImwk4Q45oZX4O37mjNzMRMTbQRCvw7Iqw4dq36U(aiNhaffFe8jWBAI7oNF()()NZC7VEnO1o7fi5noRm54toozfecOvdwf270dGWHV7xF)ZYcihlK(aqbQelZRjE6aPQa8E6darghjhtU4KgcluIYuKMzZD2cJfF9aEN8jKb9bUDdUJuqG1Y7TwxucJrUDtUJ4SzeW792TD(JVW3D(WOY8gYz579OAVCRBW5DRrjScTHm9vyvyuPAussYjRWpoXrbuNwhWVBUC(2DI3Lghnf6m9IXJQm2qDNstal99(eDZnKPBphNgntg6uxN98lo)vVO)Ob97FUWOC2hENMFlFT)mDR0LlwpnSU)Il5o)jLuG14dDfoxWttJqHjmR9kFmFBYnoLFClHN7SyiubDpZri3DhX7nw9vey0hT5zkkQdO3Gnx)pVvnt6Y81Ai93N5Q)Xo6LbNflHyrU3fjfY3))U1sLlAdn3u0t49FqvJ)9d",
 		["raid-import-bench.v1"] = "!VIN:1!TjvVUnrqqyHTjymbjukIeefPJ)IcrYs2PGIur2Gc4cAUiLcAo2B35UBX7T7XS75i3HshTw8aGsbpaw8ea1iTkVaiXJapbm35GukOCN9B(MV57BUXxJtbJO4GSLIcoYfEaNirrsgym8yHM7CyfxZLkdZWlH4JB(ifbUZAqNNBKPZzOvdPfaxdiZvbcwHvp)0qNfIKCoIkX0qV0IAdXEyn8vxvQF6hQHAqggKICtoiZcDoxKq9QvUqp8moQTeU1QU3RBRn8eV1aL8ADOp2Q7MMdBew)cEwMwj8kR5cbPjLK7b3E7KQ8q5ez)d)sZiMcY92j0HwpPLEg6xT5j2m)qeCaodKr7ooYMfT)ZwbId48)hO9)hO73N9TWdgSmhmasduEOF33)RoVinhT1v04)(1mv3bHTjsB0HjSvClKU7eE4EPIeXCKtBoOTNbMWJVjMxR0YjYf5jZugpphytvg5sKRKdvLvw0Z0wR)0lfwtMk)uaD0QFRZlbFHLAeDKKjfF5Qcx9FxwPvcPLChPOf(ccaz2YBZA495imdm(jYLWmFsPiz0OrJpNsy07A3RF(UyVYRHQnFJv7bt0rweI(9h)C0zamnACkAB49TuUh2Ev8Hklf4Xh2AKdy01YukRQqRhAZQgOpIonQqf48eswR7miCNW6H7Em97tc9yL0(hwJDezsnPDt5Tc9IrBEnv)pVSjlV2PXG4sqdqd3pLGjXALKU6(XNw5UTKVKwDp1xJi2yw3)c",
 		["raid-import.v1"] = "!VIN:1!Lf5ZkorqqyCCZgnk(p8WEEoeggdejzp4bpz6veYbVmlKdEzSNURmPn901q1vsi3KCZRlINL9ri4tGEEHM9fqWhbFcSNSki4157xv1V5RV1NVujDAJwYGFqAPHH6P6Et(sjjDlb9G09QfssQyGMQjvHgJbLei9OR5KZX58qc8aTg0jzJtW5jN(00WXrsjqBDHB)FqN(xOJ6j(AOZ92xboGI3xpHZE)po6LLveUQjAZ3(Nt7FrOxCPTA5cDZpG0jnC)bLQc1wsUtvawCd4cpSlvTYy1t1xuvS24yzfiwAC69K0OhAQBqIfwe5zxRq3Ct1mG8g0DND1aVaJds(OYrJV(Mp8N8oIAudL1sF0Ol4frGfOvFxr7EFobRbhpvVhwZf1QIrJgnENNLe7p8FD17YzdBHMtEdAzWLCgsqYp)WNs2aWYKXLe2U33olCCOxUYk9EAJKidscNSgYN02NccTGGJVncFdOUSHqguC0U25EqOFzdzaphsZfhQQSYfG0cuyGik72xhPEuOVOowkHuXzXMlIejRaDBw3q)CcRwfd)1RAFQhEoJoOwUYgYYRblaTh6XrmnTYOdP03)4n9Ew4zHb7JLchNR1ONSUZVp",

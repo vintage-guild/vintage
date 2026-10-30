@@ -385,6 +385,19 @@ local raidExport = Object({
 			5000
 		),
 	},
+	-- Optional, so exports from before the standby list still decode.
+	{
+		"standby",
+		Array(
+			Object({
+				{ "characterId", id },
+				{ "name", unitName },
+				{ "reason", OneOf(unpack(Schema.BENCH_REASONS)) },
+			}),
+			80
+		),
+		OPTIONAL,
+	},
 })
 
 --- Reports every value already seen earlier in the list.

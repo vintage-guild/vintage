@@ -203,6 +203,11 @@ export function checkExport(
     unknownNames: event ? seen.filter((a) => a.characterId === null).map((a) => a.name) : [],
     absent,
     declinedButSeen: seen.filter((a) => a.status === 'declined').map((a) => a.name),
+    standby: (exported.standby ?? []).map(({ characterId, name, reason }) => ({
+      characterId,
+      name,
+      reason,
+    })),
     warnings: warningsFor(exported, event, { otherGuild, eventSource: options.eventSource }),
   };
 }
@@ -215,6 +220,7 @@ export function summarize(check: ExportCheck): string {
     `${where}: ${people} over ${check.snapshots.length} snapshot${check.snapshots.length === 1 ? '' : 's'}`,
     `${check.loot.length} drop${check.loot.length === 1 ? '' : 's'}`,
   ];
+  if (check.standby.length) parts.push(`${check.standby.length} stood by`);
   const notes: string[] = [];
   if (check.event && check.unknownNames.length)
     notes.push(`${check.unknownNames.length} not signed up`);

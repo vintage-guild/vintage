@@ -11,6 +11,7 @@ import type { RaidExport, RaidImport } from './schemas';
 const raidImport = FIXTURES['raid-import.v1']?.payload as RaidImport;
 const raidImportWithBench = FIXTURES['raid-import-bench.v1']?.payload as RaidImport;
 const raidExport = FIXTURES['raid-export.v1']?.payload as RaidExport;
+const raidExportWithStandby = FIXTURES['raid-export-standby.v1']?.payload as RaidExport;
 
 function errorCode<T>(result: BridgeResult<T>): BridgeErrorCode | 'ok' {
   return result.ok ? 'ok' : result.error.code;
@@ -217,6 +218,21 @@ describe('import references', () => {
     const [first] = raidImportWithBench.bench ?? [];
     const bad = { ...raidImportWithBench, bench: [{ ...first!, reason: 'late' }] };
     expect(errorCode(encodeBridge(bad as never))).toBe('INVALID_PAYLOAD');
+  });
+
+  it('decodes an export without a standby list, as older strings are', () => {
+    const { standby: _, ...withoutStandby } = raidExportWithStandby;
+    const decoded = decodeRaidExport(encoded(encodeBridge(withoutStandby)));
+    expect(decoded).toEqual({ ok: true, value: withoutStandby });
+    expect(decoded.ok && 'standby' in decoded.value).toBe(false);
+  });
+
+  it('refuses a standby entry with an unknown reason or no name', () => {
+    const [first] = raidExportWithStandby.standby ?? [];
+    const late = { ...raidExportWithStandby, standby: [{ ...first!, reason: 'late' }] };
+    const nameless = { ...raidExportWithStandby, standby: [{ ...first!, name: 'G' }] };
+    expect(errorCode(encodeBridge(late as never))).toBe('INVALID_PAYLOAD');
+    expect(errorCode(encodeBridge(nameless))).toBe('INVALID_PAYLOAD');
   });
 
   it('refuses loot candidates who are not rostered', () => {

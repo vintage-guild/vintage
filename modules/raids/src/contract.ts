@@ -238,6 +238,11 @@ export interface ExportCheck {
   absent: { characterId: string; characterName: string; status: SignupStatus }[];
   /** Said no to the raid but were seen in it. */
   declinedButSeen: string[];
+  /**
+   * Bench people the leader confirmed stood by (#222), from the import's bench; empty for an
+   * export without the list. Whether standing by counts as attendance is decided with #29.
+   */
+  standby: { characterId: string; name: string; reason: 'standby' | 'queued' | 'benched' }[];
   /** Reasons to doubt the match, most serious first; empty when it looks right. */
   warnings: ExportWarning[];
 }

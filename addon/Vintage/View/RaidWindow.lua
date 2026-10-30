@@ -453,6 +453,82 @@ local function lootItems(drops)
 end
 
 --- Draws one drop row; hovering shows the item's tooltip.
+-- The Export tab's stood-by list: a check per bench person (gone for someone who came in).
+local STOOD_BY_ICON, NOT_STOOD_BY_ICON = IN_GROUP_ICON, "Interface\\RaidFrame\\ReadyCheck-NotReady"
+
+---@param bench table[] raid-status's bench rows
+---@return table[] list items: a header, then one per bench person
+local function standbyItems(bench)
+	if #bench == 0 then
+		return {}
+	end
+	local counted = 0
+	for _, row in ipairs(bench) do
+		if row.stoodBy and not row.attended then
+			counted = counted + 1
+		end
+	end
+	local tally = string.format(L["%d stood by"], counted)
+	local items = {
+		{ key = "stood", isHeader = true, title = L["Stood by"], tally = tally, text = L["Stood by"] .. "  " .. tally },
+	}
+	for _, row in ipairs(bench) do
+		-- Someone who came in is in the attendance; the check is only for who waited.
+		local status = row.attended and L["Came in"] or (row.stoodBy and L["Stood by"] or L["Didn't stand by"])
+		local reason = BENCH_REASONS[row.reason] or ""
+		items[#items + 1] = {
+			key = "stood:" .. row.characterId,
+			characterId = row.characterId,
+			class = row.class,
+			name = row.name,
+			reason = reason,
+			stoodBy = row.stoodBy == true and not row.attended,
+			toggles = not row.attended,
+			status = status,
+			text = table.concat({ row.name, reason, status }, "  ·  "),
+		}
+	end
+	return items
+end
+
+--- Draws one stood-by row: the check, the name in class color, why they were on the bench, and
+--- where they are. A click on the row toggles the check (BuildExport's onSelect).
+local function renderStandby(row, item)
+	if not row.vintage then
+		buildHeader(row)
+		row.vintage = true
+		row.check = row:CreateTexture(nil, "ARTWORK")
+		row.check:SetSize(ICON_SIZE, ICON_SIZE)
+		row.check:SetPoint("LEFT", COLUMN.icon, 0)
+		row.name = label(row, "fontBody", "textDefault")
+		row.name:SetPoint("LEFT", COLUMN.name, 0)
+		row.name:SetWidth(NAME_WIDTH)
+		row.reason = label(row, "fontSmall", "textMuted")
+		row.reason:SetPoint("LEFT", COLUMN.class, 0)
+		row.reason:SetWidth(CLASS_WIDTH)
+		row.state = label(row, "fontSmall", "textMuted")
+		row.state:SetPoint("RIGHT", -GAP, 0)
+		row.state:SetJustifyH("RIGHT")
+	end
+	row.bg:Hide()
+	row.accent:Hide()
+	local isHeader = item.isHeader == true
+	for _, part in ipairs({ row.check, row.name, row.reason, row.state }) do
+		part:SetShown(not isHeader)
+	end
+	if renderHeader(row, item) then
+		return
+	end
+	row.check:SetShown(item.toggles)
+	row.check:SetTexture(item.stoodBy and STOOD_BY_ICON or NOT_STOOD_BY_ICON)
+	row.check:SetAlpha(item.stoodBy and 1 or 0.5)
+	row.name:SetText(string.format("|cff%s%s|r", CLASS_COLORS[item.class] or "ffffff", item.name))
+	row.reason:SetText(item.reason)
+	row.state:SetText(item.status)
+	color(row.state, item.toggles and "textMuted" or "feedbackSuccess")
+	row.hover:SetShown(item.toggles)
+end
+
 local function renderDrop(row, item)
 	if not row.vintage then
 		buildHeader(row)
@@ -1009,6 +1085,30 @@ function RaidWindow:BuildExport(F, page)
 	page.exportBox:SetPoint("TOPRIGHT", bar, "BOTTOMRIGHT", 0, -(BAND + LABEL_HEIGHT))
 	page.exportBox:SetHeight(EXPORT_BOX_HEIGHT)
 	page.exportBox:Hide()
+
+	-- Who stood by: the import's bench, ticked unless the leader says otherwise; the export
+	-- carries the ticked ones (raid-export's standby).
+	page.standbyList = F:CreateVirtualList(page, {
+		itemHeight = ROW_HEIGHT,
+		renderItem = renderStandby,
+		onSelect = function(_, item)
+			if item.toggles then
+				self:SetStandby(item.characterId, not item.stoodBy)
+			end
+		end,
+	})
+	page.standbyList:Hide()
+end
+
+--- Ticks or unticks someone on the bench as having stood by.
+---@param characterId string
+---@param stoodBy boolean
+---@return table ActionResult
+function RaidWindow:SetStandby(characterId, stoodBy)
+	local result = ns.Executor:Execute("standby-set", { characterId = characterId, stoodBy = stoodBy })
+	self:SetMessage(result)
+	self:Refresh()
+	return result
 end
 
 ---@return table ActionResult
@@ -1033,18 +1133,29 @@ function RaidWindow:MakeExport()
 end
 
 ---@param summary table|nil session-get's data
-function RaidWindow:RefreshExport(summary)
+---@param status table|nil raid-status's data (its bench)
+function RaidWindow:RefreshExport(summary, status)
 	local page = self.pages and self.pages.export
 	if not page then
 		return
 	end
+	self.standbyItems = standbyItems(status and status.bench or {})
+	page.standbyList:ClearAllPoints()
+	if summary and summary.lastExport then
+		page.standbyList:SetPoint("TOPLEFT", page.exportBox, "BOTTOMLEFT", 0, -BAND)
+	else
+		page.standbyList:SetPoint("TOPLEFT", page.toolbar, "BOTTOMLEFT", 0, -BAND)
+	end
+	page.standbyList:SetPoint("BOTTOMRIGHT")
+	page.standbyList:SetItems(self.standbyItems)
+	page.standbyList:SetShown(#self.standbyItems > 0)
 	local snapshots = summary and summary.snapshots or 0
 	local lastExport = summary and summary.lastExport
 	page.summary:SetText(string.format(L["Snapshots: %d  ·  Drops: %d"], snapshots, summary and summary.loot or 0))
 	page.summary:SetShown(snapshots > 0 or lastExport ~= nil)
 	page.exportBox:SetText(lastExport or "")
 	page.exportBox:SetShown(lastExport ~= nil)
-	page.empty:SetShown(snapshots == 0 and lastExport == nil)
+	page.empty:SetShown(snapshots == 0 and lastExport == nil and #self.standbyItems == 0)
 end
 
 --------------------------------------------------------------------------------
@@ -1140,7 +1251,7 @@ function RaidWindow:Refresh()
 	self:RefreshLists(status)
 	local loot = ns.Executor:Execute("loot-list")
 	self:RefreshLoot(status and status.loot or nil, loot.success and loot.data.drops or {})
-	self:RefreshExport(summary)
+	self:RefreshExport(summary, status)
 	self.importButton:SetText(status and L["Import again"] or L["Import"])
 end
 

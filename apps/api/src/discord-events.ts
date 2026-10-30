@@ -300,6 +300,9 @@ export function exportCheckText(check: ExportCheck): string {
   if (check.declinedButSeen.length) {
     lines.push(`Declined but came: ${names(check.declinedButSeen)}`);
   }
+  if (check.standby.length) {
+    lines.push(`Stood by: ${names(check.standby.map((s) => s.name))}`);
+  }
   const loose = check.attendees.filter((a) => a.matchedWithoutRealm).map((a) => a.name);
   if (loose.length) lines.push(`Matched by name only: ${names(loose)}`);
   const snapshots = capped(

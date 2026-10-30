@@ -200,6 +200,19 @@ const raidNightExport: RaidExport = {
   ],
 };
 
+/**
+ * The same export with the bench people the leader confirmed stood by. Kept apart from
+ * `raidExport`, whose committed strings carry no standby and so keep proving that older exports
+ * decode.
+ */
+const raidExportWithStandby: RaidExport = {
+  ...raidExport,
+  standby: [
+    { characterId: 'c_fenna', name: 'Fenna', reason: 'standby' },
+    { characterId: 'c_garrick', name: 'Garrick', reason: 'queued' },
+  ],
+};
+
 /** The fixture the jobs suite checks on every surface (raid-export-check). */
 export const RAID_NIGHT_EXPORT_FIXTURE = 'raid-export-night.v1';
 
@@ -215,6 +228,10 @@ export const FIXTURES: Record<string, Fixture> = {
   'raid-export.v1': {
     description: 'Game → web export: attendance snapshots, loot received, item data seen',
     payload: raidExport,
+  },
+  'raid-export-standby.v1': {
+    description: 'An export with the bench people who stood by: one standby, one queued',
+    payload: raidExportWithStandby,
   },
   [RAID_NIGHT_EXPORT_FIXTURE]: {
     description: 'A raid night with no event id: two signed-up raiders, one no-show, a pick-up',

@@ -18,6 +18,8 @@ All notable changes to the Vintage addon. The version is the `## Version` line i
 - A **Standby** section on the Roster tab: the import's bench, each with why they're on it
   (standby, queued, benched), and **Invite** on hover. Once the raid's start time has passed,
   the header says what's short ("Short 1 healer") and the bench of those roles comes first.
+- **Stood by** on the Export tab: everyone on the bench is ticked as having stood by; click a
+  row to untick someone. The export carries who stood by, leaving out anyone who came in.
 - **Take a snapshot** and **Make export string** on the Export tab: record who is in the group
   and copy the string into the website's Check an export.
 - The night records itself in a raid: a snapshot at the first pull (or when Arrange groups

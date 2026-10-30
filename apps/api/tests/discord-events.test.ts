@@ -434,6 +434,7 @@ const exportCheck = (over: Partial<ExportCheck> = {}): ExportCheck => ({
   unknownNames: [],
   absent: [],
   declinedButSeen: [],
+  standby: [],
   warnings: [],
   ...over,
 });
@@ -457,6 +458,7 @@ describe('/random event check-export, the reply', () => {
         unknownNames: ['Doran-Stonemaul'],
         absent: [{ characterId: 'c3', characterName: 'Cadence', status: 'accepted' }],
         declinedButSeen: ['Nimue'],
+        standby: [{ characterId: 'c9', name: 'Fenna', reason: 'standby' }],
         attendees: [{ ...aeryn, name: 'Aeryn-Stonemaul', matchedWithoutRealm: true }],
         loot: [
           {
@@ -477,12 +479,13 @@ describe('/random event check-export, the reply', () => {
       'Not signed up: Doran-Stonemaul',
       'Signed up but not seen: Cadence',
       'Declined but came: Nimue',
+      'Stood by: Fenna',
       'Matched by name only: Aeryn-Stonemaul',
       'Export by Aeryn',
       'Seen: Aeryn-Stonemaul (1/1)',
       'Loot: Arcanist Boots → Aeryn',
     ].map((prefix) => lineOf(text, prefix));
-    expect(order).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(order).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
     expect(text).toMatch(/\n-# Nothing was recorded\.$/);
   });
 

@@ -1,0 +1,94 @@
+{
+  "description": "An export with the bench people who stood by: one standby, one queued",
+  "payload": {
+    "v": 1,
+    "kind": "raid-export",
+    "exportedAt": 1793066400,
+    "addonVersion": "0.1.0",
+    "exporter": "Aeryn",
+    "guildId": "g_vintage",
+    "eventId": "evt_mc_0001",
+    "attendance": [
+      {
+        "at": 1793052300,
+        "label": "start",
+        "members": [
+          {
+            "name": "Aeryn",
+            "class": "warrior",
+            "group": 1,
+            "online": true
+          },
+          {
+            "name": "Brann",
+            "class": "priest",
+            "group": 1,
+            "online": true
+          },
+          {
+            "name": "Cyra",
+            "class": "mage",
+            "group": 2,
+            "online": false
+          }
+        ]
+      },
+      {
+        "at": 1793055900,
+        "label": "Lucifron",
+        "members": [
+          {
+            "name": "Aeryn",
+            "class": "warrior",
+            "group": 1,
+            "online": true
+          }
+        ]
+      }
+    ],
+    "loot": [
+      {
+        "itemId": 16800,
+        "looter": "Doran-Stonemaul",
+        "at": 1793056000,
+        "source": "Lucifron"
+      },
+      {
+        "itemId": 17011,
+        "looter": "Brann",
+        "at": 1793056100,
+        "count": 2
+      }
+    ],
+    "items": [
+      {
+        "itemId": 16800,
+        "name": "Arcanist Boots",
+        "quality": 4,
+        "itemLevel": 66,
+        "equipLoc": "INVTYPE_FEET",
+        "classId": 4,
+        "subclassId": 1,
+        "icon": 132539
+      },
+      {
+        "itemId": 17011,
+        "name": "Lava Core",
+        "quality": 3
+      }
+    ],
+    "standby": [
+      {
+        "characterId": "c_fenna",
+        "name": "Fenna",
+        "reason": "standby"
+      },
+      {
+        "characterId": "c_garrick",
+        "name": "Garrick",
+        "reason": "queued"
+      }
+    ]
+  },
+  "encoded": "!VIN:1!1evVUnrqqyaJj2oribviKqYIceYOy504c68f8Hojle6iksuDm7UtUSK721E2DpWTwcQOY1uy5hbxqdD5baTpaGaXJapbSxSt1o7OVFMz(U53UeecT6uKmsTkDq)J6pynyTOsako2B4Jb7tF)V)XxslagwKASazPsSKfy884uEbym0haIKAknN0UPnIuqjMocP5kMwviv47I97XMss0y9TB47KgrGs5pOUFujKJ(2n9DIoEob(doFNN)8R(BVyIJlpJ0k)DEyaRV1v097hOsyfQSjInyLnRKNnyWGJwJFCQMSOyuqG)0C1ID)j)(uUtwiselZZQKkBWZuPfln9(mD1oKiAVaN5KtNO5xM8Qtp5TVECw84XNej5A1dUvZVZQXNiAnA1Y6Qjb)l(KVZFhrCqjn2UrAT1qZCqH0oV9AJJTt5gd9pQvKX3z5eOc6ESMqF39IUqQeBiqkoC7ygveeOx82T)x3iWz0kwDpK(3l0Hl2HVXQvyj4kygTJ4O)ExJwKY1oLT5wJEI)UuiPuc28Ed3WphiGhujrq8SZqLccrqC9lJqWeUU9g6F2sEwEDoYVW3HE5UQ(Szo0HI7x14)a"
+}

@@ -444,3 +444,51 @@ describe("The Standby section", function()
 		assert.are.equal("Inviting Fenna", window:GetStatusText())
 	end)
 end)
+
+describe("Who stood by, on the Export tab", function()
+	local BENCH_IMPORT = fixtures["raid-import-bench.v1"].encoded
+	local ns, window
+
+	before_each(function()
+		local _
+		_, ns = start()
+		inParty({ { name = "Doran", realm = "Stonemaul", class = "ROGUE", online = true } })
+		window = ns.RaidWindow
+		window:Show()
+		ns.Executor:Execute("raid-import", { text = BENCH_IMPORT })
+		window:Refresh()
+	end)
+
+	local function exported()
+		-- In a party the export takes no "end" snapshot, so take one.
+		window:TakeSnapshot()
+		local result = window:MakeExport()
+		assert.is_true(result.success, result.error and result.error.message)
+		return ns.BridgeCodec:DecodeKind(result.data.exportString, "raid-export").data
+	end
+
+	it("lists the bench, everyone ticked", function()
+		assert.are.same({
+			"# Stood by  3 stood by",
+			"Fenna  ·  Standby  ·  Stood by",
+			"Garrick  ·  Queued  ·  Stood by",
+			"Hollis-Stonemaul  ·  Benched  ·  Stood by",
+		}, lines(window.standbyItems))
+		assert.is_true(window.pages.export.standbyList:IsShown())
+	end)
+
+	it("unticks someone with a click, and the export leaves them out", function()
+		local list = window.pages.export.standbyList
+		list:Select("stood:c_garrick")
+		assert.are.equal("Garrick  ·  Queued  ·  Didn't stand by", plain(window.standbyItems[3].text))
+		assert.are.equal("# Stood by  2 stood by", lines(window.standbyItems)[1])
+		local names = {}
+		for index, entry in ipairs(exported().standby) do
+			names[index] = entry.name
+		end
+		assert.are.same({ "Fenna", "Hollis-Stonemaul" }, names)
+		-- Clicking again ticks them back.
+		list:Select("stood:c_garrick")
+		assert.are.equal("Garrick  ·  Queued  ·  Stood by", plain(window.standbyItems[3].text))
+	end)
+end)

@@ -196,6 +196,16 @@ export const itemSeenSchema = z.object({
   icon: z.number().int().nonnegative().optional(),
 });
 
+/**
+ * A bench character the leader confirms stood by during the raid (from the import's bench). Who
+ * came in instead is in the attendance, not here.
+ */
+export const standbyEntrySchema = z.object({
+  characterId: id,
+  name: unitName,
+  reason: z.enum(BENCH_REASONS),
+});
+
 /** Game → web: what happened in the raid, plus item data seen along the way. */
 export const raidExportV1Schema = z.object({
   v: z.literal(1),
@@ -209,6 +219,8 @@ export const raidExportV1Schema = z.object({
   attendance: z.array(attendanceSnapshotSchema).max(100),
   loot: z.array(lootReceivedSchema).max(1000),
   items: z.array(itemSeenSchema).max(5000),
+  /** Optional, so exports from before the standby list still decode. */
+  standby: z.array(standbyEntrySchema).max(BENCH_MAX).optional(),
 });
 
 export type RaidImport = z.output<typeof raidImportV1Schema>;

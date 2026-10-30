@@ -147,4 +147,74 @@ function Roster.Rows(import, members, invites)
 	return rows
 end
 
+--- Rostered people not in the group, by role, less the bench people of that role who came in
+--- instead: who is short once the raid has started.
+---@param rows table[] Roster.Rows
+---@param bench table[]|nil Roster.BenchRows
+---@return table<string, number> role → count (roles with nobody short are left out)
+function Roster.Short(rows, bench)
+	local short = {}
+	for _, row in ipairs(rows) do
+		if not row.inGroup and row.role then
+			short[row.role] = (short[row.role] or 0) + 1
+		end
+	end
+	for _, row in ipairs(bench or {}) do
+		if row.inGroup and short[row.role] then
+			short[row.role] = short[row.role] > 1 and short[row.role] - 1 or nil
+		end
+	end
+	return short
+end
+
+--- One row per bench character (the import's standby, queued, and benched), as Rows makes
+--- them plus the reason, in the import's order. A bench character in the group shows as in it
+--- (promoted).
+---@param import table|nil a raid-import payload
+---@param members table[]|string[] the group now
+---@param invites table|nil
+---@return table[] rows { characterId, name, class, role, reason, inGroup, subgroup, online, state }
+function Roster.BenchRows(import, members, invites)
+	if type(import) ~= "table" or type(import.bench) ~= "table" then
+		return {}
+	end
+	local find = Roster.MemberLookup(members)
+	local rows = {}
+	for index, character in ipairs(import.bench) do
+		local member = find(character.name)
+		rows[#rows + 1] = {
+			characterId = character.characterId,
+			name = character.name,
+			class = character.class,
+			role = character.role,
+			reason = character.reason,
+			inGroup = member ~= nil,
+			subgroup = member and member.group or nil,
+			online = member and member.online ~= false or nil,
+			state = member and "in" or (Roster.InviteState(invites, character.name) or "missing"),
+			order = index,
+		}
+	end
+	return rows
+end
+
+--- The bench with the roles the raid is short of first, the import's order kept within each.
+---@param rows table[] Roster.BenchRows
+---@param short table|nil role → count, from Roster.Short
+---@return table[] the same rows, sorted
+function Roster.OrderBench(rows, short)
+	short = short or {}
+	table.sort(rows, function(a, b)
+		local aShort, bShort = (short[a.role] or 0) > 0, (short[b.role] or 0) > 0
+		if aShort ~= bShort then
+			return aShort
+		end
+		return a.order < b.order
+	end)
+	for _, row in ipairs(rows) do
+		row.order = nil
+	end
+	return rows
+end
+
 return Roster

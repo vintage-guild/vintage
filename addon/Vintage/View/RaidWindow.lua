@@ -105,6 +105,15 @@ local IN_GROUP_ICON = "Interface\\RaidFrame\\ReadyCheck-Ready"
 local ROLE_ORDER = { "tank", "healer", "melee", "ranged" }
 local ROLE_HEADERS = { tank = L["Tanks"], healer = L["Healers"], melee = L["Melee"], ranged = L["Ranged"] }
 local ROLE_NAMES = { tank = L["Tank"], healer = L["Healer"], melee = L["Melee"], ranged = L["Ranged"] }
+-- "1 healer", "2 healers": what the raid is short of, in the header.
+local ROLE_COUNTS = {
+	tank = { L["1 tank"], L["%d tanks"] },
+	healer = { L["1 healer"], L["%d healers"] },
+	melee = { L["1 melee"], L["%d melee"] },
+	ranged = { L["1 ranged"], L["%d ranged"] },
+}
+-- Why someone on the bench isn't rostered, where the roster says "Not in group".
+local BENCH_REASONS = { standby = L["Standby"], queued = L["Queued"], benched = L["Benched"] }
 
 -- Item quality names for the loot threshold (0 poor … 5 legendary).
 local QUALITY = {
@@ -190,10 +199,14 @@ local STATUS = {
 
 --- A person: name in class color, class, a detail column (group or role), and where they are.
 --- With checkGroup, someone in the raid but outside their planned group says which group
---- they are in (in yellow): Arrange will move them.
-local function person(row, detail, checkGroup)
+--- they are in (in yellow): Arrange will move them. missingLabel replaces "Not in group" (the
+--- bench says why they're on it).
+local function person(row, detail, checkGroup, missingLabel)
 	local status = STATUS[row.state] or STATUS.missing
 	local text, token, check = status.label, status.token, status.check
+	if row.state == "missing" and missingLabel then
+		text = missingLabel
+	end
 	if checkGroup and row.inGroup and row.subgroup and row.group and row.subgroup ~= row.group then
 		text, token, check = string.format(L["In group %d"], row.subgroup), "feedbackWarning", false
 	end
@@ -806,6 +819,15 @@ end
 function RaidWindow:RefreshLists(status)
 	local rows = status and status.rows or {}
 	self.rosterItems = byRole(rows)
+	-- The bench after the roles, the roles the raid is short of first (raid-status orders it).
+	local bench = status and status.bench or {}
+	if #bench > 0 then
+		self.rosterItems[#self.rosterItems + 1] = header("standby", L["Standby"], bench)
+		for _, row in ipairs(bench) do
+			self.rosterItems[#self.rosterItems + 1] =
+				person(row, ROLE_NAMES[row.role], false, BENCH_REASONS[row.reason])
+		end
+	end
 	showList(self.pages.roster, self.rosterItems)
 
 	self.groupItems = byGroup(rows)
@@ -1080,6 +1102,16 @@ function RaidWindow:DescribeRaid(summary, status)
 		}
 		if status then
 			parts[#parts + 1] = string.format(L["%d in your group"], status.inGroup)
+			local short = {}
+			for _, role in ipairs(ROLE_ORDER) do
+				local n = status.short and status.short[role]
+				if n then
+					short[#short + 1] = count(n, ROLE_COUNTS[role][1], ROLE_COUNTS[role][2])
+				end
+			end
+			if #short > 0 then
+				parts[#parts + 1] = string.format(L["Short %s"], table.concat(short, ", "))
+			end
 		end
 		self.raidTitle, self.raidLine = summary.title, table.concat(parts, "  ·  ")
 	elseif summary.snapshots > 0 then

@@ -118,6 +118,7 @@ describe("Bridge.Executor", function()
 			"raid-stop",
 			"session-clear",
 			"session-get",
+			"standby-set",
 		}, names)
 		-- <noun>-<verb>, where the noun may be two words (loot-mode-set, like guild-roles-set).
 		for _, name in ipairs(names) do

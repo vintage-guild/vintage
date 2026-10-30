@@ -355,6 +355,22 @@ local registry = {
 		end,
 	},
 
+	-- Whether a bench character stood by, for the export's standby list (the Export tab's checks).
+	["standby-set"] = {
+		changes = true,
+		run = function(params)
+			local context = Context:BuildSessionContext()
+			context.characterId = params.characterId
+			context.stoodBy = params.stoodBy == true
+			local result = Actions.Raid.SetStandby(context)
+			if not result.success then
+				return result
+			end
+			ns.db.char.session = result.data.session
+			return Result.success({ stoodBy = result.data.stoodBy }, result.reasoning)
+		end,
+	},
+
 	["raid-export"] = {
 		changes = true,
 		run = function(params)

@@ -61,6 +61,19 @@ function RaidActions.Import(context)
 	)
 end
 
+--- Whether a name is in any of the night's snapshots (matched as the roster matches the group).
+---@param attendance table[]|nil
+---@return function attended(name) → boolean
+local function attendedLookup(attendance)
+	local names = {}
+	for _, snapshot in ipairs(attendance or {}) do
+		for _, member in ipairs(snapshot.members or {}) do
+			names[#names + 1] = member.name
+		end
+	end
+	return Roster.GroupLookup(names)
+end
+
 --- raid-status: the imported roster, each character marked in the group (and which raid group),
 --- invited, declined, or missing; how many still need an invite, and how many sit outside their
 --- planned group. Also the bench, and once the raid's start time has passed, which roles are
@@ -94,6 +107,12 @@ function RaidActions.Status(context)
 	-- lists the roles the raid is short of first.
 	local started = type(context.now) == "number" and context.now >= import.raid.startsAt
 	local bench = Roster.BenchRows(import, members, context.invites)
+	-- For the export's standby list: who the leader unticked, and who came in (a snapshot has them).
+	local off, attended = session.standbyOff or {}, attendedLookup(session.attendance)
+	for _, row in ipairs(bench) do
+		row.stoodBy = not off[row.characterId]
+		row.attended = attended(row.name)
+	end
 	local short = started and Roster.Short(rows, bench) or {}
 	local loot = import.loot or {}
 	return Result.success({
@@ -196,6 +215,39 @@ function RaidActions.Snapshot(context)
 	}, string.format("Snapshot %d: %s", #attendance, Core.Plural(#members, "person", "people")))
 end
 
+--- standby-set: whether a bench character stood by, for the export's standby list. Everyone on
+--- the bench stood by until the leader unticks them.
+---@param context table { session, characterId, stoodBy }
+---@return table ActionResult { session, stoodBy }
+function RaidActions.SetStandby(context)
+	local session = context.session
+	if type(session) ~= "table" then
+		return Result.error("INVALID_CONTEXT", "Session context is missing")
+	end
+	local bench = session.import and session.import.bench or {}
+	local entry
+	for _, character in ipairs(bench) do
+		if character.characterId == context.characterId then
+			entry = character
+		end
+	end
+	if not entry then
+		return Result.error("NOT_ON_BENCH", "That character isn't on this raid's bench")
+	end
+	local off = {}
+	for characterId in pairs(session.standbyOff or {}) do
+		off[characterId] = true
+	end
+	off[entry.characterId] = not context.stoodBy or nil
+	local updated = with(session, { standbyOff = off })
+	-- The last export no longer says who stood by.
+	updated.lastExport, updated.lastExportAt = nil, nil
+	return Result.success(
+		{ session = updated, stoodBy = context.stoodBy == true },
+		string.format(context.stoodBy and "%s stood by" or "%s didn't stand by", entry.name)
+	)
+end
+
 --- encounter-record: a boss attempt ended. Remembers it (drops in the next few minutes are its
 --- loot), and a kill in a raid takes a snapshot labelled with the boss's name.
 ---@param context table { session, encounter = { id, name, killed }, members, inRaid, now }
@@ -231,6 +283,24 @@ end
 
 --- The item data the client revealed for the items this raid saw, in item id order, leaving out
 --- any saved record the export would refuse.
+--- The export's standby list: the import's bench, less anyone the leader unticked and anyone
+--- who came in (they are in the attendance). nil for an import without a bench, so older
+--- exports keep their shape.
+local function stoodBy(session, attendance)
+	local bench = session.import and session.import.bench
+	if type(bench) ~= "table" or #bench == 0 then
+		return nil
+	end
+	local off, attended = session.standbyOff or {}, attendedLookup(attendance)
+	local list = {}
+	for _, entry in ipairs(bench) do
+		if not off[entry.characterId] and not attended(entry.name) then
+			list[#list + 1] = { characterId = entry.characterId, name = entry.name, reason = entry.reason }
+		end
+	end
+	return list
+end
+
 local function seenItems(seen, known)
 	local ItemEntry = Core.Actions.Loot.ItemEntry
 	local ids = {}
@@ -276,6 +346,7 @@ function RaidActions.Export(context)
 		attendance = attendance,
 		loot = session.loot or {},
 		items = seenItems(session.itemsSeen, context.items),
+		standby = stoodBy(session, attendance),
 	}
 	local encoded = context.codec:Encode(payload)
 	if not encoded.success then

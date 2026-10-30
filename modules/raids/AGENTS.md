@@ -85,7 +85,8 @@ directly. Maturity: **core**.
   `declinedButSeen`, not unknown. A `Name-Realm` falls back to a signup for `Name` only when the
   export has no plain `Name` and no second realm's, and is flagged `matchedWithoutRealm`.
   `warnings` (OTHER_GUILD, OTHER_RAID, TIMES_APART: no snapshot from 2 hours before the start to
-  10 after) are plain sentences every surface shows as they are.
+  10 after) are plain sentences every surface shows as they are. `standby` lists the export's
+  bench people who stood by (#222); `raid-export-record` doesn't credit them yet (#29 decides).
 - **`raid-export-record`** (officer, destructive, #29) stores what `raid-export-check` matched:
   everyone in any snapshot attended (`attendance`, with snapshot count, labels, first and last
   seen), the record (`raidRecords`, one per raid, `exportKey` = exporter@exportedAt), and the

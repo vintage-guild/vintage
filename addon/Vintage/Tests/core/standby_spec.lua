@@ -83,3 +83,87 @@ describe("raid-status's bench", function()
 		assert.are.same({}, status({ "Aeryn" }, STARTS_AT).bench)
 	end)
 end)
+
+describe("Who stood by", function()
+	local function member(name)
+		return { name = name, group = 1, class = "warrior", online = true }
+	end
+
+	local function exportOf(changes)
+		local context = {
+			session = session,
+			codec = codec,
+			now = STARTS_AT + 3600,
+			exporter = "Aeryn",
+			addonVersion = "0.1.0",
+			members = { member("Aeryn") },
+			inRaid = true,
+			items = {},
+		}
+		for key, value in pairs(changes or {}) do
+			context[key] = value
+		end
+		local result = Raid.Export(context)
+		assert.is_true(result.success, result.error and result.error.message)
+		return codec:DecodeKind(result.data.exportString, "raid-export").data, result.data.session
+	end
+
+	local function names(list)
+		local out = {}
+		for index, entry in ipairs(list or {}) do
+			out[index] = entry.name
+		end
+		return out
+	end
+
+	it("counts everyone on the bench as having stood by until unticked", function()
+		local data = status({ "Aeryn" }, STARTS_AT)
+		assert.are.same({ true, true, true }, { data.bench[1].stoodBy, data.bench[2].stoodBy, data.bench[3].stoodBy })
+		local exported = exportOf()
+		assert.are.same({ "Fenna", "Garrick", "Hollis-Stonemaul" }, names(exported.standby))
+		assert.are.same({ characterId = "c_fenna", name = "Fenna", reason = "standby" }, exported.standby[1])
+	end)
+
+	it("leaves out whoever the leader unticks, until ticked again", function()
+		local unticked = Raid.SetStandby({ session = session, characterId = "c_garrick", stoodBy = false })
+		assert.are.equal("Garrick didn't stand by", unticked.reasoning)
+		session = unticked.data.session
+		assert.is_false(status({ "Aeryn" }, STARTS_AT).bench[2].stoodBy)
+		assert.are.same({ "Fenna", "Hollis-Stonemaul" }, names(exportOf().standby))
+
+		session = Raid.SetStandby({ session = session, characterId = "c_garrick", stoodBy = true }).data.session
+		assert.are.same({ "Fenna", "Garrick", "Hollis-Stonemaul" }, names(exportOf().standby))
+	end)
+
+	it("leaves out a bench person who came in: they are in the attendance", function()
+		session =
+			Raid.Snapshot({ session = session, members = { member("Aeryn"), member("Hollis") }, now = STARTS_AT }).data.session
+		assert.is_true(status({ "Aeryn" }, STARTS_AT).bench[3].attended)
+		assert.are.same({ "Fenna", "Garrick" }, names(exportOf().standby))
+	end)
+
+	it("makes the last export stale, and refuses someone not on the bench", function()
+		session.lastExport, session.lastExportAt = "!VIN:1!old", STARTS_AT
+		local updated = Raid.SetStandby({ session = session, characterId = "c_fenna", stoodBy = false }).data.session
+		assert.is_nil(updated.lastExport)
+		assert.are.equal(
+			"NOT_ON_BENCH",
+			Raid.SetStandby({ session = session, characterId = "c_brann", stoodBy = false }).error.code
+		)
+	end)
+
+	it("sends an empty list when nobody stood by, and none without a bench", function()
+		for _, id in ipairs({ "c_fenna", "c_garrick", "c_hollis" }) do
+			session = Raid.SetStandby({ session = session, characterId = id, stoodBy = false }).data.session
+		end
+		assert.are.same({}, exportOf().standby)
+
+		session = Raid.Import({
+			session = ns.Core.Session.New(),
+			text = fixtures["raid-import.v1"].encoded,
+			codec = codec,
+			now = 1,
+		}).data.session
+		assert.is_nil(exportOf().standby)
+	end)
+end)

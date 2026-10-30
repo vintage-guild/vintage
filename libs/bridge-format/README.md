@@ -48,6 +48,10 @@ LibDeflate pick different matches), so compare decoded values, not encoded strin
   waiting past the raid size; `benched`: the leader or the comp sat them out). A bench character
   is never also rostered, and is listed once. Imports without `bench` still decode, so it stays
   schema v1 (`raid-import-bench.v1` is the fixture; `raid-import.v1` keeps an import without one).
+- An export's optional `standby` lists the bench people the leader confirms stood by (up to 80),
+  each `{ characterId, name, reason }` from the import's bench. Who came in is in the attendance
+  instead. Exports without it still decode (`raid-export-standby.v1` is the fixture;
+  `raid-export.v1` keeps an export without one).
 
 ## Errors
 

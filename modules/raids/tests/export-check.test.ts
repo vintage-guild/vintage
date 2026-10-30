@@ -329,6 +329,55 @@ describe('raid-export-check', () => {
     ).toEqual([]);
   });
 
+  it('groups the boss attempts by boss: kills, wipes, time, and the first kill', async () => {
+    const payload = nightExport({
+      encounters: [
+        {
+          encounterId: 663,
+          name: 'Lucifron',
+          startedAt: 100,
+          endedAt: 400,
+          killed: false,
+          size: 40,
+        },
+        {
+          encounterId: 663,
+          name: 'Lucifron',
+          startedAt: 600,
+          endedAt: 900,
+          killed: true,
+          size: 40,
+        },
+        { name: 'Magmadar', startedAt: 1000, endedAt: 1400, killed: false },
+      ],
+    });
+    const { data, reasoning } = await check({ exportString: encode(payload), eventId: raid.id });
+    expect(data.bosses).toEqual([
+      {
+        encounterId: 663,
+        name: 'Lucifron',
+        attempts: 2,
+        kills: 1,
+        wipes: 1,
+        firstKilledAt: 900,
+        seconds: 600,
+      },
+      {
+        encounterId: null,
+        name: 'Magmadar',
+        attempts: 1,
+        kills: 0,
+        wipes: 1,
+        firstKilledAt: null,
+        seconds: 400,
+      },
+    ]);
+    expect(reasoning).toContain('1 boss killed, 2 wipes');
+    expect(
+      (await check({ exportString: encode(nightExport()), eventId: raid.id })).data.bosses,
+    ).toEqual([]);
+  });
+
   it('does not count a benched signup as missing', async () => {
     const signups = await ok<Signup[]>('signup-list', { eventId: raid.id }, leader);
     const cade = signups.find((s) => s.characterId === 'cade');

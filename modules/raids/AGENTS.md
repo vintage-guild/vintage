@@ -87,6 +87,8 @@ directly. Maturity: **core**.
   `warnings` (OTHER_GUILD, OTHER_RAID, TIMES_APART: no snapshot from 2 hours before the start to
   10 after) are plain sentences every surface shows as they are. `standby` lists the export's
   bench people who stood by (#222); `raid-export-record` doesn't credit them yet (#29 decides).
+  `bosses` groups the export's boss attempts by boss (#221): attempts, kills, wipes, seconds, and
+  the first kill. Recording first kills on the progress ledger is a follow-up.
 - **`raid-export-record`** (officer, destructive, #29) stores what `raid-export-check` matched:
   everyone in any snapshot attended (`attendance`, with snapshot count, labels, first and last
   seen), the record (`raidRecords`, one per raid, `exportKey` = exporter@exportedAt), and the

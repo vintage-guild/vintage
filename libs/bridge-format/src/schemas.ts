@@ -206,6 +206,23 @@ export const standbyEntrySchema = z.object({
   reason: z.enum(BENCH_REASONS),
 });
 
+/** The most boss attempts an export carries. */
+export const ENCOUNTERS_MAX = 200;
+
+/**
+ * One boss attempt, from the game's ENCOUNTER_START to ENCOUNTER_END: a kill or a wipe. The id is
+ * the game's encounter id, left out when the game kept it secret.
+ */
+export const encounterAttemptSchema = z.object({
+  encounterId: z.number().int().nonnegative().optional(),
+  name: z.string().min(1).max(100),
+  startedAt: unixSeconds,
+  endedAt: unixSeconds,
+  killed: z.boolean(),
+  /** How many were in the group when it started. */
+  size: z.number().int().min(1).max(40).optional(),
+});
+
 /** Game → web: what happened in the raid, plus item data seen along the way. */
 export const raidExportV1Schema = z.object({
   v: z.literal(1),
@@ -221,6 +238,8 @@ export const raidExportV1Schema = z.object({
   items: z.array(itemSeenSchema).max(5000),
   /** Optional, so exports from before the standby list still decode. */
   standby: z.array(standbyEntrySchema).max(BENCH_MAX).optional(),
+  /** Optional, so exports from before boss attempts were recorded still decode. */
+  encounters: z.array(encounterAttemptSchema).max(ENCOUNTERS_MAX).optional(),
 });
 
 export type RaidImport = z.output<typeof raidImportV1Schema>;

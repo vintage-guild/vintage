@@ -213,6 +213,34 @@ const raidExportWithStandby: RaidExport = {
   ],
 };
 
+/**
+ * The same export with its boss attempts: a wipe and a kill on Lucifron (the kill matches the
+ * Lucifron snapshot), then a wipe on Magmadar, one without the game's encounter id. Kept apart
+ * from `raidExport` so its committed strings keep proving older exports decode.
+ */
+const raidExportWithEncounters: RaidExport = {
+  ...raidExport,
+  encounters: [
+    {
+      encounterId: 663,
+      name: 'Lucifron',
+      startedAt: 1_793_055_000,
+      endedAt: 1_793_055_300,
+      killed: false,
+      size: 40,
+    },
+    {
+      encounterId: 663,
+      name: 'Lucifron',
+      startedAt: 1_793_055_600,
+      endedAt: 1_793_055_900,
+      killed: true,
+      size: 40,
+    },
+    { name: 'Magmadar', startedAt: 1_793_057_000, endedAt: 1_793_057_400, killed: false },
+  ],
+};
+
 /** The fixture the jobs suite checks on every surface (raid-export-check). */
 export const RAID_NIGHT_EXPORT_FIXTURE = 'raid-export-night.v1';
 
@@ -232,6 +260,11 @@ export const FIXTURES: Record<string, Fixture> = {
   'raid-export-standby.v1': {
     description: 'An export with the bench people who stood by: one standby, one queued',
     payload: raidExportWithStandby,
+  },
+  'raid-export-encounters.v1': {
+    description:
+      'An export with its boss attempts: a wipe and a kill on one boss, a wipe on the next',
+    payload: raidExportWithEncounters,
   },
   [RAID_NIGHT_EXPORT_FIXTURE]: {
     description: 'A raid night with no event id: two signed-up raiders, one no-show, a pick-up',

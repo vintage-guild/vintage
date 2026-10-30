@@ -283,6 +283,14 @@ const names = (list: string[]) => capped(list, MAX_NAMES, ', ');
  * The check as a private reply. What a leader acts on comes first (warnings, who wasn't signed
  * up, who didn't come), so a long reply loses the attendance and loot detail, not those.
  */
+const wipesText = (n: number) => `${n} wipe${n === 1 ? '' : 's'}`;
+
+/** "Lucifron killed (1 wipe first)", "Magmadar killed", "Gehennas 2 wipes". */
+function bossLine(boss: ExportCheck['bosses'][number]): string {
+  if (boss.kills === 0) return `${boss.name} ${wipesText(boss.wipes)}`;
+  return `${boss.name} killed${boss.wipes ? ` (${wipesText(boss.wipes)} first)` : ''}`;
+}
+
 export function exportCheckText(check: ExportCheck): string {
   const lines: string[] = [];
   lines.push(
@@ -303,6 +311,7 @@ export function exportCheckText(check: ExportCheck): string {
   if (check.standby.length) {
     lines.push(`Stood by: ${names(check.standby.map((s) => s.name))}`);
   }
+  if (check.bosses.length) lines.push(`Bosses: ${check.bosses.map(bossLine).join(', ')}`);
   const loose = check.attendees.filter((a) => a.matchedWithoutRealm).map((a) => a.name);
   if (loose.length) lines.push(`Matched by name only: ${names(loose)}`);
   const snapshots = capped(

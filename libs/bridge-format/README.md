@@ -52,6 +52,10 @@ LibDeflate pick different matches), so compare decoded values, not encoded strin
   each `{ characterId, name, reason }` from the import's bench. Who came in is in the attendance
   instead. Exports without it still decode (`raid-export-standby.v1` is the fixture;
   `raid-export.v1` keeps an export without one).
+- An export's optional `encounters` lists every boss attempt in the raid (up to 200), each
+  `{ encounterId?, name, startedAt, endedAt, killed, size? }`. The id is the game's encounter id,
+  left out when the game kept it secret. Exports without it still decode
+  (`raid-export-encounters.v1` is the fixture).
 
 ## Errors
 

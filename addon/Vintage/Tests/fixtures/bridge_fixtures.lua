@@ -194,6 +194,112 @@ return {
 				v = 1,
 			},
 		},
+		["raid-export-encounters.v1"] = {
+			description = "An export with its boss attempts: a wipe and a kill on one boss, a wipe on the next",
+			encoded = "!VIN:1!9evVUnrqqyaJj2orifGarufHqcILCKttkOZxIT0jzqKJOirLZE3o2zj7T7Lz37iMslbvu5AkS8JGlOHU8aGMw(teLkQ5jG9o7q3oZ89Zm731)85moxRoeqJqRcAU12B1CkZAbfNPIG678iM9PV53F9JbswiidmwgAXyio0X4zDcIKmJbFldrHgdgG60KsEkwme0cWHQqTskuWrDOLctqbySu1suTapKPu0k599IzdaQAzQM3UdrgTYXl88NFIU5OUPrI(Owr36HoSuLc60YoQtbvKovzZ3J(Z(FHp3Uj62EG3kxKVVx4jcPe4h7OTQNr8oy)XfhXcaFB9(0DTBs3BUJRDuoo6(7tpW14hjDkgC5z0Aobg9C2GygNHfdV4piKbkRpFgKz7fh1RzZMBpfolrFL6xuEYOf1iTmoivi5(8Xd6Ljuw3zhiSqSP(hWIVrFE1rWPPIKU6OZ9FXHh86x2UxN2TpWtePvRFJYFjmhVpVsRjJZF115V89uTlBHrmLWy3WtRTg80uMuyhwDQjnCHYL2HECfpdvBCxwgBJD1iqpzjVtek(mKj4nMVMEsNa17mpa(11CCAnjmVhG)DpTl0A8kRwbXSuzOrNIraT6vO5bfrq55g1GU9DYk9pa",
+			payload = {
+				addonVersion = "0.1.0",
+				attendance = {
+					{
+						at = 1793052300,
+						label = "start",
+						members = {
+							{
+								class = "warrior",
+								group = 1,
+								name = "Aeryn",
+								online = true,
+							},
+							{
+								class = "priest",
+								group = 1,
+								name = "Brann",
+								online = true,
+							},
+							{
+								class = "mage",
+								group = 2,
+								name = "Cyra",
+								online = false,
+							},
+						},
+					},
+					{
+						at = 1793055900,
+						label = "Lucifron",
+						members = {
+							{
+								class = "warrior",
+								group = 1,
+								name = "Aeryn",
+								online = true,
+							},
+						},
+					},
+				},
+				encounters = {
+					{
+						encounterId = 663,
+						endedAt = 1793055300,
+						killed = false,
+						name = "Lucifron",
+						size = 40,
+						startedAt = 1793055000,
+					},
+					{
+						encounterId = 663,
+						endedAt = 1793055900,
+						killed = true,
+						name = "Lucifron",
+						size = 40,
+						startedAt = 1793055600,
+					},
+					{
+						endedAt = 1793057400,
+						killed = false,
+						name = "Magmadar",
+						startedAt = 1793057000,
+					},
+				},
+				eventId = "evt_mc_0001",
+				exportedAt = 1793066400,
+				exporter = "Aeryn",
+				guildId = "g_vintage",
+				items = {
+					{
+						classId = 4,
+						equipLoc = "INVTYPE_FEET",
+						icon = 132539,
+						itemId = 16800,
+						itemLevel = 66,
+						name = "Arcanist Boots",
+						quality = 4,
+						subclassId = 1,
+					},
+					{
+						itemId = 17011,
+						name = "Lava Core",
+						quality = 3,
+					},
+				},
+				kind = "raid-export",
+				loot = {
+					{
+						at = 1793056000,
+						itemId = 16800,
+						looter = "Doran-Stonemaul",
+						source = "Lucifron",
+					},
+					{
+						at = 1793056100,
+						count = 2,
+						itemId = 17011,
+						looter = "Brann",
+					},
+				},
+				v = 1,
+			},
+		},
 		["raid-export-night.v1"] = {
 			description = "A raid night with no event id: two signed-up raiders, one no-show, a pick-up",
 			encoded = "!VIN:1!99ySoTrqqyyLyBW2qiKuffPiHsAISeiskOWD3LylzjROOniusvy37Mq2K92Xm7UoHwlfQsfLqdYD0HOGgOING5zaXtaIhaUZNr0r38pZ8)P))hT7fY0u0UbqonAfRUY7wz1XsVhSPsBc0ETxl9V9xx()RegPcmcNxsEkdYu5oA3vKyKoh9hjrAKeBryyqLyRmderaTJvHwJ2cB2LNvnG0GZZnQWnPysMPmapFXfbHBfaUrnU51FejPD5V4rlKjdM8hMMG9VHRoQFir)dcT8mTZ9X1NaJNRed)Ks5c88)Sq(0je5fVNXrv5QVpVz8mTEq7Bog(7aK8qAuHTtpE0unXZj0EiZ1AxAsZ7L2yeSDqpOpMCrVpTX6F7ZD(E3oDwpwNG2x84ANPk(VxA9Od3RyQpmem)JBEzeLiTANFPye9oA7G0O970ySlOMsUYA8lRh74M71xouU0hqc4xnB8V120tiPoD5YqfBYb0QBzdp4R5EIouvSlpTlOCyGsa(z3D)CrcgS(ALOFdV4Zhw5wa",
@@ -697,6 +803,7 @@ return {
 		["error-newer-version"] = "!VIN:1!1azWkorqqyy144MKDrqpjccbpilb2LzVSh820RjWabrAxwWtXE6Um26mvNT6EgnxdSEYt5Shc5Gpa7vVTpas9aOO4JGpb2zt8wv)8)9)3vFZVELYyC4za5TouME4rhMUsfcaAuOg6F8JvH9F3V((NLLQcOu6dkkqvqvrK4PdL6sL3tFqrK1rYjKREAlbQQazgqZWchwAr41d5DkMswWh4oT4UsbPqK3BTUOsnb4ojCxXjZifV3B325p(cF75JQ123qoKVZdJE52xJZ7grjObWqU5sOjmUsponn9OvWhN6OayYIb87KLZ3Ut8U0KABPj3SyY4glgIDkTbOY3)t013qUPZC48A70ro9v5p)StF1lgmE4GbNkSAh(GBL8TI1(ZnTZwUy90Oy)LxWD)tgPvO1h6jCUGNoVwvAdZ6SYxxSn5whZpQTWZDxms1O6DIJaU3oI3BrZLKYAoyZZuugdO)Wnx)pVrKjBzXAnG(7ZCXFSdEzWHqLQUSW7QjnW37)UnsTRgdjBk6j8DVFtY)(d",
 		["error-unknown-kind"] = "!VIN:1!JrZukXs0iR7ZKdoLDM5LYLkkXmtr3ssnNuli)IkrOYygWd",
 		["raid-export-empty.v1"] = "!VIN:1!JX2ouIPKs(5fwQfvCM5NxqgONH6zWIsSKssnVusmVKtLRfLAffKFrLKAkowIgz9awxqtq5xuqoMArvMxqzwsQ5wmxoLDM5LYMkkXmtrxiY7uo5NFjCjuzmd4",
+		["raid-export-encounters.v1"] = "!VIN:1!9evVUnrqqyaJj2orifGarufHqcILCKttkOZxIT0jzqKJOirLZC3o2zj3TRZS7zIP0sqfvUMcl)i4cAOlpaOPL)erPIAEcyVZo0TZmF)n7C9pFoieA1HizKAvq9T2ER6tbRfvcqfHv35rG9PV53F9JbXqighySazPemj0X4zTcIIbJHElqKutb9iDA)cEkibdAG0qvOwflv4rT4Lc7ts0y5Yf4kbEeOu8kz99sGEixUixXB3HeWRC8cp)5N4BoQDAKSlPv8TEOdlxkNoVSJ6uufPtv2SC0D2)l8f2njx6rrJmr((EHNiJJrXXoAR6zKVd3FC(sSaW3wVlFx7M89M74AhLHJV)(8dCn(r)w5dU8mEnNaJEo0lbeaLp8I)q4auz9fZWb2ojrDQxV(2tXZ6RVs9lkoz0IAIxM6LkJf(IX96mqQSU1oqAXet1pq5FJ(IYJWttL9BRJo3)fhEWRFzZoTA28apzKwT(nk(LWm8(IsnMmo7vBN)XVNRCzdkcusJDdpT2AOttHyPDy5PM0Wfkxyh(XL8mCLXTHbWg7QjKFYsENivIzeif1MhtVyNavBn)a8RR540ysywpK(7EA3rR2RSAfMaPXHgDkfH8QxHweKFcko3OA8TVZGc)7d",
 		["raid-export-night.v1"] = "!VIN:1!99ymVnrqquyb2oX2jecuHqcPiObzPefOifU7oWwYswi0sKfuHN7UHWc7TJZS7AiTwcxrvkdnrUJoef0av5xW8BiIFbi(bWD(mIo623(M3NEVRm)cilJSJq2PjRA)9EWE7Va8E0Mb2uS7b3f83)nx(XFQmqcAuopWEohZtks0TVk1aoh)oGznXQJykmPwSfYrveYNytiRrBXX9L1tMWA05Lw1K2Cmd5jgu2S0rX0rbuA1qA)Rhtmy39zEYI5qWuCWQgC2VL6Zggs1VIjRSw3ICsZLWKnQWixRsULS5RlLxFjrz7)X4Z1L6pSyzYAD(VXhVaF)eI9ywuzSV9LzR0SSHs7XCxN58YLpiR1m84GEYqk9Ibpz0HV4P9Ez)E9omwNs2BD1gFpP8(bznJo)0YxdXPO5ds7lJ4uWQD(DIjY74JdGr7pP1cxizf5Ahi3UzStAF6qykSZJigL7SE8B12SVYGoB3QsfBka0PF1c)0ZlYeDEs5FfTDRehf4uuUXF9)HkLcwFJk03t2(MtR9N",
 		["raid-export-standby.v1"] = "!VIN:1!1evVUnrqqyaJj2oribviKqYIceYOy504c68fSrNKfcDefjQoMD3jol5UzTNDVdCRLGkQCnfw(rWfPHU8aG2haqG4rGNa2l2uTZo67NzMVBE5vGszOtr2QnusVUh1T3AW5qsbKe70)XG7PV)xF)ljzGaZsSoGDCoMlcmE(OezgyT8haM1gozcBkMwlIGCmzaYZjHHY0e(Ur(9etznAD(M18TsIyGi)bv9JYHjOVzDFROJNZG)GZ355p(Q)2lgxi1NXgYFNhgW6BCnD)(bQmwIKlwTblDP5Y0E96D0A8JtnSdvdcc876RwS7p73NNuOZuXQLtsl1Kl4zI2H52oFMVEhIvnxGZk0thBKxf)Qtp5TVEy6OHdpjsln0dUv9VjQWhRAmy1YQQXb)Z(KV1FgWsG0wx7iJXz5zfqM2nV5ABHyNY167FuJiRV1YXqj0(ydJ(27fDHMuByqRoC7ygLfeOZOTB)pVrGZGvIQEi)3xycxSdFJZqyouKjSMcwI(79F0QePPGC13A0t83LdjfPeZ70FJ8CGbzqLyfltpdjccrWOQxbJGnCD703)SLY0jv5O8cFl(L7Q6kMvGfO6(L1(3p",
 		["raid-export.v1"] = "!VIN:1!1azWQnvquyy1ySjPLc6krqi0fsjql3UPlC3DQjWfcImwk4Q45oZX4O37mjNzMRMTbQRCvw7Iqw4dq36U(aiNhaffFe8jWBAI7oNF()()NZC7VEnO1o7fi5noRm54toozfecOvdwf270dGWHV7xF)ZYcihlK(aqbQelZRjE6aPQa8E6darghjhtU4KgcluIYuKMzZD2cJfF9aEN8jKb9bUDdUJuqG1Y7TwxucJrUDtUJ4SzeW792TD(JVW3D(WOY8gYz579OAVCRBW5DRrjScTHm9vyvyuPAussYjRWpoXrbuNwhWVBUC(2DI3Lghnf6m9IXJQm2qDNstal99(eDZnKPBphNgntg6uxN98lo)vVO)Ob97FUWOC2hENMFlFT)mDR0LlwpnSU)Il5o)jLuG14dDfoxWttJqHjmR9kFmFBYnoLFClHN7SyiubDpZri3DhX7nw9vey0hT5zkkQdO3Gnx)pVvnt6Y81Ai93N5Q)Xo6LbNflHyrU3fjfY3))U1sLlAdn3u0t49FqvJ)9d",

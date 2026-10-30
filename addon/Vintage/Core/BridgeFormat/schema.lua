@@ -114,8 +114,10 @@ end
 local MAX_SAFE_INTEGER = 2 ^ 53 - 1
 
 local function IsInteger(value)
-	return type(value) == "number" and value == math.floor(value)
-		and value <= MAX_SAFE_INTEGER and value >= -MAX_SAFE_INTEGER
+	return type(value) == "number"
+		and value == math.floor(value)
+		and value <= MAX_SAFE_INTEGER
+		and value >= -MAX_SAFE_INTEGER
 end
 
 --- True for a table whose keys are exactly 1..n (LibSerialize writes {} the same way).
@@ -395,6 +397,22 @@ local raidExport = Object({
 				{ "reason", OneOf(unpack(Schema.BENCH_REASONS)) },
 			}),
 			80
+		),
+		OPTIONAL,
+	},
+	-- Optional, so exports from before boss attempts were recorded still decode.
+	{
+		"encounters",
+		Array(
+			Object({
+				{ "encounterId", Integer(0), OPTIONAL },
+				{ "name", String(1, 100) },
+				{ "startedAt", unixSeconds },
+				{ "endedAt", unixSeconds },
+				{ "killed", Boolean },
+				{ "size", Integer(1, 40), OPTIONAL },
+			}),
+			200
 		),
 		OPTIONAL,
 	},

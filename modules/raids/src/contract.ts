@@ -218,6 +218,20 @@ export interface ExportWarning {
 }
 
 /** What raid-export-check reports: the export read and matched, nothing recorded. */
+/** One boss the export has attempts for (#221): how the night went against it. */
+export interface ExportBoss {
+  /** The game's encounter id; null when the game kept it secret. */
+  encounterId: number | null;
+  name: string;
+  attempts: number;
+  kills: number;
+  wipes: number;
+  /** Unix seconds of the first kill, or null. */
+  firstKilledAt: number | null;
+  /** Seconds spent in the fight across all attempts. */
+  seconds: number;
+}
+
 export interface ExportCheck {
   event: { id: string; name: string; startsAt: number; status: RaidStatus } | null;
   /** Where the raid came from: the caller's eventId, the export's own, or none. */
@@ -243,6 +257,8 @@ export interface ExportCheck {
    * export without the list. Whether standing by counts as attendance is decided with #29.
    */
   standby: { characterId: string; name: string; reason: 'standby' | 'queued' | 'benched' }[];
+  /** Each boss attempted, in the order first pulled; empty for an export without attempts. */
+  bosses: ExportBoss[];
   /** Reasons to doubt the match, most serious first; empty when it looks right. */
   warnings: ExportWarning[];
 }

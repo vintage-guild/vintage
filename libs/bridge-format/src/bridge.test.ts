@@ -12,6 +12,7 @@ const raidImport = FIXTURES['raid-import.v1']?.payload as RaidImport;
 const raidImportWithBench = FIXTURES['raid-import-bench.v1']?.payload as RaidImport;
 const raidExport = FIXTURES['raid-export.v1']?.payload as RaidExport;
 const raidExportWithStandby = FIXTURES['raid-export-standby.v1']?.payload as RaidExport;
+const raidExportWithEncounters = FIXTURES['raid-export-encounters.v1']?.payload as RaidExport;
 
 function errorCode<T>(result: BridgeResult<T>): BridgeErrorCode | 'ok' {
   return result.ok ? 'ok' : result.error.code;
@@ -233,6 +234,24 @@ describe('import references', () => {
     const nameless = { ...raidExportWithStandby, standby: [{ ...first!, name: 'G' }] };
     expect(errorCode(encodeBridge(late as never))).toBe('INVALID_PAYLOAD');
     expect(errorCode(encodeBridge(nameless))).toBe('INVALID_PAYLOAD');
+  });
+
+  it('decodes an export without boss attempts, as older strings are', () => {
+    const { encounters: _, ...withoutEncounters } = raidExportWithEncounters;
+    const decoded = decodeRaidExport(encoded(encodeBridge(withoutEncounters)));
+    expect(decoded).toEqual({ ok: true, value: withoutEncounters });
+    expect(decoded.ok && 'encounters' in decoded.value).toBe(false);
+  });
+
+  it('refuses a boss attempt with no name, a size past a raid, or a kill that is not true or false', () => {
+    const [first] = raidExportWithEncounters.encounters ?? [];
+    const attempt = (over: object) => ({
+      ...raidExportWithEncounters,
+      encounters: [{ ...first!, ...over }],
+    });
+    expect(errorCode(encodeBridge(attempt({ name: '' })))).toBe('INVALID_PAYLOAD');
+    expect(errorCode(encodeBridge(attempt({ size: 41 })))).toBe('INVALID_PAYLOAD');
+    expect(errorCode(encodeBridge(attempt({ killed: 1 }) as never))).toBe('INVALID_PAYLOAD');
   });
 
   it('refuses loot candidates who are not rostered', () => {

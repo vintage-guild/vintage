@@ -36,6 +36,7 @@ describe("Core.Session", function()
 		session.attendance = { { at = 1, members = {} } }
 		session.loot = { { itemId = 16800 }, { itemId = 17076 } }
 		session.itemsSeen = { [16800] = true, [17076] = true, [18803] = true }
+		session.encounters = { { killed = false }, { killed = true }, { killed = false } }
 
 		local result = ns.Core.Session.Summary(session)
 		assert.is_true(result.success)
@@ -47,6 +48,8 @@ describe("Core.Session", function()
 			snapshots = 1,
 			loot = 2,
 			items = 3,
+			kills = 1,
+			wipes = 2,
 		}, result.data)
 		assert.matches("3 characters", result.reasoning)
 	end)
@@ -116,7 +119,10 @@ describe("Core.Result", function()
 		local ok = ns.Core.Result.success({ a = 1 }, "why")
 		assert.are.same({ success = true, data = { a = 1 }, reasoning = "why" }, ok)
 		local err = ns.Core.Result.error("CODE", "message", "suggestion")
-		assert.are.same({ success = false, error = { code = "CODE", message = "message", suggestion = "suggestion" } }, err)
+		assert.are.same(
+			{ success = false, error = { code = "CODE", message = "message", suggestion = "suggestion" } },
+			err
+		)
 	end)
 
 	it("uses FenCore's ActionResult when FenCore is loaded", function()

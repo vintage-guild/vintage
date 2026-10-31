@@ -402,6 +402,21 @@ describe("Bridge payload schema", function()
 		assert.are.same({ "standby.0.reason", "standby.1.name" }, issuePaths(check(stoodBy)))
 	end)
 
+	it("checks the export's boss attempts: optional, named, a raid's size, kill or wipe", function()
+		local attempts = copy(F.fixtures["raid-export-encounters.v1"].payload)
+		assert.is_true(check(attempts).success)
+		assert.is_nil(export.encounters) -- an export from before boss attempts
+		assert.is_true(check(export).success)
+
+		attempts.encounters[1].name = ""
+		attempts.encounters[2].size = 41
+		attempts.encounters[3].killed = 1
+		assert.are.same(
+			{ "encounters.0.name", "encounters.1.size", "encounters.2.killed" },
+			issuePaths(check(attempts))
+		)
+	end)
+
 	it("checks the export's snapshots, loot, and items", function()
 		export.attendance[1].members[1].group = 9
 		export.attendance[1].members[2].online = "yes"

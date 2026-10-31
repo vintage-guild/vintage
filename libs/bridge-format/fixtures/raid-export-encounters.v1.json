@@ -1,0 +1,106 @@
+{
+  "description": "An export with its boss attempts: a wipe and a kill on one boss, a wipe on the next",
+  "payload": {
+    "v": 1,
+    "kind": "raid-export",
+    "exportedAt": 1793066400,
+    "addonVersion": "0.1.0",
+    "exporter": "Aeryn",
+    "guildId": "g_vintage",
+    "eventId": "evt_mc_0001",
+    "attendance": [
+      {
+        "at": 1793052300,
+        "label": "start",
+        "members": [
+          {
+            "name": "Aeryn",
+            "class": "warrior",
+            "group": 1,
+            "online": true
+          },
+          {
+            "name": "Brann",
+            "class": "priest",
+            "group": 1,
+            "online": true
+          },
+          {
+            "name": "Cyra",
+            "class": "mage",
+            "group": 2,
+            "online": false
+          }
+        ]
+      },
+      {
+        "at": 1793055900,
+        "label": "Lucifron",
+        "members": [
+          {
+            "name": "Aeryn",
+            "class": "warrior",
+            "group": 1,
+            "online": true
+          }
+        ]
+      }
+    ],
+    "loot": [
+      {
+        "itemId": 16800,
+        "looter": "Doran-Stonemaul",
+        "at": 1793056000,
+        "source": "Lucifron"
+      },
+      {
+        "itemId": 17011,
+        "looter": "Brann",
+        "at": 1793056100,
+        "count": 2
+      }
+    ],
+    "items": [
+      {
+        "itemId": 16800,
+        "name": "Arcanist Boots",
+        "quality": 4,
+        "itemLevel": 66,
+        "equipLoc": "INVTYPE_FEET",
+        "classId": 4,
+        "subclassId": 1,
+        "icon": 132539
+      },
+      {
+        "itemId": 17011,
+        "name": "Lava Core",
+        "quality": 3
+      }
+    ],
+    "encounters": [
+      {
+        "encounterId": 663,
+        "name": "Lucifron",
+        "startedAt": 1793055000,
+        "endedAt": 1793055300,
+        "killed": false,
+        "size": 40
+      },
+      {
+        "encounterId": 663,
+        "name": "Lucifron",
+        "startedAt": 1793055600,
+        "endedAt": 1793055900,
+        "killed": true,
+        "size": 40
+      },
+      {
+        "name": "Magmadar",
+        "startedAt": 1793057000,
+        "endedAt": 1793057400,
+        "killed": false
+      }
+    ]
+  },
+  "encoded": "!VIN:1!9evVUnrqqyaJj2orifGarufHqcILCKttkOZxIT0jzqKJOirLZE3o2zj7T7Lz37iMslbvu5AkS8JGlOHU8aGMw(teLkQ5jG9o7q3oZ89Zm731)85moxRoeqJqRcAU12B1CkZAbfNPIG678iM9PV53F9JbswiidmwgAXyio0X4zDcIKmJbFldrHgdgG60KsEkwme0cWHQqTskuWrDOLctqbySu1suTapKPu0k599IzdaQAzQM3UdrgTYXl88NFIU5OUPrI(Owr36HoSuLc60YoQtbvKovzZ3J(Z(FHp3Uj62EG3kxKVVx4jcPe4h7OTQNr8oy)XfhXcaFB9(0DTBs3BUJRDuoo6(7tpW14hjDkgC5z0Aobg9C2GygNHfdV4piKbkRpFgKz7fh1RzZMBpfolrFL6xuEYOf1iTmoivi5(8Xd6Ljuw3zhiSqSP(hWIVrFE1rWPPIKU6OZ9FXHh86x2UxN2TpWtePvRFJYFjmhVpVsRjJZF115V89uTlBHrmLWy3WtRTg80uMuyhwDQjnCHYL2HECfpdvBCxwgBJD1iqpzjVtek(mKj4nMVMEsNa17mpa(11CCAnjmVhG)DpTl0A8kRwbXSuzOrNIraT6vO5bfrq55g1GU9DYk9pa"
+}

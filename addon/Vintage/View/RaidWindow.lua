@@ -1151,7 +1151,16 @@ function RaidWindow:RefreshExport(summary, status)
 	page.standbyList:SetShown(#self.standbyItems > 0)
 	local snapshots = summary and summary.snapshots or 0
 	local lastExport = summary and summary.lastExport
-	page.summary:SetText(string.format(L["Snapshots: %d  ·  Drops: %d"], snapshots, summary and summary.loot or 0))
+	local counts = {
+		string.format(L["Snapshots: %d"], snapshots),
+		string.format(L["Drops: %d"], summary and summary.loot or 0),
+	}
+	-- Boss attempts once there are any: the export carries them.
+	if summary and summary.kills + summary.wipes > 0 then
+		counts[#counts + 1] = string.format(L["Kills: %d"], summary.kills)
+		counts[#counts + 1] = string.format(L["Wipes: %d"], summary.wipes)
+	end
+	page.summary:SetText(table.concat(counts, "  ·  "))
 	page.summary:SetShown(snapshots > 0 or lastExport ~= nil)
 	page.exportBox:SetText(lastExport or "")
 	page.exportBox:SetShown(lastExport ~= nil)
@@ -1211,6 +1220,11 @@ function RaidWindow:DescribeRaid(summary, status)
 			capitalize(summary.state),
 			count(summary.roster, L["1 character"], L["%d characters"]),
 		}
+		if summary.kills + summary.wipes > 0 then
+			parts[#parts + 1] = count(summary.kills, L["1 kill"], L["%d kills"])
+				.. ", "
+				.. count(summary.wipes, L["1 wipe"], L["%d wipes"])
+		end
 		if status then
 			parts[#parts + 1] = string.format(L["%d in your group"], status.inGroup)
 			local short = {}

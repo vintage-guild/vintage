@@ -5,6 +5,7 @@
 import type { RaidExport } from '@vintage/bridge-format';
 import type {
   ExportAttendee,
+  ExportBoss,
   ExportCheck,
   ExportLoot,
   ExportSnapshot,
@@ -203,6 +204,7 @@ export function checkExport(
     unknownNames: event ? seen.filter((a) => a.characterId === null).map((a) => a.name) : [],
     absent,
     declinedButSeen: seen.filter((a) => a.status === 'declined').map((a) => a.name),
+    bosses: bossesFrom(exported),
     standby: (exported.standby ?? []).map(({ characterId, name, reason }) => ({
       characterId,
       name,
@@ -210,6 +212,44 @@ export function checkExport(
     })),
     warnings: warningsFor(exported, event, { otherGuild, eventSource: options.eventSource }),
   };
+}
+
+/** The export's boss attempts grouped by boss (its id, else its name), in the order first pulled. */
+export function bossesFrom(exported: RaidExport): ExportBoss[] {
+  const byKey = new Map<string, ExportBoss>();
+  for (const attempt of exported.encounters ?? []) {
+    const key =
+      attempt.encounterId === undefined ? `name:${attempt.name}` : `id:${attempt.encounterId}`;
+    let boss = byKey.get(key);
+    if (!boss) {
+      boss = {
+        encounterId: attempt.encounterId ?? null,
+        name: attempt.name,
+        attempts: 0,
+        kills: 0,
+        wipes: 0,
+        firstKilledAt: null,
+        seconds: 0,
+      };
+      byKey.set(key, boss);
+    }
+    boss.attempts += 1;
+    boss.seconds += Math.max(0, attempt.endedAt - attempt.startedAt);
+    if (attempt.killed) {
+      boss.kills += 1;
+      boss.firstKilledAt = Math.min(boss.firstKilledAt ?? attempt.endedAt, attempt.endedAt);
+    } else {
+      boss.wipes += 1;
+    }
+  }
+  return [...byKey.values()];
+}
+
+/** "2 bosses killed, 14 wipes". */
+function bossesNote(bosses: ExportBoss[]): string {
+  const killed = bosses.filter((b) => b.kills > 0).length;
+  const wipes = bosses.reduce((n, b) => n + b.wipes, 0);
+  return `${killed} boss${killed === 1 ? '' : 'es'} killed, ${wipes} wipe${wipes === 1 ? '' : 's'}`;
 }
 
 /** One line for a person: "Molten Core: 3 people over 3 snapshots, 2 drops; 1 not signed up". */
@@ -221,6 +261,7 @@ export function summarize(check: ExportCheck): string {
     `${check.loot.length} drop${check.loot.length === 1 ? '' : 's'}`,
   ];
   if (check.standby.length) parts.push(`${check.standby.length} stood by`);
+  if (check.bosses.length) parts.push(bossesNote(check.bosses));
   const notes: string[] = [];
   if (check.event && check.unknownNames.length)
     notes.push(`${check.unknownNames.length} not signed up`);

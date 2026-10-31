@@ -102,6 +102,7 @@ describe("Bridge.Executor", function()
 			"attendance-snapshot",
 			"client-info",
 			"encounter-record",
+			"encounter-start",
 			"item-record",
 			"loot-candidates",
 			"loot-capture",

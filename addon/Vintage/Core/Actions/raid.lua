@@ -22,6 +22,7 @@ RaidActions.MAX_MEMBERS = 40
 --- The export's caps on a snapshot label and an item name (libs/bridge-format).
 RaidActions.MAX_LABEL = 64
 RaidActions.MAX_ITEMS = 5000
+RaidActions.MAX_ENCOUNTERS = 200
 
 local copy, with = Core.CopyList, Core.With
 
@@ -248,6 +249,40 @@ function RaidActions.SetStandby(context)
 	)
 end
 
+--- encounter-start: a boss was pulled. Remembered until it ends, so the attempt knows when it
+--- started and how many were there. In a raid only, like everything recorded automatically.
+---@param context table { session, encounter = { id, name, size }, inRaid, now }
+---@return table ActionResult { session }
+function RaidActions.EncounterStart(context)
+	local session = context.session
+	if type(session) ~= "table" then
+		return Result.error("INVALID_CONTEXT", "Session context is missing")
+	end
+	if not context.inRaid then
+		return Result.error("NOT_IN_RAID", "Boss attempts are recorded in a raid only")
+	end
+	local encounter = context.encounter or {}
+	local pull = { id = encounter.id, size = encounter.size, startedAt = context.now }
+	return Result.success({ session = with(session, { pull = pull }) }, "Pulled " .. tostring(encounter.name))
+end
+
+--- The attempt that just ended, as the export carries it: when it started (the pull, if it was
+--- this boss), when it ended, kill or wipe, and how many were there.
+local function attempt(session, encounter, name, now)
+	local pull = session.pull
+	local same = type(pull) == "table" and pull.id == encounter.id
+	local id = encounter.id
+	local size = same and pull.size or nil
+	return {
+		encounterId = type(id) == "number" and id >= 0 and id == math.floor(id) and id or nil,
+		name = name,
+		startedAt = same and pull.startedAt or now,
+		endedAt = now,
+		killed = encounter.killed == true,
+		size = type(size) == "number" and size >= 1 and size <= 40 and size == math.floor(size) and size or nil,
+	}
+end
+
 --- encounter-record: a boss attempt ended. Remembers it (drops in the next few minutes are its
 --- loot), and a kill in a raid takes a snapshot labelled with the boss's name.
 ---@param context table { session, encounter = { id, name, killed }, members, inRaid, now }
@@ -263,7 +298,15 @@ function RaidActions.Encounter(context)
 	end
 	local name = Core.Truncate(encounter.name, RaidActions.MAX_LABEL)
 	local last = { id = encounter.id, name = name, endedAt = context.now, killed = encounter.killed == true }
-	local updated = with(session, { lastEncounter = last })
+	local updated = with(session, { lastEncounter = last, pull = false })
+	if context.inRaid then
+		-- Every attempt in a raid goes in the export, kill or wipe (up to its cap).
+		local encounters = copy(session.encounters)
+		if #encounters < RaidActions.MAX_ENCOUNTERS then
+			encounters[#encounters + 1] = attempt(session, encounter, name, context.now)
+		end
+		updated = live(updated, { encounters = encounters })
+	end
 	if not last.killed then
 		return Result.success({ session = updated, snapshot = false }, name .. ": wipe")
 	end
@@ -281,8 +324,6 @@ function RaidActions.Encounter(context)
 	)
 end
 
---- The item data the client revealed for the items this raid saw, in item id order, leaving out
---- any saved record the export would refuse.
 --- The export's standby list: the import's bench, less anyone the leader unticked and anyone
 --- who came in (they are in the attendance). nil for an import without a bench, so older
 --- exports keep their shape.
@@ -301,6 +342,8 @@ local function stoodBy(session, attendance)
 	return list
 end
 
+--- The item data the client revealed for the items this raid saw, in item id order, leaving out
+--- any saved record the export would refuse.
 local function seenItems(seen, known)
 	local ItemEntry = Core.Actions.Loot.ItemEntry
 	local ids = {}
@@ -347,6 +390,8 @@ function RaidActions.Export(context)
 		loot = session.loot or {},
 		items = seenItems(session.itemsSeen, context.items),
 		standby = stoodBy(session, attendance),
+		-- Left out when none were recorded, so such exports keep their older shape.
+		encounters = session.encounters and #session.encounters > 0 and session.encounters or nil,
 	}
 	local encoded = context.codec:Encode(payload)
 	if not encoded.success then

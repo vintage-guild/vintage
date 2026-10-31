@@ -435,11 +435,34 @@ const exportCheck = (over: Partial<ExportCheck> = {}): ExportCheck => ({
   absent: [],
   declinedButSeen: [],
   standby: [],
+  bosses: [],
   warnings: [],
   ...over,
 });
 
 const many = (n: number, what: string) => Array.from({ length: n }, (_, i) => `${what}${i}`);
+
+describe('/random event check-export, bosses', () => {
+  it('says which bosses died and how many wipes', () => {
+    const boss = (name: string, kills: number, wipes: number) => ({
+      encounterId: null,
+      name,
+      attempts: kills + wipes,
+      kills,
+      wipes,
+      firstKilledAt: kills ? 1 : null,
+      seconds: 60,
+    });
+    const text = exportCheckText(
+      exportCheck({
+        bosses: [boss('Lucifron', 1, 1), boss('Magmadar', 1, 0), boss('Gehennas', 0, 2)],
+      }),
+    );
+    expect(text).toContain(
+      'Bosses: Lucifron killed (1 wipe first), Magmadar killed, Gehennas 2 wipes',
+    );
+  });
+});
 
 describe('/random event check-export, the reply', () => {
   const lineOf = (text: string, prefix: string) =>

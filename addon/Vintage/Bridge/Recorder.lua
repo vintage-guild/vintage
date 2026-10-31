@@ -46,7 +46,18 @@ function Recorder:Initialize()
 	local function start()
 		debug("attendance-snapshot", ns.Executor:Execute("attendance-snapshot", { label = "start", automatic = true }))
 	end
-	ns.Events:On("ENCOUNTER_START", "Recorder", start)
+	-- encounterID, encounterName, difficultyID, groupSize
+	ns.Events:On("ENCOUNTER_START", "Recorder", function(_, id, name, _, size)
+		debug(
+			"encounter-start",
+			ns.Executor:Execute("encounter-start", {
+				id = Secrets.Public(id),
+				name = Secrets.Public(name),
+				size = Secrets.Public(size),
+			})
+		)
+		start()
+	end)
 	ns.Executor:Subscribe(function(name, result)
 		if
 			name == "forming-done"

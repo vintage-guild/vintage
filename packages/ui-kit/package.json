@@ -28,7 +28,7 @@
   "devDependencies": {
     "@custom-elements-manifest/analyzer": "^0.11.0",
     "@vintage/config": "workspace:*",
-    "happy-dom": "^21.0.3",
+    "happy-dom": "^21.0.4",
     "typescript": "catalog:"
   }
 }

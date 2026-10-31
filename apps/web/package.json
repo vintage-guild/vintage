@@ -34,7 +34,7 @@
   "devDependencies": {
     "@types/node": "^24.10.0",
     "@vintage/config": "workspace:*",
-    "happy-dom": "^21.0.3",
+    "happy-dom": "^21.0.4",
     "typescript": "catalog:",
     "vite": "^8.3.4"
   }

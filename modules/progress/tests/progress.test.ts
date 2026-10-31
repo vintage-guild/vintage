@@ -3,6 +3,7 @@ import { fixedClock, makeCaller, testRegistry } from '@vintage/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { progressCommands } from '../src/commands';
 import {
+  findBoss,
   type Kill,
   LAUNCH_BOSS_COUNT,
   LAUNCH_RAIDS,
@@ -55,6 +56,43 @@ describe('the launch raids', () => {
     expect(LAUNCH_RAIDS[2]!.bosses[0]).toMatchObject({ name: 'Onyxia', datamined: false });
     const ids = LAUNCH_RAIDS.flatMap((r) => r.bosses.map((b) => `${r.id}/${b.id}`));
     expect(new Set(ids).size).toBe(ids.length);
+    // Encounter ids wait for the Forever spike (Nov 4–6); names stay unique so matching works.
+    expect(LAUNCH_RAIDS.flatMap((r) => r.bosses.filter((b) => b.encounterId !== null))).toEqual([]);
+    const names = LAUNCH_RAIDS.flatMap((r) => r.bosses.map((b) => b.name.toLowerCase()));
+    expect(new Set(names).size).toBe(names.length);
+  });
+});
+
+describe('findBoss', () => {
+  const where = (
+    encounter: Parameters<typeof findBoss>[0],
+    raids?: Parameters<typeof findBoss>[1],
+  ) => {
+    const found = findBoss(encounter, raids);
+    return found && `${found.raid.id}/${found.boss.id}`;
+  };
+
+  it('matches a game encounter by name, ignoring case and punctuation', () => {
+    expect(where({ name: 'Chillhowl' })).toBe('barrow-deeps/chillhowl');
+    expect(where({ name: 'DELLYNAR SONGWOOD', encounterId: 3101 })).toBe('barrow-deeps/dellynar');
+    expect(where({ name: 'Time Lost Battalion' })).toBe('hyjal-summit/time-lost-battalion');
+    expect(where({ name: 'Onyxia' })).toBe('onyxias-lair/onyxia');
+    expect(where({ name: 'Ragnaros' })).toBeNull();
+  });
+
+  it('prefers the encounter id once a boss has one', () => {
+    const [barrow] = LAUNCH_RAIDS;
+    const raids = [
+      { ...barrow!, bosses: barrow!.bosses.map((b, i) => ({ ...b, encounterId: 3000 + i })) },
+    ];
+    expect(where({ name: 'Something renamed', encounterId: 3002 }, raids)).toBe(
+      'barrow-deeps/khalith',
+    );
+    // An id that's another boss's wins over the name; an unknown id matches nothing.
+    expect(where({ name: 'Chillhowl', encounterId: 3004 }, raids)).toBe('barrow-deeps/amethrax');
+    expect(where({ name: 'Chillhowl', encounterId: 9999 }, raids)).toBeNull();
+    // An attempt the game kept the id of falls back to the name.
+    expect(where({ name: 'Chillhowl' }, raids)).toBe('barrow-deeps/chillhowl');
   });
 });
 
@@ -124,6 +162,25 @@ describe('kill-record', () => {
     expect(view.raids[2]!.bosses[0]!.firstKillAt).toBe(first);
     expect(view.killed).toBe(1);
     expect(await deps.progress.listKills('guild-test')).toHaveLength(2);
+  });
+
+  it('the same kill again changes nothing and says so', async () => {
+    const at = Date.parse('2026-12-10T21:40:00-05:00');
+    const input = { raidId: 'onyxias-lair', bossId: 'onyxia', killedAt: at };
+    const first = await run('kill-record', input, leader);
+    expect(first).toMatchObject({ success: true, data: { first: true, duplicate: false } });
+    const again = await run('kill-record', input, leader);
+    expect(again).toMatchObject({
+      success: true,
+      data: { first: true, duplicate: true, kill: { id: (first.data as { kill: Kill }).kill.id } },
+      reasoning: 'Onyxia at that time is already recorded; nothing changed',
+    });
+    expect(await deps.progress.listKills('guild-test')).toHaveLength(1);
+    // A later kill isn't the same kill, and the earlier one stays the ledger entry.
+    const later = await run('kill-record', { ...input, killedAt: at + DAY }, leader);
+    expect(later).toMatchObject({ data: { first: false, duplicate: false } });
+    const repeat = await run('kill-record', { ...input, killedAt: at + DAY }, leader);
+    expect(repeat).toMatchObject({ data: { first: false, duplicate: true } });
   });
 
   it('the latest first kill wins the callout, across raids', async () => {

@@ -1,5 +1,7 @@
+import { type Caller, error, success } from '@vintage/guild-kit';
 import type { Character, Member } from '@vintage/identity/contract';
 import type { LootDropInput } from '@vintage/loot/contract';
+import { RAIDS_OPEN_AT } from '@vintage/progress/contract';
 import type {
   RaidAttendance,
   RaidEvent,
@@ -8,7 +10,14 @@ import type {
   Schedule,
   Signup,
 } from './contract';
-import type { RaidsDeps, RaidsEventSink, RaidsLoot, RaidsMembers, RaidsStore } from './store';
+import type {
+  RaidsDeps,
+  RaidsEventSink,
+  RaidsLoot,
+  RaidsMembers,
+  RaidsProgress,
+  RaidsStore,
+} from './store';
 
 /** In-memory RaidsStore for tests and local agents. Same behavior contract as the Convex component. */
 export function createMemoryRaidsStore(): RaidsStore & {
@@ -183,6 +192,47 @@ export function createRecordingEventSink(): RaidsEventSink & { emitted: EmittedE
   };
 }
 
+/**
+ * kill-record as far as raids sees it: keeps each kill, answers `first` for the earliest of a
+ * boss, `duplicate` for the same boss and time again, and refuses one before the raids open.
+ */
+export function createMemoryRaidsProgress(): RaidsProgress & {
+  kills: { caller: Caller; raidId: string; bossId: string; killedAt: number; note: string }[];
+} {
+  const kills: {
+    caller: Caller;
+    raidId: string;
+    bossId: string;
+    killedAt: number;
+    note: string;
+  }[] = [];
+  return {
+    kills,
+    async recordKill(caller, kill) {
+      if (kill.killedAt < RAIDS_OPEN_AT) {
+        return error('INVALID_TIME', 'Raids open December 9, 2026', { retryable: false });
+      }
+      const same = (k: (typeof kills)[number]) =>
+        k.raidId === kill.raidId && k.bossId === kill.bossId;
+      const existing = kills.find((k) => same(k) && k.killedAt === kill.killedAt);
+      if (!existing) kills.push({ caller, ...kill });
+      const earliest = Math.min(...kills.filter(same).map((k) => k.killedAt));
+      return success({
+        kill: {
+          id: `kill-${kill.bossId}-${kill.killedAt}`,
+          guildId: caller.guildId,
+          ...kill,
+          loot: [],
+          recordedBy: caller.memberId ?? caller.surface,
+          recordedAt: kill.killedAt,
+        },
+        first: kill.killedAt === earliest,
+        duplicate: existing !== undefined,
+      });
+    },
+  };
+}
+
 /** Keeps the drops raids hands to loot, by raid, so tests can read them back. */
 export function createMemoryRaidsLoot(): RaidsLoot & { drops: Map<string, LootDropInput[]> } {
   const drops = new Map<string, LootDropInput[]>();
@@ -201,11 +251,13 @@ export function createMemoryRaidsDeps(
   raids: ReturnType<typeof createMemoryRaidsStore>;
   events: ReturnType<typeof createRecordingEventSink>;
   raidLoot: ReturnType<typeof createMemoryRaidsLoot>;
+  raidProgress: ReturnType<typeof createMemoryRaidsProgress>;
 } {
   return {
     raids: createMemoryRaidsStore(),
     members: createMemoryRaidsMembers(members, characters),
     events: createRecordingEventSink(),
     raidLoot: createMemoryRaidsLoot(),
+    raidProgress: createMemoryRaidsProgress(),
   };
 }

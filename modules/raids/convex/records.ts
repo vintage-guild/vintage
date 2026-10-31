@@ -7,7 +7,7 @@ import { attendanceFields, recordFields } from './schema';
 
 const toRecord = (doc: Doc<'raidRecords'>) => {
   const { _id, _creationTime, ...rest } = doc;
-  return { id: _id as string, ...rest };
+  return { id: _id as string, ...rest, bosses: rest.bosses ?? null };
 };
 
 const toAttendance = (doc: Doc<'attendance'>) => {

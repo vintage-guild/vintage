@@ -720,3 +720,220 @@ describe('raid-export-record', () => {
     ).toMatchObject({ error: { code: 'COMMAND_NOT_FOUND' } });
   });
 });
+
+describe('raid-export-record: boss kills (#221)', () => {
+  /** Thu 10 Dec 2026, 20:00 New York: the second night the raids are open. */
+  const NIGHT = Date.UTC(2026, 11, 11, 1);
+  const S = NIGHT / 1000;
+  const MIN = 60;
+  let clock: ReturnType<typeof fixedClock>;
+  let registry: ReturnType<typeof testRegistry<RaidsDeps>>;
+  let deps: ReturnType<typeof createMemoryRaidsDeps>;
+  let raid: RaidEvent;
+  const officer = makeCaller('officer', { memberId: 'officer-1' });
+  const leader = makeCaller('leader', { memberId: 'leader-1' });
+
+  const ok = async <T>(name: string, input: unknown, caller: Caller): Promise<T> => {
+    const result = await registry.execute({ name, input, caller }, deps);
+    if (!result.success) throw new Error(`${name} failed: ${JSON.stringify(result.error)}`);
+    return result.data as T;
+  };
+  const record = (exported: RaidExport, eventId = raid.id) =>
+    previewAndConfirm(
+      registry,
+      {
+        name: 'raid-export-record',
+        input: { exportString: encode(exported), eventId },
+        caller: officer,
+      },
+      deps,
+    );
+  /** A raid made a day before it starts, as a leader would have; the clock comes back after. */
+  const raidAt = async (input: Record<string, unknown> & { startsAt: number }) => {
+    const back = clock.now() - (input.startsAt - DAY);
+    clock.advance(-back);
+    const made = await ok<RaidEvent>('raid-create', input, leader);
+    clock.advance(back);
+    return made;
+  };
+  const savedRecord = async (eventId = raid.id) =>
+    (
+      await ok<{ record: RaidRecord }>(
+        'attendance-list',
+        { eventId },
+        makeCaller('raider', { memberId: 'aeryn' }),
+      )
+    ).record;
+  const attempt = (name: string, from: number, minutes: number, killed: boolean) => ({
+    name,
+    startedAt: S + from * MIN,
+    endedAt: S + (from + minutes) * MIN,
+    killed,
+    size: 10,
+  });
+  /**
+   * Barrow Deeps: a wipe then a kill on Chillhowl, Tangleclaw down, two Khalith wipes, and a
+   * kill the ledger has no boss for.
+   */
+  const barrowNight = (overrides: Partial<RaidExport> = {}): RaidExport =>
+    nightExport({
+      exportedAt: S + 4 * 60 * MIN,
+      attendance: [{ at: S + MIN, label: 'start', members: members('Aeryn', 'Bramble') }],
+      loot: [],
+      encounters: [
+        attempt('Chillhowl', 10, 4, false),
+        attempt('Chillhowl', 20, 5, true),
+        attempt('Elder Tangleclaw', 40, 6, true),
+        attempt('Khalith the Dreadspinner', 60, 3, false),
+        attempt('Khalith the Dreadspinner', 70, 2, false),
+        attempt('Gloomfang', 90, 4, true),
+      ],
+      ...overrides,
+    });
+  const outcomes = (result: { data?: unknown }) =>
+    (result.data as { ledger: { name: string; outcome: string }[] }).ledger.map((k) => [
+      k.name,
+      k.outcome,
+    ]);
+
+  beforeEach(async () => {
+    clock = fixedClock(NIGHT - DAY);
+    registry = testRegistry<RaidsDeps>([...raidsCommands], clock);
+    deps = createMemoryRaidsDeps(MEMBERS, CHARACTERS);
+    raid = await ok<RaidEvent>(
+      'raid-create',
+      { name: 'Barrow Deeps', instance: 'Barrow Deeps', size: 10, startsAt: NIGHT },
+      leader,
+    );
+    clock.advance(DAY + 5 * HOUR);
+  });
+
+  it('previews which kills go on the ledger and which matched no boss', async () => {
+    // The preview alone, without confirming.
+    const preview = await registry.execute(
+      {
+        name: 'raid-export-record',
+        input: { exportString: encode(barrowNight()), eventId: raid.id },
+        caller: officer,
+      },
+      deps,
+    );
+    expect(preview).toMatchObject({
+      data: {
+        preview: {
+          kills: [
+            {
+              name: 'Chillhowl',
+              encounterId: null,
+              killedAt: (S + 25 * MIN) * 1000,
+              raidId: 'barrow-deeps',
+              bossId: 'chillhowl',
+            },
+            { name: 'Elder Tangleclaw', raidId: 'barrow-deeps', bossId: 'elder-tangleclaw' },
+            { name: 'Gloomfang', raidId: null, bossId: null },
+          ],
+        },
+      },
+    });
+    expect(deps.raidProgress.kills).toEqual([]);
+  });
+
+  it('records each first kill once, as the officer, and keeps the night in sum', async () => {
+    const { result } = await record(barrowNight());
+    expect(result).toMatchObject({
+      success: true,
+      reasoning:
+        'Recorded Barrow Deeps: 2 attended, 0 drops; completes Barrow Deeps; ' +
+        '2 first kills on the ledger; 1 kill matched no boss (Gloomfang)',
+    });
+    expect(outcomes(result)).toEqual([
+      ['Chillhowl', 'first'],
+      ['Elder Tangleclaw', 'first'],
+      ['Gloomfang', 'unmatched'],
+    ]);
+    expect(deps.raidProgress.kills).toEqual([
+      {
+        caller: officer,
+        raidId: 'barrow-deeps',
+        bossId: 'chillhowl',
+        killedAt: (S + 25 * MIN) * 1000,
+        note: 'From the addon export for Barrow Deeps',
+      },
+      expect.objectContaining({ bossId: 'elder-tangleclaw', killedAt: (S + 46 * MIN) * 1000 }),
+    ]);
+    // Gloomfang isn't a Barrow Deeps boss, so it doesn't count toward 2/8; the ledger says so.
+    expect((await savedRecord())!.bosses).toEqual({
+      killed: 2,
+      total: 8,
+      wipes: 3,
+      firstPullAt: (S + 10 * MIN) * 1000,
+      lastEndAt: (S + 94 * MIN) * 1000,
+    });
+  });
+
+  it('a second paste, or a later export of the same night, adds no kills', async () => {
+    await record(barrowNight());
+    const again = await record(barrowNight());
+    expect(again.result).toMatchObject({ data: { unchanged: true } });
+    expect(deps.raidProgress.kills).toHaveLength(2);
+
+    const { result } = await record(barrowNight({ exportedAt: S + 5 * 60 * MIN }));
+    expect(outcomes(result).map(([, outcome]) => outcome)).toEqual([
+      'duplicate',
+      'duplicate',
+      'unmatched',
+    ]);
+    expect(result.reasoning).toBe(
+      'Recorded Barrow Deeps: 2 attended, 0 drops; replaces the export recorded before; ' +
+        '1 kill matched no boss (Gloomfang)',
+    );
+    expect(deps.raidProgress.kills).toHaveLength(2);
+  });
+
+  it('says when kill-record turns a kill down, and still records the raid', async () => {
+    // A night before the raids open (the Forever spike, say): progress refuses the kill.
+    const spike = Date.UTC(2026, 10, 5, 1);
+    const early = await raidAt({
+      name: 'Spike night',
+      instance: 'Barrow Deeps',
+      size: 10,
+      startsAt: spike,
+    });
+    const at = spike / 1000;
+    const { result } = await record(
+      nightExport({
+        exportedAt: at + 3600,
+        attendance: [{ at: at + 60, label: 'start', members: members('Aeryn') }],
+        loot: [],
+        encounters: [{ name: 'Chillhowl', startedAt: at + 600, endedAt: at + 900, killed: true }],
+      }),
+      early.id,
+    );
+    expect(result).toMatchObject({
+      success: true,
+      reasoning:
+        'Recorded Spike night: 1 attended, 0 drops; completes Spike night; ' +
+        '1 kill not recorded (Chillhowl: Raids open December 9, 2026)',
+      data: { event: { status: 'completed' }, ledger: [{ outcome: 'refused' }] },
+    });
+  });
+
+  it('puts nothing on the ledger for a dungeon, or for an export without attempts', async () => {
+    const dungeon = await raidAt({
+      name: 'Barrow run',
+      instance: 'Barrow Deeps',
+      kind: 'dungeon',
+      size: 5,
+      startsAt: NIGHT,
+    });
+    const { result } = await record(barrowNight(), dungeon.id);
+    expect(result).toMatchObject({ success: true, data: { ledger: [] } });
+    expect(deps.raidProgress.kills).toEqual([]);
+    // Its record still counts the night's bosses for the summary.
+    expect((await savedRecord(dungeon.id))!.bosses).toMatchObject({ killed: 2, wipes: 3 });
+
+    const { result: plain } = await record(barrowNight({ encounters: undefined }));
+    expect(plain).toMatchObject({ success: true, data: { ledger: [] } });
+    expect((await savedRecord())!.bosses).toBeNull();
+  });
+});

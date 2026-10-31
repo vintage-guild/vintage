@@ -44,9 +44,11 @@ not seen), what will be stored, whether it completes the raid, and the record it
 
 ## Left for later slices
 
-- [ ] **Raid summary post:** the bot posts who came and what dropped in Discord, from
-  `raid-recorded` (or straight after `raid-export-record` in the Convex mutation). Needs a channel
-  choice (the signup channel's thread, or the ops channel) and the wording.
+- [x] **Raid summary post** (#221): the coordinator's `raid-summary` rule posts it to the signup
+  channel once a raid has a record: "Bosses: 6/8, 14 wipes, 2h 41m", who came, and what dropped.
+  A different export edits it in place (officer call, 2026-10-30: the signup channel). J47.
+- [x] **First kills on the progress ledger** (#221): `raid-export-record` runs progress's
+  `kill-record` for each boss killed, matched by name until the Forever encounter ids are known.
 - [ ] **Website UI:** a **Record** button next to **Check an export** in the officers' quarters
   (Tonight tab), showing the preview and confirming; attendance and loot on the raid page.
 - [ ] **Discord:** `/random event record-export` for officers, mirroring `check-export`.

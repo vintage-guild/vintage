@@ -26,6 +26,7 @@ import type { LootDeps, LootStore } from '@vintage/loot/commands';
 import type { PollsDeps, PollsEventSink, PollsStore } from '@vintage/polls/commands';
 import type { Poll } from '@vintage/polls/contract';
 import type { ProgressDeps, ProgressStore } from '@vintage/progress/commands';
+import type { KillRecorded } from '@vintage/progress/contract';
 import type { RaidsDeps, RaidsEventSink, RaidsStore } from '@vintage/raids/commands';
 import type { Signup } from '@vintage/raids/contract';
 import type { SiteDeps, SiteStore } from '@vintage/site/commands';
@@ -196,7 +197,11 @@ function eventSink(ctx: Ctx): RaidsEventSink & PollsEventSink {
   };
 }
 
-export function raidsDeps(ctx: Ctx): RaidsDeps {
+/**
+ * `run` is the registry (commands.ts passes it in): an export's kills go on the ledger as
+ * kill-record, run as the officer recording, so progress keeps its own checks (#221).
+ */
+export function raidsDeps(ctx: Ctx, run: RunCommand): RaidsDeps {
   const people = identityStore(ctx);
   return {
     raids: raidsStore(ctx),
@@ -207,6 +212,10 @@ export function raidsDeps(ctx: Ctx): RaidsDeps {
     },
     events: eventSink(ctx),
     raidLoot: lootStore(ctx),
+    raidProgress: {
+      recordKill: async (caller, kill) =>
+        (await run(caller, 'kill-record', kill)) as CommandResult<KillRecorded>,
+    },
   };
 }
 
@@ -346,6 +355,7 @@ export function tickSource(ctx: Ctx): TickSource {
     raids: raidsStore(ctx),
     identity: identityStore(ctx),
     coordinator: coordinatorStore(ctx),
+    loot: lootStore(ctx),
   });
 }
 

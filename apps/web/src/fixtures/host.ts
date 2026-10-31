@@ -25,6 +25,7 @@ import {
   createRecordingEventSink as createPollsEventSink,
 } from '@vintage/polls/testing';
 import { type ProgressDeps, progressCommands } from '@vintage/progress/commands';
+import type { KillRecorded } from '@vintage/progress/contract';
 import { createMemoryProgressStore } from '@vintage/progress/testing';
 import { type RaidsDeps, raidsCommands } from '@vintage/raids/commands';
 import { DEFAULT_TIMINGS } from '@vintage/raids/contract';
@@ -149,6 +150,14 @@ export function createFixtureHost(
     events: createRecordingEventSink(),
     // Recorded drops stay in memory; the dev site has no loot module yet.
     raidLoot: createMemoryRaidsLoot(),
+    // Like apps/api: an export's kills go on the ledger through kill-record.
+    raidProgress: {
+      recordKill: async (caller, kill) =>
+        (await registry.execute(
+          { name: 'kill-record', input: kill, caller },
+          deps,
+        )) as CommandResult<KillRecorded>,
+    },
     progress: createMemoryProgressStore(),
     site: createMemorySiteStore(),
     // Applications in dev: no labeling or Discord post; the quarters' desk reads the store.

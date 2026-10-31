@@ -30,6 +30,7 @@ import {
   createMemoryPollsStore,
   createRecordingEventSink as createPollEventSink,
 } from '@vintage/polls/testing';
+import type { KillRecorded } from '@vintage/progress/contract';
 import { createMemoryProgressStore } from '@vintage/progress/testing';
 import type { Signup, SignupGuess } from '@vintage/raids/contract';
 import { createMemoryRaidsStore, createRecordingEventSink } from '@vintage/raids/testing';
@@ -99,7 +100,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
   const coordinator = createMemoryCoordinatorStore();
   const polls = createMemoryPollsStore();
   const pollEvents = createPollEventSink();
-  const tickSource = createTickSource({ raids, identity, coordinator });
+  const tickSource = createTickSource({ raids, identity, coordinator, loot });
   const ticksRequested: string[] = [];
   const siteStore = createMemorySiteStore();
   /** Rewording for the weekly assessment; null keeps the facts (like a deployment with no key). */
@@ -129,6 +130,14 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     },
     events,
     raidLoot: loot,
+    // Like apps/api raidsDeps: an export's kills go on the ledger through kill-record.
+    raidProgress: {
+      recordKill: async (caller, kill) =>
+        (await registry.execute(
+          { name: 'kill-record', input: kill, caller },
+          deps,
+        )) as CommandResult<KillRecorded>,
+    },
     loot,
     coordinator,
     tickSource,

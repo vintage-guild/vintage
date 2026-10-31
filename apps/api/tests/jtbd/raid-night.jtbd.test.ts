@@ -1,11 +1,12 @@
 // JTBD: the raid night (PLAN §6). One test per job in docs/jtbd/raid-night.md; the ids match.
 // Each test builds a fresh guild, drives it only through commands and coordinator ticks, and
 // checks what members would see in Discord. Extend these when the raid night changes.
-import { decodeRaidImport } from '@vintage/bridge-format';
+import { decodeRaidImport, encodeBridge, type RaidExport } from '@vintage/bridge-format';
 import luaMade from '@vintage/bridge-format/fixtures/lua-made.json';
 import { buttonLabels, messageText } from '@vintage/coordinator/testing';
 import { ScheduledEventStatus } from '@vintage/discord-kit';
 import type { Caller } from '@vintage/guild-kit';
+import type { Progress } from '@vintage/progress/contract';
 import type { ExportCheck, RaidEvent, Signup } from '@vintage/raids/contract';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
@@ -417,6 +418,129 @@ describe('JTBD: raid night', () => {
       success: true,
       data: { unchanged: true },
     });
+  });
+
+  it('J47 · the night’s first kills land on the ledger, and Random posts the raid summary', async () => {
+    // Barrow Deeps on Thu 10 Dec, 20:00 New York, made the day before.
+    const night = Date.UTC(2026, 11, 11, 1);
+    g.host.clock.advance(night - DAY - g.host.clock.now());
+    await g.host.configureCoordinator();
+    const raid = await g.host.ok<RaidEvent>(g.rook, 'raid-create', {
+      name: 'Barrow Deeps',
+      instance: 'Barrow Deeps',
+      size: 10,
+      startsAt: night,
+    });
+    for (const key of ['aeryn', 'bram'] as const) {
+      await answer(g, g[key], key, raid.id, 'accepted');
+    }
+    await g.host.tick(); // the signup card goes up
+    g.host.clock.advance(night + 4 * HOUR - g.host.clock.now()); // the raid is over
+
+    const S = night / 1000;
+    const attempt = (name: string, from: number, minutes: number, killed: boolean) => ({
+      name,
+      startedAt: S + from * 60,
+      endedAt: S + (from + minutes) * 60,
+      killed,
+      size: 10,
+    });
+    const exported = (exportedAt: number): RaidExport => ({
+      v: 1,
+      kind: 'raid-export',
+      exportedAt,
+      addonVersion: '0.2.0',
+      exporter: 'Aeryn',
+      attendance: [
+        {
+          at: S + 60,
+          label: 'start',
+          members: ['Aeryn', 'Bramble'].map((name) => ({ name, group: 1, online: true })),
+        },
+      ],
+      loot: [{ itemId: 16_800, looter: 'Bramble', at: S + 26 * 60, source: 'Chillhowl' }],
+      items: [{ itemId: 16_800, name: 'Arcanist Boots', quality: 4 }],
+      encounters: [
+        attempt('Chillhowl', 10, 4, false),
+        attempt('Chillhowl', 20, 5, true),
+        attempt('Elder Tangleclaw', 40, 6, true),
+        attempt('Khalith the Dreadspinner', 60, 3, false),
+        attempt('Khalith the Dreadspinner', 70, 2, false),
+        attempt('Gloomfang', 90, 4, true),
+      ],
+    });
+    const encode = (payload: RaidExport) => {
+      const encoded = encodeBridge(payload);
+      if (!encoded.ok) throw new Error(encoded.error.message);
+      return encoded.value;
+    };
+    const input = { exportString: encode(exported(S + 3 * 3600)), eventId: raid.id };
+
+    // The preview says which kills go on the ledger, and which the ledger has no boss for.
+    const preview = await g.host.preview<{
+      kills: { name: string; bossId: string | null }[];
+    }>(g.ana, 'raid-export-record', input);
+    expect(preview.kills.map((k) => [k.name, k.bossId])).toEqual([
+      ['Chillhowl', 'chillhowl'],
+      ['Elder Tangleclaw', 'elder-tangleclaw'],
+      ['Gloomfang', null],
+    ]);
+    const recorded = await g.host.run(g.ana, 'raid-export-record', input);
+    expect(recorded).toMatchObject({ success: true });
+    expect(recorded.reasoning).toMatch(
+      /; 2 first kills on the ledger; 1 kill matched no boss \(Gloomfang\)$/,
+    );
+
+    // Every member's ledger fills, through progress's own kill-record.
+    const ledger = await g.host.ok<Progress>(g.pip, 'progress-get');
+    const barrow = ledger.raids.find((r) => r.id === 'barrow-deeps')!;
+    expect([barrow.killed, barrow.total, barrow.nextBossId]).toEqual([2, 8, 'khalith']);
+    expect(barrow.bosses[0]).toMatchObject({ id: 'chillhowl', firstKillAt: (S + 25 * 60) * 1000 });
+
+    // The next tick posts the summary under the card, once.
+    await g.host.tick();
+    await g.host.tick();
+    const posts = g.host.sentTo(SIGNUP_CHANNEL);
+    const summaries = posts.filter((m) => messageText(m.message).startsWith('Raid summary'));
+    expect(summaries).toHaveLength(1);
+    const text = messageText(summaries[0]!.message);
+    expect(text).toContain('Raid summary · Barrow Deeps · Barrow Deeps');
+    expect(text).toContain('**Bosses: 2/8, 3 wipes, 1h 24m**');
+    expect(text).toContain('Came · 2\nAeryn, Bramble');
+    expect(text).toContain('Loot · 1\nArcanist Boots → Bramble');
+    expect(posts.indexOf(summaries[0]!)).toBeGreaterThan(0); // after the card
+
+    // The same string again changes nothing; a later export of the night adds no kills and
+    // edits the summary in place.
+    expect(await g.host.run(g.ana, 'raid-export-record', input)).toMatchObject({
+      data: { unchanged: true },
+    });
+    const later = await g.host.run(g.ana, 'raid-export-record', {
+      exportString: encode({
+        ...exported(S + 4 * 3600),
+        loot: [],
+      }),
+      eventId: raid.id,
+    });
+    expect((later.data as { ledger: { outcome: string }[] }).ledger.map((k) => k.outcome)).toEqual([
+      'duplicate',
+      'duplicate',
+      'unmatched',
+    ]);
+    expect(
+      (await g.host.deps.progress.listKills(g.ana.guildId, { raidId: 'barrow-deeps' })).length,
+    ).toBe(2);
+    await g.host.tick();
+    const edits = g.host
+      .editsTo(SIGNUP_CHANNEL)
+      .filter((m) => m.messageId === summaries[0]!.messageId);
+    expect(edits).toHaveLength(1);
+    expect(messageText(edits[0]!.message)).toContain('Loot · 0\nNothing dropped');
+    expect(
+      g.host
+        .sentTo(SIGNUP_CHANNEL)
+        .filter((m) => messageText(m.message).startsWith('Raid summary')),
+    ).toHaveLength(1);
   });
 
   it('J08 · an officer cancels one night; it stays cancelled and nobody is chased for it', async () => {

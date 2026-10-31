@@ -2,6 +2,7 @@
 
 import type { RoleTargets, SignupStatus } from '@vintage/comp-solver';
 import type { GuildRank } from '@vintage/identity/contract';
+import type { RaidId } from '@vintage/progress/contract';
 import type { Role, WowClass } from '@vintage/wow-data';
 import type { EventKind } from './domain/kinds';
 
@@ -306,6 +307,47 @@ export interface RaidRecord {
   drops: number;
   recordedAt: number;
   recordedBy: string;
+  /** The night's boss attempts in sum, for the raid summary; null for an export without them. */
+  bosses: RecordBosses | null;
+}
+
+/** A raid record's boss attempts in sum (#221): the summary's "Bosses: 6/8, 14 wipes, 2h 41m". */
+export interface RecordBosses {
+  /** Bosses killed at least once; with a launch raid matched, only that raid's bosses. */
+  killed: number;
+  /**
+   * Bosses in the launch raid the attempts matched (8 for Barrow Deeps). Null when none matched:
+   * a dungeon, or boss names the game spells differently.
+   */
+  total: number | null;
+  wipes: number;
+  /** UTC epoch ms: the first pull, and the end of the last attempt. */
+  firstPullAt: number;
+  lastEndAt: number;
+}
+
+/** A boss the export killed, and the progress boss it matched (#221). */
+export interface ExportKill {
+  /** As the game named it. */
+  name: string;
+  encounterId: number | null;
+  /** UTC epoch ms of the night's first kill of it. */
+  killedAt: number;
+  /** The launch raid and boss it matched by id or name; both null when it matched none. */
+  raidId: RaidId | null;
+  bossId: string | null;
+}
+
+/**
+ * What recording did with a kill: `first` is now the ledger entry, `again` was logged behind an
+ * earlier first kill, `duplicate` was already recorded, `unmatched` matched no launch boss,
+ * `refused` was turned down by kill-record (`detail` says why, e.g. before the raids opened).
+ */
+export type LedgerOutcome = 'first' | 'again' | 'duplicate' | 'unmatched' | 'refused';
+
+export interface LedgerKill extends ExportKill {
+  outcome: LedgerOutcome;
+  detail: string | null;
 }
 
 export const RAIDS_COMMANDS = [
@@ -357,7 +399,7 @@ export interface RaidsEvents {
   /**
    * An officer recorded the addon's export for a raid (raid-export-record): attendance and loot
    * are stored. Comes after `raid-completed` when the record also completed the raid. The raid
-   * summary post (#29) starts from here.
+   * summary post doesn't wait for it: the coordinator's tick reads the record itself (#221).
    */
   'raid-recorded': {
     eventId: string;

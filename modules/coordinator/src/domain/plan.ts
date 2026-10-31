@@ -13,9 +13,12 @@
 //                  edited when the raid moves or is renamed (not logged, like refresh)
 //   server-event-cancel  the raid was cancelled: its server event is set to CANCELED. A finished
 //                  raid's event is left alone; Discord completes EXTERNAL events at their end time.
+//   raid-summary   once an officer records the addon's export: how the bosses went, who came, and
+//                  what dropped, to the signup channel; edited when a different export replaces
+//                  it (not logged, like refresh)
 import type { Signup } from '@vintage/raids/contract';
 import type { CoordinatorAction } from '../contract';
-import type { TickEvent, TickMember, TickState } from '../store';
+import type { TickEvent, TickMember, TickRecorded, TickState } from '../store';
 import { MAX_SERVER_EVENTS } from './server-event';
 
 const HOUR = 60 * 60 * 1000;
@@ -59,6 +62,15 @@ export type PlannedAction =
       target: string;
       serverEvent: CoordinatorAction;
     }
+  | {
+      kind: 'summary';
+      tick: TickEvent;
+      rule: 'raid-summary';
+      target: string;
+      recorded: TickRecorded;
+    }
+  /** Edit the summary in place when the record changed; like refresh, not logged. */
+  | { kind: 'summary-update'; tick: TickEvent; summary: CoordinatorAction; recorded: TickRecorded }
   /** Logged without sending: a reminder overtaken by a later one, or nothing to say. */
   | { kind: 'skip'; tick: TickEvent; rule: string; target: string; reason: string };
 
@@ -234,6 +246,25 @@ function planServerEvents(
   return out;
 }
 
+/** A summary per recorded raid, posted once and edited when what it would show changes. */
+function planSummaries(
+  state: TickState,
+  channel: string,
+  summaryHash: (recorded: TickRecorded) => string,
+): PlannedAction[] {
+  const out: PlannedAction[] = [];
+  for (const recorded of state.recorded ?? []) {
+    const { tick } = recorded;
+    const summary = sentAction(state, tick.event.id, 'raid-summary');
+    if (!summary) {
+      out.push({ kind: 'summary', tick, rule: 'raid-summary', target: channel, recorded });
+    } else if (summary.renderHash !== summaryHash(recorded)) {
+      out.push({ kind: 'summary-update', tick, summary, recorded });
+    }
+  }
+  return out;
+}
+
 /** Every action due now, in the order they should happen. Nothing for a paused or unconfigured guild. */
 export function planTick(
   state: TickState,
@@ -241,6 +272,8 @@ export function planTick(
   renderHash: (tick: TickEvent) => string,
   /** Hash of the server event a raid should have; needed only when `serverEvents` is on. */
   serverEventHash?: (tick: TickEvent, post: CoordinatorAction) => string,
+  /** Hash of the summary a recorded raid should have; needed only when `recorded` has raids. */
+  summaryHash?: (recorded: TickRecorded) => string,
 ): PlannedAction[] {
   const channel = state.config.signupChannelId;
   if (state.config.paused || !channel) return [];
@@ -269,5 +302,6 @@ export function planTick(
   if (state.config.serverEvents && serverEventHash) {
     out.push(...planServerEvents(state, now, serverEventHash));
   }
+  if (summaryHash) out.push(...planSummaries(state, channel, summaryHash));
   return out;
 }

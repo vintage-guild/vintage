@@ -49,9 +49,12 @@ export function defaultConfig(guildId: string): CoordinatorConfig {
 
 /**
  * What triggered an action: `post`, `remind-72h`, `dm-24h`, `digest`, `lock`, `final-roster`,
- * `import-string`, `server-event`, or `server-event-cancel`. Together with the event and target it is the idempotency key.
+ * `import-string`, `server-event`, `server-event-cancel`, or `raid-summary`. Together with the event and target it is the idempotency key.
  */
 export type CoordinatorRule = string;
+
+/** How long after a raid starts its recorded export still gets a summary post (#221). */
+export const SUMMARY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 export const ACTION_STATUSES = ['pending', 'sent', 'skipped', 'failed'] as const;
 export type ActionStatus = (typeof ACTION_STATUSES)[number];

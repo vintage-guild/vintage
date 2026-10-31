@@ -3,7 +3,15 @@
 // kept alongside, so a loot method can weigh it.
 import type { RaidExport } from '@vintage/bridge-format';
 import type { LootDropInput } from '@vintage/loot/contract';
-import type { ExportCheck, RaidAttendanceInput, RaidEvent, Signup } from '../contract';
+import { findBoss } from '@vintage/progress/contract';
+import type {
+  ExportCheck,
+  ExportKill,
+  RaidAttendanceInput,
+  RaidEvent,
+  RecordBosses,
+  Signup,
+} from '../contract';
 
 const key = (name: string) => name.toLocaleLowerCase('en-US');
 
@@ -80,4 +88,38 @@ export function attendeesOf(
     }
   }
   return [...seen.values()];
+}
+
+/** Each boss the export killed, with the launch boss it matched (by id once known, else name). */
+export function killsFrom(check: ExportCheck): ExportKill[] {
+  return check.bosses.flatMap((b) => {
+    if (b.firstKilledAt === null) return [];
+    const match = findBoss(b);
+    return [
+      {
+        name: b.name,
+        encounterId: b.encounterId,
+        killedAt: b.firstKilledAt * 1000,
+        raidId: match?.raid.id ?? null,
+        bossId: match?.boss.id ?? null,
+      },
+    ];
+  });
+}
+
+/** The night's boss attempts in sum, or null for an export without any. */
+export function tallyBosses(exported: RaidExport, check: ExportCheck): RecordBosses | null {
+  const attempts = exported.encounters ?? [];
+  if (!attempts.length) return null;
+  // The raid is whichever launch raid the attempts, kills or wipes, matched first. Against it,
+  // only its own bosses count, so an encounter that isn't one of them can't make 9/8.
+  const raid = check.bosses.map((b) => findBoss(b)?.raid).find((r) => r !== undefined);
+  const counts = (b: ExportCheck['bosses'][number]) => !raid || findBoss(b)?.raid.id === raid.id;
+  return {
+    killed: check.bosses.filter((b) => b.kills > 0 && counts(b)).length,
+    total: raid?.bosses.length ?? null,
+    wipes: check.bosses.reduce((n, b) => n + b.wipes, 0),
+    firstPullAt: Math.min(...attempts.map((a) => a.startedAt)) * 1000,
+    lastEndAt: Math.max(...attempts.map((a) => a.endedAt)) * 1000,
+  };
 }

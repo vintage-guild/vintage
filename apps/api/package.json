@@ -41,7 +41,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@types/node": "^24.10.0",
+    "@types/node": "^26.6.5",
     "@vintage/bridge-format": "workspace:*",
     "@vintage/config": "workspace:*",
     "@vintage/testing": "workspace:*",

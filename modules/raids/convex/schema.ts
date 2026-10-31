@@ -157,6 +157,8 @@ export const attendanceFields = {
   labels: v.array(v.string()),
   firstSeenAt: v.number(),
   lastSeenAt: v.number(),
+  /** Credited for standing by on the bench (#222); in no snapshot. Absent on older rows. */
+  stoodBy: v.optional(v.boolean()),
 };
 
 // Every table carries guildId and is read through a guild-scoped index.

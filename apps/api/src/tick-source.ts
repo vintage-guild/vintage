@@ -10,10 +10,24 @@ import { SUMMARY_WINDOW_MS } from '@vintage/coordinator/contract';
 import type { IdentityStore } from '@vintage/identity/commands';
 import type { LootStore } from '@vintage/loot/commands';
 import type { RaidsStore } from '@vintage/raids/commands';
-import { DEFAULT_TIMINGS, type RaidEvent } from '@vintage/raids/contract';
+import { DEFAULT_TIMINGS, type RaidAttendance, type RaidEvent } from '@vintage/raids/contract';
 
 /** How far ahead the coordinator looks; longer than any schedule's lead window (28 days max). */
 export const LOOKAHEAD_MS = 29 * 24 * 60 * 60 * 1000;
+
+/**
+ * A recorded raid's attendance for its summary post: who came, and who stood by and was credited
+ * for it (#222), apart.
+ */
+export function cameAndStoodBy(attendance: Pick<RaidAttendance, 'name' | 'stoodBy'>[]): {
+  attended: string[];
+  stoodBy: string[];
+} {
+  return {
+    attended: attendance.filter((a) => !a.stoodBy).map((a) => a.name),
+    stoodBy: attendance.filter((a) => a.stoodBy).map((a) => a.name),
+  };
+}
 
 export function createTickSource(stores: {
   raids: RaidsStore;
@@ -40,7 +54,7 @@ export function createTickSource(stores: {
       out.push({
         tick: { event, timings: DEFAULT_TIMINGS, signups: [] },
         record,
-        attended: attendance.map((a) => a.name),
+        ...cameAndStoodBy(attendance),
         drops: drops.map(({ itemId, itemName, count, looter }) => ({
           itemId,
           itemName,

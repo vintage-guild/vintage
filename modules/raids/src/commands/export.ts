@@ -213,7 +213,7 @@ export const raidExportRecord = command({
     }
 
     const recordedAt = now();
-    const attendance = attendanceFrom(exported, check);
+    const attendance = attendanceFrom(exported, check, signups);
     const drops = dropsFrom(check, event, signups, recordedAt);
     const completes = isLive(event);
     // Only raids have a progress ledger; a dungeon's bosses aren't on it.

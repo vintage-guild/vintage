@@ -1,6 +1,7 @@
 // Pure: what raid-export-record stores from a checked export (#29). Being in any snapshot counts
-// as attending (decided with #29, 2026-10-29); how much of the night someone was there for is
-// kept alongside, so a loot method can weigh it.
+// as attending (decided with #29, 2026-10-29), and so does standing by on the bench (full credit,
+// decided 2026-10-30, #222); how much of the night someone was there for is kept alongside, so a
+// loot method can weigh it.
 import type { RaidExport } from '@vintage/bridge-format';
 import type { LootDropInput } from '@vintage/loot/contract';
 import { findBoss } from '@vintage/progress/contract';
@@ -28,8 +29,15 @@ function seenAgain(person: RaidAttendanceInput, snapshot: Snapshot, cls: string 
   person.class ??= cls ?? null;
 }
 
-/** Everyone in any snapshot, matched as the check matched them, sorted by name. */
-export function attendanceFrom(exported: RaidExport, check: ExportCheck): RaidAttendanceInput[] {
+/**
+ * Everyone in any snapshot, matched as the check matched them, and everyone the leader confirmed
+ * stood by (matched to their signup by character), sorted by name.
+ */
+export function attendanceFrom(
+  exported: RaidExport,
+  check: ExportCheck,
+  signups: Signup[],
+): RaidAttendanceInput[] {
   const matched = new Map(check.attendees.map((a) => [key(a.name), a]));
   const people = new Map<string, RaidAttendanceInput>();
   for (const snapshot of [...exported.attendance].sort((a, b) => a.at - b.at)) {
@@ -52,7 +60,34 @@ export function attendanceFrom(exported: RaidExport, check: ExportCheck): RaidAt
       });
     }
   }
+  creditStandby(people, exported, check, signups);
   return [...people.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Adds everyone the leader confirmed stood by, unless a snapshot has them already. */
+function creditStandby(
+  people: Map<string, RaidAttendanceInput>,
+  exported: RaidExport,
+  check: ExportCheck,
+  signups: Signup[],
+): void {
+  const signupOf = new Map(signups.map((s) => [s.characterId, s]));
+  for (const standby of check.standby) {
+    // Someone who came in after all is in a snapshot already: they attended.
+    if (people.has(key(standby.name))) continue;
+    const signup = signupOf.get(standby.characterId);
+    people.set(key(standby.name), {
+      name: standby.name,
+      class: null,
+      characterId: signup ? signup.characterId : null,
+      memberId: signup ? signup.memberId : null,
+      snapshots: 0,
+      labels: [],
+      firstSeenAt: exported.exportedAt * 1000,
+      lastSeenAt: exported.exportedAt * 1000,
+      stoodBy: true,
+    });
+  }
 }
 
 /** The export's loot, under the raid's loot method, with the looter's member when matched. */

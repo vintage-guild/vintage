@@ -86,11 +86,13 @@ directly. Maturity: **core**.
   export has no plain `Name` and no second realm's, and is flagged `matchedWithoutRealm`.
   `warnings` (OTHER_GUILD, OTHER_RAID, TIMES_APART: no snapshot from 2 hours before the start to
   10 after) are plain sentences every surface shows as they are. `standby` lists the export's
-  bench people who stood by (#222); `raid-export-record` doesn't credit them yet (#29 decides).
+  bench people who stood by (#222).
   `bosses` groups the export's boss attempts by boss (#221): attempts, kills, wipes, seconds, and
   the first kill.
 - **`raid-export-record`** (officer, destructive, #29) stores what `raid-export-check` matched:
-  everyone in any snapshot attended (`attendance`, with snapshot count, labels, first and last
+  everyone in any snapshot attended, and so did everyone the leader confirmed stood by (full
+  credit, decided 2026-10-30): a `stoodBy` row with 0 snapshots, matched to their signup by
+  character, unless a snapshot has them already (`attendance`, with snapshot count, labels, first and last
   seen), the record (`raidRecords`, one per raid, `exportKey` = exporter@exportedAt), and the
   drops through `RaidsLoot` to the loot module, under the raid's `lootMethodId`. The same export
   again changes nothing; a different one replaces the record, its attendance and drops. It

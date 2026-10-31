@@ -580,6 +580,9 @@ importers:
       '@vintage/loot':
         specifier: workspace:*
         version: link:../loot
+      '@vintage/progress':
+        specifier: workspace:*
+        version: link:../progress
       '@vintage/wow-data':
         specifier: workspace:*
         version: link:../../libs/wow-data

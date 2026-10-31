@@ -1163,7 +1163,7 @@
     },
     {
       "name": "kill-record",
-      "description": "Record a boss kill: the raid, the boss (ids from progress-get), when (defaults to now), and what dropped with its quality. The guild’s first kill of a boss is what the ledger shows; later kills are kept as the kill log.",
+      "description": "Record a boss kill: the raid, the boss (ids from progress-get), when (defaults to now), and what dropped with its quality. The guild’s first kill of a boss is what the ledger shows; later kills are kept as the kill log. The same kill again (same raid, boss and time) changes nothing and answers duplicate: true.",
       "tier": "leader",
       "mutation": true,
       "destructive": false,
@@ -2053,7 +2053,7 @@
     },
     {
       "name": "raid-export-record",
-      "description": "Record a raid export string from the Vintage addon: who attended (anyone in a snapshot) and what dropped, under the raid’s loot method. Completes the raid if it isn’t already. Shows the check first; confirm to record. A different export for the same raid replaces the earlier one; the same export again changes nothing. Pass eventId when the export names no raid.",
+      "description": "Record a raid export string from the Vintage addon: who attended (anyone in a snapshot) and what dropped, under the raid’s loot method. Completes the raid if it isn’t already. For a raid, each boss killed goes on the progress ledger (kill-record), matched by encounter id or name; a kill that matches no boss is listed. Shows the check first; confirm to record. A different export for the same raid replaces the earlier one; the same export again changes nothing. Pass eventId when the export names no raid.",
       "tier": "officer",
       "mutation": true,
       "destructive": true,

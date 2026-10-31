@@ -27,9 +27,11 @@ export type {
   CoordinatorPolls,
   CoordinatorRaids,
   CoordinatorStore,
+  TickDrop,
   TickEvent,
   TickMember,
   TickPorts,
+  TickRecorded,
   TickSource,
   TickState,
 } from '../store';

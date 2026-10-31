@@ -131,6 +131,19 @@ export const recordFields = {
   drops: v.number(),
   recordedAt: v.number(),
   recordedBy: v.string(),
+  /** Optional: records from before boss attempts (#221) read as null. */
+  bosses: v.optional(
+    v.union(
+      v.null(),
+      v.object({
+        killed: v.number(),
+        total: v.union(v.number(), v.null()),
+        wipes: v.number(),
+        firstPullAt: v.number(),
+        lastEndAt: v.number(),
+      }),
+    ),
+  ),
 };
 
 export const attendanceFields = {

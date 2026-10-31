@@ -21,6 +21,7 @@
     "@vintage/guild-kit": "workspace:*",
     "@vintage/identity": "workspace:*",
     "@vintage/loot": "workspace:*",
+    "@vintage/progress": "workspace:*",
     "@vintage/wow-data": "workspace:*",
     "convex": "catalog:",
     "zod": "catalog:"

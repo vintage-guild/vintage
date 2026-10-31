@@ -11,8 +11,8 @@ directly. Maturity: **core**.
 | `src/contract.ts` | Public types (`Schedule`, `RaidEvent`, `Signup`), command names, events. The only import other modules may use |
 | `src/domain/recurrence.ts` | Pure: a weekly recurrence in an IANA zone → start times (DST-safe) |
 | `src/domain/export-check.ts` | Pure: an addon export (`@vintage/bridge-format` `raid-export`) matched to a raid's signups by name, with or without the realm |
-| `src/domain/export-record.ts` | Pure: the attendance and drops `raid-export-record` stores from a checked export |
-| `src/store.ts` | `RaidsStore` port, `RaidsMembers` (what raids reads from identity), `RaidsEventSink`, `RaidsLoot` (where recorded drops go: the loot module), `RaidsDeps`, `command` |
+| `src/domain/export-record.ts` | Pure: the attendance, drops, kills (matched to progress bosses), and boss tally `raid-export-record` stores from a checked export |
+| `src/store.ts` | `RaidsStore` port, `RaidsMembers` (what raids reads from identity), `RaidsEventSink`, `RaidsLoot` (where recorded drops go: the loot module), `RaidsProgress` (where kills go: progress's `kill-record`), `RaidsDeps`, `command` |
 | `src/commands/` | `schedule-*`, `raid-*`, `signup-*`, `roster-*`, `comp-suggest`, `raid-export-check` (read-only: an addon export matched to its raid), `raid-export-record` and `attendance-list` (#29) |
 | `src/testing.ts` | Memory store, members, and a recording event sink, same behavior as the component |
 | `convex/` | The `raids` Convex component: `schedules`, `raidEvents`, `signups`, `raidRecords`, `attendance` tables |
@@ -88,7 +88,7 @@ directly. Maturity: **core**.
   10 after) are plain sentences every surface shows as they are. `standby` lists the export's
   bench people who stood by (#222); `raid-export-record` doesn't credit them yet (#29 decides).
   `bosses` groups the export's boss attempts by boss (#221): attempts, kills, wipes, seconds, and
-  the first kill. Recording first kills on the progress ledger is a follow-up.
+  the first kill.
 - **`raid-export-record`** (officer, destructive, #29) stores what `raid-export-check` matched:
   everyone in any snapshot attended (`attendance`, with snapshot count, labels, first and last
   seen), the record (`raidRecords`, one per raid, `exportKey` = exporter@exportedAt), and the
@@ -98,6 +98,17 @@ directly. Maturity: **core**.
   export with no snapshots (`EXPORT_EMPTY`). Standby counts as attended once the export carries
   it (#222). `attendance-list` (recruit) reads it back. Decisions:
   [post-raid-record](../../docs/features/active/post-raid-record/post-raid-record.plan.md).
+- **Boss kills from the export** (#221): for a `raid` (not a dungeon or other kind), each boss
+  killed is matched to a launch boss with progress's `findBoss` (by name until the encounter
+  ids are filled in after the Forever spike) and sent through `RaidsProgress.recordKill`, which
+  apps/api runs as `kill-record` for the officer recording, at the night's first kill time.
+  The preview lists `kills` (`bossId: null` for no match); the result's `ledger` says what
+  happened to each: `first`, `again`, `duplicate` (kill-record already had that boss at that
+  time, so a later export of the night adds nothing), `unmatched`, or `refused` (e.g. before
+  the raids open). The reasoning names unmatched and refused kills. A refused kill never fails the
+  record. The record keeps `bosses` (`RecordBosses`: bosses killed out of the matched raid's
+  total, wipes, first pull and last attempt end) for the coordinator's summary; null without
+  attempts, and for rows from before #221 (optional in the schema, the mapper fills it).
 - **Leaders override** (tier `leader`): signing up anyone's character, changing locked raids,
   and every `roster-*` command. `raid-cancel` and `roster-remove` are destructive (confirm flow).
 - **Events:** `signup-changed` on every real change (not on a no-op re-answer) and on removal

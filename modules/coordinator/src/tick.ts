@@ -35,6 +35,7 @@ import {
   renderReminder,
 } from './domain/render';
 import { hashServerEvent, renderServerEvent, signupLink } from './domain/server-event';
+import { renderRaidSummary } from './domain/summary';
 import type { TickEvent, TickPorts, TickState } from './store';
 
 /** A claim older than this is treated as abandoned (the tick that took it crashed). */
@@ -61,7 +62,7 @@ type Performed = {
 };
 
 /** Planned actions that edit in place and are never logged. */
-type Unlogged = { kind: 'refresh' | 'server-event-update' };
+type Unlogged = { kind: 'refresh' | 'server-event-update' | 'summary-update' };
 type Logged = Exclude<PlannedAction, Unlogged>;
 
 /** Discord 50013: the bot lacks a permission. For server events that is CREATE_EVENTS. */
@@ -171,22 +172,54 @@ async function perform(
     }
     case 'server-event-cancel':
       return cancelServerEvent(action.serverEvent, ports);
+    case 'summary': {
+      const message = renderRaidSummary(action.recorded);
+      return { ...(await send(message)), renderHash: hashMessage(message) };
+    }
     case 'skip':
       return { status: 'skipped', detail: action.reason };
   }
 }
 
 /** Edit the signup post in place; failures are retried next tick and never logged as actions. */
-async function refresh(
+function refresh(
   action: Extract<PlannedAction, { kind: 'refresh' }>,
   state: TickState,
   ports: TickPorts,
 ): Promise<TickOutcome> {
   const { tick, post } = action;
-  const base = { eventId: tick.event.id, rule: 'refresh', target: post.target };
+  return editPost('refresh', post, renderSignupPost(tick, state.members), state, ports);
+}
+
+/** Edit a raid's summary when a different export replaced its record. */
+function updateSummary(
+  action: Extract<PlannedAction, { kind: 'summary-update' }>,
+  state: TickState,
+  ports: TickPorts,
+): Promise<TickOutcome> {
+  return editPost(
+    'summary-update',
+    action.summary,
+    renderRaidSummary(action.recorded),
+    state,
+    ports,
+  );
+}
+
+/**
+ * Edit a logged message in place and keep its hash. One deleted in Discord is marked failed, so
+ * the next tick posts it again.
+ */
+async function editPost(
+  rule: string,
+  post: CoordinatorAction,
+  message: MessageData,
+  state: TickState,
+  ports: TickPorts,
+): Promise<TickOutcome> {
+  const base = { eventId: post.eventId, rule, target: post.target };
   if (!post.discordMessageId)
     return { ...base, status: 'skipped', detail: 'post has no message id' };
-  const message = renderSignupPost(tick, state.members);
   try {
     await ports.discord.edit(post.target, post.discordMessageId, message);
     await ports.store.setRenderHash(state.guildId, post.id, hashMessage(message));
@@ -250,6 +283,7 @@ async function reportFailure(
     !ops ||
     action.kind === 'refresh' ||
     action.kind === 'server-event-update' ||
+    action.kind === 'summary-update' ||
     action.target === ops
   ) {
     return;
@@ -401,6 +435,7 @@ export async function runTick(ports: TickPorts, guildId: string, now: number): P
     now,
     (tick) => hashMessage(renderSignupPost(tick, state.members)),
     (tick, post) => hashServerEvent(serverEventFor(tick, post, ports)),
+    (recorded) => hashMessage(renderRaidSummary(recorded)),
   );
   const outcomes: TickOutcome[] = [...settled];
   // In order: a raid's post goes out before its reminders, the lock before the final roster.
@@ -410,7 +445,9 @@ export async function runTick(ports: TickPorts, guildId: string, now: number): P
         ? await refresh(action, state, ports)
         : action.kind === 'server-event-update'
           ? await updateServerEvent(action, state, ports)
-          : await execute(action, state, ports, now),
+          : action.kind === 'summary-update'
+            ? await updateSummary(action, state, ports)
+            : await execute(action, state, ports, now),
     );
   }
   outcomes.push(...(await runAssessment(ports, state, config, now)));

@@ -41,7 +41,7 @@ type Ctx = Parameters<typeof identityStore>[0];
 /** `options.agentDelivery`: where agent-ask delivers the answer (a Discord interaction). */
 export const deps = (ctx: Ctx, options: { agentDelivery?: AgentDelivery } = {}): VintageDeps => ({
   ...identityDeps(ctx),
-  ...raidsDeps(ctx),
+  ...raidsDeps(ctx, (caller, name, input) => runAs(ctx, caller, { name, input })),
   ...coordinatorDeps(ctx, (caller, name, input) => runAs(ctx, caller, { name, input })),
   ...pollsDeps(ctx),
   ...progressDeps(ctx),

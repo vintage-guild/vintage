@@ -25,6 +25,11 @@ export interface Boss {
    * say so wherever they show the name.
    */
   datamined: boolean;
+  /**
+   * The game's encounter id (ENCOUNTER_START), which the addon's export carries. Null until the
+   * Forever spike (Nov 4–6) reads them; until then an export's kills match by name.
+   */
+  encounterId: number | null;
 }
 
 export const RAID_IDS = ['barrow-deeps', 'hyjal-summit', 'onyxias-lair'] as const;
@@ -42,11 +47,18 @@ export const RAIDS_OPEN_AT = Date.UTC(2026, 11, 9, 5);
 /** The same day as a calendar date, for labels ("unlocks Dec 9" in every zone). */
 export const RAIDS_OPEN_ON = '2026-12-09';
 
-const boss = (id: string, name: string, order: number, datamined = true): Boss => ({
+const boss = (
+  id: string,
+  name: string,
+  order: number,
+  datamined = true,
+  encounterId: number | null = null,
+): Boss => ({
   id,
   name,
   order,
   datamined,
+  encounterId,
 });
 
 /**
@@ -102,6 +114,32 @@ export const LAUNCH_RAIDS: readonly Raid[] = [
 /** Bosses across the launch raids (8 + 13 + 1). */
 export const LAUNCH_BOSS_COUNT = LAUNCH_RAIDS.reduce((n, r) => n + r.bosses.length, 0);
 
+/** "Del'lynar Songwood" and "dellynar songwood" are the same boss: letters and digits only. */
+const nameKey = (name: string) => name.toLocaleLowerCase('en-US').replace(/[^\p{L}\p{N}]/gu, '');
+
+/**
+ * The launch boss a game encounter is, or null. When both the boss and the encounter have an id,
+ * the id decides; otherwise (every boss until the Forever spike, or an attempt the game kept
+ * secret) the name does, ignoring case and punctuation.
+ */
+export function findBoss(
+  encounter: { encounterId?: number | null; name: string },
+  raids: readonly Raid[] = LAUNCH_RAIDS,
+): { raid: Raid; boss: Boss } | null {
+  const id = encounter.encounterId ?? null;
+  const key = nameKey(encounter.name);
+  for (const raid of raids) {
+    for (const boss of raid.bosses) {
+      const same =
+        boss.encounterId !== null && id !== null
+          ? boss.encounterId === id
+          : nameKey(boss.name) === key;
+      if (same) return { raid, boss };
+    }
+  }
+  return null;
+}
+
 /** One recorded kill. The guild's first kill of a boss is the earliest `killedAt`. */
 export interface Kill {
   id: string;
@@ -115,6 +153,15 @@ export interface Kill {
   /** Member who recorded it, or the surface for system jobs. */
   recordedBy: string;
   recordedAt: number;
+}
+
+/** What `kill-record` answers. */
+export interface KillRecorded {
+  kill: Kill;
+  /** This kill is now the ledger entry for its boss. */
+  first: boolean;
+  /** The same raid, boss, and time was already recorded; nothing changed. */
+  duplicate: boolean;
 }
 
 /** A boss with the guild's first kill, if any. */

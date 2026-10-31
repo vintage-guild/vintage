@@ -265,7 +265,11 @@ export function createStateSource(
   return {
     async load(guildId) {
       const base = state();
-      const eventIds = [...base.events, ...(base.cancelled ?? [])].map((t) => t.event.id);
+      const eventIds = [
+        ...base.events,
+        ...(base.cancelled ?? []),
+        ...(base.recorded ?? []).map((r) => r.tick),
+      ].map((t) => t.event.id);
       return {
         ...base,
         guildId,

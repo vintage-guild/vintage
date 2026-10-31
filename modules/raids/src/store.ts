@@ -1,6 +1,7 @@
-import { commandsFor } from '@vintage/guild-kit';
+import { type Caller, type CommandResult, commandsFor } from '@vintage/guild-kit';
 import type { Character, Member } from '@vintage/identity/contract';
 import type { LootDropInput } from '@vintage/loot/contract';
+import type { KillRecorded, RaidId } from '@vintage/progress/contract';
 import type {
   RaidAttendance,
   RaidAttendanceInput,
@@ -91,11 +92,24 @@ export interface RaidsLoot {
   replaceDrops(guildId: string, eventId: string, drops: LootDropInput[]): Promise<unknown>;
 }
 
+/**
+ * Where raids puts the bosses an export killed (#221). apps/api runs the progress module's
+ * kill-record through the registry as the same caller, so its checks apply; raids never touches
+ * progress's tables (invariant 3).
+ */
+export interface RaidsProgress {
+  recordKill(
+    caller: Caller,
+    kill: { raidId: RaidId; bossId: string; killedAt: number; note: string },
+  ): Promise<CommandResult<KillRecorded>>;
+}
+
 export interface RaidsDeps {
   raids: RaidsStore;
   members: RaidsMembers;
   events: RaidsEventSink;
   raidLoot: RaidsLoot;
+  raidProgress: RaidsProgress;
 }
 
 export const command = commandsFor<RaidsDeps>();

@@ -122,6 +122,13 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           record: {
             addonVersion: string;
             attended: number;
+            bosses?: null | {
+              firstPullAt: number;
+              killed: number;
+              lastEndAt: number;
+              total: number | null;
+              wipes: number;
+            };
             drops: number;
             eventId: string;
             exportKey: string;

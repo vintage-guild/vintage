@@ -33,7 +33,8 @@ export const killRecord = command({
   description:
     'Record a boss kill: the raid, the boss (ids from progress-get), when (defaults to now), ' +
     'and what dropped with its quality. The guild’s first kill of a boss is what the ledger ' +
-    'shows; later kills are kept as the kill log.',
+    'shows; later kills are kept as the kill log. The same kill again (same raid, boss and ' +
+    'time) changes nothing and answers duplicate: true.',
   tier: 'leader',
   mutation: true,
   input: z.object({
@@ -58,8 +59,16 @@ export const killRecord = command({
         'Check the kill time; nothing can die before the raids unlock',
       );
     }
-    const before = firstKills(await deps.progress.listKills(guildId, { raidId }));
-    const previous = before.get(`${raidId}/${bossId}`);
+    const kills = await deps.progress.listKills(guildId, { raidId });
+    const previous = firstKills(kills).get(`${raidId}/${bossId}`);
+    // A re-recorded export (or a retry) carries the same kill; keep the log to one entry for it.
+    const same = kills.find((k) => k.bossId === bossId && k.killedAt === when);
+    if (same) {
+      return success(
+        { kill: same, first: previous?.id === same.id, duplicate: true },
+        { reasoning: `${boss.name} at that time is already recorded; nothing changed` },
+      );
+    }
     const kill = await deps.progress.insertKill({
       guildId,
       raidId,
@@ -72,7 +81,7 @@ export const killRecord = command({
     });
     const first = !previous || when < previous.killedAt;
     return success(
-      { kill, first },
+      { kill, first, duplicate: false },
       {
         reasoning: first
           ? `First kill of ${boss.name} in ${raid.name}`

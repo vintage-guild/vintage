@@ -6,6 +6,7 @@ import type { Poll } from '@vintage/polls/contract';
 import type {
   EventKind,
   RaidEvent,
+  RaidRecord,
   RoleTargets,
   ScheduleTimings,
   Signup,
@@ -89,6 +90,25 @@ export interface TickEvent {
   signups: Signup[];
 }
 
+/** A drop as the raid summary shows it; apps/api reads it from the loot module. */
+export interface TickDrop {
+  itemId: number;
+  itemName: string | null;
+  count: number;
+  looter: string;
+}
+
+/** A raid with a recorded addon export (raid-export-record), for its summary post (#221). */
+export interface TickRecorded {
+  /** The raid; its signups and timings don't matter to the summary. */
+  tick: TickEvent;
+  record: RaidRecord;
+  /** Who came, as the game named them, sorted by name. */
+  attended: string[];
+  /** What dropped, in the order it was looted. */
+  drops: TickDrop[];
+}
+
 /** Everything one tick needs, read in one go. */
 export interface TickState {
   guildId: string;
@@ -103,6 +123,11 @@ export interface TickState {
    * Absent means none (sources that predate server events).
    */
   cancelled?: TickEvent[];
+  /**
+   * Raids that started in the last `SUMMARY_WINDOW_MS` and have a recorded export, for their
+   * summary posts. Absent means none (sources that predate the summary).
+   */
+  recorded?: TickRecorded[];
 }
 
 /** Reads raids, identity, and the coordinator's log. apps/api adapts this over the stores. */

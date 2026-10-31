@@ -306,8 +306,25 @@ keep who attended and what dropped, under the raid's loot method, and close the 
   shows Arcanist Boots → Bramble and Lava Core ×2 → Doran-Stonemaul; `raid-get` says completed.
 - [ ] Recording the same string again changes nothing and says it's already recorded. A different
   export for the raid replaces the first after its own preview.
-- The website button and the Discord summary post come later (#29); until then, run it over
-  `/mcp` or `npx convex run commands:runAsSystem`.
+- The website button comes later (#29); until then, run it over `/mcp` or
+  `npx convex run commands:runAsSystem`. The summary post is J47.
+
+### J47 · The night's first kills land on the ledger, and Random posts the raid summary
+**When** an officer records an export that carries boss attempts (#221), **I (raider) want** the
+night's first kills on the guild's progress ledger and a summary in the signup channel, **so I
+can** see how the night went without anyone typing it up.
+- [ ] Barrow Deeps on Dec 10: the export has a Chillhowl wipe then kill, Elder Tangleclaw down,
+  two Khalith wipes, and a kill of a boss the ledger doesn't know (Gloomfang).
+- [ ] Ana's preview lists Chillhowl and Elder Tangleclaw for the ledger and Gloomfang as matched to
+  no boss. Confirming says "2 first kills on the ledger; 1 kill matched no boss (Gloomfang)".
+- [ ] `progress-get` (any member) has Barrow Deeps at 2/8 with Chillhowl's first kill at the time
+  it died, and Khalith as the next boss.
+- [ ] The next tick posts **Raid summary · …** to the signup channel: "Bosses: 2/8, 3 wipes,
+  1h 24m", then who came and what dropped. Ticking again posts nothing more.
+- [ ] Pasting the same string again changes nothing. A later export of the same night adds no
+  kills (they're already recorded) and the summary is edited in place, not posted again.
+- Matching is by name until the Forever spike (Nov 4–6) reads the encounter ids into
+  `LAUNCH_RAIDS`.
 
 ### J31 · Run a dungeon with the same signups
 **When** a few of us want a dungeon, **I (raid leader) want** the same signup card with a

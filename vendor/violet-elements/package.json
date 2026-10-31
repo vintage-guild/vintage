@@ -9,6 +9,6 @@
   "types": "dist/index.d.ts",
   "dependencies": {
     "@lushly-dev/fast-element": "workspace:*",
-    "@tanstack/virtual-core": "3.13.23"
+    "@tanstack/virtual-core": "3.19.7"
   }
 }

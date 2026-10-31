@@ -65,6 +65,7 @@ const recorded = (overrides: Partial<TickRecorded> = {}): TickRecorded => ({
   tick: { event, timings: DEFAULT_TIMINGS, signups: [] },
   record: record(),
   attended: ['Aeryn', 'Bramble', 'Doran-Stonemaul'],
+  stoodBy: [],
   drops: [
     { itemId: 16_800, itemName: 'Arcanist Boots', count: 1, looter: 'Bramble' },
     { itemId: 17_011, itemName: null, count: 2, looter: 'Doran-Stonemaul' },
@@ -97,6 +98,15 @@ describe('the raid summary', () => {
       },
     ]);
     expect(message.allowed_mentions).toEqual({ parse: [] });
+  });
+
+  it('lists who stood by apart from who came', () => {
+    const [summary] = renderRaidSummary(recorded({ stoodBy: ['Cade', 'Fenna'] })).embeds!;
+    expect(summary!.fields![0]).toEqual({
+      name: 'Came · 3',
+      value: 'Aeryn, Bramble, Doran-Stonemaul',
+    });
+    expect(summary!.fields![1]).toEqual({ name: 'Stood by · 2', value: 'Cade, Fenna' });
   });
 
   it('leaves the bosses out for an export without them, and caps long lists', () => {

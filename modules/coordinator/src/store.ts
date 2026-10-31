@@ -105,6 +105,8 @@ export interface TickRecorded {
   record: RaidRecord;
   /** Who came, as the game named them, sorted by name. */
   attended: string[];
+  /** Who stood by on the bench and was credited for it (#222), sorted by name. */
+  stoodBy: string[];
   /** What dropped, in the order it was looted. */
   drops: TickDrop[];
 }

@@ -283,9 +283,14 @@ export interface RaidAttendance {
   snapshots: number;
   /** The labels of those snapshots (`start`, a boss, `end`, `manual`), unlabelled ones left out. */
   labels: string[];
-  /** UTC epoch ms of the first and last snapshot they were in. */
+  /** UTC epoch ms of the first and last snapshot they were in (the export's time for standby). */
   firstSeenAt: number;
   lastSeenAt: number;
+  /**
+   * Stood by on the bench and counted as attending (full credit, decided 2026-10-30 for #222 and
+   * #29): in no snapshot, so `snapshots` is 0. Absent for everyone else.
+   */
+  stoodBy?: boolean;
 }
 
 /** One person's attendance before it is stored. */

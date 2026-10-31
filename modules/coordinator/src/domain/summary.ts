@@ -55,7 +55,13 @@ const dropLine = (d: TickDrop) =>
   `${d.itemName ?? `Item ${d.itemId}`}${d.count > 1 ? ` ×${d.count}` : ''} → ${d.looter}`;
 
 /** The summary post: bosses first, then the night and whose export it was, who came, the loot. */
-export function renderRaidSummary({ tick, record, attended, drops }: TickRecorded): MessageData {
+export function renderRaidSummary({
+  tick,
+  record,
+  attended,
+  stoodBy,
+  drops,
+}: TickRecorded): MessageData {
   const { event } = tick;
   const description = [
     ...(record.bosses ? [`**${bossesLine(record.bosses)}**`] : []),
@@ -63,6 +69,10 @@ export function renderRaidSummary({ tick, record, attended, drops }: TickRecorde
   ].join('\n');
   const fields: EmbedField[] = [
     { name: `Came · ${attended.length}`, value: listed(attended, CAME_CAP, ', ', 'Nobody') },
+    // Credited as attending, listed apart so the post says who was actually there.
+    ...(stoodBy.length
+      ? [{ name: `Stood by · ${stoodBy.length}`, value: listed(stoodBy, CAME_CAP, ', ', 'Nobody') }]
+      : []),
     {
       name: `Loot · ${drops.length}`,
       value: listed(drops.map(dropLine), LOOT_CAP, '\n', 'Nothing dropped'),

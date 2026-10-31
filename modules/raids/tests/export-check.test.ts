@@ -626,6 +626,33 @@ describe('raid-export-record', () => {
     ]);
   });
 
+  it('credits who stood by as attending, matched to their signup, once each', async () => {
+    const payload = nightExport({
+      standby: [
+        { characterId: 'cade', name: 'Cade', reason: 'benched' },
+        { characterId: 'c_stranger', name: 'Stranger', reason: 'standby' },
+        // Listed as standby but came in after all: one attendance, from the snapshots.
+        { characterId: 'aeryn', name: 'Aeryn', reason: 'standby' },
+      ],
+    });
+    const { result } = await record({ exportString: encode(payload), eventId: raid.id });
+    expect(result.reasoning).toMatch(/^Recorded Molten Core: 5 attended/);
+
+    const { attendance: people } = await attendance();
+    expect(
+      people.map((p) => [p.name, p.characterId, p.memberId, p.snapshots, p.stoodBy ?? false]),
+    ).toEqual([
+      ['Aeryn', 'aeryn', 'aeryn', 3, false],
+      ['Bramble', 'bram', 'bram', 3, false],
+      ['Cade', 'cade', 'cade', 0, true],
+      ['Doran-Stonemaul', null, null, 2, false],
+      ['Stranger', null, null, 0, true],
+    ]);
+    // Cade's credit reaches the raid's attendees like anyone who came.
+    const completed = raidEvents().find((e) => e.type === 'raid-completed');
+    expect(completed?.payload.attendees).toContainEqual({ memberId: 'cade', characterId: 'cade' });
+  });
+
   it('uses the raid the export names when the officer names none', async () => {
     const { result } = await record({
       exportString: encode(nightExport({ guildId: G, eventId: raid.id })),

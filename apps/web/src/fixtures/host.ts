@@ -77,14 +77,13 @@ export interface FixtureHost {
 }
 
 /**
- * `now` is the registry's clock: `FIXTURE_NOW` by default, so the fixture dates stay ahead of it
- * whatever today is; a test sets it past the raids' unlock to record kills.
+ * `now` is the registry's clock: the fixture world's (FIXTURE_NOW) by default, since the fixture
+ * raids and poll have fixed dates; a test sets it past the raids' unlock to record kills.
  */
 export function createFixtureHost(
   guildId = FIXTURE_GUILD_ID,
   options: { now?: () => number } = {},
 ): FixtureHost {
-  const now = options.now ?? (() => FIXTURE_NOW);
   const roleRankMap: RoleRankMap = {};
   for (const [rank, id] of Object.entries(ROLE_IDS)) roleRankMap[id] = rank as GuildRank;
   const { identity } = createMemoryIdentityDeps(roleRankMap, guildId);
@@ -222,7 +221,7 @@ export function createFixtureHost(
             polls: { get: (g, id) => polls.getPoll(g, id) },
           },
           g,
-          now(),
+          Date.now(),
         );
       },
     },
@@ -239,7 +238,7 @@ export function createFixtureHost(
       ...agentCommands,
     ],
     confirmSecret: 'development-fixtures',
-    now,
+    now: options.now ?? (() => FIXTURE_NOW),
   });
 
   async function run<T>(caller: Caller, name: string, input: unknown = {}) {

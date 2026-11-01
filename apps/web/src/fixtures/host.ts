@@ -38,7 +38,7 @@ import { type SiteDeps, siteCommands } from '@vintage/site/commands';
 import { createMemorySiteStore } from '@vintage/site/testing';
 import type { CommandClient } from '@vintage/ui-kit';
 import { createFixtureAgent } from './agent';
-import { FIXTURE_GUILD_ID, ROLE_IDS } from './data';
+import { FIXTURE_GUILD_ID, FIXTURE_NOW, ROLE_IDS } from './data';
 
 export type FixtureDeps = IdentityDeps &
   RaidsDeps &
@@ -77,8 +77,8 @@ export interface FixtureHost {
 }
 
 /**
- * `now` is the registry's clock (the real one by default); a test sets it past the raids' unlock
- * to record kills.
+ * `now` is the registry's clock: the fixture world's (FIXTURE_NOW) by default, since the fixture
+ * raids and poll have fixed dates; a test sets it past the raids' unlock to record kills.
  */
 export function createFixtureHost(
   guildId = FIXTURE_GUILD_ID,
@@ -238,7 +238,7 @@ export function createFixtureHost(
       ...agentCommands,
     ],
     confirmSecret: 'development-fixtures',
-    ...(options.now ? { now: options.now } : {}),
+    now: options.now ?? (() => FIXTURE_NOW),
   });
 
   async function run<T>(caller: Caller, name: string, input: unknown = {}) {

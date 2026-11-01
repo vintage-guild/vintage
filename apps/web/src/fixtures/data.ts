@@ -29,6 +29,12 @@ export interface FixtureMember {
 /** The time zone in the signed-in fixture member's profile (who that is: persona.ts). */
 export const FIXTURE_TIMEZONE = 'America/New_York';
 
+/**
+ * The fixture guild's clock: the Monday the main poll opens, before the first raids. The dates
+ * below are written for it, so the dev site and tests read the same week whatever today is.
+ */
+export const FIXTURE_NOW = Date.parse('2026-10-26T12:00:00-04:00');
+
 export const MEMBERS: readonly FixtureMember[] = [
   { name: 'Stridulent', class: 'warrior', spec: 'protection', role: 'tank', rank: 'officer' },
   { name: 'Aeryn', class: 'priest', spec: 'holy', role: 'healer', rank: 'officer' },

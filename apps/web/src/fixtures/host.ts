@@ -38,7 +38,7 @@ import { type SiteDeps, siteCommands } from '@vintage/site/commands';
 import { createMemorySiteStore } from '@vintage/site/testing';
 import type { CommandClient } from '@vintage/ui-kit';
 import { createFixtureAgent } from './agent';
-import { FIXTURE_GUILD_ID, ROLE_IDS } from './data';
+import { FIXTURE_GUILD_ID, FIXTURE_NOW, ROLE_IDS } from './data';
 
 export type FixtureDeps = IdentityDeps &
   RaidsDeps &
@@ -77,13 +77,14 @@ export interface FixtureHost {
 }
 
 /**
- * `now` is the registry's clock (the real one by default); a test sets it past the raids' unlock
- * to record kills.
+ * `now` is the registry's clock: `FIXTURE_NOW` by default, so the fixture dates stay ahead of it
+ * whatever today is; a test sets it past the raids' unlock to record kills.
  */
 export function createFixtureHost(
   guildId = FIXTURE_GUILD_ID,
   options: { now?: () => number } = {},
 ): FixtureHost {
+  const now = options.now ?? (() => FIXTURE_NOW);
   const roleRankMap: RoleRankMap = {};
   for (const [rank, id] of Object.entries(ROLE_IDS)) roleRankMap[id] = rank as GuildRank;
   const { identity } = createMemoryIdentityDeps(roleRankMap, guildId);
@@ -221,7 +222,7 @@ export function createFixtureHost(
             polls: { get: (g, id) => polls.getPoll(g, id) },
           },
           g,
-          Date.now(),
+          now(),
         );
       },
     },
@@ -238,7 +239,7 @@ export function createFixtureHost(
       ...agentCommands,
     ],
     confirmSecret: 'development-fixtures',
-    ...(options.now ? { now: options.now } : {}),
+    now,
   });
 
   async function run<T>(caller: Caller, name: string, input: unknown = {}) {

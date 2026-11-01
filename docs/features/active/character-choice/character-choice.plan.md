@@ -1,7 +1,7 @@
 # Character choice: which character a raider brings
 
-**Status:** active (2026-10-27): §1–3 built and tested (#148, #149), not yet deployed; §4 to
-do. **Owner modules:** raids (signups), identity (characters).
+**Status:** active (2026-11-01): §1–3 built, merged and deployed (#148, #149); §4 is #240, and
+learning from addon attendance is #185. A live Discord check is #241. **Owner modules:** raids (signups), identity (characters).
 
 Raiders and flex raiders often bring a different character, class or spec from one raid to the next: a
 main on Molten Core, an alt on the Rage Fire Chasm run, or the same druid as a tank one night and
@@ -200,4 +200,5 @@ None open; the four from the proposal are decisions 5–8.
   removing `defaultCharacterId` (`breaking-contract`), an optional role on characters and
   signups (Role menu and site control), Edit on the Characters page, the main before history in
   `signup-suggest`, and jobs J40 and J41.
-- [ ] **The agent** (§4): `signup-suggest` and `signup-set` with `spec` and `role` in the agent's tools.
+- [ ] **The agent** (§4, #240): `signup-suggest` and `signup-set` with `spec` and `role` in the agent's tools.
+- [ ] **Learn from addon attendance** (#185): count the character that actually came.

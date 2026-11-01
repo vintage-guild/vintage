@@ -18,6 +18,28 @@ import type { FixtureHost } from './host';
 const discordIdOf = (m: FixtureMember) =>
   `2${String([...m.name].reduce((n, c) => n * 31 + c.charCodeAt(0), 7)).padStart(16, '0')}`;
 
+const DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * The fixture dates are written for the week the fixtures were made. Moving every one forward
+ * by the same whole number of weeks keeps them in the future as the calendar moves on (the poll
+ * at least a day from closing) while each keeps its weekday and time. Only the date part of the
+ * ISO string moves; the time and offset stay as written, so a moved date across a daylight
+ * saving change is an hour off, which is fine for fixtures.
+ */
+export function fixtureDates(now: number) {
+  const dated = [POLL.closesAt, ...RAIDS.map((r) => r.startsAt)].map((iso) => Date.parse(iso));
+  const behind = now + DAY - Math.min(...dated);
+  const weeks = behind > 0 ? Math.ceil(behind / (7 * DAY)) : 0;
+  const move = (iso: string) => {
+    const [, y, m, d, rest] = /^(\d{4})-(\d{2})-(\d{2})(T.*)$/.exec(iso) ?? [];
+    if (!rest) throw new Error(`fixture date ${iso} is not an ISO date-time`);
+    const date = new Date(Date.UTC(Number(y), Number(m) - 1, Number(d) + weeks * 7));
+    return `${date.toISOString().slice(0, 10)}${rest}`;
+  };
+  return { weeks, move };
+}
+
 async function must<T>(promise: Promise<{ success: boolean; data?: T; error?: unknown }>) {
   const result = await promise;
   if (!result.success) throw new Error(`fixture seed failed: ${JSON.stringify(result.error)}`);
@@ -25,6 +47,7 @@ async function must<T>(promise: Promise<{ success: boolean; data?: T; error?: un
 }
 
 export async function seedFixtures(host: FixtureHost): Promise<void> {
+  const { move } = fixtureDates(host.now());
   const members = new Map<string, Member>();
   const characters = new Map<string, string>();
   const memberNamed = (name: string) => {
@@ -63,7 +86,7 @@ export async function seedFixtures(host: FixtureHost): Promise<void> {
         name: raid.name,
         instance: raid.instance,
         size: raid.size,
-        startsAt: raid.startsAt,
+        startsAt: move(raid.startsAt),
         notes: raid.notes,
       }),
     );
@@ -102,7 +125,7 @@ export async function seedFixtures(host: FixtureHost): Promise<void> {
       description: POLL.description,
       options: [...POLL.options],
       eligibleTier: 'raider',
-      closesAt: POLL.closesAt,
+      closesAt: move(POLL.closesAt),
       tags: ['off-night'],
     }),
   );
@@ -149,6 +172,7 @@ async function seedMorePolls(
   host: FixtureHost,
   memberNamed: (name: string) => Member,
 ): Promise<void> {
+  const { move } = fixtureDates(host.now());
   for (const extra of MORE_POLLS) {
     const creator = host.callerFor(memberNamed(extra.createdBy));
     const made = await must<Poll>(
@@ -159,7 +183,7 @@ async function seedMorePolls(
         eligibleTier: extra.eligibleTier,
         anonymous: extra.anonymous ?? false,
         resultsVisible: extra.resultsVisible ?? 'live',
-        closesAt: POLL.closesAt,
+        closesAt: move(POLL.closesAt),
       }),
     );
     for (const [name, picks] of extra.votes) {

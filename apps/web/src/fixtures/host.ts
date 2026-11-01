@@ -74,6 +74,8 @@ export interface FixtureHost {
   /** A member by display name, once seeded. */
   member(displayName: string): Promise<Member | null>;
   system: Caller;
+  /** The registry's clock: `options.now`, or the real one. The seed dates itself from it. */
+  now(): number;
 }
 
 /**
@@ -273,6 +275,7 @@ export function createFixtureHost(
       identity
         .listMembers(guildId)
         .then((all) => all.find((m) => m.displayName === displayName) ?? null),
+    now: options.now ?? Date.now,
   };
 }
 

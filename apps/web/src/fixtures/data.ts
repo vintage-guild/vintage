@@ -5,6 +5,13 @@ import type { Role, WowClass } from '@vintage/wow-data';
 
 export const FIXTURE_GUILD_ID = 'guild-fixtures';
 
+/**
+ * The fixture world's clock: Mon 26 Oct 2026, 12:00 New York, the week the poll opens. The raids
+ * and the poll below are dated after it, and the host's commands run on it, so seeding never
+ * fails because those dates have passed in real time.
+ */
+export const FIXTURE_NOW = Date.parse('2026-10-26T12:00:00-04:00');
+
 /** Discord role ids for the example guild, one per rank, mirroring the real rank roles. */
 export const ROLE_IDS: Record<Exclude<GuildRank, 'friend'>, string> = {
   officer: '300000000000000001',

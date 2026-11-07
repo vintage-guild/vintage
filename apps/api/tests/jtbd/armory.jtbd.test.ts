@@ -41,6 +41,14 @@ const ARMORY: Record<string, unknown> = {
   'pipwick-thornbury/character-media': {
     assets: [{ key: 'avatar', value: 'https://render.worldofwarcraft.com/us/pipwick-avatar.jpg' }],
   },
+  'pipwick-thornbury/specializations': {
+    specialization_groups: [
+      {
+        is_active: true,
+        specializations: [{ specialization: { name: 'Frost', id: 64 }, spent_points: 17 }],
+      },
+    ],
+  },
 };
 
 function fakeBlizzard() {
@@ -126,6 +134,7 @@ describe('JTBD: armory', () => {
         level: 42,
         className: 'Mage',
         guildName: 'Vintage',
+        activeSpec: 'Frost',
         equippedItemLevel: 39,
       },
       equipment: [{ slot: 'CHEST', name: 'Blue Overalls', quality: 'rare', itemLevel: 40 }],

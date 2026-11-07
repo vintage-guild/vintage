@@ -445,6 +445,22 @@ describe('fetchArmory', () => {
         { key: 'avatar', value: 'https://render.example/avatar.jpg' },
       ],
     }),
+    // As the live API answers it (US, Nov 7 2026): talent trees with points in the active group.
+    characterSpecializations: async () => ({
+      specialization_groups: [
+        {
+          is_active: false,
+          specializations: [{ specialization: { name: 'Holy' }, spent_points: 30 }],
+        },
+        {
+          is_active: true,
+          specializations: [
+            { specialization: { name: 'Holy' }, spent_points: 5 },
+            { specialization: { name: 'Retribution' }, spent_points: 31 },
+          ],
+        },
+      ],
+    }),
     ...over,
   });
 
@@ -501,8 +517,29 @@ describe('fetchArmory', () => {
     expect(result).toMatchObject({ status: 'found', avatarUrl: null });
   });
 
-  const FOUND_FROM_API: ArmoryFetchResult = {
+  it('takes the active spec from the active group’s tree with the most points', async () => {
+    expect(
+      await fetchArmory(
+        client({ characterSpecializations: async () => ({ specialization_groups: [] }) }),
+        'Judgement',
+        'Judy',
+      ),
+    ).toMatchObject({ profile: { activeSpec: null } });
+    const failing = await fetchArmory(
+      client({
+        characterSpecializations: async () => {
+          throw new ForeverApiError('http', '/specializations', 500, 'down');
+        },
+      }),
+      'Judgement',
+      'Judy',
+    );
+    expect(failing).toMatchObject({ status: 'found', profile: { activeSpec: null } });
+  });
+
+  const FOUND_FROM_API = {
     ...FOUND,
+    profile: { ...(FOUND as { profile: object }).profile, activeSpec: 'Retribution' },
     avatarUrl: 'https://render.example/avatar.jpg',
   } as ArmoryFetchResult;
 });

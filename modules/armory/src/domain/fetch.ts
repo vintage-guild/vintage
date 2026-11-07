@@ -1,9 +1,11 @@
 // One armory fetch, pure but for the injected client: the profile decides whether the character
-// is there; equipment and media are extras, so either failing still records the profile.
+// is there; equipment, media, and specializations are extras, so any of them failing still
+// records the profile.
 import {
   type CharacterEquipment,
   type CharacterMedia,
   type CharacterProfile,
+  type CharacterSpecializations,
   type ForeverApi,
   ForeverApiError,
 } from '@vintage/forever-api';
@@ -11,7 +13,7 @@ import type { ArmoryFetchResult, ArmoryItem, ArmoryProfile } from '../contract';
 
 export type ArmoryClient = Pick<
   ForeverApi,
-  'characterProfile' | 'characterEquipment' | 'characterMedia'
+  'characterProfile' | 'characterEquipment' | 'characterMedia' | 'characterSpecializations'
 >;
 
 /** Items a character can wear at once; more is a bad response. */
@@ -44,6 +46,22 @@ export function toProfile(p: CharacterProfile, surname: string): ArmoryProfile {
   };
 }
 
+/**
+ * The active spec from talent trees: in the active group, the tree with the most points spent.
+ * Forever's profile has no `active_spec` (Nov 2026), but `/specializations` does say this.
+ */
+export const toActiveSpec = (s: CharacterSpecializations | null): string | null => {
+  const groups = s?.specialization_groups ?? [];
+  const group = groups.find((g) => g.is_active) ?? (groups.length === 1 ? groups[0] : undefined);
+  let best: { name: string; points: number } | null = null;
+  for (const tree of group?.specializations ?? []) {
+    const name = tree.specialization?.name ?? tree.specialization_name;
+    const points = tree.spent_points ?? 0;
+    if (name && (!best || points > best.points)) best = { name, points };
+  }
+  return best?.name ?? null;
+};
+
 export const toItems = (e: CharacterEquipment | null): ArmoryItem[] =>
   (e?.equipped_items ?? []).slice(0, MAX_EQUIPPED).map((i) => ({
     slot: i.slot.type,
@@ -73,13 +91,15 @@ export async function fetchArmory(
     return { status: 'error', error: describe(err) };
   }
   if (!profile) return { status: 'not-found' };
-  const [equipment, media] = await Promise.all([
+  const [equipment, media, specs] = await Promise.all([
     client.characterEquipment(name, surname).catch(() => null),
     client.characterMedia(name, surname).catch(() => null),
+    client.characterSpecializations(name, surname).catch(() => null),
   ]);
+  const mapped = toProfile(profile, surname);
   return {
     status: 'found',
-    profile: toProfile(profile, surname),
+    profile: { ...mapped, activeSpec: mapped.activeSpec ?? toActiveSpec(specs) },
     equipment: toItems(equipment),
     avatarUrl: toAvatar(media),
   };

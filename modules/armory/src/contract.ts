@@ -23,7 +23,11 @@ export interface ArmoryProfile {
   faction: string | null;
   guildName: string | null;
   guildSlug: string | null;
-  /** Absent on Forever for now (Nov 2026); the member's registered spec stays the source. */
+  /**
+   * The talent tree with the most points in the active group (Forever's profile has no
+   * `active_spec`; `/specializations` has the trees). The registered spec stays the source for
+   * raid roles; this is what the armory says.
+   */
   activeSpec: string | null;
   equippedItemLevel: number | null;
   averageItemLevel: number | null;

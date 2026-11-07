@@ -18,5 +18,6 @@ export type {
   CharacterEquipment,
   CharacterMedia,
   CharacterProfile,
+  CharacterSpecializations,
   GuildRoster,
 } from './schemas';

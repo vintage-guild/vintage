@@ -37,3 +37,23 @@ treat each as unverified until a live call here confirms it.
 | US equipment works with client credentials; EU character endpoints 404'd for one developer on Nov 6 | [forum 60355](https://us.forums.blizzard.com/en/blizzard/t/wow-forever-eu-all-character-profile-endpoints-return-404/60355) |
 
 When a live call disagrees, fix the schema here and note it in the table.
+
+## Checked live (US, 2026-11-07)
+
+`apps/api/scripts/armory-probe.ts` against a level 20 character in the guild, with the Vintage
+Guild client's credentials:
+
+| Endpoint (profile namespace) | Result |
+|---|---|
+| `/token` (client credentials) | ✅ |
+| `/profile/wow/character/{name}-{surname}` | ✅ 200; `surname`, `ruleset`, `guild.slug`; no `realm`, no `active_spec` |
+| `…/equipment` | ✅ 200; `equipped_items[]` with `slot.type`, `quality.type`, `name`, `level.value` |
+| `…/character-media` | ✅ 200; assets `main-raw`, `main-sd-raw`, `avatar`, `avatar-sd` on `render.worldofwarcraft.com/forever-us/…` |
+| `…/specializations` | ✅ 200; talent trees: the active group lists trees with `specialization.name` and `spent_points` |
+| `…/statistics`, `…/professions`, `…/status` | ✅ 200 |
+| `…/encounters/raids` | ✅ 200, empty before the raids open (Dec 9) |
+| `/data/wow/guild/{slug}/roster` | ✅ 200; members with `name`, `surname`, `slug`, `level`, `playable_class.id`, `rank` |
+| An unknown `{name}-{surname}` | 404 on every endpoint |
+
+Run it again with `BLIZZARD_CLIENT_ID=… BLIZZARD_CLIENT_SECRET=… pnpm --filter @vintage/api exec
+tsx scripts/armory-probe.ts <Name> <Surname> [region] [--raw]`.

@@ -1,8 +1,9 @@
 # Armory
 
 Status: first slice built and tested (`libs/forever-api`, `modules/armory`, the fetch action and
-cron in `apps/api`). Not deployed; never called against the live Blizzard API (no client
-credentials yet). No website or Discord surface yet: commands only (site, `/mcp`, agent).
+cron in `apps/api`), and J49 run live on the local backend against Blizzard US
+([run](../../../jtbd/runs/2026-11-07.md)). Not deployed: production needs the `BLIZZARD_*` env.
+No website or Discord surface yet: commands only (site, `/mcp`, agent).
 
 ## Why
 
@@ -32,9 +33,9 @@ Config (Convex env): `BLIZZARD_CLIENT_ID`, `BLIZZARD_CLIENT_SECRET`, `BLIZZARD_R
 
 ## Not in this slice (follow-ups)
 
-- **First live call:** register a client on develop.battle.net, set the env, link a real
-  character, and run J49's live checklist. Confirm the region, the slug for names with accents,
-  and which endpoints answer (EU 404s were reported on Nov 6).
+- **Production:** set `BLIZZARD_CLIENT_ID`, `BLIZZARD_CLIENT_SECRET`, and `BLIZZARD_REGION=us`
+  in the production Convex env (the Vintage Guild client on develop.battle.net). Still unchecked:
+  the slug for names with accents.
 - **Website:** a surname field and the armory card (level, ilvl, portrait, gear) on the
   characters page; ilvl on rosters. Discord: an `/random character armory` view.
 - **Surname in identity:** the reconcile branch's live check covers first/last names from the
@@ -55,3 +56,4 @@ Config (Convex env): `BLIZZARD_CLIENT_ID`, `BLIZZARD_CLIENT_SECRET`, `BLIZZARD_R
 | 2026-11-07 | Our own small client with Zod-checked responses, not `@pinta365/blizzard_api`: the API is undocumented and moving, and we need four endpoints. |
 | 2026-11-07 | A link is a member's claim, not proof of ownership; ownership waits for Battle.net sign-in. |
 | 2026-11-07 | Found replaces the stored profile; not-found and errors keep the last good one. |
+| 2026-11-07 | The guild plays on US; the active spec comes from `/specializations` (the tree with the most points), since Forever's profile has none. |

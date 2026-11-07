@@ -8,9 +8,11 @@ import {
   type CharacterEquipment,
   type CharacterMedia,
   type CharacterProfile,
+  type CharacterSpecializations,
   characterEquipmentSchema,
   characterMediaSchema,
   characterProfileSchema,
+  characterSpecializationsSchema,
   type GuildRoster,
   guildRosterSchema,
   tokenSchema,
@@ -79,6 +81,7 @@ export interface ForeverApi {
   characterProfile(name: string, surname: string): Promise<CharacterProfile | null>;
   characterEquipment(name: string, surname: string): Promise<CharacterEquipment | null>;
   characterMedia(name: string, surname: string): Promise<CharacterMedia | null>;
+  characterSpecializations(name: string, surname: string): Promise<CharacterSpecializations | null>;
   guildRoster(slug: string): Promise<GuildRoster | null>;
 }
 
@@ -170,6 +173,8 @@ export function createForeverApi(options: ForeverApiOptions): ForeverApi {
       get(character(name, surname, '/equipment'), characterEquipmentSchema),
     characterMedia: (name, surname) =>
       get(character(name, surname, '/character-media'), characterMediaSchema),
+    characterSpecializations: (name, surname) =>
+      get(character(name, surname, '/specializations'), characterSpecializationsSchema),
     guildRoster: (slug) =>
       get(`/data/wow/guild/${encodeURIComponent(slug)}/roster`, guildRosterSchema),
   };

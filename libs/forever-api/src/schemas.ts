@@ -48,6 +48,31 @@ export const characterMediaSchema = z.object({
 });
 export type CharacterMedia = z.infer<typeof characterMediaSchema>;
 
+/**
+ * `/profile/wow/character/{name}-{surname}/specializations`. Forever uses talent trees: the active
+ * group lists the trees with points spent (live, US, Nov 7 2026: one group, one tree,
+ * `specialization: { name: 'Protection' }`, `spent_points: 11`).
+ */
+export const characterSpecializationsSchema = z.object({
+  specialization_groups: z
+    .array(
+      z.object({
+        is_active: z.boolean().optional(),
+        specializations: z
+          .array(
+            z.object({
+              specialization: z.object({ name: z.string().optional() }).optional(),
+              specialization_name: z.string().optional(),
+              spent_points: z.number().optional(),
+            }),
+          )
+          .default([]),
+      }),
+    )
+    .default([]),
+});
+export type CharacterSpecializations = z.infer<typeof characterSpecializationsSchema>;
+
 /** `/data/wow/guild/{slug}/roster` (profile namespace; Forever guilds have no realm). */
 export const guildRosterSchema = z.object({
   guild: z.object({ name: z.string(), slug: z.string().optional() }).optional(),

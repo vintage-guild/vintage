@@ -118,6 +118,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             memberId: string | null;
             name: string;
             snapshots: number;
+            stoodBy?: boolean;
           }>;
           record: {
             addonVersion: string;

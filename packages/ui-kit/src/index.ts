@@ -28,6 +28,14 @@ export {
 } from './elements/applications-desk';
 export { type OwnApplication, VintageApplyForm } from './elements/apply-form';
 export {
+  type ArmoryCardCharacter,
+  type ArmoryCardEntry,
+  type ArmoryCardItem,
+  ago,
+  slotLabel,
+  VintageArmoryCard,
+} from './elements/armory-card';
+export {
   type LedgerArt,
   type LedgerBoss,
   type LedgerKill,

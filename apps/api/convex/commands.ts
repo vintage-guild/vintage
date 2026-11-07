@@ -16,6 +16,7 @@ import { internalMutation, mutation, query } from './_generated/server';
 import {
   agentDeps,
   applicationsDeps,
+  armoryDeps,
   coordinatorDeps,
   identityDeps,
   identityStore,
@@ -55,6 +56,7 @@ export const deps = (ctx: Ctx, options: { agentDelivery?: AgentDelivery } = {}):
   ...applicationsDeps(ctx),
   ...insightsDeps(ctx),
   ...lootDeps(ctx),
+  ...armoryDeps(ctx),
 });
 
 /** The website caller: the signed-in member from the token's Discord id (convex/auth.ts), else public. */

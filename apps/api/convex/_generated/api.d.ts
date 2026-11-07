@@ -10,6 +10,7 @@
 
 import type * as agent from "../agent.js";
 import type * as applications from "../applications.js";
+import type * as armory from "../armory.js";
 import type * as auth from "../auth.js";
 import type * as commands from "../commands.js";
 import type * as coordinator from "../coordinator.js";
@@ -34,6 +35,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   agent: typeof agent;
   applications: typeof applications;
+  armory: typeof armory;
   auth: typeof auth;
   commands: typeof commands;
   coordinator: typeof coordinator;
@@ -88,4 +90,5 @@ export declare const components: {
   applications: import("@vintage/applications/_generated/component.js").ComponentApi<"applications">;
   insights: import("@vintage/insights/_generated/component.js").ComponentApi<"insights">;
   loot: import("@vintage/loot/_generated/component.js").ComponentApi<"loot">;
+  armory: import("@vintage/armory/_generated/component.js").ComponentApi<"armory">;
 };

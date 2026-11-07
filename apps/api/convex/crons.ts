@@ -15,4 +15,7 @@ crons.interval('poll-sweep', { minutes: 5 }, internal.polls.sweep);
 /** Delete idle Agents API sessions and close expired confirmations (PLAN §3.10, #129). */
 crons.interval('agent-sweep', { hours: 1 }, internal.agent.sweep);
 
+/** Ask the Forever armory again about linked characters not checked in 12 hours (armory.ts). */
+crons.interval('armory-sweep', { hours: 1 }, internal.armory.sweep);
+
 export default crons;

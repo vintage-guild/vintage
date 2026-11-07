@@ -29,9 +29,9 @@ Start from the command, not the UI. Business logic belongs in module commands an
 
 | Folder | Holds |
 |---|---|
-| `libs/` | Pure TS, platform-free (`wow-data`, `comp-solver`, `discord-kit`, `design-tokens`, `bridge-format`) |
+| `libs/` | Pure TS, platform-free (`wow-data`, `comp-solver`, `discord-kit`, `forever-api`, `design-tokens`, `bridge-format`) |
 | `packages/` | Platform glue (`guild-kit`, `testing`, `config`, `ui-kit` web components, `web-session`, `agent-runtime`, `decisions`) |
-| `modules/` | Features with their own data (`identity`, `raids`, `coordinator`, `polls`, `progress`, `site`, `agent`, `applications`, `insights`) |
+| `modules/` | Features with their own data (`identity`, `raids`, `coordinator`, `polls`, `progress`, `site`, `agent`, `applications`, `insights`, `loot`, `armory`) |
 | `apps/` | Composition and transport (`api` on Convex, `gateway` on Vercel, `web` the website) |
 | `addon/Vintage/` | The WoW: Forever addon (Lua 5.1; its own validator and busted specs, [AGENTS.md](addon/Vintage/AGENTS.md)) |
 | `vendor/` | Built FAST-AF packages, pinned; never edit ([VENDORED.md](vendor/VENDORED.md)) |

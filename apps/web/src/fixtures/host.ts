@@ -6,6 +6,8 @@ import { type AgentDeps, agentCommands } from '@vintage/agent/commands';
 import { createMemoryAgentStore } from '@vintage/agent/testing';
 import { type ApplicationsDeps, applicationsCommands } from '@vintage/applications/commands';
 import { createMemoryApplicationsStore } from '@vintage/applications/testing';
+import { type ArmoryDeps, armoryCommands, fetchArmory } from '@vintage/armory/commands';
+import { createMemoryArmoryStore } from '@vintage/armory/testing';
 import {
   type CoordinatorDeps,
   coordinatorCommands,
@@ -38,6 +40,7 @@ import { type SiteDeps, siteCommands } from '@vintage/site/commands';
 import { createMemorySiteStore } from '@vintage/site/testing';
 import type { CommandClient } from '@vintage/ui-kit';
 import { createFixtureAgent } from './agent';
+import { createFixtureArmoryClient } from './armory';
 import { FIXTURE_GUILD_ID, FIXTURE_NOW, ROLE_IDS } from './data';
 
 export type FixtureDeps = IdentityDeps &
@@ -47,7 +50,8 @@ export type FixtureDeps = IdentityDeps &
   CoordinatorDeps &
   SiteDeps &
   ApplicationsDeps &
-  AgentDeps;
+  AgentDeps &
+  ArmoryDeps;
 
 /** How far ahead the coordinator looks, as in apps/api. */
 const LOOKAHEAD_MS = 29 * 24 * 60 * 60 * 1000;
@@ -73,6 +77,10 @@ export interface FixtureHost {
   callerFor(member: Member): Caller;
   /** A member by display name, once seeded. */
   member(displayName: string): Promise<Member | null>;
+  /** Resolves once every armory fetch asked for so far has been recorded. */
+  armoryIdle(): Promise<void>;
+  /** How long a fake armory fetch takes, like the real one's round trip (0 while seeding). */
+  armoryDelayMs: number;
   system: Caller;
 }
 
@@ -125,6 +133,21 @@ export function createFixtureHost(
   };
 
   const polls = createMemoryPollsStore();
+  // The armory: the real commands and store, with a fake Blizzard over the example characters.
+  const armory = createMemoryArmoryStore();
+  const armoryClient = createFixtureArmoryClient(() => identity.listCharacters(guildId));
+  let armoryJobs: Promise<void> = Promise.resolve();
+  const fetchLinks = async (g: string, ids: readonly string[]) => {
+    for (const id of ids) {
+      const link = await armory.getLink(g, id);
+      if (!link) continue;
+      const result = await fetchArmory(armoryClient, link.name, link.surname);
+      await registry.execute(
+        { name: 'armory-record', input: { linkId: id, slug: link.slug, result }, caller: system },
+        deps,
+      );
+    }
+  };
   // Random in dev: the real agent commands and ledger, with a fake turn instead of OpenAI.
   const agent = createMemoryAgentStore();
   const fixtureAgent = createFixtureAgent<FixtureDeps>({
@@ -134,6 +157,29 @@ export function createFixtureHost(
     member: (g, id) => identity.getMember(g, id),
   });
   const deps: FixtureDeps = {
+    armory,
+    armoryCharacters: {
+      getCharacter: async (g, id) => {
+        const c = await identity.getCharacter(g, id);
+        return c && { id: c.id, memberId: c.memberId, name: c.name, class: c.class };
+      },
+      listCharacters: async (g) =>
+        (await identity.listCharacters(g)).map((c) => ({
+          id: c.id,
+          memberId: c.memberId,
+          name: c.name,
+          class: c.class,
+        })),
+    },
+    // apps/api schedules a Convex action; here the fetch runs after a pause, off the command.
+    armoryEffects: {
+      fetch: async (g, ids) => {
+        const delay = host.armoryDelayMs;
+        armoryJobs = armoryJobs.then(() =>
+          new Promise((done) => setTimeout(done, delay)).then(() => fetchLinks(g, ids)),
+        );
+      },
+    },
     agent,
     agentQueue: fixtureAgent,
     agentRunner: {
@@ -236,6 +282,7 @@ export function createFixtureHost(
       ...siteCommands,
       ...applicationsCommands,
       ...agentCommands,
+      ...armoryCommands,
     ],
     confirmSecret: 'development-fixtures',
     now: options.now ?? (() => FIXTURE_NOW),
@@ -252,9 +299,11 @@ export function createFixtureHost(
     >;
   }
 
-  return {
+  const host: FixtureHost = {
     guildId,
     deps,
+    armoryIdle: () => armoryJobs,
+    armoryDelayMs: 0,
     discord,
     run,
     execute: (caller, name, input = {}, confirmToken) =>
@@ -274,6 +323,7 @@ export function createFixtureHost(
         .listMembers(guildId)
         .then((all) => all.find((m) => m.displayName === displayName) ?? null),
   };
+  return host;
 }
 
 /** A ui-kit command client that runs every call through the host as one caller. */

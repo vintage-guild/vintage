@@ -1,0 +1,20 @@
+{
+  "name": "@vintage/forever-api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A small client for Blizzard's WoW: Forever profile API: client-credentials token, character profile, equipment, media, and guild roster, each response checked with Zod.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "type-check": "tsc6 -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@vintage/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

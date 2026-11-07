@@ -17,6 +17,7 @@ export default {
         'polls',
         'progress',
         'loot',
+        'armory',
         'wishlist',
         'site',
         'labs',

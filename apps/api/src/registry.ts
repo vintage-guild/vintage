@@ -3,6 +3,7 @@
 
 import { type AgentDeps, agentCommands } from '@vintage/agent/commands';
 import { type ApplicationsDeps, applicationsCommands } from '@vintage/applications/commands';
+import { type ArmoryDeps, armoryCommands } from '@vintage/armory/commands';
 import { type CoordinatorDeps, coordinatorCommands } from '@vintage/coordinator/commands';
 import type { AnyGuildCommand } from '@vintage/guild-kit';
 import { type IdentityDeps, identityCommands } from '@vintage/identity/commands';
@@ -24,7 +25,8 @@ export type VintageDeps = IdentityDeps &
   AgentDeps &
   ApplicationsDeps &
   InsightsDeps &
-  LootDeps;
+  LootDeps &
+  ArmoryDeps;
 
 const moduleCommands: readonly AnyGuildCommand<VintageDeps>[] = [
   ...identityCommands,
@@ -37,6 +39,7 @@ const moduleCommands: readonly AnyGuildCommand<VintageDeps>[] = [
   ...applicationsCommands,
   ...insightsCommands,
   ...lootCommands,
+  ...armoryCommands,
 ];
 
 /** Every module's commands, plus `help-get`, which reads their tiers to fit help to each reader. */

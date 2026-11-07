@@ -67,9 +67,15 @@ describe('security headers', () => {
     );
   });
 
-  it('loads images only from us, Discord avatars, and the class icons', () => {
+  it('loads images only from us, Discord avatars, the class icons, and armory portraits', () => {
     expect(directives().get('img-src')?.sort()).toEqual(
-      ["'self'", 'data:', 'https://cdn.discordapp.com', 'https://wow.zamimg.com'].sort(),
+      [
+        "'self'",
+        'data:',
+        'https://cdn.discordapp.com',
+        'https://wow.zamimg.com',
+        'https://render.worldofwarcraft.com',
+      ].sort(),
     );
   });
 

@@ -11,7 +11,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cdn.discordapp.com https://wow.zamimg.com; font-src 'self'; connect-src 'self' https://dusty-sardine-902.convex.cloud wss://dusty-sardine-902.convex.cloud https://dusty-sardine-902.convex.site; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cdn.discordapp.com https://wow.zamimg.com https://render.worldofwarcraft.com; font-src 'self'; connect-src 'self' https://dusty-sardine-902.convex.cloud wss://dusty-sardine-902.convex.cloud https://dusty-sardine-902.convex.site; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
         },
         { "key": "X-Content-Type-Options", "value": "nosniff" },
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }

@@ -56,6 +56,15 @@ export async function seedFixtures(host: FixtureHost): Promise<void> {
     characters.set(m.name, character.id);
   }
 
+  // Bloodfen (the default persona) has linked his character to the armory; the rest haven't.
+  const bloodfen = memberNamed('Bloodfen');
+  await must(
+    host.run(host.callerFor(bloodfen), 'armory-link', {
+      characterId: characters.get('Bloodfen'),
+    }),
+  );
+  await host.armoryIdle();
+
   const leader = memberNamed('Stridulent');
   for (const raid of RAIDS) {
     const event = await must<{ id: string }>(

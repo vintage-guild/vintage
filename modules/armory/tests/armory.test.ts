@@ -107,11 +107,35 @@ describe('armory-link', () => {
   });
 
   it('refuses a surname that can’t be part of a slug', async () => {
-    for (const surname of ['', 'J', 'Two Words', 'a/b', 'x'.repeat(25)]) {
+    for (const surname of ['', 'Two Words', 'a/b', "O'Neil", 'x'.repeat(13)]) {
       expect(code(await run('armory-link', { characterId: 'c-judy', surname }, alice))).toBe(
         'VALIDATION_ERROR',
       );
     }
+  });
+
+  it('takes the surname from a character registered with its last name', async () => {
+    deps.characters.get(GUILD)!.push({
+      id: 'c-full',
+      memberId: 'm-alice',
+      name: 'Bloodfen Il',
+      class: 'warrior',
+    });
+    const linked = await ok<ArmoryLink>('armory-link', { characterId: 'c-full' }, alice);
+    expect(linked).toMatchObject({ name: 'Bloodfen', surname: 'Il', slug: 'bloodfen-il' });
+    // Giving the same surname again (any case) is the same link; another one is refused.
+    expect(await ok('armory-link', { characterId: 'c-full', surname: 'IL' }, alice)).toEqual(
+      linked,
+    );
+    expect(code(await run('armory-link', { characterId: 'c-full', surname: 'Stone' }, alice))).toBe(
+      'ARMORY_SURNAME_MISMATCH',
+    );
+  });
+
+  it('asks for a surname when the registered name has none', async () => {
+    expect(code(await run('armory-link', { characterId: 'c-judy' }, alice))).toBe(
+      'ARMORY_SURNAME_NEEDED',
+    );
   });
 
   it('refuses an armory character already linked to another registered character', async () => {

@@ -5,33 +5,59 @@ import { ARMORY_REFRESH_COOLDOWN_MS } from '../contract';
 import { command } from '../store';
 import { characterNotFound, editableCharacter, notLinked } from './shared';
 
-/**
- * Forever surnames are one word of letters (with the odd apostrophe or hyphen); anything else
- * can't be part of a character slug.
- */
+/** A Forever last name: one word of 1–12 letters, as identity's character names allow. */
 const surnameSchema = z
   .string()
   .trim()
-  .min(2)
-  .max(24)
-  .regex(/^[\p{L}\p{M}'’-]+$/u, 'A surname is one word of letters');
+  .regex(/^\p{L}{1,12}$/u, 'A surname is one word of up to 12 letters');
+
+const lower = (s: string) => s.toLocaleLowerCase('en-US');
+
+/**
+ * The armory's first name and surname for a registered character: identity keeps "Bloodfen Il"
+ * or just "Bloodfen". A registered last name is the surname; a given one must agree with it.
+ */
+export function armoryName(
+  registered: string,
+  surname: string | undefined,
+): { first: string; surname: string } | 'needed' | 'mismatch' {
+  const [first = registered, last] = registered.trim().split(/\s+/);
+  if (last && surname && lower(last) !== lower(surname)) return 'mismatch';
+  const chosen = last ?? surname;
+  return chosen ? { first, surname: chosen } : 'needed';
+}
 
 export const armoryLink = command({
   name: 'armory-link',
   description:
-    'Link one of your registered characters to its WoW: Forever armory entry by giving its ' +
-    'surname (Forever has no realms; the armory finds a character by name and surname). ' +
+    'Link one of your registered characters to its WoW: Forever armory entry (Forever has no ' +
+    'realms; the armory finds a character by first name and surname). A character registered ' +
+    'with its last name ("Bloodfen Il") needs nothing more; otherwise give the surname. ' +
     'Vintage fetches the armory right away and keeps the level, item level, gear, and portrait ' +
     'fresh after that; armory-get shows them. Linking again with another surname replaces the ' +
     'link. Officers can link anyone’s character. A link is what the member says, not proof of ' +
     'ownership.',
   tier: 'member',
   mutation: true,
-  input: z.object({ characterId: z.string().min(1), surname: surnameSchema }),
-  handler: async ({ characterId, surname }, { caller, guildId, deps, now }) => {
+  input: z.object({ characterId: z.string().min(1), surname: surnameSchema.optional() }),
+  handler: async ({ characterId, surname: given }, { caller, guildId, deps, now }) => {
     const character = await editableCharacter(deps, guildId, caller, characterId);
     if (!character) return characterNotFound();
-    const slug = characterSlug(character.name, surname);
+    const names = armoryName(character.name, given);
+    if (names === 'needed') {
+      return error('ARMORY_SURNAME_NEEDED', `${character.name} has no last name to look up`, {
+        suggestion: 'Give the surname, or add it to the character’s name with character-update',
+        retryable: false,
+      });
+    }
+    if (names === 'mismatch') {
+      return error('ARMORY_SURNAME_MISMATCH', `${character.name} has another last name`, {
+        suggestion: 'Leave out the surname, or fix the character’s name with character-update',
+        retryable: false,
+      });
+    }
+    const { first, surname } = names;
+    const slug = characterSlug(first, surname);
     const taken = await deps.armory.getLinkBySlug(guildId, slug);
     if (taken && taken.characterId !== characterId) {
       return error('ARMORY_ALREADY_LINKED', `${slug} is linked to another character`, {
@@ -51,7 +77,7 @@ export const armoryLink = command({
     // saved and the sweep fetches it once the cooldown is over.
     const wait = existing ? existing.requestedAt + ARMORY_REFRESH_COOLDOWN_MS - at : 0;
     const fresh = {
-      name: character.name,
+      name: first,
       surname,
       slug,
       status: 'pending' as const,

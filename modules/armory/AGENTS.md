@@ -18,9 +18,10 @@ Blizzard hasn't documented the Forever API, so its shapes may change under us.
 
 ## Rules
 
-- **A character is `{name}-{surname}`.** Forever has no realms; Blizzard finds a character by
-  its slug, lowercased (`characterSlug` in forever-api). The surname comes from the member;
-  identity doesn't store one. One slug links to at most one registered character per guild.
+- **A character is `{first}-{surname}`.** Forever has no realms; Blizzard finds a character by
+  its slug, lowercased (`characterSlug` in forever-api). Identity's names are "First" or
+  "First Last" (`armoryName`): a registered last name is the surname, otherwise the member gives
+  one. One slug links to at most one registered character per guild.
 - **A link is a claim, not proof.** Anyone can link any armory character whose name matches a
   character they registered. Never use a link for permissions or ownership decisions; Battle.net
   sign-in (`/profile/user/wow`) is how ownership gets verified, later.
@@ -49,8 +50,9 @@ Blizzard hasn't documented the Forever API, so its shapes may change under us.
   around the cooldown. Unlinking and linking again still fetches at once; the confirm step is
   what slows that down. The cooldown is per character, so a member's budget grows with their
   characters. Errors: `CHARACTER_NOT_FOUND` (not yours, or no such id),
-  `ARMORY_ALREADY_LINKED` (another character has that slug), `VALIDATION_ERROR` (a surname
-  that isn't one word of letters).
+  `ARMORY_ALREADY_LINKED` (another character has that slug), `ARMORY_SURNAME_NEEDED` (no
+  registered last name and none given), `ARMORY_SURNAME_MISMATCH` (one given that differs from
+  the registered last name), `VALIDATION_ERROR` (a surname that isn't 1–12 letters).
 - `armory-get` answers `{ link }`, null when unlinked; another member's character needs recruit
   and is otherwise answered `CHARACTER_NOT_FOUND`. `armory-list` is yours by default; another
   member's or `allGuild` needs recruit (as `character-list`).

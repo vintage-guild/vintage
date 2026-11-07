@@ -52,7 +52,7 @@ export interface ArmoryLink {
   guildId: string;
   /** Identity's character id. */
   characterId: string;
-  /** The character's name when it was linked. */
+  /** The armory first name when it was linked: the registered name without its last name. */
   name: string;
   surname: string;
   /** `{name}-{surname}`, lowercased: unique per guild. */

@@ -594,7 +594,7 @@
     },
     {
       "name": "armory-link",
-      "description": "Link one of your registered characters to its WoW: Forever armory entry by giving its surname (Forever has no realms; the armory finds a character by name and surname). Vintage fetches the armory right away and keeps the level, item level, gear, and portrait fresh after that; armory-get shows them. Linking again with another surname replaces the link. Officers can link anyone’s character. A link is what the member says, not proof of ownership.",
+      "description": "Link one of your registered characters to its WoW: Forever armory entry (Forever has no realms; the armory finds a character by first name and surname). A character registered with its last name (\"Bloodfen Il\") needs nothing more; otherwise give the surname. Vintage fetches the armory right away and keeps the level, item level, gear, and portrait fresh after that; armory-get shows them. Linking again with another surname replaces the link. Officers can link anyone’s character. A link is what the member says, not proof of ownership.",
       "tier": "member",
       "mutation": true,
       "destructive": false,
@@ -608,14 +608,11 @@
           },
           "surname": {
             "type": "string",
-            "minLength": 2,
-            "maxLength": 24,
-            "pattern": "^[\\p{L}\\p{M}'’-]+$"
+            "pattern": "^\\p{L}{1,12}$"
           }
         },
         "required": [
-          "characterId",
-          "surname"
+          "characterId"
         ]
       }
     },

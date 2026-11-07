@@ -573,6 +573,388 @@
       }
     },
     {
+      "name": "armory-get",
+      "description": "What the WoW: Forever armory says about a registered character: level, class, guild, item level, equipped gear, portrait, and when it was last checked; `link` is null when the character isn’t linked (armory-link links it). `status` is pending until the first fetch, then found, not-found (wrong surname, under level 10, or not logged out since), or error. `classMismatch` means the armory character’s class differs from the registered one.",
+      "tier": "member",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "characterId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "characterId"
+        ]
+      }
+    },
+    {
+      "name": "armory-link",
+      "description": "Link one of your registered characters to its WoW: Forever armory entry by giving its surname (Forever has no realms; the armory finds a character by name and surname). Vintage fetches the armory right away and keeps the level, item level, gear, and portrait fresh after that; armory-get shows them. Linking again with another surname replaces the link. Officers can link anyone’s character. A link is what the member says, not proof of ownership.",
+      "tier": "member",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "characterId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "surname": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 24,
+            "pattern": "^[\\p{L}\\p{M}'’-]+$"
+          }
+        },
+        "required": [
+          "characterId",
+          "surname"
+        ]
+      }
+    },
+    {
+      "name": "armory-list",
+      "description": "Armory links with what the armory last said, sorted by name: yours by default, one member’s with memberId, or the whole guild with allGuild (recruits and up for anyone else’s). Links whose character was removed are left out.",
+      "tier": "member",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "memberId": {
+            "type": "string"
+          },
+          "allGuild": {
+            "default": false,
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "name": "armory-record",
+      "description": "Record what one armory fetch found for a link. Run by the fetch job; a fetch for a surname that has since changed (another slug) is ignored. Found replaces the profile, gear, and portrait; not-found and error keep the last ones.",
+      "tier": "officer",
+      "mutation": true,
+      "destructive": false,
+      "systemOnly": true,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "linkId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "slug": {
+            "type": "string",
+            "minLength": 1
+          },
+          "result": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "const": "found"
+                  },
+                  "profile": {
+                    "type": "object",
+                    "properties": {
+                      "blizzardId": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "name": {
+                        "type": "string",
+                        "maxLength": 48
+                      },
+                      "surname": {
+                        "type": "string",
+                        "maxLength": 48
+                      },
+                      "level": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 200
+                      },
+                      "className": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 48
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "raceName": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 48
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "faction": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 24
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "guildName": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 64
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "guildSlug": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 96
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "activeSpec": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "maxLength": 48
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "equippedItemLevel": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "averageItemLevel": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      },
+                      "lastLoginAt": {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "blizzardId",
+                      "name",
+                      "surname",
+                      "level",
+                      "className",
+                      "raceName",
+                      "faction",
+                      "guildName",
+                      "guildSlug",
+                      "activeSpec",
+                      "equippedItemLevel",
+                      "averageItemLevel",
+                      "lastLoginAt"
+                    ]
+                  },
+                  "equipment": {
+                    "maxItems": 19,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "slot": {
+                          "type": "string",
+                          "maxLength": 32
+                        },
+                        "itemId": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "name": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "maxLength": 120
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "quality": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "maxLength": 24
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "itemLevel": {
+                          "type": [
+                            "number",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "slot",
+                        "itemId",
+                        "name",
+                        "quality",
+                        "itemLevel"
+                      ]
+                    }
+                  },
+                  "avatarUrl": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 500,
+                        "format": "uri"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "status",
+                  "profile",
+                  "equipment",
+                  "avatarUrl"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "const": "not-found"
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "const": "error"
+                  },
+                  "error": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                },
+                "required": [
+                  "status",
+                  "error"
+                ]
+              }
+            ]
+          }
+        },
+        "required": [
+          "linkId",
+          "slug",
+          "result"
+        ]
+      }
+    },
+    {
+      "name": "armory-refresh",
+      "description": "Fetch a linked character from the armory again now, instead of waiting for the twice-daily refresh. Once every 10 minutes per character. The answer arrives in armory-get a few seconds later.",
+      "tier": "member",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "characterId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "characterId"
+        ]
+      }
+    },
+    {
+      "name": "armory-sweep",
+      "description": "Ask the armory again about the links checked longest ago (none in the last 12 hours, oldest first, 25 per run), and drop links whose character was removed. Run by the cron.",
+      "tier": "officer",
+      "mutation": true,
+      "destructive": false,
+      "systemOnly": true,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "armory-unlink",
+      "description": "Remove a character’s armory link and what Vintage kept from the armory. Your own characters, or anyone’s for officers. Shows a preview first; confirm to remove.",
+      "tier": "member",
+      "mutation": true,
+      "destructive": true,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "characterId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "characterId"
+        ]
+      }
+    },
+    {
       "name": "attendance-list",
       "description": "Who attended a raid, as recorded from the addon export (raid-export-record): each person seen, how many snapshots they were in and which, and their signup when they had one. Empty until an officer records the raid.",
       "tier": "recruit",

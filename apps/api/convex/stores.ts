@@ -15,6 +15,7 @@ import {
   type ApplicationsConfig,
   defaultApplicationsConfig,
 } from '@vintage/applications/contract';
+import type { ArmoryDeps, ArmoryStore } from '@vintage/armory/commands';
 import type { CoordinatorDeps, CoordinatorStore, TickSource } from '@vintage/coordinator/commands';
 import { type CoordinatorConfig, defaultConfig } from '@vintage/coordinator/contract';
 import type { Caller, CommandResult } from '@vintage/guild-kit';
@@ -231,6 +232,53 @@ export function lootStore(ctx: Ctx): LootStore {
 
 export function lootDeps(ctx: Ctx): LootDeps {
   return { loot: lootStore(ctx) };
+}
+
+const armory = components.armory;
+
+export function armoryStore(ctx: Ctx): ArmoryStore {
+  return {
+    listLinks: (guildId) => ctx.runQuery(armory.links.list, { guildId }),
+    getLink: (guildId, linkId) => ctx.runQuery(armory.links.get, { guildId, linkId }),
+    getLinkByCharacter: (guildId, characterId) =>
+      ctx.runQuery(armory.links.byCharacter, { guildId, characterId }),
+    getLinkBySlug: (guildId, slug) => ctx.runQuery(armory.links.bySlug, { guildId, slug }),
+    insertLink: (link) => writable(ctx).runMutation(armory.links.insert, link),
+    updateLink: (guildId, linkId, patch) =>
+      writable(ctx).runMutation(armory.links.update, { guildId, linkId, patch }),
+    deleteLink: async (guildId, linkId) => {
+      await writable(ctx).runMutation(armory.links.remove, { guildId, linkId });
+    },
+  };
+}
+
+// Referenced by name to avoid a type cycle between this file and the generated api.
+const refreshArmory = makeFunctionReference<'action', { linkIds: string[] }>('armory:refresh');
+
+/** Identity's characters, as armory reads them; fetches run as a scheduled action (armory.ts). */
+export function armoryDeps(ctx: Ctx): ArmoryDeps {
+  const asArmoryCharacter = ({ id, memberId, name, class: cls }: Character) => ({
+    id,
+    memberId,
+    name,
+    class: cls,
+  });
+  return {
+    armory: armoryStore(ctx),
+    armoryCharacters: {
+      getCharacter: async (guildId, characterId) => {
+        const character = await identityStore(ctx).getCharacter(guildId, characterId);
+        return character && asArmoryCharacter(character);
+      },
+      listCharacters: async (guildId) =>
+        (await identityStore(ctx).listCharacters(guildId)).map(asArmoryCharacter),
+    },
+    armoryEffects: {
+      fetch: async (_guildId, linkIds) => {
+        await writable(ctx).scheduler.runAfter(0, refreshArmory, { linkIds: [...linkIds] });
+      },
+    },
+  };
 }
 
 const polls = components.polls;

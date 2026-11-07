@@ -177,7 +177,7 @@ Destructive: `raid.cancel`, `roster.remove`, `loot.award`, `character.remove`, `
   Rank and tier are separate: rank is guild standing (used for coordinator priority), tier is permission. Being in the Discord server alone grants nothing.
 
 - **Sync:** on every sign-in (member object via `GET /users/@me/guilds/{id}/member`) and on a cron via the bot every 15 minutes (`GET /guilds/{id}/members`, which requires the Server Members privileged intent; a bot in under 100 servers can enable it in the developer portal without verification). The cron needs `DISCORD_BOT_TOKEN` and `DISCORD_GUILD_ID` in the Convex environment and is a no-op without them; members who left the server drop to `public`.
-- **Characters:** members register mains/alts (name, class, spec, role). Later: Battle.net linking to verify ownership.
+- **Characters:** members register mains/alts (name, class, spec, role), and can link each to its Forever armory entry by surname (the `armory` module; a claim, not proof). Later: Battle.net linking to verify ownership.
 
 ### 3.5 Game ↔ web bridge
 
@@ -744,7 +744,7 @@ Phase 0 has about ten days and one maintainer, so it is cut to the minimum that 
 - Companion app (automatic SavedVariables sync both ways)
 - More loot methods (prio lists, DKP, EPGP, MS>OS)
 - Boss strategy docs + content notes the agent can draw on
-- Battle.net / Armory sync if Blizzard exposes Forever profile data
+- Battle.net / Armory sync: Blizzard exposes Forever profile data (undocumented, `profile-forever-{region}`). First slice: the `armory` module links characters by surname and keeps level, item level, gear, and portrait ([armory](docs/features/active/armory/armory.plan.md), 2026-11-07); Battle.net sign-in for ownership and the website card are next
 - Guild bank, crafting orders, events beyond raids (the recruitment pipeline moved to epic #126)
 - Always-on Discord gateway worker if the bot needs to read channel chatter
 - Fold `apps/gateway` into Convex HTTP actions if they prove sufficient

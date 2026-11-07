@@ -120,6 +120,7 @@ keep the production bot token off machines that run agents where you can.
 | `VINTAGE_GATEWAY_SECRET` | Must change in both places at once; Discord buttons fail between the two edits | Convex and the gateway's Vercel env (Production only) |
 | `DISCORD_BOT_TOKEN` | Reset in the Developer Portal, then update everywhere it's set | Convex, `apps/api/.env.local` |
 | `VINTAGE_CONFIRM_SECRET` | Pending confirm tokens stop working (they expire in 5 minutes anyway) | Convex |
+| `BLIZZARD_CLIENT_SECRET` | Generate a new secret for the client on develop.battle.net, then update Convex; armory fetches record an error in between | Convex |
 | `CONVEX_DEPLOY_KEY` | Create a new key, update the GitHub environment secret, revoke the old one | Convex dashboard, GitHub |
 | `CF_API_TOKEN` | Create a new token, update the `curseforge` environment secret, revoke the old one | CurseForge, GitHub |
 

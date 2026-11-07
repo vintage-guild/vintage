@@ -60,4 +60,6 @@ jobs:
         with:
           name: Vintage-${{ github.sha }}
           path: ${{ runner.temp }}/Vintage/.release/*.zip
+          # The packager's release folder is a dot-folder, which upload-artifact skips by default.
+          include-hidden-files: true
           if-no-files-found: error

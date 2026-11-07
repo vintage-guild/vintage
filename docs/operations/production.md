@@ -81,9 +81,10 @@ scheduled backups) is still open (PLAN.md §8, Phase 0).
 A tag `addon-vX.Y.Z` runs `.github/workflows/release-addon.yml`, which packages `addon/Vintage`
 and uploads it to CurseForge; running the workflow by hand from `main` is a dry run that keeps the
 zip as a run artifact ([plan](../features/active/vintage-addon/vintage-addon.plan.md#release-25),
-`addon/Vintage/AGENTS.md` "Releasing"). Not yet run.
+`addon/Vintage/AGENTS.md` "Releasing"). The first dry run (2026-11-07) packaged
+`Vintage-0.1.0-forever.zip` for game version 1.60.1; no tag release has run yet.
 
-**Set up once (maintainer), in this order (#25):**
+**Set up once (maintainer), in this order (#25).** Steps 3 and 4 were done on 2026-11-07.
 
 1. Create the CurseForge project **Vintage** from the author account, for WoW: Forever.
 2. Add its project id as `## X-Curse-Project-ID: <id>` in `addon/Vintage/Vintage.toc` (a PR).
@@ -92,7 +93,9 @@ zip as a run artifact ([plan](../features/active/vintage-addon/vintage-addon.pla
    it: GitHub creates a missing environment with no rules) and set Deployment branches and tags
    to only the branch `main` and tags matching `addon-v*`. Confirm the rule shows just those two.
 4. In GitHub → Settings → Rules, add a tag ruleset for `addon-v*` that restricts creating,
-   updating, and deleting those tags to the maintainer, with no bypass list. Required: a tag run
+   updating, and deleting those tags, bypassed only by organization owners (the ruleset
+   **addon release tags**; both org owners are repo admins, so a role or owner bypass is the
+   narrowest GitHub allows). Required: a tag run
    uses the workflow file at the tagged commit, so anyone who could push an `addon-v*` tag on an
    edited workflow could read the token. Optional extra: a required reviewer on `curseforge`,
    which also stops an agent session that holds the maintainer's own credentials.

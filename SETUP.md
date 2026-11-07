@@ -63,6 +63,12 @@ npx convex run commands:read '{"name":"member-list","input":{}}'
 `dev:local` starts an anonymous local Convex backend, pushes functions, and regenerates
 `convex/_generated` (commit those changes). Use `dev:local:watch` to keep it running.
 
+The armory module reads Blizzard's WoW: Forever profile API with an app's client credentials:
+create a client at https://develop.battle.net/access/clients, then set `BLIZZARD_CLIENT_ID`,
+`BLIZZARD_CLIENT_SECRET`, and optionally `BLIZZARD_REGION` (`us`, the default, `eu`, `kr`, or
+`tw`) in the Convex environment. Without them `armory-link` still saves links, and each fetch
+records an error saying Vintage isn't connected yet.
+
 The hosted agent and the Decisions API need an OpenAI key in the Convex environment
 (`npx convex env set OPENAI_API_KEY …`); without it `agent-ask` runs fail with a clear error and
 Decisions consumers keep their non-AI behavior. Applications post to the channel officers set

@@ -1,5 +1,6 @@
 import agent from '@vintage/agent/convex.config';
 import applications from '@vintage/applications/convex.config';
+import armory from '@vintage/armory/convex.config';
 import coordinator from '@vintage/coordinator/convex.config';
 import identity from '@vintage/identity/convex.config';
 import insights from '@vintage/insights/convex.config';
@@ -23,5 +24,6 @@ app.use(agent);
 app.use(applications);
 app.use(insights);
 app.use(loot);
+app.use(armory);
 
 export default app;

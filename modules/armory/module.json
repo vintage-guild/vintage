@@ -1,0 +1,7 @@
+{
+  "name": "armory",
+  "maturity": "labs",
+  "owners": ["@Falkicon"],
+  "dependsOn": [],
+  "description": "Registered characters linked to their WoW: Forever armory entries (name + surname): level, item level, gear, and portrait from Blizzard's undocumented Forever profile API, refreshed by a cron."
+}

@@ -7,6 +7,8 @@ import { createMemoryAgentStore } from '@vintage/agent/testing';
 import { createRegistryTools } from '@vintage/agent-runtime';
 import { renderOnboardingDm } from '@vintage/applications/commands';
 import { createMemoryApplicationsStore } from '@vintage/applications/testing';
+import { type ArmoryClient, fetchArmory } from '@vintage/armory/commands';
+import { createMemoryArmoryStore } from '@vintage/armory/testing';
 import { runTick } from '@vintage/coordinator/commands';
 import { createFakeDiscord, createMemoryCoordinatorStore } from '@vintage/coordinator/testing';
 import type { DecisionsPort } from '@vintage/decisions';
@@ -119,6 +121,9 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
   let pendingDelivery: AgentDelivery | undefined;
   /** Decisions for the tick's digest; null keeps notes raw, like a deployment without a key. */
   let decisions: DecisionsPort | null = null;
+  const armoryStore = createMemoryArmoryStore();
+  /** Link ids armory commands asked to fetch, waiting for armoryFetch. */
+  const armoryQueue: string[] = [];
   const deps: VintageDeps = {
     identity,
     memberRefresh: { request: async (_g, discordId) => void memberRefreshes.push(discordId) },
@@ -215,6 +220,22 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
       run: (caller, name, input, confirmToken) =>
         registry.execute({ name, input, caller, ...(confirmToken ? { confirmToken } : {}) }, deps),
     },
+    armory: armoryStore,
+    // Like apps/api armoryDeps: identity's characters, and fetches queued for armoryFetch.
+    armoryCharacters: {
+      getCharacter: async (g, id) => {
+        const c = await identity.getCharacter(g, id);
+        return c && { id: c.id, memberId: c.memberId, name: c.name, class: c.class };
+      },
+      listCharacters: async (g) =>
+        (await identity.listCharacters(g)).map((c) => ({
+          id: c.id,
+          memberId: c.memberId,
+          name: c.name,
+          class: c.class,
+        })),
+    },
+    armoryEffects: { fetch: async (_g, ids) => void armoryQueue.push(...ids) },
   };
   const registry = testRegistry<VintageDeps>(commands, clock);
   const discord = createFakeDiscord();
@@ -298,6 +319,21 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
       GUILD,
       clock.now(),
     );
+  }
+
+  /**
+   * Run the queued armory fetches against a fake Blizzard, as convex/armory.ts `refresh` does:
+   * one character at a time, each result through armory-record as the system.
+   */
+  async function armoryFetch(client: ArmoryClient) {
+    const ids = armoryQueue.splice(0);
+    for (const id of ids) {
+      const link = await armoryStore.getLink(GUILD, id);
+      if (!link) continue;
+      const result = await fetchArmory(client, link.name, link.surname);
+      await ok(system, 'armory-record', { linkId: id, slug: link.slug, result });
+    }
+    return ids.length;
   }
 
   /** Point the coordinator at the test channels, as an officer would once. */
@@ -990,6 +1026,8 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     as,
     discordMember,
     tick,
+    armoryFetch,
+    armoryQueue,
     configureCoordinator,
     sentTo,
     editsTo,

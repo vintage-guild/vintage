@@ -2,6 +2,7 @@
 // token refusals, bodies), and the tools and calls on the real registry over memory stores.
 import { createMemoryAgentDeps } from '@vintage/agent/testing';
 import { createMemoryApplicationsDeps } from '@vintage/applications/testing';
+import { createMemoryArmoryDeps } from '@vintage/armory/testing';
 import { createMemoryCoordinatorDeps } from '@vintage/coordinator/testing';
 import type { Caller } from '@vintage/guild-kit';
 import { toManifest } from '@vintage/guild-kit';
@@ -131,6 +132,7 @@ async function guild() {
     ...createMemoryApplicationsDeps().deps,
     ...createMemoryInsightsDeps().deps,
     ...createMemoryLootDeps(),
+    ...createMemoryArmoryDeps(),
   };
   const registry = testRegistry<VintageDeps>(commands);
   const system = makeCaller('officer', { surface: 'system', memberId: undefined });

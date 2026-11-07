@@ -40,6 +40,8 @@ export async function installFixtures(
 ): Promise<InstalledFixtures> {
   const host = createFixtureHost();
   await seedFixtures(host);
+  // After seeding, a fake armory fetch takes a moment, so the page's "Looking up…" shows.
+  host.armoryDelayMs = 1200;
   setOAuth(fixtureOAuth());
   const name = FIXTURE_PERSONAS[persona];
   if (!name) {

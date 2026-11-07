@@ -205,6 +205,9 @@ importers:
       '@vintage/applications':
         specifier: workspace:*
         version: link:../../modules/applications
+      '@vintage/armory':
+        specifier: workspace:*
+        version: link:../../modules/armory
       '@vintage/coordinator':
         specifier: workspace:*
         version: link:../../modules/coordinator

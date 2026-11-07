@@ -19,6 +19,7 @@
     "@vintage/agent": "workspace:*",
     "@vintage/agent-runtime": "workspace:*",
     "@vintage/applications": "workspace:*",
+    "@vintage/armory": "workspace:*",
     "@vintage/coordinator": "workspace:*",
     "@vintage/design-tokens": "workspace:*",
     "@vintage/guild-kit": "workspace:*",

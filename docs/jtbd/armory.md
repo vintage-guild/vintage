@@ -33,5 +33,9 @@ show the guild my level, item level, and gear without typing them, and keep them
   it fetches again and `checkedAt` moves.
 - [ ] `npx convex run armory:sweep` 12 hours after a check asks again; after `character-remove`,
   the next sweep drops the link.
+- [ ] On the site, `/characters` as Pip: the Armory section has a card for Pipwick with the
+  portrait, "Level … Gnome Mage · Frost · <Vintage>", the item level, and the gear (quality
+  colors). A character registered as "First Last" shows Find on the armory without a surname
+  field; one without a last name asks for it.
 - [ ] Ana's `armory-unlink` previews the slug, and after confirming `armory-get` shows no link
   while `character-list` still has Pipwick.

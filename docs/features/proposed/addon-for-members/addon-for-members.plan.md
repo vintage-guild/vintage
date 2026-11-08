@@ -67,7 +67,8 @@ in the header to the quarters (Tonight, Calendar, Roster, Guild, ...). The addon
 | **Export** | Stood by, snapshots, **Make export string** |
 | **Guild** | Roster reconciliation (from `feat/guild-roster-reconciliation`) |
 
-**Who sees Officers:** anyone whose guild rank counts as an officer (Q1), and anyone holding a
+**Who sees Officers:** anyone trusted as an officer (M7: the **Officer** rank, plus Bloodfen
+for development), and anyone holding a
 pasted import. Only the leader tier can fetch an import from the site, so holding one already
 proves that tier; that is how a raid leader who isn't an officer by rank gets in. Hiding the
 button is a convenience, not security: the site's tiers and the receiver checks under Trust do
@@ -134,7 +135,7 @@ sender's guild rank as your own guild roster shows it.
 | Submit picks for someone else | An officer's addon records `PICKS` only for the characters of the server-verified sender, matched through the roster in the import. The website records which officer relayed them |
 | Fake an export | Already handled: recording an export needs an officer on the website (`raid-export-record`) |
 | Flood announcements or requests | The rate limits above; oversized or malformed messages are dropped before decoding finishes |
-| Change which ranks count as officers | It only changes their own client. Everyone else uses the shipped default (Q1) |
+| Change which ranks count as officers | It only changes their own client. Everyone else uses the shipped list (M7) |
 
 What remains is the officers themselves: a modified officer client can send anything. Officers
 are trusted with this data already, and the website keeps a record of who relayed what.
@@ -175,12 +176,13 @@ for council candidates). The game is then a second place to edit it:
 | M4 | **The member view is a separate kind cut from the import**, never the import itself | Bench reasons and other officer-only fields stay with the officers |
 | M5 | **The window mirrors the site:** Raid, Loot, Wishlist for everyone; **Officers** opens the quarters | The same words and places in the game and on the site |
 | M6 | **The new layout ships with the read-only sync,** not before it | Without the sync, the members' tabs would be empty |
+| M7 | **Officers are the guild rank named `Officer`, plus the character Bloodfen** (Bloodfen Il, the maintainer) **while the addon is in development** (decided 2026-11-08). Both lists live in `Config.lua` (`OFFICER_RANKS = { "Officer" }`, `TRUSTED_CHARACTERS = { "Bloodfen" }`), match rank *names* (ranks get renumbered when one is added), and are shipped, so every client agrees. Bloodfen must also be in the guild | Lets the maintainer serve shares, open the quarters, and test from any rank. A character name is as safe as a rank: the game server vouches for the sender's name. Remove Bloodfen from `TRUSTED_CHARACTERS` once development settles, or keep it on purpose (a later decision) |
 
 ## Open questions
 
 | # | Question | Recommended default |
 |---|---|---|
-| Q1 | Which guild ranks count as officers for serving data and seeing **Officers**? | A list of rank *names* in `Config.lua` (ranks get renumbered when one is added), set to the ranks that hold the site's officer and leader roles. An import can't change it |
+| Q1 | ~~Which guild ranks count as officers?~~ | **Decided (M7):** the `Officer` rank, plus Bloodfen for development. Still to check: whether the Guild Master rank should count too (it has its own name, and isn't `Officer`) |
 | Q2 | Do members see each item's whole priority list, or only their own place? | The whole list: names and reasons in order. Members can already see loot on the site (`loot-list`), and an open list causes fewer "why did they get it?" whispers |
 | Q3 | When an in-game pick and a website edit conflict: newest wins, or do officers approve? | Newest wins for the member's own list; approval belongs in the loot method (council), not in the sync |
 | Q4 | The button's name: "Officers" or "Officers' Quarters"? | "Officers", the site's word in the same place |

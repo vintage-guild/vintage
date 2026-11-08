@@ -1,6 +1,6 @@
 # The addon for everyone: raid sync, the officers' quarters, and wishlist picks
 
-> Status: active (2026-11-08): PRs 1 and 2 built · Created 2026-11-08 · Owner: Bloodfen · Area: addon
+> Status: active (2026-11-08): PRs 1, 2, and 3a built · Created 2026-11-08 · Owner: Bloodfen · Area: addon
 > Related: [the Vintage addon](../../active/vintage-addon/vintage-addon.plan.md),
 > [role-aware views and the officers' quarters](../../active/role-aware-views/role-aware-views.plan.md),
 > the wishlist module (#27), [`libs/bridge-format`](../../../../libs/bridge-format/README.md)
@@ -93,12 +93,15 @@ LibDeflate, so two officers holding the same import send the same bytes.
 **Fingerprint.** The SHA-256 of those bytes. It travels in announcements, and a client keeps a
 share only when the bytes match a fingerprint it learned from an officer (Trust).
 
-**Messages** (prefix `VINTAGE`, through AceComm and ChatThrottleLib):
+**Messages** (prefix `VINTAGE`, through AceComm and ChatThrottleLib). On the wire they are text,
+`1|HAVE|e:g:h;e:g:h`, `1|WANT|e:g:h`, `1|SHARE|e:g:h|!VIN:1!…` (e the event id, g the import's
+`generatedAt`, h the SHA-256), parsed by `Core.Sync.Wire` with its bounds checked first. Event ids
+must be letters, digits, `_`, and `-`, or the raid can't be shared:
 
 | Message | Channel | Sent by | Carries |
 |---|---|---|---|
 | `HAVE` | GUILD; RAID when in a raid group | anyone, at login, after an import, and after a fetch | `{ eventId, generatedAt, hash }` for each raid held, newest few only |
-| `WANT` | WHISPER to a sender of a newer `HAVE` | a client that is behind | `{ eventId, hash }` |
+| `WANT` | WHISPER to a sender of a newer `HAVE` | a client that is behind | `{ eventId, generatedAt, hash }` |
 | `SHARE` | WHISPER | anyone holding bytes that match the hash | the encoded `raid-share` |
 | `PICKS` | WHISPER to an online officer | a member, after changing picks (phase 3) | that member's wishlist, `updatedAt` |
 
@@ -107,7 +110,11 @@ and sends `WANT` to one sender of the newer version, preferring officers. It the
 `SHARE` against the fingerprint, saves it, and sends its own `HAVE`, so later arrivals have more
 than one source. Clients keep shares in saved data, so a member who logs in with no officer
 online still has the last raid, and can fetch a newer copy from another member if they learned
-its fingerprint from an officer earlier.
+its fingerprint from an officer earlier. A client that logs in with nothing still sends a `HAVE`
+(an empty one); an officer who sees anyone behind announces again (within its 30 s limit), so a
+late arrival learns the fingerprint while an officer is online. **Not covered:** a member who has
+never heard an officer's `HAVE` and logs in while no officer is online gets nothing until one is
+(a spec states it); website signatures (Trust, "Later") would close that gap.
 
 **Limits.**
 - Nothing is sent during an encounter. Messages wait for `ENCOUNTER_END`, since Midnight-era
@@ -203,7 +210,8 @@ for council candidates). The game is then a second place to edit it:
 |---|---|---|
 | **1 Libraries and the fake client** | AceComm-3.0 and ChatThrottleLib through `libs.sync` with version pins in `Tools/validate.py`; a SHA-256 in `Core/` (pure Lua that also runs on PUC Lua 5.1 without `bit`); the fake client gains `C_ChatInfo.SendAddonMessage`, `CHAT_MSG_ADDON`, a guild roster with ranks, and **several clients on one host** so specs can run an officer and members together | A two-client spec passes a message from one client to the other; the SHA-256 matches known vectors. **Built 2026-11-08:** AceComm-3.0 MINOR 14 with ChatThrottleLib v31 (upstream Ace3, pinned); `Core/Hash.lua` (`Hash.Sha256`, four bits at a time through 16×16 tables; the FIPS vectors pass, and the million-byte one takes ~11 s on PUC Lua, so ~55 ms for a few-KB share); the fake client's `C_ChatInfo`, `Ambiguate`, `options.guild` with ranks, solo-player group defaults, `host:ReceiveAddon` and `host:TakeSentAddon`; a spec sends through ChatThrottleLib and reassembles a split message. **Changed:** peers are scripted with `host:ReceiveAddon` rather than a second addon on the same host, which needs a separate global environment per client. PR 3 runs several `Core/Sync` instances (pure Lua) over an in-memory bus for convergence instead. **Added for Q6:** `/vintage names` (not in help, `Bridge/Diagnostics.lua`) |
 | **2 `raid-share`** | The kind on both sides, `Core/Share.lua` (import → member view), and fixtures | The TS and Lua sides decode each other's fixtures; the member view has no bench reasons. **Built 2026-11-08:** `raidShareV1Schema` and `decodeRaidShare` (the import's checks and limits; the import's parts reused on both sides), `raidShareFromImport` in TS and `Share.FromImport` in Lua, and the `raid-share.v1` fixture (the TS share of `raid-import-bench.v1`), which the Lua spec compares with its own. The share keeps the whole loot plan (Q2's default) and the bench's people without reasons; the same import encodes to the same string, and fingerprint, however its tables were built |
-| **3 Sync** | `Core/Sync.lua` (pure: version compare, trust decisions, rate limits) and `Bridge/Comms.lua` (channels, encounter queue); saved shares with a migration step | Every row of the Trust table has a passing spec; an officer and three members on one host converge, including a member who joins late with no officer online |
+| **3a Sync logic** | `Core/Sync.lua` (pure: the wire format, version compare, trust decisions, rate limits, the pause, expiry) with a guild of clients on an in-memory bus in busted | Every Trust row that doesn't depend on names has a passing spec; an officer and three members converge, including a member who joins late while an officer is online. **Built 2026-11-08:** `Core.Sync` and `Sync.Wire`; the officer check comes in as `deps.isAuthority(sender)` (nil while the roster is loading: the `HAVE` waits for `RosterReady`). 19 specs, three of them watched failing with the rule removed. The answer limit is per raid *version* (a newer import isn't held back by the last answer) |
+| **3b Sync in the game** | `Bridge/Comms.lua` (AceComm, GUILD and RAID, the encounter pause, a ticker), `isAuthority` from the guild roster by full name (Q6), `OFFICER_RANKS` and `TRUSTED_CHARACTERS` (M7), saved shares in `VintageDB` with a migration step, the officer publishing on import | Waits for `/vintage names` on Forever (Q6). Lifecycle specs on the fake client for an officer and a member; checked in the game with two characters |
 | **4 The window** | Raid and Loot for everyone, **Officers** and the quarters, the About split, and the empty states | Lifecycle specs for a member (no quarters) and an officer; checked in the game |
 | **5 Tooltips** | The priority line on item tooltips for items in the shared loot plan | A spec on the fake tooltip; checked in the game |
 | **6 Wishlist (site)** | #27 | Its own acceptance criteria |
@@ -221,6 +229,7 @@ officers' export.
 - **Roster timing:** guild rank needs the guild roster loaded. Until it is, messages wait (not
   rejected forever).
 - **Two officers, two imports:** the newer `generatedAt` wins. If two hashes arrive for the same
-  version (different import code), the client keeps the one from the higher rank and logs the
-  conflict for Mechanic.
+  version (different import code), the client keeps the first it trusted and logs the conflict
+  (changed from "the higher rank" in PR 3a: rank order isn't something the receiver can rely on,
+  and both officers are trusted).
 - **Scope creep:** each PR above stands alone. Stop after PR 4 if members don't use it.

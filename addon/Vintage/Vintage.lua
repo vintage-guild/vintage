@@ -10,7 +10,8 @@ local Vintage = LibStub("AceAddon-3.0"):NewAddon(ADDON_NAME, "AceConsole-3.0")
 local L = LibStub("AceLocale-3.0"):GetLocale(ADDON_NAME)
 
 ns.Vintage = Vintage
-ns.ICON = "Interface\\Icons\\INV_Misc_Head_Dragon_01"
+-- The guild's tag emblem (assets/brand/vintage-tag-color.png), made by Tools/make-icon.ps1.
+ns.ICON = "Interface\\AddOns\\Vintage\\Media\\Icon"
 
 local DEBUG_BUFFER_SIZE = 200
 ns.debugBuffer = {}

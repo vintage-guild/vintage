@@ -3,7 +3,7 @@
 ## Notes: Forms the raid from the guild's import string, records attendance and loot, and shows loot priority.
 ## Author: Bloodfen
 ## Version: 0.1.0-beta.1
-## IconTexture: Interface\Icons\INV_Misc_Head_Dragon_01
+## IconTexture: Interface\AddOns\Vintage\Media\Icon
 ## X-Website: https://vintageguild.gg
 ## X-License: GPL-3.0
 ## X-Curse-Project-ID: 1790620

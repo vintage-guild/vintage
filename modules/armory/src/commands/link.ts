@@ -12,6 +12,7 @@ const surnameSchema = z
   .regex(/^\p{L}{1,12}$/u, 'A surname is one word of up to 12 letters');
 
 const lower = (s: string) => s.toLocaleLowerCase('en-US');
+const plural = (n: number, unit: string) => `${n} ${unit}${n === 1 ? '' : 's'}`;
 
 /**
  * The armory's first name and surname for a registered character: identity keeps "Bloodfen Il"
@@ -148,11 +149,17 @@ export const armoryRefresh = command({
     const at = now();
     const wait = link.requestedAt + ARMORY_REFRESH_COOLDOWN_MS - at;
     if (wait > 0) {
-      const minutes = Math.ceil(wait / 60_000);
-      return error('ARMORY_REFRESH_TOO_SOON', `${link.slug} was asked for moments ago`, {
-        suggestion: `Try again in ${minutes} minute${minutes === 1 ? '' : 's'}; armory-get shows the latest`,
-        retryable: true,
-      });
+      // Members read this on the website as is: the character's name and plain minutes.
+      const since = Math.floor((at - link.requestedAt) / 60_000);
+      const ago = since < 1 ? 'under a minute ago' : `${plural(since, 'minute')} ago`;
+      return error(
+        'ARMORY_REFRESH_TOO_SOON',
+        `${character.name} was looked up on the armory ${ago}`,
+        {
+          suggestion: `Try again in ${plural(Math.ceil(wait / 60_000), 'minute')}`,
+          retryable: true,
+        },
+      );
     }
     const updated = await deps.armory.updateLink(guildId, link.id, { requestedAt: at });
     await deps.armoryEffects.fetch(guildId, [link.id]);

@@ -36,6 +36,8 @@ show the guild my level, item level, and gear without typing them, and keep them
 - [ ] On the site, `/characters` as Pip: the Armory section has a card for Pipwick with the
   portrait, "Level … Gnome Mage · Frost · <Vintage>", the item level, and the gear (quality
   colors). A character registered as "First Last" shows Find on the armory without a surname
-  field; one without a last name asks for it.
+  field; one without a last name asks for it. A wrong surname corrected within 10 minutes says
+  "Saved as …" with the minutes until Refresh (not "Looking up"), and Refresh then looks it up.
+  "Refresh" too soon reads "… was looked up on the armory N minutes ago. Try again in M minutes."
 - [ ] Ana's `armory-unlink` previews the slug, and after confirming `armory-get` shows no link
   while `character-list` still has Pipwick.

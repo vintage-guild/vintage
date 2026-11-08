@@ -120,7 +120,7 @@ describe('vintage-armory-card', () => {
     await settle();
     expect(client.run).toHaveBeenCalledWith('armory-link', { characterId: 'c1' });
     expect(changed).toHaveBeenCalledOnce();
-    expect(shadowText(el)).toContain('Looking up Bloodfen Il on the armory');
+    expect(shadowText(el)).toContain('Linked Bloodfen Il');
   });
 
   it('asks for the surname when the registered name has none', async () => {
@@ -193,12 +193,53 @@ describe('vintage-armory-card', () => {
     expect(button(named, 'Refresh')).toBeTruthy();
   });
 
+  it('clears “Linked” once the fetch lands, and keeps it while in flight', async () => {
+    useClient(() => ({ success: true, data: {} }));
+    const el = await card({ id: 'c1', name: 'Bloodfen Il', class: 'warrior' }, null);
+    const status = () => el.shadowRoot!.querySelector('.status')?.textContent?.trim();
+    button(el, 'Find on the armory')!.click();
+    await settle();
+    expect(status()).toBe('Linked Bloodfen Il');
+
+    el.entry = { ...FOUND, status: 'pending', checkedAt: null, requestedAt: NOW };
+    await settle();
+    expect(status()).toBe('Linked Bloodfen Il');
+
+    el.entry = { ...FOUND, requestedAt: NOW, checkedAt: NOW + 1 };
+    await settle();
+    expect(status()).toBe('');
+  });
+
+  it('says when a corrected surname waits out the cooldown, and leaves Refresh on', async () => {
+    // Relinked 2 minutes after the last lookup: saved, but no fetch until the cooldown passes.
+    const el = await card(
+      { id: 'c2', name: 'Pipwick', class: 'mage' },
+      {
+        ...FOUND,
+        name: 'Pipwick',
+        surname: 'Thornbury',
+        status: 'pending',
+        profile: null,
+        equipment: [],
+        avatarUrl: null,
+        requestedAt: NOW - 2 * MIN,
+        linkedAt: NOW,
+        checkedAt: null,
+      },
+    );
+    const text = shadowText(el);
+    expect(text).toContain('Saved as Pipwick Thornbury');
+    expect(text).toContain('press Refresh in 8 minutes');
+    expect(text).not.toContain('Looking up');
+    expect(button(el, 'Refresh')!.disabled).toBe(false);
+  });
+
   it('shows the server’s refusal when a refresh comes too soon', async () => {
     useClient(() => ({
       success: false,
       error: {
         code: 'ARMORY_REFRESH_TOO_SOON',
-        message: 'bloodfen-il was asked for moments ago',
+        message: 'Bloodfen Il was looked up on the armory 6 minutes ago',
         suggestion: 'Try again in 4 minutes',
         retryable: true,
       },
@@ -206,7 +247,9 @@ describe('vintage-armory-card', () => {
     const el = await card({ id: 'c1', name: 'Bloodfen Il', class: 'warrior' }, FOUND);
     button(el, 'Refresh')!.click();
     await settle();
-    expect(shadowText(el)).toContain('asked for moments ago');
+    expect(shadowText(el)).toContain(
+      'looked up on the armory 6 minutes ago. Try again in 4 minutes.',
+    );
   });
 
   it('unlinks after the server’s preview, and keeps the link on Keep', async () => {

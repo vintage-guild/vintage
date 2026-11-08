@@ -1,0 +1,115 @@
+{
+  "description": "Game → game: the members' view of the bench import, cut by raidShareFromImport; the bench keeps its people and loses its reasons",
+  "payload": {
+    "v": 1,
+    "kind": "raid-share",
+    "guildId": "g_vintage",
+    "generatedAt": 1793000000,
+    "raid": {
+      "eventId": "evt_mc_0001",
+      "title": "Molten Core — week 1",
+      "startsAt": 1793052000
+    },
+    "roster": [
+      {
+        "characterId": "c_aeryn",
+        "name": "Aeryn",
+        "class": "warrior",
+        "spec": "protection",
+        "role": "tank"
+      },
+      {
+        "characterId": "c_brann",
+        "name": "Brann",
+        "class": "priest",
+        "spec": "holy",
+        "role": "healer"
+      },
+      {
+        "characterId": "c_cyra",
+        "name": "Cyra",
+        "class": "mage",
+        "role": "ranged"
+      },
+      {
+        "characterId": "c_doran",
+        "name": "Doran-Stonemaul",
+        "class": "rogue",
+        "role": "melee"
+      },
+      {
+        "characterId": "c_elowen",
+        "name": "Élowen",
+        "class": "druid",
+        "spec": "restoration",
+        "role": "healer"
+      }
+    ],
+    "bench": [
+      {
+        "characterId": "c_fenna",
+        "name": "Fenna",
+        "class": "paladin",
+        "spec": "holy",
+        "role": "healer"
+      },
+      {
+        "characterId": "c_garrick",
+        "name": "Garrick",
+        "class": "hunter",
+        "role": "ranged"
+      },
+      {
+        "characterId": "c_hollis",
+        "name": "Hollis-Stonemaul",
+        "class": "warlock",
+        "spec": "affliction",
+        "role": "ranged"
+      }
+    ],
+    "groups": [
+      {
+        "group": 1,
+        "characterIds": [
+          "c_aeryn",
+          "c_brann",
+          "c_doran"
+        ]
+      },
+      {
+        "group": 2,
+        "characterIds": [
+          "c_cyra",
+          "c_elowen"
+        ]
+      }
+    ],
+    "loot": {
+      "methodId": "softres",
+      "methodVersion": 1,
+      "configVersion": 3,
+      "mode": "master",
+      "threshold": 4
+    },
+    "candidates": [
+      {
+        "itemId": 16800,
+        "ranked": [
+          {
+            "characterId": "c_doran",
+            "reason": "Soft-reserved (1 of 2)"
+          },
+          {
+            "characterId": "c_aeryn",
+            "reason": "Soft-reserved (2 of 2)"
+          }
+        ]
+      },
+      {
+        "itemId": 17076,
+        "ranked": []
+      }
+    ]
+  },
+  "encoded": "!VIN:1!LjvSUnrqquHJX4ykaHeoOuahuyfSKLStbfPcFbfWf0CrYf0CS3UJVBX7T7Pz3ZwUd5oAT4da5c(aS4laQrAv(bqIpb(cyUZbPir5oZBE7BEV5wFnkb08SZMUJNXqg3b4ebYJNbAnlIRywlwWumHuhQz5q0fvncrJcsYaMcWqBbWdZmQvx4BSHhNYquYN7BMKvQj68TWxFDP2jitNcIP(gR5X0ikP13exYqLHA3Q4(VPU2GlDgnKZkv(2(757SLnBMsYDsJElNPfsbZb2(9sKoiFIO94Vur8Cq0VNVbjEHHEMGaZA0fDV0mZnablGlarWjJcmZco957rYaCL2)O)d0P)d0dBh(nF3o7sbnG0Vkg7o5d)QXltsrtzbPHVFdFZEM)yI0kXO9hfvd5GE(h3pHhZxHmAPbLzjO9b3gtlLkXeXM04fsTJLcHZLAXwKjfdSeNqOYyCtVIB0ZKPtb0sR)DwNdUmdnhAjftc(Q9fUU)bH5gbKKZSKG24YiaKnlomSI2xGWcq7Mi2blCX584HdhoAT1XqNTET(57JCsNck6(wJYb6GZnie87p(5GLampyucAQ49Du(5pEFWHsdLWrJR9X2HokgO8QanoOoVQG(e6wOaLG1rijLqMtB)H(o(7sxm(N6BgMtRVVv45KhvL4vLpY3mcnPLu9)8QQ88Mhfr5GcGkUFgbtGLsbDM9JpT3CRjFhT6oAUkr8Gfh8x"
+}

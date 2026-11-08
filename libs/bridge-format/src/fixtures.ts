@@ -7,6 +7,7 @@ import { encodeValue } from './envelope';
 import type { BridgeErrorCode } from './errors';
 import type { LuaValue } from './libserialize';
 import type { RaidExport, RaidImport } from './schemas';
+import { raidShareFromImport } from './share';
 
 interface Fixture {
   description: string;
@@ -252,6 +253,11 @@ export const FIXTURES: Record<string, Fixture> = {
   'raid-import-bench.v1': {
     description: 'An import with a bench: standby, queued, and benched characters off the roster',
     payload: raidImportWithBench,
+  },
+  'raid-share.v1': {
+    description:
+      "Game → game: the members' view of the bench import, cut by raidShareFromImport; the bench keeps its people and loses its reasons",
+    payload: raidShareFromImport(raidImportWithBench),
   },
   'raid-export.v1': {
     description: 'Game → web export: attendance snapshots, loot received, item data seen',

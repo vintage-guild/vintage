@@ -10,7 +10,7 @@ Load the `vintage-addon` skill before changing anything here.
 
 | Folder | Holds | Rule |
 |---|---|---|
-| `Core/` | Session reducer, migrations, actions returning ActionResult; `BridgeFormat/`: the `!VIN:1!` codec and payload schemas, the Lua twin of `libs/bridge-format`; `Hash` (SHA-256, the raid sync's fingerprint) | Pure Lua 5.1. No WoW API, no `LibStub`; runs in busted and Mechanic's sandbox |
+| `Core/` | Session reducer, migrations, actions returning ActionResult; `BridgeFormat/`: the `!VIN:1!` codec and payload schemas, the Lua twin of `libs/bridge-format`; `Hash` (SHA-256, the raid sync's fingerprint); `Share` (an import's `raid-share`, the members' view, as `libs/bridge-format`'s `raidShareFromImport` makes it) | Pure Lua 5.1. No WoW API, no `LibStub`; runs in busted and Mechanic's sandbox |
 | `Bridge/` | `Secrets`, `BridgeStrings` (`ns.BridgeCodec` over the embedded LibSerialize and LibDeflate), `Context` (every game read), `Events`, `Executor` (the action registry), `Game` (every call that changes the group or the loot), `Forming` (the invite and arrange queue), `Recorder` (events into actions), `Items` (item data), `LootWindow` (whether a loot window is open), `Diagnostics` (`/vintage names`: which name form each API returns on Forever, for [addon-for-members](../../docs/features/active/addon-for-members/addon-for-members.plan.md) Q6) | The only layer that calls WoW APIs. Every returned field passes `Secrets.Public` |
 | `View/` | FenUI raid window, loot popup, theme registration, minimap button | Calls `ns.Executor:Execute(name, params)`; never Core or WoW game state directly |
 | `Theme/VintageTokens.lua` | FenUI theme generated from `libs/design-tokens` | Never edit; `pnpm tokens:build` writes it |

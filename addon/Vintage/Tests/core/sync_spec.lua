@@ -209,24 +209,63 @@ describe("Core.Sync", function()
 		assert.is_nil(held(officer))
 	end)
 
-	it("drops a relayed copy that doesn't match the officer's fingerprint", function()
+	it("drops a relayed copy that doesn't match the officer's fingerprint, and that relay after", function()
 		local share, data = shareAt()
 		local relay, asker = members[1], members[2]
-		-- The relay holds the real fingerprint but serves different bytes.
+		-- The asker hears the officer's HAVE, but the officer never answers.
 		officer.sync:Publish(share, data)
 		guild:Run(function(message)
 			return message.from == officer.name and message.channel == "GUILD"
 		end)
+		guild.queue = {}
+		local version = officer.sync:Holdings()[1]
+		-- The relay says it has the real version, so after the timeout the asker asks it...
+		asker.sync:OnMessage(relay.name, "GUILD", Wire.Have({ version }))
+		guild:Advance(Sync.WANT_TIMEOUT)
+		assert.are.same(
+			{ from = asker.name, channel = "WHISPER", target = relay.name, text = Wire.Want(version) },
+			guild.queue[#guild.queue]
+		)
+		-- ...and it serves different bytes.
 		local tampered = copy(share)
 		tampered.raid.title = "Tampered"
-		guild.queue = {}
-		asker.sync:OnMessage(
-			relay.name,
-			"WHISPER",
-			Wire.Share(asker.sync.wanted[next(asker.sync.wanted)].version, codec:Encode(tampered).data)
-		)
+		local before = guild.hashes
+		asker.sync:OnMessage(relay.name, "WHISPER", Wire.Share(version, codec:Encode(tampered).data))
 		assert.is_nil(held(asker))
 		assert.matches("doesn't match", asker.logs[1])
+		assert.are.equal(before + 1, guild.hashes)
+		-- Its next tries aren't hashed at all.
+		for _ = 1, 3 do
+			asker.sync:OnMessage(relay.name, "WHISPER", Wire.Share(version, codec:Encode(tampered).data))
+		end
+		assert.are.equal(before + 1, guild.hashes)
+	end)
+
+	it("only hashes a SHARE from someone it asked", function()
+		local share, data = shareAt()
+		officer.sync:Publish(share, data)
+		-- The member hears the HAVE and asks the officer; the answer is held back.
+		guild:Run(function(message)
+			return message.channel == "GUILD" or message.from ~= officer.name
+		end)
+		local member = members[1]
+		assert.is_nil(held(member))
+		local before = guild.hashes
+		member.sync:OnMessage("Stranger Danger", "WHISPER", Wire.Share(officer.sync:Holdings()[1], data))
+		assert.are.equal(before, guild.hashes)
+		assert.is_nil(held(member))
+	end)
+
+	it("takes a HAVE only from the guild or raid channel, and WANT or SHARE only by whisper", function()
+		local share, data = shareAt()
+		officer.sync:Publish(share, data)
+		guild.queue = {}
+		local version = officer.sync:Holdings()[1]
+		members[1].sync:OnMessage(officer.name, "WHISPER", Wire.Have({ version }))
+		officer.sync:OnMessage(members[1].name, "GUILD", Wire.Want(version))
+		assert.are.equal(0, #guild.queue)
+		members[1].sync:OnMessage(officer.name, "RAID", Wire.Have({ version }))
+		assert.are.equal(1, #guild.queue)
 	end)
 
 	it("ignores a SHARE nobody asked for, without hashing it", function()
@@ -358,6 +397,132 @@ describe("Core.Sync", function()
 		sync:SetPaused(false)
 		assert.are.equal(1, #guild.queue)
 		assert.matches("^1|HAVE|evt_mc_0001", guild.queue[1].text)
+	end)
+
+	it("doesn't queue answers during an encounter, so a flood of asks can't crowd out an honest one", function()
+		local share, data = shareAt()
+		officer.sync:Publish(share, data)
+		guild.queue = {}
+		local want = Wire.Want(officer.sync:Holdings()[1])
+		officer.sync:SetPaused(true)
+		for index = 1, 60 do
+			officer.sync:OnMessage("Alt Number" .. index, "WHISPER", want)
+		end
+		officer.sync:OnMessage(members[1].name, "WHISPER", want)
+		officer.sync:SetPaused(false)
+		assert.are.equal(0, #guild.queue)
+		-- Nothing counted as answered, so the member's next ask is answered at once.
+		officer.sync:OnMessage(members[1].name, "WHISPER", want)
+		assert.are.equal(1, #guild.queue)
+		assert.matches("^1|SHARE|", guild.queue[1].text)
+	end)
+
+	it("keeps only the latest HAVE while paused", function()
+		officer.sync:SetPaused(true)
+		officer.sync:Publish(shareAt(1793000000))
+		officer.sync:Publish(shareAt(1793000100))
+		officer.sync:SetPaused(false)
+		assert.are.equal(1, #guild.queue)
+		assert.matches(":1793000100:", guild.queue[1].text)
+	end)
+
+	it("says it is behind after giving up, so a lost answer is sent again", function()
+		-- Only the officer can help: nobody else will relay it.
+		members[2].online = false
+		members[3].online = false
+		officer.sync:Publish(shareAt())
+		local member = members[1]
+		-- Every answer to the member is lost.
+		guild:Run(function(message)
+			return not (message.from == officer.name and message.target == member.name)
+		end)
+		assert.is_nil(held(member))
+		for _ = 1, 5 do
+			guild:Advance(Sync.WANT_TIMEOUT)
+			guild:Run()
+		end
+		assert.is_not_nil(held(member))
+	end)
+
+	it("never fetches a raid again once it has expired, not even an older version", function()
+		local member = members[1]
+		officer.sync:Publish(shareAt(1793000000))
+		guild:Run()
+		guild:Advance(Sync.ANNOUNCE_INTERVAL)
+		officer.sync:Publish(shareAt(1793000100))
+		guild:Run()
+		local old = {
+			eventId = "evt_mc_0001",
+			generatedAt = 1793000000,
+			hash = Core.Hash.Sha256(select(2, shareAt(1793000000))),
+		}
+		guild.clock = held(member).startsAt + Sync.KEEP_AFTER_START
+		guild:Advance(1)
+		assert.is_nil(held(member))
+		guild.queue = {}
+		member.sync:OnMessage(members[2].name, "GUILD", Wire.Have({ old }))
+		member.sync:OnMessage(officer.name, "GUILD", Wire.Have({ old }))
+		assert.are.equal(0, #guild.queue)
+	end)
+
+	it("still takes a later import of a raid that expired", function()
+		local member = members[1]
+		officer.sync:Publish(shareAt(1793000000))
+		guild:Run()
+		guild.clock = held(member).startsAt + Sync.KEEP_AFTER_START
+		guild:Advance(1)
+		assert.is_nil(held(member))
+		-- The officer imports the raid again, moved a week on.
+		local share, data = shareAt(1793000500)
+		share.raid.startsAt = guild.clock + 7 * 86400
+		data = codec:Encode(share).data
+		officer.sync:Publish(share, data)
+		guild:Run()
+		assert.are.equal(data, held(member).data)
+	end)
+
+	it("announces once the roster loads, in case an officer's HAVE was turned away", function()
+		local member = members[1]
+		guild.queue = {}
+		member.sync:RosterReady()
+		assert.matches("^1|HAVE|", guild.queue[1].text)
+	end)
+
+	it("logs a SHARE it was waiting for that came from someone it didn't ask", function()
+		local share, data = shareAt()
+		officer.sync:Publish(share, data)
+		guild:Run(function(message)
+			return message.channel == "GUILD" or message.from ~= officer.name
+		end)
+		local member = members[1]
+		member.sync:OnMessage("Bloodfen Il-USPvE", "WHISPER", Wire.Share(officer.sync:Holdings()[1], data))
+		assert.matches("not asked", member.logs[#member.logs])
+	end)
+
+	it("holds only so many HAVEs for the roster, and forgets them after a while", function()
+		local member = members[1]
+		member.unknown = setmetatable({}, {
+			__index = function()
+				return true
+			end,
+		})
+		for index = 1, Sync.MAX_DEFERRED + 50 do
+			member.sync:OnMessage("Unknown Number" .. index, "GUILD", Wire.Have({}))
+		end
+		assert.are.equal(Sync.MAX_DEFERRED, member.sync.deferredCount)
+		guild:Advance(Sync.DEFERRED_FOR)
+		assert.are.equal(0, member.sync.deferredCount)
+		assert.is_nil(next(member.sync.deferred))
+	end)
+
+	it("carries a generatedAt past 2^31 intact, and refuses one the wire can't", function()
+		local version = { eventId = "evt_mc_0001", generatedAt = 2 ^ 31 + 5, hash = string.rep("ab", 32) }
+		assert.are.same(version, Wire.Decode(Wire.Want(version)).version)
+		for _, bad in ipairs({ 1.5, -1, Sync.MAX_GENERATED_AT + 1 }) do
+			local share = shareAt()
+			share.generatedAt = bad
+			assert.are.equal("UNSHAREABLE", officer.sync:Publish(share, "!VIN:1!x").error.code, tostring(bad))
+		end
 	end)
 
 	it("drops a raid a day after it starts", function()

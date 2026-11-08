@@ -27,6 +27,9 @@ Sync.MAX_ANNOUNCED = 5 -- raids in one HAVE, newest start first
 Sync.MAX_SHARE_LENGTH = 49152 -- characters; hashing costs about 11 µs a byte
 Sync.KEEP_AFTER_START = 86400 -- a share is dropped a day after its raid starts
 Sync.MAX_OUTBOX = 50 -- messages held while paused
+Sync.MAX_DEFERRED = 200 -- HAVEs waiting for the guild roster
+Sync.DEFERRED_FOR = 300 -- seconds a HAVE waits for the roster
+Sync.MAX_GENERATED_AT = 999999999999 -- 12 digits, the most the wire reads
 
 --------------------------------------------------------------------------------
 -- Wire format: "1|HAVE|e:g:h;e:g:h", "1|WANT|e:g:h", "1|SHARE|e:g:h|!VIN:1!..."
@@ -42,7 +45,8 @@ function Wire.IsEventId(value)
 end
 
 local function versionText(version)
-	return string.format("%s:%d:%s", version.eventId, version.generatedAt, version.hash)
+	-- %.0f, not %d: Lua 5.1 formats %d through a C long, which wraps at 2^31.
+	return string.format("%s:%.0f:%s", version.eventId, version.generatedAt, version.hash)
 end
 
 local function parseVersion(text)
@@ -148,7 +152,9 @@ function Sync.New(deps)
 		wanted = {}, -- [eventId:generatedAt] = { version, at, asked = { [sender] }, sources = { [sender] } }
 		answered = {}, -- [asker|eventId:generatedAt] = when we last sent them that SHARE
 		budget = {}, -- [sender] = { start, count }
-		deferred = {}, -- [sender] = versions from a HAVE waiting for the guild roster
+		deferred = {}, -- [sender] = { versions, at }: a HAVE waiting for the guild roster
+		deferredCount = 0,
+		expired = {}, -- [eventId] = generatedAt dropped a day after its start: no version up to it again
 		outbox = {},
 		paused = false,
 	}, { __index = SyncMixin })
@@ -165,17 +171,31 @@ function SyncMixin:Log(message)
 	end
 end
 
-function SyncMixin:Send(channel, target, text)
-	if self.paused then
-		if #self.outbox < Sync.MAX_OUTBOX then
-			self.outbox[#self.outbox + 1] = { channel, target, text }
-		end
-		return
+--- Sends now, or holds it while paused (an encounter). A SHARE is never held: whoever asked
+--- asks again, and a flood of asks can't fill the outbox. Only the latest HAVE is held.
+---@return boolean sent or held
+function SyncMixin:Send(kind, channel, target, text)
+	if not self.paused then
+		self.deps.send(channel, target, text)
+		return true
 	end
-	self.deps.send(channel, target, text)
+	if kind == "SHARE" then
+		return false
+	end
+	if kind == "HAVE" then
+		for index = #self.outbox, 1, -1 do
+			if self.outbox[index].kind == "HAVE" then
+				table.remove(self.outbox, index)
+			end
+		end
+	elseif #self.outbox >= Sync.MAX_OUTBOX then
+		return false
+	end
+	self.outbox[#self.outbox + 1] = { kind = kind, channel = channel, target = target, text = text }
+	return true
 end
 
---- Holds every send while paused (an encounter), and sends them in order when resumed.
+--- Holds sends while paused (an encounter), and sends them in order when resumed.
 function SyncMixin:SetPaused(paused)
 	self.paused = paused == true
 	if self.paused then
@@ -184,7 +204,7 @@ function SyncMixin:SetPaused(paused)
 	local outbox = self.outbox
 	self.outbox = {}
 	for _, message in ipairs(outbox) do
-		self.deps.send(message[1], message[2], message[3])
+		self.deps.send(message.channel, message.target, message.text)
 	end
 end
 
@@ -223,7 +243,7 @@ function SyncMixin:Announce(channel)
 	end
 	self.lastAnnounce = now
 	self.announcePending = nil
-	self:Send(channel or "GUILD", nil, Wire.Have(self:Holdings()))
+	self:Send("HAVE", channel or "GUILD", nil, Wire.Have(self:Holdings()))
 	return true
 end
 
@@ -240,6 +260,14 @@ function SyncMixin:Publish(share, data)
 	if #data > Sync.MAX_SHARE_LENGTH then
 		return Core.Result.error("TOO_LARGE", "The raid is too large to share")
 	end
+	if
+		type(generatedAt) ~= "number"
+		or generatedAt < 0
+		or generatedAt > Sync.MAX_GENERATED_AT
+		or generatedAt ~= math.floor(generatedAt)
+	then
+		return Core.Result.error("UNSHAREABLE", "The import's generatedAt can't be shared: " .. tostring(generatedAt))
+	end
 	local held = self.store[eventId]
 	if held and held.generatedAt > generatedAt then
 		return Core.Result.error("OLDER", "A newer import of this raid is already shared")
@@ -253,6 +281,10 @@ function SyncMixin:Publish(share, data)
 end
 
 function SyncMixin:IsNewer(version)
+	local expired = self.expired[version.eventId]
+	if expired and version.generatedAt <= expired then
+		return false
+	end
 	local held = self.store[version.eventId]
 	return not held or version.generatedAt > held.generatedAt
 end
@@ -273,12 +305,17 @@ end
 ---@param sender string as the game reports it
 ---@param channel string
 ---@param text string
-function SyncMixin:OnMessage(sender, _, text)
+function SyncMixin:OnMessage(sender, channel, text)
 	if self.deps.isSelf(sender) or not self:Spend(sender) then
 		return
 	end
 	local message = Wire.Decode(text)
 	if not message then
+		return
+	end
+	-- HAVE is announced to the guild or raid; WANT and SHARE are whispered.
+	local announced = channel == "GUILD" or channel == "RAID"
+	if (message.kind == "HAVE") ~= announced then
 		return
 	end
 	if message.kind == "HAVE" then
@@ -293,10 +330,19 @@ end
 function SyncMixin:OnHave(sender, versions)
 	local authority = self.deps.isAuthority(sender)
 	if authority == nil then
-		self.deferred[sender] = versions
+		if not self.deferred[sender] then
+			if self.deferredCount >= Sync.MAX_DEFERRED then
+				return
+			end
+			self.deferredCount = self.deferredCount + 1
+		end
+		self.deferred[sender] = { versions = versions, at = self.deps.now() }
 		return
 	end
-	self.deferred[sender] = nil
+	if self.deferred[sender] then
+		self.deferred[sender] = nil
+		self.deferredCount = self.deferredCount - 1
+	end
 	local listed = {}
 	for _, version in ipairs(versions) do
 		listed[version.eventId] = version
@@ -340,7 +386,7 @@ function SyncMixin:Want(version, source)
 	end
 	pending.at = now
 	pending.asked[source] = true
-	self:Send("WHISPER", source, Wire.Want(version))
+	self:Send("WANT", "WHISPER", source, Wire.Want(version))
 end
 
 function SyncMixin:OnWant(sender, version)
@@ -354,19 +400,33 @@ function SyncMixin:OnWant(sender, version)
 	if last and now - last < Sync.ANSWER_INTERVAL then
 		return
 	end
-	self.answered[k] = now
-	self:Send("WHISPER", sender, Wire.Share(version, held.data))
+	-- Counted only when it went out: a SHARE held back by an encounter isn't an answer.
+	if self:Send("SHARE", "WHISPER", sender, Wire.Share(version, held.data)) then
+		self.answered[k] = now
+	end
 end
 
 function SyncMixin:OnShare(sender, version, data)
 	local k = key(version.eventId, version.generatedAt)
 	local pending = self.wanted[k]
 	local expected = self.trusted[k]
-	-- Unasked, or not the fingerprint an officer announced: dropped before any hashing.
-	if not pending or not expected or expected ~= version.hash or #data > Sync.MAX_SHARE_LENGTH then
+	-- Not asked for, not from someone asked, from someone whose bytes already failed, or not
+	-- the fingerprint an officer announced: dropped before any hashing.
+	if pending and expected == version.hash and pending.asked[sender] == nil then
+		-- Logged: if the game names a sender differently by channel, this is where it shows.
+		self:Log(string.format("Ignored %s from %s: not asked", k, sender))
+	end
+	if
+		not pending
+		or pending.asked[sender] ~= true
+		or not expected
+		or expected ~= version.hash
+		or #data > Sync.MAX_SHARE_LENGTH
+	then
 		return
 	end
 	if self.deps.hash(data) ~= expected then
+		pending.asked[sender] = "failed"
 		self:Log(string.format("Dropped %s from %s: it doesn't match the officers' fingerprint", k, sender))
 		return
 	end
@@ -392,8 +452,30 @@ end
 function SyncMixin:RosterReady()
 	local deferred = self.deferred
 	self.deferred = {}
-	for sender, versions in pairs(deferred) do
-		self:OnHave(sender, versions)
+	self.deferredCount = 0
+	for sender, waiting in pairs(deferred) do
+		self:OnHave(sender, waiting.versions)
+	end
+	-- Say what we hold, in case an officer's HAVE was turned away while the roster loaded.
+	self:Announce("GUILD")
+end
+
+--- Drops a raid and every fingerprint and request for it. It is never fetched again in that
+--- version or an older one; a later import (a new generatedAt an officer announces) still is.
+function SyncMixin:Expire(eventId)
+	local entry = self.store[eventId]
+	self.store[eventId] = nil
+	self.expired[eventId] = math.max(self.expired[eventId] or 0, entry and entry.generatedAt or 0)
+	local prefix = eventId .. ":"
+	for k in pairs(self.trusted) do
+		if k:sub(1, #prefix) == prefix then
+			self.trusted[k] = nil
+		end
+	end
+	for k in pairs(self.wanted) do
+		if k:sub(1, #prefix) == prefix then
+			self.wanted[k] = nil
+		end
 	end
 end
 
@@ -420,14 +502,21 @@ function SyncMixin:Tick()
 			if candidate then
 				self:Want(pending.version, candidate)
 			elseif now - pending.at >= Sync.WANT_TIMEOUT * 4 then
+				-- Nobody left to ask: say we're behind, and an officer announces again.
 				self.wanted[k] = nil
+				self.announcePending = self.announcePending or "GUILD"
 			end
 		end
 	end
 	for eventId, entry in pairs(self.store) do
 		if entry.startsAt and entry.startsAt + Sync.KEEP_AFTER_START < now then
-			self.store[eventId] = nil
-			self.trusted[key(eventId, entry.generatedAt)] = nil
+			self:Expire(eventId)
+		end
+	end
+	for sender, waiting in pairs(self.deferred) do
+		if now - waiting.at >= Sync.DEFERRED_FOR then
+			self.deferred[sender] = nil
+			self.deferredCount = self.deferredCount - 1
 		end
 	end
 	for k, at in pairs(self.answered) do

@@ -67,7 +67,7 @@ in the header to the quarters (Tonight, Calendar, Roster, Guild, ...). The addon
 | **Export** | Stood by, snapshots, **Make export string** |
 | **Guild** | Roster reconciliation (from `feat/guild-roster-reconciliation`) |
 
-**Who sees Officers:** anyone trusted as an officer (M7: the **Officer** rank, plus Bloodfen
+**Who sees Officers:** anyone trusted as an officer (M7: the **Officer** rank, plus Bloodfen Il
 for development), and anyone holding a
 pasted import. Only the leader tier can fetch an import from the site, so holding one already
 proves that tier; that is how a raid leader who isn't an officer by rank gets in. Hiding the
@@ -137,6 +137,14 @@ sender's guild rank as your own guild roster shows it.
 | Flood announcements or requests | The rate limits above; oversized or malformed messages are dropped before decoding finishes |
 | Change which ranks count as officers | It only changes their own client. Everyone else uses the shipped list (M7) |
 
+**Names on Forever.** A character's unique name is two words, the name and the surname
+("Bloodfen Il"). The client's own saved data shows what each API gives: addon messages arrive
+from `Bloodfen Il` (ProfessionMaster logs its guild messages that way), cross-realm keys read
+`Bloodfen Il-USPvE`, while AceDB's character key, built from `UnitName("player")`, is just
+`Bloodfen - PvE`. So every trust check compares the **full name** after `Ambiguate(name,
+"none")`, case-insensitively, and never the first name alone, which two characters can share.
+The client's own full name comes from the same source as senders' (checked in PR 1).
+
 What remains is the officers themselves: a modified officer client can send anything. Officers
 are trusted with this data already, and the website keeps a record of who relayed what.
 
@@ -176,17 +184,18 @@ for council candidates). The game is then a second place to edit it:
 | M4 | **The member view is a separate kind cut from the import**, never the import itself | Bench reasons and other officer-only fields stay with the officers |
 | M5 | **The window mirrors the site:** Raid, Loot, Wishlist for everyone; **Officers** opens the quarters | The same words and places in the game and on the site |
 | M6 | **The new layout ships with the read-only sync,** not before it | Without the sync, the members' tabs would be empty |
-| M7 | **Officers are the guild rank named `Officer`, plus the character Bloodfen** (Bloodfen Il, the maintainer) **while the addon is in development** (decided 2026-11-08). Both lists live in `Config.lua` (`OFFICER_RANKS = { "Officer" }`, `TRUSTED_CHARACTERS = { "Bloodfen" }`), match rank *names* (ranks get renumbered when one is added), and are shipped, so every client agrees. Bloodfen must also be in the guild | Lets the maintainer serve shares, open the quarters, and test from any rank. A character name is as safe as a rank: the game server vouches for the sender's name. Remove Bloodfen from `TRUSTED_CHARACTERS` once development settles, or keep it on purpose (a later decision) |
+| M7 | **Officers are the guild rank named `Officer`, plus the character Bloodfen Il** (the maintainer) **while the addon is in development** (decided 2026-11-08). Both lists live in `Config.lua` (`OFFICER_RANKS = { "Officer" }`, `TRUSTED_CHARACTERS = { "Bloodfen Il" }`), match rank *names* (ranks get renumbered when one is added) and full character names (Names on Forever), and are shipped, so every client agrees. Bloodfen Il must also be in the guild | Lets the maintainer serve shares, open the quarters, and test from any rank. A character name is as safe as a rank: the game server vouches for the sender's name. Remove Bloodfen Il from `TRUSTED_CHARACTERS` once development settles, or keep it on purpose (a later decision) |
 
 ## Open questions
 
 | # | Question | Recommended default |
 |---|---|---|
-| Q1 | ~~Which guild ranks count as officers?~~ | **Decided (M7):** the `Officer` rank, plus Bloodfen for development. Still to check: whether the Guild Master rank should count too (it has its own name, and isn't `Officer`) |
+| Q1 | ~~Which guild ranks count as officers?~~ | **Decided (M7):** the `Officer` rank, plus Bloodfen Il for development. Still to check: whether the Guild Master rank should count too (it has its own name, and isn't `Officer`) |
 | Q2 | Do members see each item's whole priority list, or only their own place? | The whole list: names and reasons in order. Members can already see loot on the site (`loot-list`), and an open list causes fewer "why did they get it?" whispers |
 | Q3 | When an in-game pick and a website edit conflict: newest wins, or do officers approve? | Newest wins for the member's own list; approval belongs in the loot method (council), not in the sync |
 | Q4 | The button's name: "Officers" or "Officers' Quarters"? | "Officers", the site's word in the same place |
 | Q5 | Can trial or free accounts on Forever receive addon messages, and do messages stop during encounters? | Check on the Forever client before PR 3 |
+| Q6 | Which name does each API return on Forever: `UnitName`, `GetUnitName(unit, true)`, `GetRaidRosterInfo`, `GetGuildRosterInfo`, the `CHAT_MSG_ADDON` sender, and the master-loot candidates? | Check in PR 1. The saved data suggests `UnitName` gives the first name only, which also matters for the addon's existing name matching (D10): the import's names and the game's must be the same form |
 
 ## Work breakdown
 

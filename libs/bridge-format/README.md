@@ -3,7 +3,8 @@
 The paste strings the website and the `Vintage` addon trade (PLAN §3.5). Web → game: an
 **import** with the roster, raid groups, loot settings, and precomputed loot candidates.
 Game → web: an **export** with attendance snapshots, loot received, and item data the client
-revealed. This package holds the TS side: Zod schemas, the codec, and the golden fixtures the
+revealed. Game → game: a **share**, the members' view of an import that officers' addons pass
+to the guild. This package holds the TS side: Zod schemas, the codec, and the golden fixtures the
 addon's Lua codec is tested against.
 
 ```ts
@@ -34,8 +35,8 @@ LibDeflate pick different matches), so compare decoded values, not encoded strin
 
 ## Payload rules
 
-- `v` is the schema version (`BRIDGE_SCHEMA_VERSION`, now 1) and `kind` is `raid-import` or
-  `raid-export`. A newer `v` decodes to `UNSUPPORTED_VERSION`, never a guess.
+- `v` is the schema version (`BRIDGE_SCHEMA_VERSION`, now 1) and `kind` is `raid-import`,
+  `raid-export`, or `raid-share`. A newer `v` decodes to `UNSUPPORTED_VERSION`, never a guess.
 - Changing a payload incompatibly bumps `v`, keeps the old schema decodable while the addon
   catches up, and updates the fixtures on both sides.
 - Times are unix seconds (Lua `time()`). Only strings, integers, booleans, arrays, and
@@ -57,9 +58,24 @@ LibDeflate pick different matches), so compare decoded values, not encoded strin
   left out when the game kept it secret. Exports without it still decode
   (`raid-export-encounters.v1` is the fixture).
 
+## The share
+
+A `raid-share` is the members' view of an import, which an officer's addon passes to the rest of
+the guild over addon messages ([addon-for-members](../../docs/features/active/addon-for-members/addon-for-members.plan.md)).
+It has the import's `guildId`, `generatedAt` (the share's version in the sync), raid, roster,
+groups, loot settings, and candidates, and its bench without the reasons, which stay with the
+officers. The reference checks are the import's.
+
+It is never built by hand: `raidShareFromImport` here and `Core/Share.lua` in the addon cut it
+from an import the same way, and `raid-share.v1` is the first's output for
+`raid-import-bench.v1`, which the Lua spec compares with the second's. Two officers holding the
+same import must produce the same bytes (the sync compares SHA-256 fingerprints), so neither
+function may add anything that depends on who builds the share or when. `decodeRaidShare` reads
+one.
+
 ## Errors
 
-`decodeBridge`, `decodeRaidImport`, `decodeRaidExport`, and `encodeBridge` return
+`decodeBridge`, `decodeRaidImport`, `decodeRaidExport`, `decodeRaidShare`, and `encodeBridge` return
 `{ ok: true, value } | { ok: false, error }`. Codes: `NOT_A_BRIDGE_STRING`,
 `UNSUPPORTED_ENCODING`, `TOO_LARGE`, `CORRUPT`, `UNSUPPORTED_VERSION`, `UNKNOWN_KIND`,
 `WRONG_KIND`, `INVALID_PAYLOAD` (with Zod issue paths in `details.issues`).

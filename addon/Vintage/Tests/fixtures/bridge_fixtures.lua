@@ -797,6 +797,121 @@ return {
 				v = 1,
 			},
 		},
+		["raid-share.v1"] = {
+			description = "Game → game: the members' view of the bench import, cut by raidShareFromImport; the bench keeps its people and loses its reasons",
+			encoded = "!VIN:1!LjvSUnrqquHJX4ykaHeoOuahuyfSKLStbfPcFbfWf0CrYf0CS3UJVBX7T7Pz3ZwUd5oAT4da5c(aS4laQrAv(bqIpb(cyUZbPir5oZBE7BEV5wFnkb08SZMUJNXqg3b4ebYJNbAnlIRywlwWumHuhQz5q0fvncrJcsYaMcWqBbWdZmQvx4BSHhNYquYN7BMKvQj68TWxFDP2jitNcIP(gR5X0ikP13exYqLHA3Q4(VPU2GlDgnKZkv(2(757SLnBMsYDsJElNPfsbZb2(9sKoiFIO94Vur8Cq0VNVbjEHHEMGaZA0fDV0mZnablGlarWjJcmZco957rYaCL2)O)d0P)d0dBh(nF3o7sbnG0Vkg7o5d)QXltsrtzbPHVFdFZEM)yI0kXO9hfvd5GE(h3pHhZxHmAPbLzjO9b3gtlLkXeXM04fsTJLcHZLAXwKjfdSeNqOYyCtVIB0ZKPtb0sR)DwNdUmdnhAjftc(Q9fUU)bH5gbKKZSKG24YiaKnlomSI2xGWcq7Mi2blCX584HdhoAT1XqNTET(57JCsNck6(wJYb6GZnie87p(5GLampyucAQ49Du(5pEFWHsdLWrJR9X2HokgO8QanoOoVQG(e6wOaLG1rijLqMtB)H(o(7sxm(N6BgMtRVVv45KhvL4vLpY3mcnPLu9)8QQ88Mhfr5GcGkUFgbtGLsbDM9JpT3CRjFhT6oAUkr8Gfh8x",
+			payload = {
+				bench = {
+					{
+						characterId = "c_fenna",
+						class = "paladin",
+						name = "Fenna",
+						role = "healer",
+						spec = "holy",
+					},
+					{
+						characterId = "c_garrick",
+						class = "hunter",
+						name = "Garrick",
+						role = "ranged",
+					},
+					{
+						characterId = "c_hollis",
+						class = "warlock",
+						name = "Hollis-Stonemaul",
+						role = "ranged",
+						spec = "affliction",
+					},
+				},
+				candidates = {
+					{
+						itemId = 16800,
+						ranked = {
+							{
+								characterId = "c_doran",
+								reason = "Soft-reserved (1 of 2)",
+							},
+							{
+								characterId = "c_aeryn",
+								reason = "Soft-reserved (2 of 2)",
+							},
+						},
+					},
+					{
+						itemId = 17076,
+						ranked = {},
+					},
+				},
+				generatedAt = 1793000000,
+				groups = {
+					{
+						characterIds = {
+							"c_aeryn",
+							"c_brann",
+							"c_doran",
+						},
+						group = 1,
+					},
+					{
+						characterIds = {
+							"c_cyra",
+							"c_elowen",
+						},
+						group = 2,
+					},
+				},
+				guildId = "g_vintage",
+				kind = "raid-share",
+				loot = {
+					configVersion = 3,
+					methodId = "softres",
+					methodVersion = 1,
+					mode = "master",
+					threshold = 4,
+				},
+				raid = {
+					eventId = "evt_mc_0001",
+					startsAt = 1793052000,
+					title = "Molten Core — week 1",
+				},
+				roster = {
+					{
+						characterId = "c_aeryn",
+						class = "warrior",
+						name = "Aeryn",
+						role = "tank",
+						spec = "protection",
+					},
+					{
+						characterId = "c_brann",
+						class = "priest",
+						name = "Brann",
+						role = "healer",
+						spec = "holy",
+					},
+					{
+						characterId = "c_cyra",
+						class = "mage",
+						name = "Cyra",
+						role = "ranged",
+					},
+					{
+						characterId = "c_doran",
+						class = "rogue",
+						name = "Doran-Stonemaul",
+						role = "melee",
+					},
+					{
+						characterId = "c_elowen",
+						class = "druid",
+						name = "Élowen",
+						role = "healer",
+						spec = "restoration",
+					},
+				},
+				v = 1,
+			},
+		},
 	},
 	luaMade = {
 		["error-invalid-payload"] = "!VIN:1!LfvmlovtuuCtuJwQWwSvVqizxxmqYwyTzwrifFnVfsHnpN3m38YyMzUpUZnjKojD2Uiwl7pHG)c0AHH9pGG)e((f48YQGGLZ9Co3Zzo379PBusV2OLmeoFqPHb3uDNjFUKK(LG(8b7vlKKuXanvtQcnMakjqgqF9XxHZ5HeeaAnOZoBCgop7INni2oXuc0wF8b)dPl(dPJ6i(sS1J3xbEGs(RNWN9UFC0llRiCvD4KbF9VSoCsSt(bGNsvRmw9u91vfRnEwwbILgVEpjn6HgxnsSWIip7wf6NBQMbuWG(hUZb8cmjKcPeLc0T3n434TeoudLoziz418IeHfOv)irZEFbbRbppvVhwZfovXOrJgVlWsIdhI93FBoByluF8)Hwg8zxIeK9Z3)XSnaSmBCjHn79nZITtFeLvgc0gjrgKeEPdYN0uxccTGGtvViudQBQjKbfNs3SdDAZvXh7wwtgiWXE5Idd6xUaKwGINksrE7RJTlvfQTKm2v4s9tSN4YMx9B0xb6eH49JDZjSAvc8)FvZrD4vm6bNCLn2p3bwasEUtvawCdKmnxtRm6yp6BF4Uj9JppE6(unXj5nz8jRB9Rd",
@@ -809,6 +924,7 @@ return {
 		["raid-export.v1"] = "!VIN:1!1azWQnvquyy1ySjPLc6krqi0fsjql3UPlC3DQjWfcImwk4Q45oZX4O37mjNzMRMTbQRCvw7Iqw4dq36U(aiNhaffFe8jWBAI7oNF()()NZC7VEnO1o7fi5noRm54toozfecOvdwf270dGWHV7xF)ZYcihlK(aqbQelZRjE6aPQa8E6darghjhtU4KgcluIYuKMzZD2cJfF9aEN8jKb9bUDdUJuqG1Y7TwxucJrUDtUJ4SzeW792TD(JVW3D(WOY8gYz579OAVCRBW5DRrjScTHm9vyvyuPAussYjRWpoXrbuNwhWVBUC(2DI3Lghnf6m9IXJQm2qDNstal99(eDZnKPBphNgntg6uxN98lo)vVO)Ob97FUWOC2hENMFlFT)mDR0LlwpnSU)Il5o)jLuG14dDfoxWttJqHjmR9kFmFBYnoLFClHN7SyiubDpZri3DhX7nw9vey0hT5zkkQdO3Gnx)pVvnt6Y81Ai93N5Q)Xo6LbNflHyrU3fjfY3))U1sLlAdn3u0t49FqvJ)9d",
 		["raid-import-bench.v1"] = "!VIN:1!TjvVUnrqqyHTjymbjukIeefPJ)IcrYs2PGIur2Gc4cAUiLcAo2B35UBX7T7XS75i3HshTw8aGsbpaw8ea1iTkVaiXJapbm35GukOCN9B(MV57BUXxJtbJO4GSLIcoYfEaNirrsgym8yHM7CyfxZLkdZWlH4JB(ifbUZAqNNBKPZzOvdPfaxdiZvbcwHvp)0qNfIKCoIkX0qV0IAdXEyn8vxvQF6hQHAqggKICtoiZcDoxKq9QvUqp8moQTeU1QU3RBRn8eV1aL8ADOp2Q7MMdBew)cEwMwj8kR5cbPjLK7b3E7KQ8q5ez)d)sZiMcY92j0HwpPLEg6xT5j2m)qeCaodKr7ooYMfT)ZwbId48)hO9)hO73N9TWdgSmhmasduEOF33)RoVinhT1v04)(1mv3bHTjsB0HjSvClKU7eE4EPIeXCKtBoOTNbMWJVjMxR0YjYf5jZugpphytvg5sKRKdvLvw0Z0wR)0lfwtMk)uaD0QFRZlbFHLAeDKKjfF5Qcx9FxwPvcPLChPOf(ccaz2YBZA495imdm(jYLWmFsPiz0OrJpNsy07A3RF(UyVYRHQnFJv7bt0rweI(9h)C0zamnACkAB49TuUh2Ev8Hklf4Xh2AKdy01YukRQqRhAZQgOpIonQqf48eswR7miCNW6H7Em97tc9yL0(hwJDezsnPDt5Tc9IrBEnv)pVSjlV2PXG4sqdqd3pLGjXALKU6(XNw5UTKVKwDp1xJi2yw3)c",
 		["raid-import.v1"] = "!VIN:1!Lf5ZkorqqyCCZgnk(p8WEEoeggdejzp4bpz6veYbVmlKdEzSNURmPn901q1vsi3KCZRlINL9ri4tGEEHM9fqWhbFcSNSki4157xv1V5RV1NVujDAJwYGFqAPHH6P6Et(sjjDlb9G09QfssQyGMQjvHgJbLei9OR5KZX58qc8aTg0jzJtW5jN(00WXrsjqBDHB)FqN(xOJ6j(AOZ92xboGI3xpHZE)po6LLveUQjAZ3(Nt7FrOxCPTA5cDZpG0jnC)bLQc1wsUtvawCd4cpSlvTYy1t1xuvS24yzfiwAC69K0OhAQBqIfwe5zxRq3Ct1mG8g0DND1aVaJds(OYrJV(Mp8N8oIAudL1sF0Ol4frGfOvFxr7EFobRbhpvVhwZf1QIrJgnENNLe7p8FD17YzdBHMtEdAzWLCgsqYp)WNs2aWYKXLe2U33olCCOxUYk9EAJKidscNSgYN02NccTGGJVncFdOUSHqguC0U25EqOFzdzaphsZfhQQSYfG0cuyGik72xhPEuOVOowkHuXzXMlIejRaDBw3q)CcRwfd)1RAFQhEoJoOwUYgYYRblaTh6XrmnTYOdP03)4n9Ew4zHb7JLchNR1ONSUZVp",
+		["raid-share.v1"] = "!VIN:1!LjvVUnrqqyHTX4ykaHejOuahuyfSKLCsbfPISbfWf0CrYf0CS3UZD3I3B3tZU2wUdLoAJ4ba5cEaS4jaQrAvEbqIhbEcyUZbPir5nZ3(DF)m36RXPGruC80nIcoYfEaNirrsgym8yHM7CyfxZLkdZWlH4ZQxWqRgslaUgqMRceScRE1zHwxksY5iQeZcDslMBi6cDXxF9OEPi3KdYPHwxisONOvUqhCjh1wAD3Q7)MMzJo3BnqjFUo0lCVq)18SmTs4vwZAb3ivsUhCdhKQ8q5ezVt(snXZa5WbHwK4Lw6Zue4oRPA3ZTz(ri4aCbiJo4WiBw0rpFlsoGRmHh9FGo6FGEyp23c72FtoyaK(RYt8h8HF16LP5ODEfPHVFJCZDCyFI0AXyc7f3aP9GWJhMkseRqozAqBxcMq0TX85kTCI8Y8KfkJNNdSzkJCnYvYroItGPTw)0RewtMkFkGoY(35IsWxyP3HosXKGVA7GR33MvALqAj3rc6sFbbGIz5oSAAFbclaJFICdSWNuksgpE8Hx48C07AS1pFFSx51q1UV1Q9Gj6ulcr)(JFoAjaZIomfT18(oQ)c7VT4qLLA44tAYXEmpvduFvHwp00x1qFcDluHkW5jKSMWPxyNq)WDPlMWtdDyLK9dDzNszuDJxpEVqNy0MpNM)Nxv3N38OiUe0auZ9ZiysCUssNz)4tBd3gY3qw3tVRwepyr7)o",
 	},
 	wowData = {
 		classes = {

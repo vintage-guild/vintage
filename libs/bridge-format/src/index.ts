@@ -11,3 +11,4 @@ export * from './errors';
 export { deserialize, type LuaValue, SerializeError, serialize } from './libserialize';
 export { decodeForPrint, encodeForPrint } from './print';
 export * from './schemas';
+export * from './share';

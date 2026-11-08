@@ -18,6 +18,7 @@ Load.CORE = {
 	"Core/BridgeFormat/schema.lua",
 	"Core/BridgeFormat/codec.lua",
 	"Core/Hash.lua",
+	"Core/Share.lua",
 }
 
 -- The bridge string libraries, as embeds.xml loads them (LibStub first).

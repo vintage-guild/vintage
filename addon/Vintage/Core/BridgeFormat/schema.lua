@@ -270,62 +270,62 @@ local role = OneOf(unpack(Schema.ROLES))
 -- Why a bench character isn't rostered (schemas.ts BENCH_REASONS).
 Schema.BENCH_REASONS = { "standby", "queued", "benched" }
 
+-- The pieces an import and a share have in common.
+local raidInfo = Object({ { "eventId", id }, { "title", String(1, 100) }, { "startsAt", unixSeconds } })
+local rosterFields = {
+	{ "characterId", id },
+	{ "name", unitName },
+	{ "class", class },
+	{ "spec", String(1, 32), OPTIONAL },
+	{ "role", role },
+}
+local rosterEntry = Object(rosterFields)
+local groups = Array(Object({ { "group", raidGroup }, { "characterIds", Array(id, 5) } }), 8)
+local lootSettings = Object({
+	{ "methodId", String(1, 32) },
+	{ "methodVersion", Integer(1) },
+	{ "configVersion", Integer(0) },
+	{ "mode", OneOf("master", "group") },
+	{ "threshold", Integer(0, 7), OPTIONAL },
+})
+local candidates = Array(
+	Object({
+		{ "itemId", itemId },
+		{ "ranked", Array(Object({ { "characterId", id }, { "reason", String(0, 200) } }), 80) },
+	}),
+	1000
+)
+
+local benchFields = { unpack(rosterFields) }
+benchFields[#benchFields + 1] = { "reason", OneOf(unpack(Schema.BENCH_REASONS)) }
+
 local raidImport = Object({
 	{ "v", Literal(1) },
 	{ "kind", Literal("raid-import") },
 	{ "guildId", id },
 	{ "generatedAt", unixSeconds },
-	{ "raid", Object({ { "eventId", id }, { "title", String(1, 100) }, { "startsAt", unixSeconds } }) },
-	{
-		"roster",
-		Array(
-			Object({
-				{ "characterId", id },
-				{ "name", unitName },
-				{ "class", class },
-				{ "spec", String(1, 32), OPTIONAL },
-				{ "role", role },
-			}),
-			80
-		),
-	},
+	{ "raid", raidInfo },
+	{ "roster", Array(rosterEntry, 80) },
 	-- Optional, so imports from before the bench still decode.
-	{
-		"bench",
-		Array(
-			Object({
-				{ "characterId", id },
-				{ "name", unitName },
-				{ "class", class },
-				{ "spec", String(1, 32), OPTIONAL },
-				{ "role", role },
-				{ "reason", OneOf(unpack(Schema.BENCH_REASONS)) },
-			}),
-			80
-		),
-		OPTIONAL,
-	},
-	{ "groups", Array(Object({ { "group", raidGroup }, { "characterIds", Array(id, 5) } }), 8) },
-	{
-		"loot",
-		Object({
-			{ "methodId", String(1, 32) },
-			{ "methodVersion", Integer(1) },
-			{ "configVersion", Integer(0) },
-			{ "mode", OneOf("master", "group") },
-			{ "threshold", Integer(0, 7), OPTIONAL },
-		}),
-	},
-	{
-		"candidates",
-		Array(
-			Object({
-				{ "itemId", itemId },
-				{ "ranked", Array(Object({ { "characterId", id }, { "reason", String(0, 200) } }), 80) },
-			}),
-			1000
-		),
-	},
+	{ "bench", Array(Object(benchFields), 80), OPTIONAL },
+	{ "groups", groups },
+	{ "loot", lootSettings },
+	{ "candidates", candidates },
+})
+
+-- The members' view of an import (schemas.ts raidShareV1Schema): the same raid without the
+-- bench reasons, which stay with the officers. Core/Share.lua cuts it from an import.
+local raidShare = Object({
+	{ "v", Literal(1) },
+	{ "kind", Literal("raid-share") },
+	{ "guildId", id },
+	{ "generatedAt", unixSeconds },
+	{ "raid", raidInfo },
+	{ "roster", Array(rosterEntry, 80) },
+	{ "bench", Array(rosterEntry, 80), OPTIONAL },
+	{ "groups", groups },
+	{ "loot", lootSettings },
+	{ "candidates", candidates },
 })
 
 local raidExport = Object({
@@ -506,6 +506,7 @@ end
 Schema.KINDS = {
 	["raid-import"] = { check = raidImport, references = CheckImportReferences },
 	["raid-export"] = { check = raidExport },
+	["raid-share"] = { check = raidShare, references = CheckImportReferences },
 }
 
 --- Checks a decoded payload: version first, then kind, then the kind's schema.

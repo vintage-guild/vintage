@@ -8,6 +8,7 @@ import {
   PAYLOAD_SCHEMAS,
   type RaidExport,
   type RaidImport,
+  type RaidShare,
 } from './schemas';
 
 const MAX_REPORTED_ISSUES = 20;
@@ -38,6 +39,10 @@ export function decodeRaidImport(input: string, limits?: DecodeLimits): BridgeRe
 
 export function decodeRaidExport(input: string, limits?: DecodeLimits): BridgeResult<RaidExport> {
   return decodeKind(input, 'raid-export', limits);
+}
+
+export function decodeRaidShare(input: string, limits?: DecodeLimits): BridgeResult<RaidShare> {
+  return decodeKind(input, 'raid-share', limits);
 }
 
 function decodeKind<K extends BridgeKind>(

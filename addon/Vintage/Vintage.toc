@@ -26,6 +26,7 @@ Core\Actions\loot.lua
 Core\BridgeFormat\schema.lua
 Core\BridgeFormat\codec.lua
 Core\Hash.lua
+Core\Share.lua
 
 # Bridge: the only layer that calls WoW APIs
 Bridge\Secrets.lua

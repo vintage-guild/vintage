@@ -67,12 +67,18 @@ export const itemCandidatesSchema = z.object({
   ranked: z.array(rankedCandidateSchema).max(80),
 });
 
+export const raidInfoSchema = z.object({
+  eventId: id,
+  title: z.string().min(1).max(100),
+  startsAt: unixSeconds,
+});
+
 const raidImportV1Object = z.object({
   v: z.literal(1),
   kind: z.literal('raid-import'),
   guildId: id,
   generatedAt: unixSeconds,
-  raid: z.object({ eventId: id, title: z.string().min(1).max(100), startsAt: unixSeconds }),
+  raid: raidInfoSchema,
   roster: z.array(rosterEntrySchema).max(80),
   /** Optional, so imports from before the bench still decode. */
   bench: z.array(benchEntrySchema).max(BENCH_MAX).optional(),
@@ -81,7 +87,11 @@ const raidImportV1Object = z.object({
   candidates: z.array(itemCandidatesSchema).max(1000),
 });
 
-type RaidImportShape = z.output<typeof raidImportV1Object>;
+/** What the reference checks read: an import, or a share (whose bench has no reasons). */
+type ReferenceShape = Pick<
+  z.output<typeof raidImportV1Object>,
+  'roster' | 'groups' | 'candidates'
+> & { bench?: { characterId: string }[] };
 
 type Issue = (path: (string | number)[], message: string) => void;
 
@@ -98,7 +108,7 @@ function checkUnique<T>(values: T[], path: (i: number) => (string | number)[], i
  * Ids, groups, and items are unique; groups and candidates only name rostered characters;
  * no one sits in two groups; no one is both rostered and on the bench.
  */
-function checkImportReferences(value: RaidImportShape, ctx: z.RefinementCtx): void {
+function checkImportReferences(value: ReferenceShape, ctx: z.RefinementCtx): void {
   const issue: Issue = (path, message) => ctx.addIssue({ code: 'custom', path, message });
   const rostered = new Set(value.roster.map((r) => r.characterId));
   const onRoster = (cid: string, path: (string | number)[]) => {
@@ -154,6 +164,28 @@ function checkImportReferences(value: RaidImportShape, ctx: z.RefinementCtx): vo
 
 /** Web → game: who is coming, how to arrange them, and how loot is run. */
 export const raidImportV1Schema = raidImportV1Object.superRefine(checkImportReferences);
+
+/**
+ * Game → game: the members' view of an import, which an officer's addon shares with the guild
+ * (docs/features/active/addon-for-members). The same raid, roster, groups, loot settings, and
+ * candidates, with the bench but without its reasons, which stay with the officers. Never built
+ * by hand: `raidShareFromImport` here and `Core/Share.lua` in the addon cut it from an import.
+ */
+export const raidShareV1Schema = z
+  .object({
+    v: z.literal(1),
+    kind: z.literal('raid-share'),
+    guildId: id,
+    /** The import's, unchanged: the share's version in the sync. */
+    generatedAt: unixSeconds,
+    raid: raidInfoSchema,
+    roster: z.array(rosterEntrySchema).max(80),
+    bench: z.array(rosterEntrySchema).max(BENCH_MAX).optional(),
+    groups: z.array(raidGroupSchema).max(8),
+    loot: lootSettingsSchema,
+    candidates: z.array(itemCandidatesSchema).max(1000),
+  })
+  .superRefine(checkImportReferences);
 
 export const attendanceSnapshotSchema = z.object({
   at: unixSeconds,
@@ -244,11 +276,13 @@ export const raidExportV1Schema = z.object({
 
 export type RaidImport = z.output<typeof raidImportV1Schema>;
 export type RaidExport = z.output<typeof raidExportV1Schema>;
-export type BridgePayload = RaidImport | RaidExport;
+export type RaidShare = z.output<typeof raidShareV1Schema>;
+export type BridgePayload = RaidImport | RaidExport | RaidShare;
 export type BridgeKind = BridgePayload['kind'];
 
 /** Schema per kind at the current version. Older versions get their own entries when v2 lands. */
 export const PAYLOAD_SCHEMAS = {
   'raid-import': raidImportV1Schema,
   'raid-export': raidExportV1Schema,
+  'raid-share': raidShareV1Schema,
 } as const satisfies Record<BridgeKind, z.ZodType>;

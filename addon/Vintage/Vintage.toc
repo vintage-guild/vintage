@@ -6,6 +6,7 @@
 ## IconTexture: Interface\Icons\INV_Misc_Head_Dragon_01
 ## X-Website: https://vintageguild.gg
 ## X-License: GPL-3.0
+## X-Curse-Project-ID: 1790620
 ## SavedVariables: VintageDB
 ## OptionalDeps: !Mechanic, WTFix
 ## X-WTFix-Managed: 1

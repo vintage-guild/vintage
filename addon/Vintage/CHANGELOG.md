@@ -1,9 +1,12 @@
 # Changelog
 
 All notable changes to the Vintage addon. The version is the `## Version` line in
-`Vintage.toc`; releases are tagged `addon-vX.Y.Z`.
+`Vintage.toc`; releases are tagged `addon-vX.Y.Z` (a beta `addon-vX.Y.Z-beta.N`).
 
-## [0.1.0] - Unreleased
+## [0.1.0-beta.1] - 2026-11-08
+
+The first build on CurseForge, as a beta: it has not yet been run in a raid on the Forever
+client. Please report problems in the guild Discord.
 
 ### Added
 

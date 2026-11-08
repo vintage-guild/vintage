@@ -238,7 +238,7 @@ describe("Mechanic", function()
 		local MechanicLib = LibStub("MechanicLib-1.0")
 		local capabilities = MechanicLib.registered.Vintage
 		assert.is_not_nil(capabilities)
-		assert.are.equal("0.1.0", capabilities.version)
+		assert.are.equal(C_AddOns.GetAddOnMetadata("Vintage", "Version"), capabilities.version)
 
 		local passed, total = capabilities.tests.runAll()
 		for _, test in ipairs(capabilities.tests.getAll()) do

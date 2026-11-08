@@ -107,8 +107,10 @@ release has run yet.
    the token in ActionHud's CurseForge webhook URL. Rotating it there means updating this
    secret too.
 6. Run **Release addon** by hand on `main` and check the zip in the run's artifacts.
-7. Date the version's `CHANGELOG.md` entry, merge, then tag `main`: `git tag addon-v0.1.0` and
-   push the tag.
+7. Date the version's `CHANGELOG.md` entry, merge, then tag `main` with the TOC version and
+   push the tag. The first is a beta (2026-11-08): `git tag addon-v0.1.0-beta.1`, then
+   `git push origin addon-v0.1.0-beta.1`. A version containing `beta` or `alpha` uploads as that
+   CurseForge file type, which the app offers only to people who allow it.
 
 The workflow pins `BigWigsMods/packager` to a commit SHA, unlike `ci.yml`'s major tags, because
 it receives the publish token; keep third-party actions that get a secret on SHA pins.

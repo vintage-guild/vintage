@@ -61,7 +61,8 @@ files as a one-commit repository, since the packager needs a `.git` folder at it
 `BigWigsMods/packager@v2`, which uploads with the `curseforge` environment's `CF_API_TOKEN`. A
 manual run of the workflow packages without uploading and keeps the zip. `python
 Tools/release.py files` lists what ships. The CurseForge project is 1790620 (`## X-Curse-Project-ID`); the environment, secret, and
-dry run are set up, and the first tag (`addon-v0.1.0`) is the maintainer's
+dry run are set up, and the first tag (`addon-v0.1.0-beta.1`: a version with `beta` or `alpha`
+in it uploads as that CurseForge file type) is the maintainer's
 ([production.md](../../docs/operations/production.md#addon-releases)).
 
 ## Local development

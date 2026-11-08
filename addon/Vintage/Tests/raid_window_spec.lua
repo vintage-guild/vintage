@@ -142,7 +142,7 @@ describe("The raid actions through the executor", function()
 		local decoded = ns.BridgeCodec:DecodeKind(exported.data.exportString, "raid-export")
 		assert.are.equal("evt_mc_0001", decoded.data.eventId)
 		assert.are.equal("Aeryn", decoded.data.exporter)
-		assert.are.equal("0.1.0", decoded.data.addonVersion)
+		assert.are.equal(C_AddOns.GetAddOnMetadata("Vintage", "Version"), decoded.data.addonVersion)
 	end)
 
 	it("says how many the game hid when it takes a snapshot", function()

@@ -11,6 +11,7 @@
 | `vintage-logo-color.png` | Full-color painted emblem (gold letters, crimson tag, iron chain), 1536×1024 with a transparent background. Use for the website hero, Discord server icon/banner, and CurseForge. Not traced: painted shading doesn't vectorize cleanly |
 | `random-avatar.gif` | Random the raven (the coordinator): an animated head crop, 128×128 GIF, the Discord bot's avatar (`apps/gateway/scripts/set-bot-profile.ts`). The full-body art is `apps/web/public/art/coordinator-raven.webp` |
 | `vintage-emblem.png` | Square mark: the V on the chain tag, black with a white double outline, 1033×1086 trimmed, transparent. The outline makes it read on light and dark alike, so it is the website's tab icon (`apps/web/public/icon-*.png`, and `apple-touch-icon.png` on the canvas color) and the pick wherever a square logo is needed |
+| `vintage-tag-color.png` | The V alone on the crimson tag with its iron chain, painted in the color emblem's style, 1254×1254 with a transparent background. The source of the WoW addon's icon: `addon/Vintage/Tools/make-icon.ps1` trims it and writes `addon/Vintage/Media/Icon.tga` (64×64, 32-bit) for the minimap button, the addon compartment, and the addon list |
 
 The color emblem is the source of the `vintage` token node's palette (PLAN §3.8, Q12): gold
 letterforms (`--color-gold-*`), the crimson tag (`--color-crimson-*`), and the iron frame

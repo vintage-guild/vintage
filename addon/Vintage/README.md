@@ -41,3 +41,7 @@ The Vintage addon (everything under `addon/Vintage`) is licensed under the
 are GPL-3.0, alongside Ace3, LibStub, LibDataBroker, LibDBIcon, LibDeflate, and LibSerialize
 under their own licenses (see each folder in `Libs/`). The rest of the monorepo is under the
 PolyForm Noncommercial License 1.0.0.
+
+The exception is `Media/`: the icon is the Vintage guild's emblem, a brand asset under
+[`assets/brand/LICENSE.md`](https://github.com/vintage-guild/vintage/blob/main/assets/brand/LICENSE.md)
+(all rights reserved), not GPL-3.0. A fork must replace it with its own.

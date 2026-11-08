@@ -1,17 +1,18 @@
 # Vintage
 
 The in-game addon for the **Vintage** guild on WoW: Forever. Together with
-[vintageguild.gg](https://vintageguild.gg) and the guild's Discord bot, it will:
+[vintageguild.gg](https://vintageguild.gg) and the guild's Discord bot, it:
 
-- form the raid from the import string the coordinator posts: invite everyone and arrange the
-  groups,
-- take attendance and record loot during the raid,
-- show who the guild's loot method says should get an item when it drops,
-- give you one export string for the website after the raid.
+- forms the raid from the import string the coordinator posts: invites everyone and arranges
+  the groups,
+- takes attendance and records boss attempts and loot during the raid,
+- shows the master looter who the guild's loot method says should get each item,
+- gives you one export string for the website after the raid.
 
-**Status:** an early build, not yet released or checked in the game. It has the raid window,
-settings, and minimap button; importing, invites, attendance, loot, and export arrive in the
-next versions.
+**Status:** a beta on CurseForge (install it from the CurseForge app with betas allowed for
+Vintage). It has not yet been run in a raid on the Forever client, so
+please report anything that goes wrong in the guild Discord. What each version adds is in
+[CHANGELOG.md](CHANGELOG.md).
 
 ## Commands
 

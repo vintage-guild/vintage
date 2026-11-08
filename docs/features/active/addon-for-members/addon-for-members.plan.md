@@ -1,6 +1,6 @@
 # The addon for everyone: raid sync, the officers' quarters, and wishlist picks
 
-> Status: proposed · Created 2026-11-08 · Owner: Bloodfen · Area: addon
+> Status: active (2026-11-08): PR 1 built · Created 2026-11-08 · Owner: Bloodfen · Area: addon
 > Related: [the Vintage addon](../../active/vintage-addon/vintage-addon.plan.md),
 > [role-aware views and the officers' quarters](../../active/role-aware-views/role-aware-views.plan.md),
 > the wishlist module (#27), [`libs/bridge-format`](../../../../libs/bridge-format/README.md)
@@ -195,13 +195,13 @@ for council candidates). The game is then a second place to edit it:
 | Q3 | When an in-game pick and a website edit conflict: newest wins, or do officers approve? | Newest wins for the member's own list; approval belongs in the loot method (council), not in the sync |
 | Q4 | The button's name: "Officers" or "Officers' Quarters"? | "Officers", the site's word in the same place |
 | Q5 | Can trial or free accounts on Forever receive addon messages, and do messages stop during encounters? | Check on the Forever client before PR 3 |
-| Q6 | Which name does each API return on Forever: `UnitName`, `GetUnitName(unit, true)`, `GetRaidRosterInfo`, `GetGuildRosterInfo`, the `CHAT_MSG_ADDON` sender, and the master-loot candidates? | Check in PR 1. The saved data suggests `UnitName` gives the first name only, which also matters for the addon's existing name matching (D10): the import's names and the game's must be the same form |
+| Q6 | Which name does each API return on Forever: `UnitName`, `GetUnitName(unit, true)`, `GetRaidRosterInfo`, `GetGuildRosterInfo`, the `CHAT_MSG_ADDON` sender, and the master-loot candidates? | `/vintage names` prints the player-side ones and a guild message's sender (PR 1); run it on Forever, in a group for the group APIs. The saved data suggests `UnitName` gives the first name only, which also matters for the addon's existing name matching (D10): the import's names and the game's must be the same form |
 
 ## Work breakdown
 
 | PR | Contents | Done when |
 |---|---|---|
-| **1 Libraries and the fake client** | AceComm-3.0 and ChatThrottleLib through `libs.sync` with version pins in `Tools/validate.py`; a SHA-256 in `Core/` (pure Lua that also runs on PUC Lua 5.1 without `bit`); the fake client gains `C_ChatInfo.SendAddonMessage`, `CHAT_MSG_ADDON`, a guild roster with ranks, and **several clients on one host** so specs can run an officer and members together | A two-client spec passes a message from one client to the other; the SHA-256 matches known vectors |
+| **1 Libraries and the fake client** | AceComm-3.0 and ChatThrottleLib through `libs.sync` with version pins in `Tools/validate.py`; a SHA-256 in `Core/` (pure Lua that also runs on PUC Lua 5.1 without `bit`); the fake client gains `C_ChatInfo.SendAddonMessage`, `CHAT_MSG_ADDON`, a guild roster with ranks, and **several clients on one host** so specs can run an officer and members together | A two-client spec passes a message from one client to the other; the SHA-256 matches known vectors. **Built 2026-11-08:** AceComm-3.0 MINOR 14 with ChatThrottleLib v31 (upstream Ace3, pinned); `Core/Hash.lua` (`Hash.Sha256`, four bits at a time through 16×16 tables; the FIPS vectors pass, and the million-byte one takes ~11 s on PUC Lua, so ~55 ms for a few-KB share); the fake client's `C_ChatInfo`, `Ambiguate`, `options.guild` with ranks, solo-player group defaults, `host:ReceiveAddon` and `host:TakeSentAddon`; a spec sends through ChatThrottleLib and reassembles a split message. **Changed:** peers are scripted with `host:ReceiveAddon` rather than a second addon on the same host, which needs a separate global environment per client. PR 3 runs several `Core/Sync` instances (pure Lua) over an in-memory bus for convergence instead. **Added for Q6:** `/vintage names` (not in help, `Bridge/Diagnostics.lua`) |
 | **2 `raid-share`** | The kind on both sides, `Core/Share.lua` (import → member view), and fixtures | The TS and Lua sides decode each other's fixtures; the member view has no bench reasons |
 | **3 Sync** | `Core/Sync.lua` (pure: version compare, trust decisions, rate limits) and `Bridge/Comms.lua` (channels, encounter queue); saved shares with a migration step | Every row of the Trust table has a passing spec; an officer and three members on one host converge, including a member who joins late with no officer online |
 | **4 The window** | Raid and Loot for everyone, **Officers** and the quarters, the About split, and the empty states | Lifecycle specs for a member (no quarters) and an officer; checked in the game |

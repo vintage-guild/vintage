@@ -10,6 +10,9 @@
 	<Include file="Libs\AceConfig-3.0\AceConfig-3.0.xml"/>
 	<Include file="Libs\AceLocale-3.0\AceLocale-3.0.xml"/>
 
+	<!-- Addon messages for the raid sync; ChatThrottleLib paces the sends -->
+	<Include file="Libs\AceComm-3.0\AceComm-3.0.xml"/>
+
 	<!-- Minimap button -->
 	<Script file="Libs\LibDataBroker-1.1\LibDataBroker-1.1.lua"/>
 	<Include file="Libs\LibDBIcon-1.0\lib.xml"/>

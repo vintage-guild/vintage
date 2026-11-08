@@ -10,8 +10,8 @@ Load the `vintage-addon` skill before changing anything here.
 
 | Folder | Holds | Rule |
 |---|---|---|
-| `Core/` | Session reducer, migrations, actions returning ActionResult; `BridgeFormat/`: the `!VIN:1!` codec and payload schemas, the Lua twin of `libs/bridge-format` | Pure Lua 5.1. No WoW API, no `LibStub`; runs in busted and Mechanic's sandbox |
-| `Bridge/` | `Secrets`, `BridgeStrings` (`ns.BridgeCodec` over the embedded LibSerialize and LibDeflate), `Context` (every game read), `Events`, `Executor` (the action registry), `Game` (every call that changes the group or the loot), `Forming` (the invite and arrange queue), `Recorder` (events into actions), `Items` (item data), `LootWindow` (whether a loot window is open) | The only layer that calls WoW APIs. Every returned field passes `Secrets.Public` |
+| `Core/` | Session reducer, migrations, actions returning ActionResult; `BridgeFormat/`: the `!VIN:1!` codec and payload schemas, the Lua twin of `libs/bridge-format`; `Hash` (SHA-256, the raid sync's fingerprint) | Pure Lua 5.1. No WoW API, no `LibStub`; runs in busted and Mechanic's sandbox |
+| `Bridge/` | `Secrets`, `BridgeStrings` (`ns.BridgeCodec` over the embedded LibSerialize and LibDeflate), `Context` (every game read), `Events`, `Executor` (the action registry), `Game` (every call that changes the group or the loot), `Forming` (the invite and arrange queue), `Recorder` (events into actions), `Items` (item data), `LootWindow` (whether a loot window is open), `Diagnostics` (`/vintage names`: which name form each API returns on Forever, for [addon-for-members](../../docs/features/active/addon-for-members/addon-for-members.plan.md) Q6) | The only layer that calls WoW APIs. Every returned field passes `Secrets.Public` |
 | `View/` | FenUI raid window, loot popup, theme registration, minimap button | Calls `ns.Executor:Execute(name, params)`; never Core or WoW game state directly |
 | `Theme/VintageTokens.lua` | FenUI theme generated from `libs/design-tokens` | Never edit; `pnpm tokens:build` writes it |
 | `Vintage.lua`, `Config.lua`, `Settings.lua` | AceAddon lifecycle and slash commands, AceDB (`VintageDB`), AceConfig | Slash commands are Executor actions plus a printed result |
@@ -39,7 +39,8 @@ defaults, and add a step instead of changing an old one.
 | In game | Mechanic's protocol: `diagnostic.targets`, ask for `/reload`, wait for confirmation, then `addon.output` with the same target. Never straight after an edit |
 
 Specs are `Tests/**/_spec.lua` (busted). `Tests/support/wow.lua` is a fake Forever client
-(frames, events, timers, slash commands, secret values); `Tests/support/load.lua` loads Core,
+(frames, events, timers, slash commands, secret values, addon messages through `host:ReceiveAddon`
+and `host:TakeSentAddon`, and a guild roster with ranks from `options.guild`); `Tests/support/load.lua` loads Core,
 Bridge, or the whole TOC with its real libraries. Every UI string is a literal `L["..."]` key
 defined in `Locales/enUS.lua`; Core's ActionResult messages stay English.
 

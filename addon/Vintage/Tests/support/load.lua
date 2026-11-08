@@ -17,6 +17,7 @@ Load.CORE = {
 	"Core/Actions/loot.lua",
 	"Core/BridgeFormat/schema.lua",
 	"Core/BridgeFormat/codec.lua",
+	"Core/Hash.lua",
 }
 
 -- The bridge string libraries, as embeds.xml loads them (LibStub first).
@@ -44,6 +45,7 @@ Load.BRIDGE = {
 	"Bridge/BridgeStrings.lua",
 	"Bridge/Context.lua",
 	"Bridge/Events.lua",
+	"Bridge/Diagnostics.lua",
 	"Bridge/Game.lua",
 	"Bridge/Forming.lua",
 	"Bridge/Items.lua",

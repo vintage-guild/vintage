@@ -22,7 +22,13 @@ globals = {
 read_globals = {
 	-- WoW API
 	"C_AddOns",
+	"C_ChatInfo",
 	"C_Timer",
+	"GetGuildInfo",
+	"GetGuildRosterInfo",
+	"GetNumGuildMembers",
+	"GetRealmName",
+	"IsInGuild",
 	"CreateFrame",
 	"GetBuildInfo",
 	"GetTime",

@@ -25,12 +25,14 @@ Core\Actions\raid.lua
 Core\Actions\loot.lua
 Core\BridgeFormat\schema.lua
 Core\BridgeFormat\codec.lua
+Core\Hash.lua
 
 # Bridge: the only layer that calls WoW APIs
 Bridge\Secrets.lua
 Bridge\BridgeStrings.lua
 Bridge\Context.lua
 Bridge\Events.lua
+Bridge\Diagnostics.lua
 Bridge\Game.lua
 Bridge\Forming.lua
 Bridge\Items.lua

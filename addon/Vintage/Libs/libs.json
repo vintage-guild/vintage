@@ -13,6 +13,7 @@
     "AceGUI-3.0": { "version": "latest", "source": "Libs/Ace3/AceGUI-3.0" },
     "AceConfig-3.0": { "version": "latest", "source": "Libs/Ace3/AceConfig-3.0" },
     "AceLocale-3.0": { "version": "latest", "source": "Libs/Ace3/AceLocale-3.0" },
+    "AceComm-3.0": { "version": "latest", "source": "Libs/Ace3/AceComm-3.0" },
     "LibDataBroker-1.1": "latest",
     "LibDBIcon-1.0": "latest",
     "LibDeflate": "latest",
@@ -24,6 +25,7 @@
     "Ace3": "Copied from the committed upstream Ace3 (git HEAD), not a working copy: a locally modified Ace library would override every other addon's copy through LibStub.",
     "FenCore": "Pure logic domains (ActionResult, Secrets)",
     "FenUI": "UI widgets and design tokens; the Vintage themes come from Theme/VintageTokens.lua",
+    "AceComm-3.0": "Addon messages for the raid sync (docs/features/active/addon-for-members); ships ChatThrottleLib, which paces sends under the game's limits",
     "LibDeflate, LibSerialize": "The bridge codec (Core/BridgeFormat). LibSerialize must be MINOR 7 or later: its stable serialization matches libs/bridge-format byte for byte. _dev_/Libs/LibSerialize is a clone of rossnichols/LibSerialize at tag v1.2.3"
   }
 }

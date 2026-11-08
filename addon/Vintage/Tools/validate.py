@@ -46,6 +46,8 @@ PINNED_LIBRARIES = {
     "Libs/AceConfig-3.0/AceConfigRegistry-3.0/AceConfigRegistry-3.0.lua": '"AceConfigRegistry-3.0", 22',
     "Libs/AceConfig-3.0/AceConfigCmd-3.0/AceConfigCmd-3.0.lua": '"AceConfigCmd-3.0", 14',
     "Libs/AceLocale-3.0/AceLocale-3.0.lua": '"AceLocale-3.0", 6',
+    "Libs/AceComm-3.0/AceComm-3.0.lua": '"AceComm-3.0", 14',
+    "Libs/AceComm-3.0/ChatThrottleLib.lua": "local CTL_VERSION = 31",
     "Libs/LibDataBroker-1.1/LibDataBroker-1.1.lua": '"LibDataBroker-1.1", 4',
     "Libs/LibDBIcon-1.0/LibDBIcon-1.0.lua": "DBICON10_MINOR = 55",
     "Libs/LibDeflate/LibDeflate.lua": "local _MINOR = 3",

@@ -81,10 +81,12 @@ scheduled backups) is still open (PLAN.md §8, Phase 0).
 A tag `addon-vX.Y.Z` runs `.github/workflows/release-addon.yml`, which packages `addon/Vintage`
 and uploads it to CurseForge; running the workflow by hand from `main` is a dry run that keeps the
 zip as a run artifact ([plan](../features/active/vintage-addon/vintage-addon.plan.md#release-25),
-`addon/Vintage/AGENTS.md` "Releasing"). The first dry run (2026-11-07) packaged
-`Vintage-0.1.0-forever.zip` for game version 1.60.1; no tag release has run yet.
+`addon/Vintage/AGENTS.md` "Releasing"). The CurseForge project is
+[1790620](https://authors.curseforge.com/#/projects/1790620/general). The second dry run
+(2026-11-07) packaged `Vintage-0.1.0-forever.zip` for game version 1.60.1 and kept it; no tag
+release has run yet.
 
-**Set up once (maintainer), in this order (#25).** Steps 3 and 4 were done on 2026-11-07.
+**Set up once (maintainer), in this order (#25).** Steps 1 to 6 were done by 2026-11-08.
 
 1. Create the CurseForge project **Vintage** from the author account, for WoW: Forever.
 2. Add its project id as `## X-Curse-Project-ID: <id>` in `addon/Vintage/Vintage.toc` (a PR).
@@ -99,8 +101,11 @@ zip as a run artifact ([plan](../features/active/vintage-addon/vintage-addon.pla
    uses the workflow file at the tagged commit, so anyone who could push an `addon-v*` tag on an
    edited workflow could read the token. Optional extra: a required reviewer on `curseforge`,
    which also stops an agent session that holds the maintainer's own credentials.
-5. Create a CurseForge API token (author account → API tokens) and add it to the `curseforge`
-   environment as the secret `CF_API_TOKEN`, never as a repository secret.
+5. Create a CurseForge API token (<https://authors.curseforge.com/#/settings/api-tokens>) and
+   add it to the `curseforge` environment as the secret `CF_API_TOKEN`, never as a repository
+   secret. Any token of the author account uploads to any of its projects: the one in use is
+   the token in ActionHud's CurseForge webhook URL. Rotating it there means updating this
+   secret too.
 6. Run **Release addon** by hand on `main` and check the zip in the run's artifacts.
 7. Date the version's `CHANGELOG.md` entry, merge, then tag `main`: `git tag addon-v0.1.0` and
    push the tag.

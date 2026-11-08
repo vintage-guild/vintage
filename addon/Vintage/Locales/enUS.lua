@@ -13,6 +13,7 @@ L["Open or close the raid window"] = true
 L["Show the current raid session"] = true
 L["Start an empty raid session (asks to confirm)"] = true
 L["Open settings"] = true
+L["What Vintage does on a raid night, and where"] = true
 L["Turn debug logging on or off"] = true
 L["Debug logging on"] = true
 L["Debug logging off"] = true
@@ -157,3 +158,39 @@ L["Show the Vintage button on the minimap."] = true
 L["Debug logging"] = true
 L["Send debug lines to Mechanic's console, when Mechanic is installed."] = true
 L["Settings can't open during combat."] = true
+
+-- Settings: About tab, and the Roster tab's button to it
+L["About"] = true
+L["What Vintage does"] = true
+L["Version %s"] = true
+L["Vintage runs the guild's raid nights with vintageguild.gg: the website plans the raid, this addon forms it and records it, and the website gets the results back."] =
+	true
+L["Before the raid"] = true
+L["Import: paste the string the raid coordinator posts. The Import button is above every tab."] = true
+L["Roster tab: everyone by role, and whether each is in, invited, declined, offline, or in another group. Hover a row to Invite or Whisper."] =
+	true
+L["Invite missing (Roster tab): invites the roster, tanks and healers first, and makes a raid as soon as two are in."] =
+	true
+L["Standby (Roster tab): the bench and why each person is on it. Once the start time has passed, the header says what the raid is short."] =
+	true
+L["Arrange groups (Groups tab): moves everyone into their planned group."] = true
+L["During the raid"] = true
+L["Every boss attempt is recorded, kill or wipe, and attendance is taken at the first pull and at each kill. Nothing to press."] =
+	true
+L["Loot tab: the drops at or above the loot threshold, who got each one, and from which boss."] = true
+L["Set loot method (Loot tab): master loot to you, with the import's threshold, after a confirm."] = true
+L["Loot popup: beside the loot window, who the guild's priority list says gets each item, and why. Give always asks first."] =
+	true
+L["After the raid"] = true
+L["Stood by (Export tab): everyone on the bench is ticked. Untick anyone who didn't stand by; standing by counts as full attendance."] =
+	true
+L["Make export string (Export tab): copy it into the website's Check an export to record attendance, kills, and loot."] =
+	true
+L["What you need"] = true
+L["Raid leader or assistant to invite and arrange groups."] = true
+L["Raid leader to set the loot method, and master looter for the loot popup and Give."] = true
+L["The import string from vintageguild.gg: the raid, its roster, and its loot plan all come from it."] = true
+L["More"] = true
+L["/vintage opens the raid window, /vintage help lists the commands, and the minimap button opens the window (left-click) or these settings (right-click)."] =
+	true
+L["Problems or ideas: tell the officers in the guild Discord."] = true

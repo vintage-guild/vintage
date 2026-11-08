@@ -89,9 +89,89 @@ function Options:Build()
 					},
 				},
 			},
+			about = self:BuildAbout(2),
 			profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(ns.db),
 		},
 	}
+end
+
+-- The About tab: what the addon does for an officer through a raid night, and where each
+-- thing lives. Keep it in step with the features: a PR that adds, moves, or renames a button
+-- updates its line here (addon/Vintage/AGENTS.md).
+local ABOUT = {
+	{
+		lines = {
+			L["Vintage runs the guild's raid nights with vintageguild.gg: the website plans the raid, this addon forms it and records it, and the website gets the results back."],
+		},
+	},
+	{
+		header = L["Before the raid"],
+		lines = {
+			L["Import: paste the string the raid coordinator posts. The Import button is above every tab."],
+			L["Roster tab: everyone by role, and whether each is in, invited, declined, offline, or in another group. Hover a row to Invite or Whisper."],
+			L["Invite missing (Roster tab): invites the roster, tanks and healers first, and makes a raid as soon as two are in."],
+			L["Standby (Roster tab): the bench and why each person is on it. Once the start time has passed, the header says what the raid is short."],
+			L["Arrange groups (Groups tab): moves everyone into their planned group."],
+		},
+	},
+	{
+		header = L["During the raid"],
+		lines = {
+			L["Every boss attempt is recorded, kill or wipe, and attendance is taken at the first pull and at each kill. Nothing to press."],
+			L["Loot tab: the drops at or above the loot threshold, who got each one, and from which boss."],
+			L["Set loot method (Loot tab): master loot to you, with the import's threshold, after a confirm."],
+			L["Loot popup: beside the loot window, who the guild's priority list says gets each item, and why. Give always asks first."],
+		},
+	},
+	{
+		header = L["After the raid"],
+		lines = {
+			L["Stood by (Export tab): everyone on the bench is ticked. Untick anyone who didn't stand by; standing by counts as full attendance."],
+			L["Make export string (Export tab): copy it into the website's Check an export to record attendance, kills, and loot."],
+		},
+	},
+	{
+		header = L["What you need"],
+		lines = {
+			L["Raid leader or assistant to invite and arrange groups."],
+			L["Raid leader to set the loot method, and master looter for the loot popup and Give."],
+			L["The import string from vintageguild.gg: the raid, its roster, and its loot plan all come from it."],
+		},
+	},
+	{
+		header = L["More"],
+		lines = {
+			L["/vintage opens the raid window, /vintage help lists the commands, and the minimap button opens the window (left-click) or these settings (right-click)."],
+			L["Problems or ideas: tell the officers in the guild Discord."],
+		},
+	},
+}
+
+---@param order number the tab's place among the settings tabs
+function Options:BuildAbout(order)
+	local args = {}
+	local index = 0
+	local function add(entry)
+		index = index + 1
+		entry.order = index
+		args["line" .. index] = entry
+	end
+	for _, section in ipairs(ABOUT) do
+		if section.header then
+			add({ type = "header", name = section.header })
+		end
+		for _, line in ipairs(section.lines) do
+			add({ type = "description", name = line .. "\n", fontSize = "medium", width = "full" })
+		end
+	end
+	add({
+		type = "description",
+		name = function()
+			return string.format(L["Version %s"], C_AddOns.GetAddOnMetadata(ADDON_NAME, "Version") or "?")
+		end,
+		width = "full",
+	})
+	return { type = "group", name = L["About"], order = order, args = args }
 end
 
 function Options:Initialize()
@@ -100,11 +180,16 @@ function Options:Initialize()
 	self.categoryId = categoryId
 end
 
---- Opens Vintage's page in the game's settings. The game blocks this in combat.
-function Options:Open()
+--- Opens Vintage's page in the game's settings, on one of its tabs ("about") when given.
+--- The game blocks this in combat.
+---@param tab string|nil
+function Options:Open(tab)
 	if InCombatLockdown() then
 		ns.Vintage:Print(L["Settings can't open during combat."])
 		return
+	end
+	if tab then
+		LibStub("AceConfigDialog-3.0"):SelectGroup(ADDON_NAME, tab)
 	end
 	Settings.OpenToCategory(self.categoryId)
 end

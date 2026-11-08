@@ -95,6 +95,34 @@ describe("Vintage on the client", function()
 		assert.is_true(LibStub("LibDBIcon-1.0"):IsRegistered("Vintage"))
 	end)
 
+	it("has an About tab that walks a raid night, with the version", function()
+		local _, ns = start()
+		local options = ns.Options:Build()
+		local about = options.args.about
+		assert.are.equal("About", about.name)
+		assert.is_true(about.order > options.args.general.order)
+
+		local headers, text = {}, {}
+		local count = 0
+		for _ in pairs(about.args) do
+			count = count + 1
+		end
+		for index = 1, count do
+			local entry = about.args["line" .. index]
+			assert.are.equal(index, entry.order)
+			if entry.type == "header" then
+				headers[#headers + 1] = entry.name
+			end
+			text[#text + 1] = type(entry.name) == "function" and entry.name() or entry.name
+		end
+		assert.are.same({ "Before the raid", "During the raid", "After the raid", "What you need", "More" }, headers)
+		local all = table.concat(text, "\n")
+		for _, button in ipairs({ "Invite missing", "Arrange groups", "Set loot method", "Make export string" }) do
+			assert.matches(button, all, 1, true)
+		end
+		assert.matches("Version " .. C_AddOns.GetAddOnMetadata("Vintage", "Version"), all, 1, true)
+	end)
+
 	it("warns on a client that is not WoW: Forever", function()
 		local host = start({ host = { projectId = 1 } })
 		assert.matches("built for WoW: Forever", host:TakePrinted())
@@ -147,6 +175,22 @@ describe("Slash commands", function()
 		host:Slash("/vintage config")
 		assert.are.equal(1, #host.openedCategories)
 		assert.matches("combat", host:TakePrinted())
+	end)
+
+	it("/vintage about opens the settings on the About tab, except in combat", function()
+		host:Slash("/vintage about")
+		assert.are.same({ ns.Options.categoryId }, host.openedCategories)
+		local status = LibStub("AceConfigDialog-3.0"):GetStatusTable("Vintage")
+		assert.are.equal("about", status.groups.selected)
+		host.combat = true
+		host:Slash("/vintage about")
+		assert.are.equal(1, #host.openedCategories)
+		assert.matches("combat", host:TakePrinted())
+	end)
+
+	it("/vin help lists /vintage about", function()
+		host:Slash("/vin help")
+		assert.matches("/vintage about", host:TakePrinted())
 	end)
 
 	it("names an unknown command", function()

@@ -168,6 +168,15 @@ describe("The Roster tab", function()
 		window:Show()
 	end)
 
+	it("points to the About tab until there is a raid", function()
+		local empty = window.pages.roster.empty
+		assert.is_true(empty:IsShown())
+		assert.are.equal("What Vintage does", empty.aboutButton:GetText())
+		empty.aboutButton.hooks.onClick()
+		assert.are.same({ ns.Options.categoryId }, host.openedCategories)
+		assert.are.equal("about", LibStub("AceConfigDialog-3.0"):GetStatusTable("Vintage").groups.selected)
+	end)
+
 	it("imports a pasted string and lists who is in the group", function()
 		window.importButton.hooks.onClick()
 		assert.is_true(window.paste:IsShown())

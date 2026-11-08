@@ -539,6 +539,7 @@ function Host:Install(options)
 		end
 		return t
 	end
+	table.wipe = G.wipe -- AceConfigDialog reads it as table.wipe
 	string.trim = trim
 	string.split = function(text, delimiter, pieces)
 		return split(delimiter, text, pieces)

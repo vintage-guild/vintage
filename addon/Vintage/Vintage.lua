@@ -129,6 +129,7 @@ function commands.help(self)
 	self:Print("  /vintage status - " .. L["Show the current raid session"])
 	self:Print("  /vintage clear - " .. L["Start an empty raid session (asks to confirm)"])
 	self:Print("  /vintage settings - " .. L["Open settings"])
+	self:Print("  /vintage about - " .. L["What Vintage does on a raid night, and where"])
 	self:Print("  /vintage debug - " .. L["Turn debug logging on or off"])
 end
 
@@ -142,6 +143,10 @@ end
 
 function commands.settings()
 	ns.Options:Open()
+end
+
+function commands.about()
+	ns.Options:Open("about")
 end
 
 function commands.debug(self)

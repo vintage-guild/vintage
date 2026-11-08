@@ -21,3 +21,4 @@ when they affect every contributor, in the Decisions table in [AGENTS.md](../../
 | The Vintage addon (form the raid, attendance, loot popup, export) | active | [vintage-addon](active/vintage-addon/vintage-addon.plan.md) |
 | Post-raid: record the addon's export (#29) | active | [post-raid-record](active/post-raid-record/post-raid-record.plan.md) |
 | Armory: link characters to the Forever armory | active | [armory](active/armory/armory.plan.md) |
+| The addon for everyone (raid sync, officers' quarters, wishlist picks) | proposed | [addon-for-members](proposed/addon-for-members/addon-for-members.plan.md) |

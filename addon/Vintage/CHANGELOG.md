@@ -7,6 +7,10 @@ All notable changes to the Vintage addon. The version is the `## Version` line i
 
 ### Added
 
+- `/vintage names` (not in `/vintage help`): prints which form of your name each game API
+  returns, and sends one test message to the guild to show the name it arrives from. It answers
+  a question the coming raid sync depends on; paste its output to the officers.
+
 - An **About** tab in the settings: what Vintage does before, during, and after a raid, which
   tab or button does each thing, and whether you need to be raid leader, assistant, or master
   looter. Open it with `/vintage about` or **What Vintage does** on the Roster tab before a

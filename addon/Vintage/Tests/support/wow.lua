@@ -373,6 +373,9 @@ function Host.New(options)
 		errors = {},
 		openedCategories = {},
 		compartment = {},
+		addonPrefixes = {},
+		sentAddon = {},
+		guildRosterRequests = 0,
 		clock = 1793050000,
 		uptime = 1000,
 		combat = false,
@@ -488,6 +491,94 @@ function Host:Install(options)
 			return name == "Vintage"
 		end,
 	}
+	-- Addon messages (the raid sync). A send is recorded in host.sentAddon and goes nowhere;
+	-- host:ReceiveAddon delivers one from another player as CHAT_MSG_ADDON. ChatThrottleLib
+	-- hooks these, so the send functions must exist before it loads.
+	G.Enum = G.Enum or {}
+	G.Enum.SendAddonMessageResult = { Success = 0, AddonMessageThrottle = 3, NotInGroup = 5, GeneralError = 9 }
+	G.GetFramerate = function()
+		return 60
+	end
+	G.SendChatMessage = noop
+	G.BNSendGameData = noop
+	G.C_ChatInfo = {
+		RegisterAddonMessagePrefix = function(prefix)
+			host.addonPrefixes[prefix] = true
+			return true
+		end,
+		IsAddonMessagePrefixRegistered = function(prefix)
+			return host.addonPrefixes[prefix] == true
+		end,
+		SendAddonMessage = function(prefix, text, channel, target)
+			host.sentAddon[#host.sentAddon + 1] = { prefix = prefix, text = text, channel = channel, target = target }
+			return 0
+		end,
+	}
+	G.C_ChatInfo.SendAddonMessageLogged = G.C_ChatInfo.SendAddonMessage
+
+	-- A player on their own until a spec puts them in a group.
+	G.IsInRaid = function()
+		return false
+	end
+	G.IsInGroup = function()
+		return false
+	end
+	G.GetNumGroupMembers = function()
+		return 0
+	end
+
+	-- Names: "Name-Realm" loses the realm when it is the player's ("none") or always ("short").
+	G.Ambiguate = function(name, context)
+		local base, realm = tostring(name):match("^(.-)%-(.+)$")
+		if not base then
+			return name
+		end
+		if context == "short" or realm == (options.realm or "Stonemaul") then
+			return base
+		end
+		return name
+	end
+
+	-- The guild: options.guild = { name, members = { { name, rankName, rankIndex, online } } }.
+	-- The first member is the player.
+	local guild = options.guild
+	G.IsInGuild = function()
+		return guild ~= nil
+	end
+	G.GetGuildInfo = function(unit)
+		if not guild or unit ~= "player" then
+			return nil
+		end
+		local me = guild.members[1]
+		return guild.name, me.rankName, me.rankIndex
+	end
+	G.GetNumGuildMembers = function()
+		local count = guild and #guild.members or 0
+		return count, count, count
+	end
+	G.GetGuildRosterInfo = function(index)
+		local member = guild and guild.members[index]
+		if not member then
+			return nil
+		end
+		return member.name,
+			member.rankName,
+			member.rankIndex,
+			member.level or 60,
+			member.class or "Warrior",
+			member.zone or "",
+			member.note or "",
+			member.officerNote or "",
+			member.online ~= false,
+			0,
+			member.classFile or "WARRIOR"
+	end
+	G.C_GuildInfo = {
+		GuildRoster = function()
+			host.guildRosterRequests = host.guildRosterRequests + 1
+		end,
+	}
+
 	G.AddonCompartmentFrame = {
 		RegisterAddon = function(_, info)
 			host.compartment[#host.compartment + 1] = info
@@ -692,6 +783,22 @@ function Host:Slash(line)
 		end
 	end
 	return false
+end
+
+--- Delivers an addon message from another player, as the client fires CHAT_MSG_ADDON.
+---@param prefix string
+---@param text string
+---@param channel string "GUILD", "RAID", "WHISPER", ...
+---@param sender string as the game reports it ("Name" or "Name-Realm")
+function Host:ReceiveAddon(prefix, text, channel, sender)
+	self:Fire("CHAT_MSG_ADDON", prefix, text, channel, sender, "", 0, 0, "", 0)
+end
+
+--- The addon messages sent since the last call: { prefix, text, channel, target }.
+function Host:TakeSentAddon()
+	local sent = self.sentAddon
+	self.sentAddon = {}
+	return sent
 end
 
 --- Everything printed to chat since the last call, joined by newlines.

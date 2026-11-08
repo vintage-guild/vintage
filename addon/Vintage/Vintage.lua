@@ -155,6 +155,21 @@ function commands.debug(self)
 	self:Print(profile.debug and L["Debug logging on"] or L["Debug logging off"])
 end
 
+--- Not in help: a check for the raid sync's plan (Q6). Prints which name form each game API
+--- gives, then the sender of one guild addon message, for pasting to the officers.
+function commands.names(self)
+	self:Print(L["Name forms on this client (for the raid sync):"])
+	for _, line in ipairs(ns.Diagnostics:NameLines()) do
+		self:Print("  " .. line)
+	end
+	local sent = ns.Diagnostics:Ping(function(sender)
+		self:Print(string.format(L["Your guild addon message came back from %s."], sender))
+	end)
+	if not sent then
+		self:Print(L["Not in a guild, so no test message was sent."])
+	end
+end
+
 commands["?"] = commands.help
 commands.config = commands.settings
 commands.options = commands.settings

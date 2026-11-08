@@ -51,7 +51,7 @@ shows, and what `libs/bridge-format` already fixed. Forever is the only target.
 9. Ship on CurseForge; install and update through the CurseForge app.
 
 **Out:** addon-to-addon messages (trial accounts can't send them, and nothing needs them;
-revisited for members in the proposed [addon-for-members](../../proposed/addon-for-members/addon-for-members.plan.md)), the
+revisited for members in [addon-for-members](../addon-for-members/addon-for-members.plan.md)), the
 companion app (PLAN "Later"), any loot method logic in Lua (the website precomputes candidates;
 PLAN §5.3), DKP or standings, automatic hand-outs, Retail support, translations beyond `enUS`
 (the structure is there), boss strategy, and a raid-leader cooldown tracker.

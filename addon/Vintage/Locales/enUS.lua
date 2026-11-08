@@ -18,6 +18,9 @@ L["Turn debug logging on or off"] = true
 L["Debug logging on"] = true
 L["Debug logging off"] = true
 L["Unknown command %q. Type /vintage help."] = true
+L["Name forms on this client (for the raid sync):"] = true
+L["Your guild addon message came back from %s."] = true
+L["Not in a guild, so no test message was sent."] = true
 L["Error"] = true
 L["Vintage is built for WoW: Forever. Some features may not work on this client."] = true
 

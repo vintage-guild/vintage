@@ -5,6 +5,13 @@ All notable changes to the Vintage addon. The version is the `## Version` line i
 
 ## [Unreleased]
 
+### Added
+
+- An **About** tab in the settings: what Vintage does before, during, and after a raid, which
+  tab or button does each thing, and whether you need to be raid leader, assistant, or master
+  looter. Open it with `/vintage about` or **What Vintage does** on the Roster tab before a
+  raid is imported.
+
 ### Changed
 
 - The guild's emblem, the gold V on its chained tag, is the addon's icon: on the minimap

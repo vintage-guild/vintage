@@ -138,6 +138,16 @@ Group reads
 not exported. The window's methods (`SubmitImport`, `TakeSnapshot`, `MakeExport`) are what the
 specs drive, since the fake client can't click.
 
+## The About tab
+
+The settings panel's **About** tab (`Settings.lua`, `ABOUT`) tells an officer what the addon
+does through a raid night (before, during, after), which tab or button does each thing, and
+what role each needs (raid leader, assistant, master looter). It opens from `/vintage about`
+and from **What Vintage does** in the Roster tab's empty state (`Options:Open("about")`).
+**Keep it true:** a PR that adds, moves, renames, or changes the role needed for a button
+updates its About line in the same PR. `lifecycle_spec.lua` checks the sections and that the
+main buttons are named.
+
 ## Don'ts
 
 - No game API calls outside `Bridge/`; no WoW globals in `Core/`.

@@ -639,6 +639,16 @@ function RaidWindow:Create()
 		self.pages[tab.key] = page
 		tabDefs[#tabDefs + 1] = { key = tab.key, text = tab.text }
 	end
+	-- Before an import, the Roster tab is where a new officer lands: point them at About.
+	local rosterEmpty = self.pages.roster.empty
+	rosterEmpty.aboutButton = F:CreateButton(rosterEmpty, {
+		text = L["What Vintage does"],
+		width = BUTTON_WIDTH,
+		onClick = function()
+			ns.Options:Open("about")
+		end,
+	})
+	rosterEmpty.aboutButton:SetPoint("TOP", rosterEmpty.subtitleText, "BOTTOM", 0, -GAP * 2)
 	self:BuildList(F, self.pages.roster, function()
 		self:ToggleRun("invite")
 	end)

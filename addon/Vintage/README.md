@@ -22,6 +22,7 @@ please report anything that goes wrong in the guild Discord. What each version a
 | `/vintage status` | Shows the current raid session |
 | `/vintage clear` | Starts an empty raid session (asks you to confirm) |
 | `/vintage settings` | Opens the settings |
+| `/vintage about` | What Vintage does on a raid night, and where (the settings' About tab) |
 | `/vintage debug` | Turns debug logging on or off |
 | `/vintage help` | Lists the commands |
 

@@ -177,6 +177,15 @@ describe("The Roster tab", function()
 		assert.are.equal("about", LibStub("AceConfigDialog-3.0"):GetStatusTable("Vintage").groups.selected)
 	end)
 
+	it("has room for the whole About label", function()
+		-- The fake client measures 6px a character; the game's font runs wider, and at 136px
+		-- the label was cut to "What Vintage do...". Budget 7px a character inside the padding.
+		local button = window.pages.roster.empty.aboutButton
+		local pad = button:GetPadding()
+		local room = button:GetWidth() - pad.left - pad.right
+		assert.is_true(#button:GetText() * 7 <= room, "label needs " .. #button:GetText() * 7 .. "px, has " .. room)
+	end)
+
 	it("imports a pasted string and lists who is in the group", function()
 		window.importButton.hooks.onClick()
 		assert.is_true(window.paste:IsShown())

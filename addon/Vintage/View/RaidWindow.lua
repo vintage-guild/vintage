@@ -643,7 +643,7 @@ function RaidWindow:Create()
 	local rosterEmpty = self.pages.roster.empty
 	rosterEmpty.aboutButton = F:CreateButton(rosterEmpty, {
 		text = L["What Vintage does"],
-		width = BUTTON_WIDTH,
+		width = WIDE_BUTTON_WIDTH,
 		onClick = function()
 			ns.Options:Open("about")
 		end,

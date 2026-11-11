@@ -37,6 +37,6 @@
     "@vintage/config": "workspace:*",
     "happy-dom": "^21.0.4",
     "typescript": "catalog:",
-    "vite": "^8.3.4"
+    "vite": "^8.3.5"
   }
 }

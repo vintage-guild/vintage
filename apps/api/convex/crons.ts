@@ -18,4 +18,7 @@ crons.interval('agent-sweep', { hours: 1 }, internal.agent.sweep);
 /** Ask the Forever armory again about linked characters not checked in 12 hours (armory.ts). */
 crons.interval('armory-sweep', { hours: 1 }, internal.armory.sweep);
 
+/** Guild roster: Blizzard's current membership, plus a stale enrichment batch (armory.ts). */
+crons.interval('armory-roster-sync', { minutes: 30 }, internal.armory.rosterSweep);
+
 export default crons;

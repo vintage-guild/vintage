@@ -9,12 +9,13 @@ Blizzard hasn't documented the Forever API, so its shapes may change under us.
 
 | Path | Holds |
 |---|---|
-| `src/contract.ts` | `ArmoryLink`, `ArmoryEntry` (a link with its owner now), `ArmoryProfile`, `ArmoryItem`, `ArmoryFetchResult`, the timing constants. The only import other modules may use |
+| `src/contract.ts` | `ArmoryLink`, `ArmoryEntry` (a link with its owner now), `ArmoryProfile`, `ArmoryItem`, `ArmoryFetchResult`, `RosterEntry`, `RosterMember`, `RosterFetchResult`, the timing constants. The only import other modules may use |
 | `src/domain/fetch.ts` | `fetchArmory`: one character's profile, equipment, and media through `@vintage/forever-api`, mapped to a result; never throws |
-| `src/store.ts` | `ArmoryStore` port, `ArmoryCharacters` (identity's characters, adapted by apps/api), `ArmoryEffects` (the fetch, scheduled by apps/api), `command` |
-| `src/commands/` | `armory-link`, `armory-unlink` (destructive), `armory-refresh`, `armory-get`, `armory-list`; system only: `armory-sweep`, `armory-record` |
-| `src/testing.ts` | Memory store and deps; deps record the fetches asked for |
-| `convex/` | The `armory` Convex component: the `links` table |
+| `src/domain/roster.ts` | `fetchRosterEntry`: one guild-roster character's class, race, spec, professions, portrait, and armory page; never throws |
+| `src/store.ts` | `ArmoryStore` and `RosterStore` ports, `ArmoryCharacters` (identity's characters, adapted by apps/api), `ArmoryEffects` (the fetch) and `RosterEffects` (the roster sync), both scheduled by apps/api, `command` |
+| `src/commands/` | `armory-link`, `armory-unlink` (destructive), `armory-refresh`, `armory-get`, `armory-list`, `armory-guild-roster`; system only: `armory-sweep`, `armory-record`, `armory-guild-roster-sync`, `armory-guild-roster-record` |
+| `src/testing.ts` | Memory stores and deps; deps record the fetches and roster syncs asked for |
+| `convex/` | The `armory` Convex component: the `links` and `rosterEntries` tables |
 
 ## Rules
 
@@ -60,3 +61,18 @@ Blizzard hasn't documented the Forever API, so its shapes may change under us.
   `ARMORY_NOT_LINKED`.
 - `classMismatch` is true when the armory's class differs from the registered one: usually the
   wrong surname.
+
+## Guild roster
+
+Every character in the Forever guild's in-game roster, independent of links
+([feature doc](../../docs/features/proposed/guild-roster/guild-roster.plan.md)).
+
+- **Blizzard's roster is the membership.** Every 30 minutes apps/api's `armory:rosterSync` reads
+  `guildRoster(BLIZZARD_GUILD_SLUG)` (default `vintage`) and hands the full member list to
+  `armory-guild-roster-record`, which inserts new characters as `pending`, updates level and
+  rank, and deletes characters no longer in the guild.
+- **Enrichment is paced.** Each sync also enriches up to `ROSTER_SYNC_BATCH` (60) characters
+  whose last check is older than `ROSTER_STALE_MS` (24 h), never-checked first. `found` replaces
+  class, race, spec, professions, portrait, and armory link; `error` keeps them.
+- **`guildRank` is Blizzard's index** (0 = Guild Master); rank names aren't in the API yet.
+- `armory-guild-roster` needs recruit and answers entries sorted by rank, then name.

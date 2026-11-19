@@ -1,5 +1,5 @@
 import { commandsFor } from '@vintage/guild-kit';
-import type { ArmoryLink } from './contract';
+import type { ArmoryLink, RosterEntry } from './contract';
 
 /**
  * The armory module's data port. Commands depend on this, not on Convex: production wires it
@@ -42,11 +42,38 @@ export interface ArmoryEffects {
   fetch(guildId: string, linkIds: readonly string[]): Promise<void>;
 }
 
+/**
+ * The guild-roster port. Commands depend on this, not on Convex; production wires it to the
+ * same armory component's `rosterEntries` table, tests use the memory store in `./testing`.
+ */
+export interface RosterStore {
+  /** Sorted by guild rank, then name. */
+  listEntries(guildId: string): Promise<RosterEntry[]>;
+  getEntryBySlug(guildId: string, slug: string): Promise<RosterEntry | null>;
+  insertEntry(entry: Omit<RosterEntry, 'id'>): Promise<RosterEntry>;
+  updateEntry(
+    guildId: string,
+    entryId: string,
+    patch: Partial<Omit<RosterEntry, 'id' | 'guildId' | 'blizzardId' | 'slug'>>,
+  ): Promise<RosterEntry>;
+  deleteEntry(guildId: string, entryId: string): Promise<void>;
+}
+
+/**
+ * Fetches Blizzard's guild roster and enriches a batch outside the transaction (apps/api), then
+ * calls `armory-guild-roster-record`.
+ */
+export interface RosterEffects {
+  sync(guildId: string): Promise<void>;
+}
+
 /** Keys are prefixed so they never collide with another module's deps in apps/api. */
 export interface ArmoryDeps {
   armory: ArmoryStore;
   armoryCharacters: ArmoryCharacters;
   armoryEffects: ArmoryEffects;
+  armoryRoster: RosterStore;
+  armoryRosterEffects: RosterEffects;
 }
 
 export const command = commandsFor<ArmoryDeps>();

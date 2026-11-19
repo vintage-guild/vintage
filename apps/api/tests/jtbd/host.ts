@@ -8,7 +8,7 @@ import { createRegistryTools } from '@vintage/agent-runtime';
 import { renderOnboardingDm } from '@vintage/applications/commands';
 import { createMemoryApplicationsStore } from '@vintage/applications/testing';
 import { type ArmoryClient, fetchArmory } from '@vintage/armory/commands';
-import { createMemoryArmoryStore } from '@vintage/armory/testing';
+import { createMemoryArmoryStore, createMemoryRosterStore } from '@vintage/armory/testing';
 import { runTick } from '@vintage/coordinator/commands';
 import { createFakeDiscord, createMemoryCoordinatorStore } from '@vintage/coordinator/testing';
 import type { DecisionsPort } from '@vintage/decisions';
@@ -124,6 +124,9 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
   const armoryStore = createMemoryArmoryStore();
   /** Link ids armory commands asked to fetch, waiting for armoryFetch. */
   const armoryQueue: string[] = [];
+  const armoryRosterStore = createMemoryRosterStore();
+  /** Guild ids the guild-roster sync was asked for. */
+  const rosterSyncs: string[] = [];
   const deps: VintageDeps = {
     identity,
     memberRefresh: { request: async (_g, discordId) => void memberRefreshes.push(discordId) },
@@ -236,6 +239,8 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
         })),
     },
     armoryEffects: { fetch: async (_g, ids) => void armoryQueue.push(...ids) },
+    armoryRoster: armoryRosterStore,
+    armoryRosterEffects: { sync: async (g) => void rosterSyncs.push(g) },
   };
   const registry = testRegistry<VintageDeps>(commands, clock);
   const discord = createFakeDiscord();

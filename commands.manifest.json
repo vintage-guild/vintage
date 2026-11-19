@@ -593,6 +593,241 @@
       }
     },
     {
+      "name": "armory-guild-roster",
+      "description": "Every character currently in the guild’s in-game roster (Blizzard’s own membership, not a member’s claim): level, class, race, guild rank, active spec, professions, portrait, and a link to its armory page. Sorted by guild rank, then name. Synced from Blizzard in the background (armory-guild-roster-sync); a character shows \"pending\" until its first enrichment pass, and \"error\" when the armory fetch failed (the guild roster listing is kept either way).",
+      "tier": "recruit",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "armory-guild-roster-record",
+      "description": "Record one sync’s results: the guild’s current member list from Blizzard (inserts new characters as pending, drops ones no longer in the guild) and whichever members’ details were just re-fetched. Run by the sync action.",
+      "tier": "officer",
+      "mutation": true,
+      "destructive": false,
+      "systemOnly": true,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "members": {
+            "maxItems": 2000,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "blizzardId": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "name": {
+                  "type": "string",
+                  "maxLength": 48
+                },
+                "surname": {
+                  "type": "string",
+                  "maxLength": 48
+                },
+                "slug": {
+                  "type": "string",
+                  "maxLength": 96
+                },
+                "level": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 200
+                },
+                "guildRank": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "blizzardId",
+                "name",
+                "surname",
+                "slug",
+                "level",
+                "guildRank"
+              ]
+            }
+          },
+          "enriched": {
+            "maxItems": 60,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "slug": {
+                  "type": "string",
+                  "maxLength": 96
+                },
+                "result": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "const": "found"
+                        },
+                        "className": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "maxLength": 48
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "raceName": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "maxLength": 48
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "activeSpec": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "maxLength": 48
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "professions": {
+                          "maxItems": 16,
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string",
+                                "maxLength": 48
+                              },
+                              "level": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              "maxLevel": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 9007199254740991
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "name",
+                              "level",
+                              "maxLevel"
+                            ]
+                          }
+                        },
+                        "avatarUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "maxLength": 500,
+                              "format": "uri"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "profileUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "maxLength": 300,
+                              "format": "uri"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "status",
+                        "className",
+                        "raceName",
+                        "activeSpec",
+                        "professions",
+                        "avatarUrl",
+                        "profileUrl"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "const": "error"
+                        },
+                        "error": {
+                          "type": "string",
+                          "maxLength": 300
+                        }
+                      },
+                      "required": [
+                        "status",
+                        "error"
+                      ]
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "slug",
+                "result"
+              ]
+            }
+          }
+        },
+        "required": [
+          "members",
+          "enriched"
+        ]
+      }
+    },
+    {
+      "name": "armory-guild-roster-sync",
+      "description": "Ask Blizzard for the guild’s current in-game roster and enrich the stalest entries (never checked first, up to 60 per run). Run by the cron every 30 minutes.",
+      "tier": "officer",
+      "mutation": true,
+      "destructive": false,
+      "systemOnly": true,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
       "name": "armory-link",
       "description": "Link one of your registered characters to its WoW: Forever armory entry (Forever has no realms; the armory finds a character by first name and surname). A character registered with its last name (\"Bloodfen Il\") needs nothing more; otherwise give the surname. Vintage fetches the armory right away and keeps the level, item level, gear, and portrait fresh after that; armory-get shows them. Linking again with another surname replaces the link. Officers can link anyone’s character. A link is what the member says, not proof of ownership.",
       "tier": "member",

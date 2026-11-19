@@ -155,7 +155,7 @@ const template = html<Page>`
                 <span>Search</span>
                 <input
                   type="search"
-                  placeholder="${(x) => (x.showDiscord ? 'Name, Discord, or profession' : 'Name or profession')}"
+                  placeholder="${(x) => (x.showDiscord ? 'Character or Discord name' : 'Character name')}"
                   :value="${(x) => x.query}"
                   @input="${(x, c) => {
                     x.query = (c.event.target as HTMLInputElement).value;
@@ -185,6 +185,17 @@ const template = html<Page>`
                 >
                   <option value="">All classes</option>
                   ${repeat((x) => x.classes, html<string>`<option value="${(c) => c}">${(c) => c}</option>`)}
+                </select>
+              </label>
+              <label>
+                <span>Profession</span>
+                <select
+                  @change="${(x, c) => {
+                    x.profession = (c.event.target as HTMLSelectElement).value;
+                  }}"
+                >
+                  <option value="">All professions</option>
+                  ${repeat((x) => x.professions, html<string>`<option value="${(p) => p}">${(p) => p}</option>`)}
                 </select>
               </label>
               <p class="count" aria-live="polite">
@@ -539,6 +550,8 @@ export class Page extends FASTElement {
   /** A rank index as text, or '' for every rank. */
   @observable rank = '';
   @observable className = '';
+  /** A profession name, or '' for any. */
+  @observable profession = '';
   @observable sort: SortKey = 'rank';
 
   connectedCallback(): void {
@@ -589,6 +602,10 @@ export class Page extends FASTElement {
     return [...new Set(this.entries.flatMap((e) => (e.className ? [e.className] : [])))].sort();
   }
 
+  get professions(): string[] {
+    return [...new Set(this.entries.flatMap((e) => e.professions.map((p) => p.name)))].sort();
+  }
+
   get visible(): RosterListing[] {
     const q = this.query.trim().toLowerCase();
     const rank = this.rank === '' ? null : Number(this.rank);
@@ -596,9 +613,8 @@ export class Page extends FASTElement {
       (e) =>
         (rank === null || e.guildRank === rank) &&
         (!this.className || e.className === this.className) &&
-        (!q ||
-          `${e.name} ${e.surname} ${this.discordName(e) ?? ''}`.toLowerCase().includes(q) ||
-          e.professions.some((p) => p.name.toLowerCase().includes(q))),
+        (!this.profession || e.professions.some((p) => p.name === this.profession)) &&
+        (!q || `${e.name} ${e.surname} ${this.discordName(e) ?? ''}`.toLowerCase().includes(q)),
     );
     const byName = (a: RosterListing, b: RosterListing) => a.name.localeCompare(b.name);
     const compare: Record<SortKey, (a: RosterListing, b: RosterListing) => number> = {

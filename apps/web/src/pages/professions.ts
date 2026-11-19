@@ -52,7 +52,7 @@ const recipe = html<RecipeMatch>`
 
 const template = html<Page>`
   <div class="page wide">
-    <h1>Recipes</h1>
+    <h1>Professions</h1>
     <div class="controls" role="search">
       <label>
         <span>Recipe</span>
@@ -254,7 +254,7 @@ const styles = css`
   }
 `;
 
-/** `/recipes`: who in the guild can craft what, from `armory-recipe-search`. Open to all. */
+/** `/professions`: who in the guild can craft what, from `armory-recipe-search`. Open to all. */
 export class Page extends FASTElement {
   @observable query = '';
   @observable profession = '';
@@ -311,7 +311,7 @@ export class Page extends FASTElement {
 }
 
 await Page.define({
-  name: 'vintage-recipes-page',
+  name: 'vintage-professions-page',
   template,
   styles: [pageStyles, styles],
 });

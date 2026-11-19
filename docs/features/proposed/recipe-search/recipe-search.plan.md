@@ -14,7 +14,7 @@ and the guild roster sync already fetches that endpoint.
 - `armory-recipe-search` (public) matches recipe names by substring, optionally in one profession,
   and answers each recipe with everyone who knows it and their skill, best first. At most 50.
 - `armory-guild-roster` leaves `recipes` out, so the roster page stays small.
-- `/recipes` on the website: a search box and a profession filter.
+- `/professions` on the website, linked from the header next to Roster: a recipe search box and a profession filter.
 
 Checked live 2026-11-19: 113 characters synced with recipes; "sharpening" found 5 Blacksmithing
 recipes, "bandage" 10 First Aid recipes. Forever has recipes Classic doesn't (healing potions under
@@ -22,7 +22,6 @@ First Aid, "Discolored Healing Potion").
 
 ## Open questions
 
-- Where the page is linked from: the header nav, the roster page, or both.
 - Links from a recipe to Wowhead or the crafted item: Blizzard's recipe id isn't Wowhead's spell
   id; `/data/wow/recipe/{id}` would give the crafted item, unchecked for Forever.
 

@@ -2,7 +2,7 @@ import { css, FASTElement, html, observable, repeat, when } from '@lushly-dev/fa
 import type { RosterListing, RosterProfession } from '@vintage/armory/contract';
 import { getCommandClient } from '@vintage/ui-kit';
 import { classIcon } from '../class-icons';
-import { canSignIn, currentSession } from '../session';
+import { currentSession } from '../session';
 import { pageStyles } from './page-styles';
 
 /** The guild's in-game rank names by Blizzard's rank index (Blizzard sends only the index). */
@@ -115,11 +115,11 @@ const ariaSort = (key: SortKey) => (x: Page) => (x.sort === key ? 'ascending' : 
 
 const rosterTable = (rows: (x: Page) => RosterListing[], label: string) => html<Page>`
   <div class="table-wrap">
-    <table aria-label="${label}">
+    <table aria-label="${label}" class="${(x) => (x.showDiscord ? '' : 'no-discord')}">
       <thead>
         <tr>
           <th scope="col" aria-sort="${ariaSort('name')}">${sortButton('name', 'Character')}</th>
-          <th scope="col">Discord</th>
+          <th scope="col" data-label="Discord">Discord</th>
           <th scope="col" class="num" aria-sort="${ariaSort('level')}">${sortButton('level', 'Level')}</th>
           <th scope="col">Spec</th>
           <th scope="col">Professions</th>
@@ -139,31 +139,23 @@ const template = html<Page>`
     <h1>Roster</h1>
     <p class="lead">
       Everyone in the guild in game, straight from the WoW: Forever armory: spec, professions,
-      and a link to each character's armory page. Refreshed every half hour. A character shows
-      its member's Discord name once they link it on <a href="/characters">Characters</a>.
+      and a link to each character's armory page. Refreshed every half hour.${when(
+        (x) => x.showDiscord,
+        html` A character shows its member's Discord name once they link it on
+          <a href="/characters">Characters</a>.`,
+      )}
     </p>
+    ${when((x) => !x.loaded, html`<p class="muted">Loading the roster…</p>`)}
+    ${when((x) => x.error, html<Page>`<p class="error" role="alert">${(x) => x.error}</p>`)}
     ${when(
-      () => !currentSession(),
-      html`
-        <vintage-sign-in-card heading="The guild roster" ?available="${() => canSignIn()}">
-          Sign in with Discord to see the guild roster.
-        </vintage-sign-in-card>
-      `,
-    )}
-    ${when(
-      () => currentSession(),
+      (x) => x.loaded && !x.error,
       html<Page>`
-        ${when((x) => !x.loaded, html`<p class="muted">Loading the roster…</p>`)}
-        ${when((x) => x.error, html<Page>`<p class="error" role="alert">${(x) => x.error}</p>`)}
-        ${when(
-          (x) => x.loaded && !x.error,
-          html<Page>`
             <div class="controls" role="search">
               <label>
                 <span>Search</span>
                 <input
                   type="search"
-                  placeholder="Name, Discord, or profession"
+                  placeholder="${(x) => (x.showDiscord ? 'Name, Discord, or profession' : 'Name or profession')}"
                   :value="${(x) => x.query}"
                   @input="${(x, c) => {
                     x.query = (c.event.target as HTMLInputElement).value;
@@ -213,8 +205,6 @@ const template = html<Page>`
               ${rosterTable((x) => x.others, 'Members and alts')}
             </section>
           `,
-        )}
-      `,
     )}
   </div>
 `;
@@ -222,6 +212,11 @@ const template = html<Page>`
 const styles = css`
   .page.wide {
     max-inline-size: 72rem;
+  }
+
+  /* Discord names are for recruits and up; visitors and members don't get the column. */
+  .no-discord [data-label='Discord'] {
+    display: none;
   }
 
   h3 {
@@ -535,7 +530,7 @@ const styles = css`
   }
 `;
 
-/** `/roster`: every character in the in-game guild, from `armory-guild-roster` (recruits and up). */
+/** `/roster`: every character in the in-game guild, from `armory-guild-roster`. Open to all. */
 export class Page extends FASTElement {
   @observable entries: RosterListing[] = [];
   @observable loaded = false;
@@ -548,11 +543,13 @@ export class Page extends FASTElement {
 
   connectedCallback(): void {
     super.connectedCallback();
-    if (currentSession()) void this.load();
+    void this.load();
   }
 
   /** Discord display names by member id (`member-list`), for the roster's Discord column. */
   @observable members: Record<string, string> = {};
+  /** Whether the Discord column shows: `member-list` answered (recruits and up). */
+  @observable showDiscord = false;
 
   discordName(e: RosterListing): string | null {
     return e.memberId ? (this.members[e.memberId] ?? null) : null;
@@ -562,16 +559,18 @@ export class Page extends FASTElement {
     const client = getCommandClient();
     const [result, members] = await Promise.all([
       client.read<RosterListing[]>('armory-guild-roster', {}),
-      client.read<{ id: string; displayName: string }[]>('member-list', {}),
+      // Visitors can't read the member list; don't ask.
+      currentSession()
+        ? client.read<{ id: string; displayName: string }[]>('member-list', {})
+        : Promise.resolve(null),
     ]);
-    if (members.success && members.data) {
+    if (members?.success && members.data) {
       this.members = Object.fromEntries(members.data.map((m) => [m.id, m.displayName]));
+      this.showDiscord = true;
     }
     if (result.success && result.data) {
       this.entries = result.data;
       this.error = '';
-    } else if (result.error?.code === 'COMMAND_NOT_FOUND') {
-      this.error = 'The roster opens up once you join as a recruit.';
     } else {
       this.error = result.error?.message ?? 'Could not read the roster.';
     }

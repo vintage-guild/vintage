@@ -8,15 +8,15 @@ import { type FixtureMember, MEMBERS } from './data';
 
 /**
  * The guild's in-game rank index for each site rank (the game has no raid-leader rank; they
- * are officers). 0 is the Guild Master (Stridulent here); 3 is Officer Alt.
+ * are officers). Blizzard counts from 0: 0 is the Guild Master (Stridulent here), 2 Officer Alt.
  */
 const RANK_INDEX: Record<FixtureMember['rank'], number> = {
-  officer: 2,
-  'raid-leader': 2,
-  raider: 4,
-  'flex-raider': 5,
-  member: 6,
-  recruit: 7,
+  officer: 1,
+  'raid-leader': 1,
+  raider: 3,
+  'flex-raider': 4,
+  member: 5,
+  recruit: 6,
 };
 
 const SURNAMES = [
@@ -111,11 +111,11 @@ interface Character {
 
 /** In-game only: alts and a new invite who haven't signed in to the site. */
 const IN_GAME_ONLY: Character[] = [
-  { name: 'Aerwyn', surname: 'Marsh', class: 'druid', spec: 'restoration', rank: 3, level: 60 },
-  { name: 'Stridalt', surname: 'Crowe', class: 'hunter', spec: 'marksmanship', rank: 3, level: 44 },
-  { name: 'Grimtusk', surname: 'Ashvale', class: 'warrior', spec: 'arms', rank: 6, level: 38 },
-  { name: 'Lornn', surname: 'Arcos', class: 'priest', spec: 'holy', rank: 6, level: 60 },
-  { name: 'Quill', surname: 'Pyre', class: 'mage', spec: 'fire', rank: 7, level: 17 },
+  { name: 'Aerwyn', surname: 'Marsh', class: 'druid', spec: 'restoration', rank: 2, level: 60 },
+  { name: 'Stridalt', surname: 'Crowe', class: 'hunter', spec: 'marksmanship', rank: 2, level: 44 },
+  { name: 'Grimtusk', surname: 'Ashvale', class: 'warrior', spec: 'arms', rank: 5, level: 38 },
+  { name: 'Lornn', surname: 'Arcos', class: 'priest', spec: 'holy', rank: 5, level: 60 },
+  { name: 'Quill', surname: 'Pyre', class: 'mage', spec: 'fire', rank: 6, level: 17 },
 ];
 
 /** The surname a site member's character has in game (their registered one, if any). */

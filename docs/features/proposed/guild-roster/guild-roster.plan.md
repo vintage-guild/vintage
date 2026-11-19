@@ -125,6 +125,8 @@ exactly what the Google Sheet already shows anyone in Discord).
   Battle.net sign-in for verified ownership and alts (spike first: does `/profile/user/wow`
   answer for Forever?)
 
-The guild's in-game ranks by Blizzard's index (confirmed 2026-11-19): 0 Guild Master, 2 Officer,
-3 Officer Alt, 4 Raider, 5 Flex Raider, 6 Members & Alts, 7 Recruit. Guild slug `vintage`
-(confirmed).
+The guild's in-game ranks by Blizzard's index, which counts from 0 (the game's rank numbers
+minus one; checked against the live roster 2026-11-19): 0 Guild Master, 1 Officer, 2 Officer Alt,
+3 Raider, 4 Flex Raider, 5 Members & Alts, 6 Recruit. Guild slug `vintage` (confirmed). The live
+roster had 113 characters: 1 / 3 / 4 / 29 / 2 / 33 / 41 by rank. Forever's professions keep
+their skill points per tier, and characters below about level 10 404 until they level.

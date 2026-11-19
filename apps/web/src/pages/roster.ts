@@ -5,23 +5,26 @@ import { classIcon } from '../class-icons';
 import { currentSession } from '../session';
 import { pageStyles } from './page-styles';
 
-/** The guild's in-game rank names by Blizzard's rank index (Blizzard sends only the index). */
+/**
+ * The guild's in-game rank names by Blizzard's rank index, which counts from 0: the game's rank 1
+ * (Guild Master) is index 0, rank 2 (Officer) is 1, and so on. Checked against the live roster.
+ */
 export const RANK_NAMES: Readonly<Record<number, string>> = {
   0: 'Guild Master',
-  2: 'Officer',
-  3: 'Officer Alt',
-  4: 'Raider',
-  5: 'Flex Raider',
-  6: 'Members & Alts',
-  7: 'Recruit',
+  1: 'Officer',
+  2: 'Officer Alt',
+  3: 'Raider',
+  4: 'Flex Raider',
+  5: 'Members & Alts',
+  6: 'Recruit',
 };
 
-export const rankName = (rank: number) => RANK_NAMES[rank] ?? `Rank ${rank}`;
+export const rankName = (rank: number) => RANK_NAMES[rank] ?? `Rank ${rank + 1}`;
 
 /** The raid roster: the Guild Master, officers, and raiders; then flex raiders and recruits. */
-const RAID_RANKS: ReadonlySet<number> = new Set([0, 2, 4]);
-const FLEX_RANK = 5;
-const RECRUIT_RANK = 7;
+const RAID_RANKS: ReadonlySet<number> = new Set([0, 1, 3]);
+const FLEX_RANK = 4;
+const RECRUIT_RANK = 6;
 
 type SortKey = 'rank' | 'name' | 'level';
 

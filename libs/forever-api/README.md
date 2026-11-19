@@ -60,16 +60,14 @@ Guild client's credentials:
 | A name with a non-ASCII letter | ✅ the lowercased slug, URL-encoded: `Krøhns Disease` → `kr%C3%B8hns-disease` (2026-11-19) |
 | Public armory page | `https://worldofwarcraft.blizzard.com/en-us/forever/{region}/armory/character/{slug}` (confirmed live, 2026-11-19) |
 
-`/professions` returned 200 in the Nov 7 probe, but no live body has been checked against
-`characterProfessionsSchema` yet. The schema expects `primaries`/`secondaries` entries with a
-top-level `skill_points`; Retail's documented shape keeps them per `tiers[]` instead. The schema
-defaults missing lists to `[]`, so a different shape parses as "no professions" rather than
-failing: the probe's **professions shape** check reads the raw keys to catch that. Run it
-against a character with professions and update this table once it passes.
+`characterProfessionsSchema` defaults missing lists to `[]` and every skill field is optional,
+so a shape change would parse as "no professions" or level 0 rather than failing. The probe's
+**professions shape** check reads the raw keys and **profession levels** checks the mapped
+result, so run the probe after Blizzard changes anything.
 
 Run it again with `BLIZZARD_CLIENT_ID=… BLIZZARD_CLIENT_SECRET=… pnpm --filter @vintage/api exec
 tsx scripts/armory-probe.ts <Name> <Surname> [region] [--raw]`. Any develop.battle.net client
 works (client credentials: no sign-in, no redirect URL). It ends with a PASS/FAIL line per
-check (profile, professions shape and schema, the roster entry from `fetchRosterEntry`, and the
+check (profile, professions shape and schema, profession levels, the roster entry from `fetchRosterEntry`, and the
 guild roster through `toRosterMembers`; the guild is `BLIZZARD_GUILD_SLUG`, else the
 character's) and exits 1 if any fails.

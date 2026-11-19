@@ -210,9 +210,15 @@ describe('armory-guild-roster', () => {
       'bulwark-stone': 'm-bul',
       'nobody-here': null,
     });
+    // Visitors and members get the roster, but not who plays what.
+    for (const tier of ['public', 'member'] as const) {
+      const theirs = await ok<RosterListing[]>('armory-guild-roster', {}, makeCaller(tier));
+      expect(theirs).toHaveLength(3);
+      expect(theirs.every((e) => e.memberId === null)).toBe(true);
+    }
   });
 
-  it('is readable by recruits and up, sorted by guild rank then name', async () => {
+  it('is readable by everyone, sorted by guild rank then name', async () => {
     await record(
       [
         member({ blizzardId: 1, name: 'Zed', surname: 'Zeeb', slug: 'zed-zeeb', guildRank: 2 }),
@@ -221,11 +227,10 @@ describe('armory-guild-roster', () => {
       ],
       [],
     );
-    const entries = await ok<RosterEntry[]>('armory-guild-roster', {}, recruit);
-    expect(entries.map((e) => e.name)).toEqual(['Alpha', 'Beta', 'Zed']);
-    expect(code(await run('armory-guild-roster', {}, makeCaller('public')))).toBe(
-      'COMMAND_NOT_FOUND',
-    );
+    for (const caller of [recruit, makeCaller('public')]) {
+      const entries = await ok<RosterEntry[]>('armory-guild-roster', {}, caller);
+      expect(entries.map((e) => e.name)).toEqual(['Alpha', 'Beta', 'Zed']);
+    }
   });
 });
 

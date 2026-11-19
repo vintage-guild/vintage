@@ -1,7 +1,7 @@
-// The guild roster: read-only for everyone recruit and up, synced by a cron through two
+// The guild roster: public (it's Blizzard's public armory data), synced by a cron through two
 // system-only commands (the sync never calls Blizzard directly; apps/api's action does, then
 // hands the results back here — same split as armory-sweep/armory-record).
-import { success } from '@vintage/guild-kit';
+import { success, tierAllows } from '@vintage/guild-kit';
 import { z } from 'zod';
 import { ROSTER_SYNC_BATCH, type RosterListing } from '../contract';
 import { command } from '../store';
@@ -11,17 +11,24 @@ export const armoryGuildRoster = command({
   description:
     'Every character currently in the guild’s in-game roster (Blizzard’s own membership, not ' +
     'a member’s claim): level, class, race, guild rank, active spec, professions, portrait, ' +
-    'a link to its armory page, and the guild member who claims it (`memberId`: whoever linked ' +
-    'it to the armory, else whose registered character has its full name; null when none). ' +
-    'Sorted by guild rank, then name. Synced from Blizzard in ' +
+    'a link to its armory page, and, for recruits and up, the guild member who claims it ' +
+    '(`memberId`: whoever linked it to the armory, else whose registered character has its ' +
+    'full name; null when none, and always null below recruit). Open to everyone. Sorted by ' +
+    'guild rank, then name. Synced from Blizzard in ' +
     'the background (armory-guild-roster-sync); a character shows "pending" until its first ' +
     'enrichment pass, and "error" when the armory fetch failed (the guild roster listing is ' +
     'kept either way).',
-  tier: 'recruit',
+  tier: 'public',
   input: z.object({}),
-  handler: async (_input, { guildId, deps }) => {
-    const [entries, links, characters] = await Promise.all([
-      deps.armoryRoster.listEntries(guildId),
+  handler: async (_input, { guildId, deps, caller }) => {
+    const byRank = (a: RosterListing, b: RosterListing) =>
+      a.guildRank - b.guildRank || a.name.localeCompare(b.name);
+    const entries = await deps.armoryRoster.listEntries(guildId);
+    // Which Discord member plays which character is the guild's to know, like member-list.
+    if (!tierAllows(caller.tier, 'recruit')) {
+      return success(entries.map((e) => ({ ...e, memberId: null })).sort(byRank));
+    }
+    const [links, characters] = await Promise.all([
       deps.armory.listLinks(guildId),
       deps.armoryCharacters.listCharacters(guildId),
     ]);
@@ -38,7 +45,7 @@ export const armoryGuildRoster = command({
     }
     const listed: RosterListing[] = entries
       .map((e) => ({ ...e, memberId: memberBySlug.get(e.slug) ?? null }))
-      .sort((a, b) => a.guildRank - b.guildRank || a.name.localeCompare(b.name));
+      .sort(byRank);
     return success(listed);
   },
 });

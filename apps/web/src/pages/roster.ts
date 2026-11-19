@@ -679,7 +679,7 @@ export class Page extends FASTElement {
     );
     const byName = (a: RosterListing, b: RosterListing) => a.name.localeCompare(b.name);
     const compare: Record<SortKey, (a: RosterListing, b: RosterListing) => number> = {
-      rank: (a, b) => a.guildRank - b.guildRank || byName(a, b),
+      rank: (a, b) => a.guildRank - b.guildRank || b.level - a.level || byName(a, b),
       name: byName,
       level: (a, b) => b.level - a.level || byName(a, b),
     };

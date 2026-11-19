@@ -39,6 +39,9 @@ const classSlug = (e: RosterListing) => e.className?.toLowerCase().replace(/[^a-
 /** The character's name in game: Forever names are first name and surname. */
 const inGameName = (e: RosterListing) => (e.surname ? `${e.name} ${e.surname}` : e.name);
 
+/** "Opens in a new tab": an arrow leaving a box, in the link's own color. */
+const newTab = html`<svg class="new-tab" viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><path d="M9 2.5h4.5V7M13.5 2.5 7.5 8.5M11.5 9.5v3.5a.5.5 0 0 1-.5.5H3a.5.5 0 0 1-.5-.5V5a.5.5 0 0 1 .5-.5h3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
 /** Classic's secondary skills: shown smaller, after the two primaries. */
 const SECONDARY: ReadonlySet<string> = new Set(['Cooking', 'First Aid', 'Fishing']);
 const primaries = (e: RosterListing) => e.professions.filter((p) => !SECONDARY.has(p.name));
@@ -80,7 +83,7 @@ const row = html<RosterListing, Page>`
       <span class="names">
         ${when(
           (e) => e.profileUrl,
-          html<RosterListing>`<a class="name" href="${(e) => e.profileUrl ?? ''}" target="_blank" rel="noopener noreferrer" style="${(e) => (e.className ? `color: var(--color-class-${classSlug(e)})` : '')}">${(e) => inGameName(e)}<span class="visually-hidden"> (armory, opens in a new tab)</span></a>`,
+          html<RosterListing>`<a class="name" href="${(e) => e.profileUrl ?? ''}" target="_blank" rel="noopener noreferrer" style="${(e) => (e.className ? `color: var(--color-class-${classSlug(e)})` : '')}">${(e) => inGameName(e)}${newTab}<span class="visually-hidden"> (armory, opens in a new tab)</span></a>`,
         )}
         ${when(
           (e) => !e.profileUrl,
@@ -435,6 +438,17 @@ const styles = css`
 
   a.name:hover {
     text-decoration: underline;
+  }
+
+  .new-tab {
+    margin-inline-start: 0.3rem;
+    vertical-align: baseline;
+    opacity: 0.6;
+  }
+
+  a.name:hover .new-tab,
+  a.name:focus-visible .new-tab {
+    opacity: 1;
   }
 
   .spec {

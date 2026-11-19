@@ -11,9 +11,9 @@ Blizzard hasn't documented the Forever API, so its shapes may change under us.
 |---|---|
 | `src/contract.ts` | `ArmoryLink`, `ArmoryEntry` (a link with its owner now), `ArmoryProfile`, `ArmoryItem`, `ArmoryFetchResult`, `RosterEntry`, `RosterMember`, `RosterFetchResult`, the timing constants. The only import other modules may use |
 | `src/domain/fetch.ts` | `fetchArmory`: one character's profile, equipment, and media through `@vintage/forever-api`, mapped to a result; never throws |
-| `src/domain/roster.ts` | `fetchRosterEntry`: one guild-roster character's class, race, spec, professions, portrait, and armory page; never throws |
+| `src/domain/roster.ts` | `fetchRosterEntry`: one guild-roster character's class, race, spec, professions, known recipes, portrait, and armory page; never throws |
 | `src/store.ts` | `ArmoryStore` and `RosterStore` ports, `ArmoryCharacters` (identity's characters, adapted by apps/api), `ArmoryEffects` (the fetch) and `RosterEffects` (the roster sync), both scheduled by apps/api, `command` |
-| `src/commands/` | `armory-link`, `armory-unlink` (destructive), `armory-refresh`, `armory-get`, `armory-list`, `armory-guild-roster`; system only: `armory-sweep`, `armory-record`, `armory-guild-roster-sync`, `armory-guild-roster-record` |
+| `src/commands/` | `armory-link`, `armory-unlink` (destructive), `armory-refresh`, `armory-get`, `armory-list`, `armory-guild-roster`, `armory-recipe-search`; system only: `armory-sweep`, `armory-record`, `armory-guild-roster-sync`, `armory-guild-roster-record` |
 | `src/testing.ts` | Memory stores and deps; deps record the fetches and roster syncs asked for |
 | `convex/` | The `armory` Convex component: the `links` and `rosterEntries` tables |
 
@@ -73,11 +73,17 @@ Every character in the Forever guild's in-game roster, independent of links
   rank, and deletes characters no longer in the guild.
 - **Enrichment is paced.** Each sync also enriches up to `ROSTER_SYNC_BATCH` (60) characters
   whose last check is older than `ROSTER_STALE_MS` (24 h), never-checked first. `found` replaces
-  class, race, spec, professions, portrait, and armory link; `error` keeps them.
+  class, race, spec, professions, known recipes, portrait, and armory link; `error` keeps them.
+  Rows synced before recipes were kept have none (`recipes` is optional in the table) until their
+  next enrichment, within a day.
 - **`guildRank` is Blizzard's index** (0 = Guild Master); the API has no rank names, so the
   website names them (`RANK_NAMES` in apps/web's roster page).
 - `armory-guild-roster` is public (Blizzard's armory is) and answers entries sorted by rank, then
   name, each with `memberId`: the member who linked it, else the one whose registered character
   is its full "First Last" name, else null. Below recruit `memberId` is always null: who plays
   what is the guild's to know, like `member-list`. A claim like any link; Battle.net sign-in will
-  verify it.
+  verify it. It leaves `recipes` out: hundreds per character.
+- `armory-recipe-search` is public too: recipes whose name contains the query (2+ letters, any
+  case), optionally in one profession, each with every roster character who knows it and their
+  skill, best first. At most `RECIPE_SEARCH_LIMIT` (50) recipes, with `truncated` when more matched.
+  It scans the roster's rows, fine at guild size (about 100 characters, a few hundred recipes each).

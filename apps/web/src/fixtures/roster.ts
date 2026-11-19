@@ -1,7 +1,12 @@
 // The guild roster in development: what one `armory-guild-roster-record` call would bring back
 // from Blizzard's guild roster and the armory, built from the example guild plus a few in-game
 // characters who never joined the site. Seeded through the real command (seed.ts).
-import type { RosterFetchResult, RosterMember } from '@vintage/armory/contract';
+import type {
+  RosterFetchResult,
+  RosterMember,
+  RosterProfession,
+  RosterRecipe,
+} from '@vintage/armory/contract';
 import { titleCase } from '@vintage/ui-kit';
 import type { WowClass } from '@vintage/wow-data';
 import { type FixtureMember, MEMBERS } from './data';
@@ -92,6 +97,77 @@ const PRIMARIES: Record<WowClass, [string, string][]> = {
 
 const SECONDARIES = ['First Aid', 'Cooking', 'Fishing'];
 
+/** A few real recipes per profession, with the skill they need. Gathering skills have none. */
+const RECIPES: Record<string, [name: string, skill: number][]> = {
+  Alchemy: [
+    ['Minor Healing Potion', 1],
+    ['Elixir of Giants', 245],
+    ['Major Healing Potion', 275],
+    ['Greater Fire Protection Potion', 290],
+    ['Flask of the Titans', 300],
+  ],
+  Blacksmithing: [
+    ['Rough Sharpening Stone', 1],
+    ['Green Iron Bracers', 165],
+    ['Dense Sharpening Stone', 250],
+    ['Thorium Belt', 250],
+    ['Lionheart Helm', 300],
+  ],
+  Enchanting: [
+    ['Runed Copper Rod', 1],
+    ['Enchant Chest - Major Health', 275],
+    ['Enchant Weapon - Crusader', 300],
+  ],
+  Engineering: [
+    ['Rough Copper Bomb', 30],
+    ['Goblin Sapper Charge', 205],
+    ['Thorium Grenade', 260],
+    ['Arcanite Dragonling', 300],
+  ],
+  Leatherworking: [
+    ['Light Armor Kit', 1],
+    ['Thick Armor Kit', 200],
+    ['Rugged Armor Kit', 250],
+    ['Devilsaur Gauntlets', 290],
+  ],
+  Tailoring: [
+    ['Linen Cloak', 1],
+    ['Mooncloth', 250],
+    ['Runecloth Bag', 260],
+    ['Robe of the Void', 300],
+  ],
+  Mining: [
+    ['Smelt Copper', 1],
+    ['Smelt Iron', 125],
+    ['Smelt Dark Iron', 230],
+    ['Smelt Thorium', 250],
+  ],
+  Cooking: [
+    ['Spiced Wolf Meat', 10],
+    ['Grilled Squid', 240],
+    ['Smoked Desert Dumplings', 285],
+  ],
+  'First Aid': [
+    ['Linen Bandage', 1],
+    ['Heavy Runecloth Bandage', 290],
+  ],
+};
+
+/** Stable ids for the fixture recipes (made up: only the dev site uses them). */
+const RECIPE_IDS = new Map(
+  Object.values(RECIPES)
+    .flat()
+    .map(([name], i) => [name, 90000 + i]),
+);
+
+/** Every recipe the character's professions are high enough to know. */
+const knownRecipes = (professions: RosterProfession[]): RosterRecipe[] =>
+  professions.flatMap((p) =>
+    (RECIPES[p.name] ?? [])
+      .filter(([, skill]) => skill <= p.level)
+      .map(([name]) => ({ id: RECIPE_IDS.get(name) ?? 0, name, profession: p.name })),
+  );
+
 /** A stable small number from a name, so the example roster is the same every load. */
 const hash = (s: string) => [...s].reduce((n, c) => (n * 31 + c.charCodeAt(0)) >>> 0, 7);
 
@@ -149,20 +225,22 @@ function enrichment(c: Character): RosterFetchResult {
   const pair = PRIMARIES[c.class][h % 2] ?? PRIMARIES[c.class][0] ?? ['Herbalism', 'Alchemy'];
   const cap = c.level >= 60 ? 300 : Math.min(300, c.level * 5);
   const skill = (offset: number) => Math.max(1, cap - ((h >>> offset) % 4) * 15);
+  const professions = [
+    { name: pair[0], level: skill(2), maxLevel: 300 },
+    { name: pair[1], level: skill(4), maxLevel: 300 },
+    ...SECONDARIES.filter((_, i) => (h >>> (6 + i)) % 2 === 0).map((name, i) => ({
+      name,
+      level: skill(8 + i),
+      maxLevel: 300,
+    })),
+  ];
   return {
     status: 'found',
     className: titleCase(c.class),
     raceName: RACES[c.class],
     activeSpec: titleCase(c.spec.replace('feral-tank', 'feral').replaceAll('-', ' ')),
-    professions: [
-      { name: pair[0], level: skill(2), maxLevel: 300 },
-      { name: pair[1], level: skill(4), maxLevel: 300 },
-      ...SECONDARIES.filter((_, i) => (h >>> (6 + i)) % 2 === 0).map((name, i) => ({
-        name,
-        level: skill(8 + i),
-        maxLevel: 300,
-      })),
-    ],
+    professions,
+    recipes: knownRecipes(professions),
     // No portraits in development: nothing leaves the machine, and the page shows the class.
     avatarUrl: null,
     profileUrl: profileUrl(slugOf(c.name, c.surname)),

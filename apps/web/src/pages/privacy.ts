@@ -40,7 +40,7 @@ const template = html<Page>`
         never see your Discord password or email address.</p>
       <p>Whether or not you use this site, we also keep the guild roster from Blizzard's public
         WoW: Forever armory: each character in the in-game guild with its guild rank, level,
-        class, race, spec, professions, and portrait. A character leaves it when it leaves the
+        class, race, spec, professions, known recipes, and portrait. A character leaves it when it leaves the
         guild.</p>
     </section>
 

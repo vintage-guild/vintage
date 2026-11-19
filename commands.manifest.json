@@ -746,6 +746,34 @@
                             ]
                           }
                         },
+                        "recipes": {
+                          "default": [],
+                          "maxItems": 1500,
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "integer",
+                                "minimum": -9007199254740991,
+                                "maximum": 9007199254740991
+                              },
+                              "name": {
+                                "type": "string",
+                                "maxLength": 120
+                              },
+                              "profession": {
+                                "type": "string",
+                                "maxLength": 48
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "profession"
+                            ]
+                          }
+                        },
                         "avatarUrl": {
                           "anyOf": [
                             {
@@ -869,6 +897,31 @@
             "type": "boolean"
           }
         }
+      }
+    },
+    {
+      "name": "armory-recipe-search",
+      "description": "Find recipes someone in the guild’s in-game roster knows, by part of the recipe’s name (at least 2 letters, any case), optionally in one profession. Answers each matching recipe with everyone who knows it (name, level, class, armory page, and their skill in that profession), highest skill first; recipes sorted by name, at most 50. `truncated` is true when more matched. Recipes come from the roster sync, so a character shows its new recipes within a day.",
+      "tier": "public",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 60
+          },
+          "profession": {
+            "type": "string",
+            "maxLength": 48
+          }
+        },
+        "required": [
+          "query"
+        ]
       }
     },
     {

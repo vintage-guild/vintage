@@ -235,7 +235,13 @@ describe('createForeverApi', () => {
     const professions = await api(fetch).characterProfessions('Judgement', 'Judy');
     expect(professions?.primaries[0]).toEqual({
       profession: { id: 164, name: 'Blacksmithing' },
-      tiers: [{ skill_points: 150, max_skill_points: 225 }],
+      tiers: [
+        {
+          skill_points: 150,
+          max_skill_points: 225,
+          known_recipes: [{ id: 1993, name: 'Green Iron Bracers' }],
+        },
+      ],
     });
     expect(professions?.secondaries[0]).toMatchObject({ profession: { name: 'Cooking' } });
     expect(new URL(calls[1]!.url).pathname).toBe(

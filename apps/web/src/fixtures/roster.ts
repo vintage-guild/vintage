@@ -116,6 +116,9 @@ const IN_GAME_ONLY: Character[] = [
   { name: 'Grimtusk', surname: 'Ashvale', class: 'warrior', spec: 'arms', rank: 5, level: 38 },
   { name: 'Lornn', surname: 'Arcos', class: 'priest', spec: 'holy', rank: 5, level: 60 },
   { name: 'Quill', surname: 'Pyre', class: 'mage', spec: 'fire', rank: 6, level: 17 },
+  // Below level 10: Blizzard's armory 404s them, and the roster page leaves them out.
+  { name: 'Tinker', surname: 'Ashvale', class: 'rogue', spec: 'combat', rank: 5, level: 3 },
+  { name: 'Pip', surname: 'Northcott', class: 'priest', spec: 'holy', rank: 6, level: 6 },
 ];
 
 /** The surname a site member's character has in game (their registered one, if any). */
@@ -183,7 +186,7 @@ export function fixtureRosterSync(): {
   const enriched = all.flatMap((c) => {
     const slug = slugOf(c.name, c.surname);
     if (c.name === 'Quill') return []; // Just invited: not enriched yet.
-    if (c.name === 'Grimtusk') {
+    if (c.name === 'Grimtusk' || c.level < 10) {
       return [{ slug, result: { status: 'error' as const, error: 'Not in the armory yet' } }];
     }
     return [{ slug, result: enrichment(c) }];

@@ -26,6 +26,9 @@ const RAID_RANKS: ReadonlySet<number> = new Set([0, 1, 3]);
 const FLEX_RANK = 4;
 const RECRUIT_RANK = 6;
 
+/** Blizzard's armory hides characters below this level, so the roster leaves them out. */
+const MIN_LEVEL = 10;
+
 type SortKey = 'rank' | 'name' | 'level';
 
 const percent = (p: RosterProfession) =>
@@ -202,7 +205,7 @@ const template = html<Page>`
                 </select>
               </label>
               <p class="count" aria-live="polite">
-                ${(x) => x.visible.length} of ${(x) => x.entries.length} characters
+                ${(x) => x.visible.length} of ${(x) => x.listed.length} characters
               </p>
             </div>
             <section aria-labelledby="raiders">
@@ -217,6 +220,10 @@ const template = html<Page>`
             <section aria-labelledby="others">
               <h2 id="others">Members &amp; alts <span class="tally">${(x) => x.others.length}</span></h2>
               ${rosterTable((x) => x.others, 'Members and alts')}
+              <p class="muted note">
+                Characters under level ${MIN_LEVEL} aren't listed: the armory doesn't show them
+                until they reach it.${(x) => (x.lowLevel > 0 ? ` (${x.lowLevel} in the guild now.)` : '')}
+              </p>
             </section>
           `,
     )}
@@ -465,6 +472,11 @@ const styles = css`
     white-space: nowrap;
   }
 
+  .note {
+    margin-block-start: var(--space-xs);
+    font-size: var(--font-size-sm);
+  }
+
   .empty {
     padding: var(--space-md);
   }
@@ -597,22 +609,31 @@ export class Page extends FASTElement {
     this.sort = key;
   }
 
+  /** Everyone the roster shows: level 10 and up. */
+  get listed(): RosterListing[] {
+    return this.entries.filter((e) => e.level >= MIN_LEVEL);
+  }
+
+  get lowLevel(): number {
+    return this.entries.length - this.listed.length;
+  }
+
   get ranks(): number[] {
-    return [...new Set(this.entries.map((e) => e.guildRank))].sort((a, b) => a - b);
+    return [...new Set(this.listed.map((e) => e.guildRank))].sort((a, b) => a - b);
   }
 
   get classes(): string[] {
-    return [...new Set(this.entries.flatMap((e) => (e.className ? [e.className] : [])))].sort();
+    return [...new Set(this.listed.flatMap((e) => (e.className ? [e.className] : [])))].sort();
   }
 
   get professions(): string[] {
-    return [...new Set(this.entries.flatMap((e) => e.professions.map((p) => p.name)))].sort();
+    return [...new Set(this.listed.flatMap((e) => e.professions.map((p) => p.name)))].sort();
   }
 
   get visible(): RosterListing[] {
     const q = this.query.trim().toLowerCase();
     const rank = this.rank === '' ? null : Number(this.rank);
-    const filtered = this.entries.filter(
+    const filtered = this.listed.filter(
       (e) =>
         (rank === null || e.guildRank === rank) &&
         (!this.className || e.className === this.className) &&

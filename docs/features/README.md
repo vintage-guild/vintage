@@ -22,3 +22,4 @@ when they affect every contributor, in the Decisions table in [AGENTS.md](../../
 | Post-raid: record the addon's export (#29) | active | [post-raid-record](active/post-raid-record/post-raid-record.plan.md) |
 | Armory: link characters to the Forever armory | active | [armory](active/armory/armory.plan.md) |
 | The addon for everyone (raid sync, officers' quarters, wishlist picks) | active | [addon-for-members](active/addon-for-members/addon-for-members.plan.md) |
+| Guild roster: a public roster page fed by the Forever armory | proposed | [guild-roster](proposed/guild-roster/guild-roster.plan.md) |

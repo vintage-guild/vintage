@@ -8,7 +8,9 @@ const api = createForeverApi({ region: 'us', clientId, clientSecret });
 await api.characterProfile('Judgement', 'Judy'); // null when the armory has no such character
 await api.characterEquipment('Judgement', 'Judy');
 await api.characterMedia('Judgement', 'Judy');
+await api.characterProfessions('Judgement', 'Judy');
 await api.guildRoster('vintage');
+armoryProfileUrl('us', 'Judgement', 'Judy'); // the public armory page, not an API call
 ```
 
 ## What it does
@@ -54,6 +56,12 @@ Guild client's credentials:
 | `…/encounters/raids` | ✅ 200, empty before the raids open (Dec 9) |
 | `/data/wow/guild/{slug}/roster` | ✅ 200; members with `name`, `surname`, `slug`, `level`, `playable_class.id`, `rank` |
 | An unknown `{name}-{surname}` | 404 on every endpoint |
+| Public armory page | `https://worldofwarcraft.blizzard.com/en-us/forever/{region}/armory/character/{slug}` (confirmed live, 2026-11-19) |
+
+`/professions` returned 200 in the Nov 7 probe, but no live body has been checked against
+`characterProfessionsSchema` yet (it follows Retail's documented `primaries`/`secondaries`
+shape). Run the probe again with `--raw` against a character with set professions and update
+this table once confirmed.
 
 Run it again with `BLIZZARD_CLIENT_ID=… BLIZZARD_CLIENT_SECRET=… pnpm --filter @vintage/api exec
 tsx scripts/armory-probe.ts <Name> <Surname> [region] [--raw]`.

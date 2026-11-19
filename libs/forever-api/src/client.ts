@@ -7,10 +7,12 @@ import type { z } from 'zod';
 import {
   type CharacterEquipment,
   type CharacterMedia,
+  type CharacterProfessions,
   type CharacterProfile,
   type CharacterSpecializations,
   characterEquipmentSchema,
   characterMediaSchema,
+  characterProfessionsSchema,
   characterProfileSchema,
   characterSpecializationsSchema,
   type GuildRoster,
@@ -76,12 +78,20 @@ export const characterSlug = (name: string, surname: string) =>
 export const guildSlug = (name: string) =>
   name.trim().toLocaleLowerCase('en-US').replace(/['’]/g, '').replace(/\s+/g, '-');
 
+/**
+ * The character's public armory page (not an API call): confirmed format, checked live
+ * 2026-11-19 (`https://worldofwarcraft.blizzard.com/en-us/forever/us/armory/character/lornn-arcos`).
+ */
+export const armoryProfileUrl = (region: ForeverRegion, name: string, surname: string) =>
+  `https://worldofwarcraft.blizzard.com/en-us/forever/${region}/armory/character/${characterSlug(name, surname)}`;
+
 export interface ForeverApi {
   readonly region: ForeverRegion;
   characterProfile(name: string, surname: string): Promise<CharacterProfile | null>;
   characterEquipment(name: string, surname: string): Promise<CharacterEquipment | null>;
   characterMedia(name: string, surname: string): Promise<CharacterMedia | null>;
   characterSpecializations(name: string, surname: string): Promise<CharacterSpecializations | null>;
+  characterProfessions(name: string, surname: string): Promise<CharacterProfessions | null>;
   guildRoster(slug: string): Promise<GuildRoster | null>;
 }
 
@@ -175,6 +185,8 @@ export function createForeverApi(options: ForeverApiOptions): ForeverApi {
       get(character(name, surname, '/character-media'), characterMediaSchema),
     characterSpecializations: (name, surname) =>
       get(character(name, surname, '/specializations'), characterSpecializationsSchema),
+    characterProfessions: (name, surname) =>
+      get(character(name, surname, '/professions'), characterProfessionsSchema),
     guildRoster: (slug) =>
       get(`/data/wow/guild/${encodeURIComponent(slug)}/roster`, guildRosterSchema),
   };

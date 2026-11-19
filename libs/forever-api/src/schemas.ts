@@ -73,6 +73,23 @@ export const characterSpecializationsSchema = z.object({
 });
 export type CharacterSpecializations = z.infer<typeof characterSpecializationsSchema>;
 
+/**
+ * `/profile/wow/character/{name}-{surname}/professions`. Shape follows the Retail API's
+ * documented `primaries`/`secondaries` (profession, skill points, max skill points); unconfirmed
+ * for Forever (Nov 2026) — the probe got a 200, but no live body has been checked against this
+ * shape yet. Every field optional, same defensive pattern as the rest of this client.
+ */
+const professionEntry = z.object({
+  profession: named.optional(),
+  skill_points: z.number().optional(),
+  max_skill_points: z.number().optional(),
+});
+export const characterProfessionsSchema = z.object({
+  primaries: z.array(professionEntry).default([]),
+  secondaries: z.array(professionEntry).default([]),
+});
+export type CharacterProfessions = z.infer<typeof characterProfessionsSchema>;
+
 /** `/data/wow/guild/{slug}/roster` (profile namespace; Forever guilds have no realm). */
 export const guildRosterSchema = z.object({
   guild: z.object({ name: z.string(), slug: z.string().optional() }).optional(),

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  armoryProfileUrl,
   characterSlug,
   createForeverApi,
   type FetchLike,
@@ -70,6 +71,15 @@ describe('slugs', () => {
     expect(parseRegion(' EU ')).toBe('eu');
     expect(parseRegion('cn')).toBeNull();
     expect(parseRegion(undefined)).toBeNull();
+  });
+
+  it('builds the public armory page url, not an API call', () => {
+    expect(armoryProfileUrl('us', 'Lornn', 'Arcos')).toBe(
+      'https://worldofwarcraft.blizzard.com/en-us/forever/us/armory/character/lornn-arcos',
+    );
+    expect(armoryProfileUrl('eu', ' Ærin ', 'Stormwind')).toBe(
+      'https://worldofwarcraft.blizzard.com/en-us/forever/eu/armory/character/ærin-stormwind',
+    );
   });
 });
 
@@ -193,6 +203,32 @@ describe('createForeverApi', () => {
       '/profile/wow/character/judgement-judy/character-media',
       '/data/wow/guild/vintage/roster',
     ]);
+  });
+
+  it('reads professions, trimmed to what Vintage shows', async () => {
+    const { fetch, calls } = fakeFetch(
+      tokenOk,
+      json(200, {
+        primaries: [
+          {
+            profession: { id: 164, name: 'Blacksmithing' },
+            skill_points: 150,
+            max_skill_points: 150,
+          },
+        ],
+        secondaries: [{ profession: { id: 185, name: 'Cooking' }, skill_points: 50 }],
+      }),
+    );
+    const professions = await api(fetch).characterProfessions('Judgement', 'Judy');
+    expect(professions?.primaries[0]).toMatchObject({
+      profession: { name: 'Blacksmithing' },
+      skill_points: 150,
+      max_skill_points: 150,
+    });
+    expect(professions?.secondaries[0]).toMatchObject({ profession: { name: 'Cooking' } });
+    expect(new URL(calls[1]!.url).pathname).toBe(
+      '/profile/wow/character/judgement-judy/professions',
+    );
   });
 
   it('refuses a body that no longer has the shape Vintage reads', async () => {

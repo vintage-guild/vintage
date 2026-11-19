@@ -1,5 +1,6 @@
 export {
   apiBase,
+  armoryProfileUrl,
   characterSlug,
   createForeverApi,
   type FetchLike,
@@ -17,6 +18,7 @@ export {
 export type {
   CharacterEquipment,
   CharacterMedia,
+  CharacterProfessions,
   CharacterProfile,
   CharacterSpecializations,
   GuildRoster,

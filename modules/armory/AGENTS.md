@@ -76,6 +76,8 @@ Every character in the Forever guild's in-game roster, independent of links
   class, race, spec, professions, portrait, and armory link; `error` keeps them.
 - **`guildRank` is Blizzard's index** (0 = Guild Master); the API has no rank names, so the
   website names them (`RANK_NAMES` in apps/web's roster page).
-- `armory-guild-roster` needs recruit and answers entries sorted by rank, then name, each with
-  `memberId`: the member who linked it, else the one whose registered character is its full
-  "First Last" name, else null. A claim like any link; Battle.net sign-in will verify it.
+- `armory-guild-roster` is public (Blizzard's armory is) and answers entries sorted by rank, then
+  name, each with `memberId`: the member who linked it, else the one whose registered character
+  is its full "First Last" name, else null. Below recruit `memberId` is always null: who plays
+  what is the guild's to know, like `member-list`. A claim like any link; Battle.net sign-in will
+  verify it.

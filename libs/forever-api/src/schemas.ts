@@ -74,15 +74,20 @@ export const characterSpecializationsSchema = z.object({
 export type CharacterSpecializations = z.infer<typeof characterSpecializationsSchema>;
 
 /**
- * `/profile/wow/character/{name}-{surname}/professions`. Shape follows the Retail API's
- * documented `primaries`/`secondaries` (profession, skill points, max skill points); unconfirmed
- * for Forever (Nov 2026) — the probe got a 200, but no live body has been checked against this
- * shape yet. Every field optional, same defensive pattern as the rest of this client.
+ * `/profile/wow/character/{name}-{surname}/professions`. Forever answers Retail's shape
+ * (confirmed live 2026-11-19): each profession's skill points sit in `tiers[]`, one tier per
+ * profession, whose `max_skill_points` is the current cap (75, 150, 225, 300). `known_recipes` is
+ * dropped. The top-level skill points are kept in case Blizzard flattens it.
  */
+const professionTier = z.object({
+  skill_points: z.number().optional(),
+  max_skill_points: z.number().optional(),
+});
 const professionEntry = z.object({
   profession: named.optional(),
   skill_points: z.number().optional(),
   max_skill_points: z.number().optional(),
+  tiers: z.array(professionTier).default([]),
 });
 export const characterProfessionsSchema = z.object({
   primaries: z.array(professionEntry).default([]),

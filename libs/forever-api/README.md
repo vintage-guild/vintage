@@ -52,10 +52,12 @@ Guild client's credentials:
 | `…/equipment` | ✅ 200; `equipped_items[]` with `slot.type`, `quality.type`, `name`, `level.value` |
 | `…/character-media` | ✅ 200; assets `main-raw`, `main-sd-raw`, `avatar`, `avatar-sd` on `render.worldofwarcraft.com/forever-us/…` |
 | `…/specializations` | ✅ 200; talent trees: the active group lists trees with `specialization.name` and `spent_points` |
-| `…/statistics`, `…/professions`, `…/status` | ✅ 200 |
+| `…/professions` | ✅ 200 (body checked 2026-11-19, 6 characters): `primaries[]`/`secondaries[]` with `profession` and one `tiers[]` entry holding `skill_points`, `max_skill_points` (the current cap: 75, 150, 225, 300), and `known_recipes`; no top-level skill points |
+| `…/statistics`, `…/status` | ✅ 200 |
 | `…/encounters/raids` | ✅ 200, empty before the raids open (Dec 9) |
 | `/data/wow/guild/{slug}/roster` | ✅ 200; members with `name`, `surname`, `slug`, `level`, `playable_class.id`, `rank` |
-| An unknown `{name}-{surname}` | 404 on every endpoint |
+| An unknown `{name}-{surname}` | 404 on every endpoint (so is a level 2 guild member: Blizzard hides low-level characters) |
+| A name with a non-ASCII letter | ✅ the lowercased slug, URL-encoded: `Krøhns Disease` → `kr%C3%B8hns-disease` (2026-11-19) |
 | Public armory page | `https://worldofwarcraft.blizzard.com/en-us/forever/{region}/armory/character/{slug}` (confirmed live, 2026-11-19) |
 
 `/professions` returned 200 in the Nov 7 probe, but no live body has been checked against

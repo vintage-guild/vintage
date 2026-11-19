@@ -5,11 +5,13 @@ import {
   armoryProfileUrl,
   type CharacterProfessions,
   type CharacterProfile,
+  characterSlug,
   type ForeverApi,
   ForeverApiError,
   type ForeverRegion,
+  type GuildRoster,
 } from '@vintage/forever-api';
-import type { RosterFetchResult, RosterProfession } from '../contract';
+import type { RosterFetchResult, RosterMember, RosterProfession } from '../contract';
 import { MAX_ERROR, toActiveSpec, toAvatar } from './fetch';
 
 export type RosterClient = Pick<
@@ -22,6 +24,17 @@ const describe = (err: unknown) =>
     ? err.message
     : `Roster fetch failed: ${err instanceof Error ? err.message : String(err)}`
   ).slice(0, MAX_ERROR);
+
+/** Blizzard's guild roster as `armory-guild-roster-record` takes its members. */
+export const toRosterMembers = (roster: GuildRoster): RosterMember[] =>
+  roster.members.map((m) => ({
+    blizzardId: m.character.id,
+    name: m.character.name,
+    surname: m.character.surname ?? '',
+    slug: characterSlug(m.character.name, m.character.surname ?? ''),
+    level: m.character.level ?? 0,
+    guildRank: m.rank,
+  }));
 
 /** Primary and secondary professions with spent and max skill points, named ones only. */
 export const toProfessions = (p: CharacterProfessions | null): RosterProfession[] => {

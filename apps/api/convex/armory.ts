@@ -10,20 +10,14 @@
 //   npx convex run armory:sweep
 //   npx convex run armory:rosterSync '{"guildId":"vintage"}'
 
-import { fetchArmory, fetchRosterEntry } from '@vintage/armory/commands';
+import { fetchArmory, fetchRosterEntry, toRosterMembers } from '@vintage/armory/commands';
 import {
   type ArmoryFetchResult,
   ROSTER_STALE_MS,
   ROSTER_SYNC_BATCH,
   type RosterFetchResult,
-  type RosterMember,
 } from '@vintage/armory/contract';
-import {
-  characterSlug,
-  createForeverApi,
-  type ForeverApi,
-  parseRegion,
-} from '@vintage/forever-api';
+import { createForeverApi, type ForeverApi, parseRegion } from '@vintage/forever-api';
 import { v } from 'convex/values';
 import { internal } from './_generated/api';
 import { internalAction, internalMutation, internalQuery } from './_generated/server';
@@ -139,14 +133,7 @@ export const rosterSync = internalAction({
       console.error(`armory roster sync: guild "${slug}" not found`);
       return;
     }
-    const members: RosterMember[] = roster.members.map((m) => ({
-      blizzardId: m.character.id,
-      name: m.character.name,
-      surname: m.character.surname ?? '',
-      slug: characterSlug(m.character.name, m.character.surname ?? ''),
-      level: m.character.level ?? 0,
-      guildRank: m.rank,
-    }));
+    const members = toRosterMembers(roster);
 
     const known = await ctx.runQuery(internal.armory.rosterStatus, { guildId });
     const checkedAt = new Map(known.map((e) => [e.slug, e.checkedAt]));

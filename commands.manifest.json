@@ -594,7 +594,7 @@
     },
     {
       "name": "armory-guild-roster",
-      "description": "Every character currently in the guild’s in-game roster (Blizzard’s own membership, not a member’s claim): level, class, race, guild rank, active spec, professions, portrait, and a link to its armory page. Sorted by guild rank, then name. Synced from Blizzard in the background (armory-guild-roster-sync); a character shows \"pending\" until its first enrichment pass, and \"error\" when the armory fetch failed (the guild roster listing is kept either way).",
+      "description": "Every character currently in the guild’s in-game roster (Blizzard’s own membership, not a member’s claim): level, class, race, guild rank, active spec, professions, portrait, a link to its armory page, and the guild member who claims it (`memberId`: whoever linked it to the armory, else whose registered character has its full name; null when none). Sorted by guild rank, then name. Synced from Blizzard in the background (armory-guild-roster-sync); a character shows \"pending\" until its first enrichment pass, and \"error\" when the armory fetch failed (the guild roster listing is kept either way).",
       "tier": "recruit",
       "mutation": false,
       "destructive": false,

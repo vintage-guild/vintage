@@ -74,5 +74,8 @@ Every character in the Forever guild's in-game roster, independent of links
 - **Enrichment is paced.** Each sync also enriches up to `ROSTER_SYNC_BATCH` (60) characters
   whose last check is older than `ROSTER_STALE_MS` (24 h), never-checked first. `found` replaces
   class, race, spec, professions, portrait, and armory link; `error` keeps them.
-- **`guildRank` is Blizzard's index** (0 = Guild Master); rank names aren't in the API yet.
-- `armory-guild-roster` needs recruit and answers entries sorted by rank, then name.
+- **`guildRank` is Blizzard's index** (0 = Guild Master); the API has no rank names, so the
+  website names them (`RANK_NAMES` in apps/web's roster page).
+- `armory-guild-roster` needs recruit and answers entries sorted by rank, then name, each with
+  `memberId`: the member who linked it, else the one whose registered character is its full
+  "First Last" name, else null. A claim like any link; Battle.net sign-in will verify it.

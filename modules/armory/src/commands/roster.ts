@@ -3,7 +3,7 @@
 // hands the results back here — same split as armory-sweep/armory-record).
 import { success } from '@vintage/guild-kit';
 import { z } from 'zod';
-import { ROSTER_SYNC_BATCH, type RosterEntry } from '../contract';
+import { ROSTER_SYNC_BATCH, type RosterListing } from '../contract';
 import { command } from '../store';
 
 export const armoryGuildRoster = command({
@@ -11,18 +11,35 @@ export const armoryGuildRoster = command({
   description:
     'Every character currently in the guild’s in-game roster (Blizzard’s own membership, not ' +
     'a member’s claim): level, class, race, guild rank, active spec, professions, portrait, ' +
-    'and a link to its armory page. Sorted by guild rank, then name. Synced from Blizzard in ' +
+    'a link to its armory page, and the guild member who claims it (`memberId`: whoever linked ' +
+    'it to the armory, else whose registered character has its full name; null when none). ' +
+    'Sorted by guild rank, then name. Synced from Blizzard in ' +
     'the background (armory-guild-roster-sync); a character shows "pending" until its first ' +
     'enrichment pass, and "error" when the armory fetch failed (the guild roster listing is ' +
     'kept either way).',
   tier: 'recruit',
   input: z.object({}),
   handler: async (_input, { guildId, deps }) => {
-    const entries = await deps.armoryRoster.listEntries(guildId);
-    const sorted: RosterEntry[] = [...entries].sort(
-      (a, b) => a.guildRank - b.guildRank || a.name.localeCompare(b.name),
-    );
-    return success(sorted);
+    const [entries, links, characters] = await Promise.all([
+      deps.armoryRoster.listEntries(guildId),
+      deps.armory.listLinks(guildId),
+      deps.armoryCharacters.listCharacters(guildId),
+    ]);
+    const ownerOf = new Map(characters.map((c) => [c.id, c.memberId]));
+    const memberBySlug = new Map<string, string>();
+    for (const link of links) {
+      const memberId = ownerOf.get(link.characterId);
+      if (memberId) memberBySlug.set(link.slug, memberId);
+    }
+    // A registered "First Last" is the armory's `first-last`; a link wins over a name match.
+    for (const c of characters) {
+      const slug = c.name.trim().toLowerCase().split(/\s+/).join('-');
+      if (!memberBySlug.has(slug)) memberBySlug.set(slug, c.memberId);
+    }
+    const listed: RosterListing[] = entries
+      .map((e) => ({ ...e, memberId: memberBySlug.get(e.slug) ?? null }))
+      .sort((a, b) => a.guildRank - b.guildRank || a.name.localeCompare(b.name));
+    return success(listed);
   },
 });
 

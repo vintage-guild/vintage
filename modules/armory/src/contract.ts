@@ -136,6 +136,15 @@ export interface RosterEntry {
   checkedAt: number | null;
 }
 
+/**
+ * A roster character as `armory-guild-roster` answers it, with the guild member it belongs to:
+ * the member who linked it to the armory, else the one whose registered character has its full
+ * name. Null when no member claims it. A claim, like a link: never proof of ownership.
+ */
+export interface RosterListing extends RosterEntry {
+  memberId: string | null;
+}
+
 /** What one roster character's enrichment found, as `armory-guild-roster-record` takes it. */
 export type RosterFetchResult =
   | {

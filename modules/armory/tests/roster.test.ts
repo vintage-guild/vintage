@@ -3,7 +3,7 @@ import { type Caller, systemCaller } from '@vintage/guild-kit';
 import { fixedClock, makeCaller, testRegistry } from '@vintage/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { armoryCommands } from '../src/commands';
-import type { RosterEntry, RosterFetchResult, RosterMember } from '../src/contract';
+import type { RosterEntry, RosterFetchResult, RosterListing, RosterMember } from '../src/contract';
 import { fetchRosterEntry, type RosterClient } from '../src/domain/roster';
 import type { ArmoryDeps } from '../src/store';
 import { createMemoryArmoryDeps, type MemoryArmoryDeps } from '../src/testing';
@@ -172,6 +172,46 @@ describe('armory-guild-roster-sync', () => {
 });
 
 describe('armory-guild-roster', () => {
+  it('names the member who linked each character, else the one with its full name', async () => {
+    deps.characters.set(GUILD, [
+      { id: 'c-judy', memberId: 'm-judy', name: 'Judgement Judy', class: 'paladin' },
+      { id: 'c-bul', memberId: 'm-bul', name: 'Bulwark', class: 'warrior' },
+      { id: 'c-imp', memberId: 'm-imp', name: 'Bulwark Stone', class: 'warrior' },
+    ]);
+    await deps.armory.insertLink({
+      guildId: GUILD,
+      characterId: 'c-bul',
+      name: 'Bulwark',
+      surname: 'Stone',
+      slug: 'bulwark-stone',
+      status: 'found',
+      profile: null,
+      equipment: [],
+      avatarUrl: null,
+      classMismatch: false,
+      error: null,
+      linkedBy: 'm-bul',
+      linkedAt: NOW,
+      requestedAt: NOW,
+      checkedAt: NOW,
+      fetchedAt: NOW,
+    });
+    await record(
+      [
+        member(),
+        member({ blizzardId: 2, name: 'Bulwark', surname: 'Stone', slug: 'bulwark-stone' }),
+        member({ blizzardId: 3, name: 'Nobody', surname: 'Here', slug: 'nobody-here' }),
+      ],
+      [],
+    );
+    const entries = await ok<RosterListing[]>('armory-guild-roster', {}, recruit);
+    expect(Object.fromEntries(entries.map((e) => [e.slug, e.memberId]))).toEqual({
+      'judgement-judy': 'm-judy',
+      'bulwark-stone': 'm-bul',
+      'nobody-here': null,
+    });
+  });
+
   it('is readable by recruits and up, sorted by guild rank then name', async () => {
     await record(
       [

@@ -109,12 +109,22 @@ exactly what the Google Sheet already shows anyone in Discord).
 
 ## Tasks
 
-- [ ] **`libs/forever-api`**: `characterProfessionsSchema`, `characterProfessions`,
-  `armoryProfileUrl`, tests, README update
-- [ ] **`modules/armory`**: `rosterEntries` table, `GuildRosterStore`/`GuildRosterEffects` ports,
-  `armory-guild-roster`, `armory-guild-roster-sync`, `armory-guild-roster-record`, memory store,
-  tests
-- [ ] **`apps/api`**: `syncRoster` action, `stores.ts` wiring, `BLIZZARD_GUILD_SLUG` env, cron
-- [ ] **`apps/web` + `packages/ui-kit`**: `/roster` page, `vintage-roster-table`
-- [ ] **Docs**: this plan, `modules/armory/AGENTS.md`, `docs/architecture.md`'s armory row,
+- [x] **`libs/forever-api`**: `characterProfessionsSchema`, `characterProfessions`,
+  `armoryProfileUrl`, tests, README update (#287)
+- [x] **`modules/armory`**: `rosterEntries` table, `RosterStore`/`RosterEffects` ports,
+  `armory-guild-roster` (with the claiming member's id), `armory-guild-roster-sync`,
+  `armory-guild-roster-record`, memory store, tests (#288)
+- [x] **`apps/api`**: `rosterSync` action, `stores.ts` wiring, `BLIZZARD_GUILD_SLUG` env, cron
+  (#288)
+- [x] **`apps/web`**: `/roster` page, sections by the guild's rank names, Discord column, dev
+  fixtures, privacy note. The table lives in the page for now; move it to ui-kit when a second
+  page needs it
+- [x] **Docs**: this plan, `modules/armory/AGENTS.md`, `apps/web/README.md`,
   `commands.manifest.json`
+- [ ] **Next:** a character page (`/roster/<slug>`) linking out to the Armory and Warcraft Logs;
+  Battle.net sign-in for verified ownership and alts (spike first: does `/profile/user/wow`
+  answer for Forever?)
+
+The guild's in-game ranks by Blizzard's index (confirmed 2026-11-19): 0 Guild Master, 2 Officer,
+3 Officer Alt, 4 Raider, 5 Flex Raider, 6 Members & Alts, 7 Recruit. Guild slug `vintage`
+(confirmed).

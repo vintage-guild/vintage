@@ -38,6 +38,10 @@ const template = html<Page>`
       </ul>
       <p>Sign-in asks Discord only for your basic identity (the <code>identify</code> scope). We
         never see your Discord password or email address.</p>
+      <p>Whether or not you use this site, we also keep the guild roster from Blizzard's public
+        WoW: Forever armory: each character in the in-game guild with its guild rank, level,
+        class, race, spec, professions, and portrait. A character leaves it when it leaves the
+        guild.</p>
     </section>
 
     <section aria-labelledby="browser">
@@ -55,7 +59,7 @@ const template = html<Page>`
         its own privacy policy; these services may store it outside your country.</p>
       <p>Class icons load from <a href="https://www.wowhead.com" rel="noopener">Wowhead</a>'s image
         server, so your browser fetches them from Wowhead like any image: it sees your IP address,
-        nothing about your account.</p>
+        nothing about your account. Character portraits load the same way from Blizzard's.</p>
     </section>
 
     <section aria-labelledby="use">

@@ -14,6 +14,7 @@ import {
   ROLE_IDS,
 } from './data';
 import type { FixtureHost } from './host';
+import { fixtureRosterSync, fixtureSurname } from './roster';
 
 const discordIdOf = (m: FixtureMember) =>
   `2${String([...m.name].reduce((n, c) => n * 31 + c.charCodeAt(0), 7)).padStart(16, '0')}`;
@@ -56,14 +57,7 @@ export async function seedFixtures(host: FixtureHost): Promise<void> {
     characters.set(m.name, character.id);
   }
 
-  // Bloodfen (the default persona) has linked his character to the armory; the rest haven't.
-  const bloodfen = memberNamed('Bloodfen');
-  await must(
-    host.run(host.callerFor(bloodfen), 'armory-link', {
-      characterId: characters.get('Bloodfen'),
-    }),
-  );
-  await host.armoryIdle();
+  await seedArmory(host, memberNamed, characters);
 
   const leader = memberNamed('Stridulent');
   for (const raid of RAIDS) {
@@ -151,6 +145,31 @@ export async function seedFixtures(host: FixtureHost): Promise<void> {
       timeZone: 'America/New_York',
     }),
   );
+}
+
+/**
+ * Armory links and the guild roster. Bloodfen (the default persona) and the raiders and up have
+ * linked their mains, so the roster shows their Discord names; recruits and members haven't.
+ */
+async function seedArmory(
+  host: FixtureHost,
+  memberNamed: (name: string) => Member,
+  characters: ReadonlyMap<string, string>,
+): Promise<void> {
+  for (const m of MEMBERS) {
+    if (m.rank === 'recruit' || m.rank === 'member') continue;
+    // Bloodfen's registered "Bloodfen Il" carries its surname.
+    const surname = m.character ? {} : { surname: fixtureSurname(m) };
+    await must(
+      host.run(host.callerFor(memberNamed(m.name)), 'armory-link', {
+        characterId: characters.get(m.name),
+        ...surname,
+      }),
+    );
+  }
+  await host.armoryIdle();
+  // The guild roster, as one sync of Blizzard's in-game roster and the armory would record it.
+  await must(host.run(host.system, 'armory-guild-roster-record', fixtureRosterSync()));
 }
 
 /** The other polls: a closed result, an officers-only vote, and an open ranked poll. */

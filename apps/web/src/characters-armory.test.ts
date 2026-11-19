@@ -54,7 +54,7 @@ describe('the characters page’s armory', () => {
   });
 
   it('links a character by surname and reads the fetch once it lands', async () => {
-    const { host, page, caller } = await pageAs('Morwenna');
+    const { host, page, caller } = await pageAs('Gwendolyn');
     const [character] = page.characters;
     expect(page.armory[character!.id]).toBeUndefined();
     const linked = await host.execute(caller, 'armory-link', {

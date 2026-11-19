@@ -94,3 +94,81 @@ export const ARMORY_STALE_MS = 12 * 60 * 60 * 1000;
 export const ARMORY_REFRESH_COOLDOWN_MS = 10 * 60 * 1000;
 /** Links one sweep asks to refresh, so a run stays well inside Blizzard's rate limit. */
 export const ARMORY_SWEEP_BATCH = 25;
+
+// Guild roster: every character currently in the Forever guild's in-game roster (Blizzard's own
+// membership, from `guildRoster()`), independent of any member's link. Replaces the officers'
+// Google Sheet (docs/features/proposed/guild-roster).
+
+export const ROSTER_STATUSES = ['pending', 'found', 'error'] as const;
+export type RosterStatus = (typeof ROSTER_STATUSES)[number];
+
+/** One profession on a roster character, with its spent and max skill points. */
+export interface RosterProfession {
+  name: string;
+  level: number;
+  maxLevel: number | null;
+}
+
+/** A character in the guild's in-game roster, enriched from the armory in the background. */
+export interface RosterEntry {
+  id: string;
+  guildId: string;
+  /** Blizzard's character id; stays the same through a rename. */
+  blizzardId: number;
+  name: string;
+  surname: string;
+  /** `{name}-{surname}`, lowercased: unique per guild. */
+  slug: string;
+  level: number;
+  /** Blizzard's native in-game guild rank, 0 = Guild Master. Undocumented: no rank name yet. */
+  guildRank: number;
+  status: RosterStatus;
+  className: string | null;
+  raceName: string | null;
+  activeSpec: string | null;
+  professions: RosterProfession[];
+  avatarUrl: string | null;
+  /** The character's public armory page. */
+  profileUrl: string | null;
+  /** Why the last enrichment failed, when it did. */
+  error: string | null;
+  /** Epoch ms; null until the first enrichment pass. */
+  checkedAt: number | null;
+}
+
+/**
+ * A roster character as `armory-guild-roster` answers it, with the guild member it belongs to:
+ * the member who linked it to the armory, else the one whose registered character has its full
+ * name. Null when no member claims it. A claim, like a link: never proof of ownership.
+ */
+export interface RosterListing extends RosterEntry {
+  memberId: string | null;
+}
+
+/** What one roster character's enrichment found, as `armory-guild-roster-record` takes it. */
+export type RosterFetchResult =
+  | {
+      status: 'found';
+      className: string | null;
+      raceName: string | null;
+      activeSpec: string | null;
+      professions: RosterProfession[];
+      avatarUrl: string | null;
+      profileUrl: string | null;
+    }
+  | { status: 'error'; error: string };
+
+/** A roster character one sync asks Blizzard's guild roster endpoint about. */
+export interface RosterMember {
+  blizzardId: number;
+  name: string;
+  surname: string;
+  slug: string;
+  level: number;
+  guildRank: number;
+}
+
+/** An entry is re-enriched by the sync once its last check is this old. */
+export const ROSTER_STALE_MS = 24 * 60 * 60 * 1000;
+/** Roster entries one sync enriches, so a run stays well inside Blizzard's rate limit. */
+export const ROSTER_SYNC_BATCH = 60;

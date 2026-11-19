@@ -15,7 +15,7 @@ import {
   type ApplicationsConfig,
   defaultApplicationsConfig,
 } from '@vintage/applications/contract';
-import type { ArmoryDeps, ArmoryStore } from '@vintage/armory/commands';
+import type { ArmoryDeps, ArmoryStore, RosterStore } from '@vintage/armory/commands';
 import type { CoordinatorDeps, CoordinatorStore, TickSource } from '@vintage/coordinator/commands';
 import { type CoordinatorConfig, defaultConfig } from '@vintage/coordinator/contract';
 import type { Caller, CommandResult } from '@vintage/guild-kit';
@@ -254,6 +254,20 @@ export function armoryStore(ctx: Ctx): ArmoryStore {
 
 // Referenced by name to avoid a type cycle between this file and the generated api.
 const refreshArmory = makeFunctionReference<'action', { linkIds: string[] }>('armory:refresh');
+const syncRoster = makeFunctionReference<'action', { guildId: string }>('armory:rosterSync');
+
+export function rosterStore(ctx: Ctx): RosterStore {
+  return {
+    listEntries: (guildId) => ctx.runQuery(armory.roster.list, { guildId }),
+    getEntryBySlug: (guildId, slug) => ctx.runQuery(armory.roster.bySlug, { guildId, slug }),
+    insertEntry: (entry) => writable(ctx).runMutation(armory.roster.insert, entry),
+    updateEntry: (guildId, entryId, patch) =>
+      writable(ctx).runMutation(armory.roster.update, { guildId, entryId, patch }),
+    deleteEntry: async (guildId, entryId) => {
+      await writable(ctx).runMutation(armory.roster.remove, { guildId, entryId });
+    },
+  };
+}
 
 /** Identity's characters, as armory reads them; fetches run as a scheduled action (armory.ts). */
 export function armoryDeps(ctx: Ctx): ArmoryDeps {
@@ -276,6 +290,12 @@ export function armoryDeps(ctx: Ctx): ArmoryDeps {
     armoryEffects: {
       fetch: async (_guildId, linkIds) => {
         await writable(ctx).scheduler.runAfter(0, refreshArmory, { linkIds: [...linkIds] });
+      },
+    },
+    armoryRoster: rosterStore(ctx),
+    armoryRosterEffects: {
+      sync: async (guildId) => {
+        await writable(ctx).scheduler.runAfter(0, syncRoster, { guildId });
       },
     },
   };

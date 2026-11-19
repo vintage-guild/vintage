@@ -3,5 +3,5 @@
   "maturity": "labs",
   "owners": ["@Falkicon"],
   "dependsOn": [],
-  "description": "Registered characters linked to their WoW: Forever armory entries (name + surname): level, item level, gear, and portrait from Blizzard's undocumented Forever profile API, refreshed by a cron."
+  "description": "Registered characters linked to their WoW: Forever armory entries (name + surname): level, item level, gear, and portrait from Blizzard's undocumented Forever profile API, refreshed by a cron. Also owns the guild-wide roster: every character in the guild's in-game roster, independent of links, enriched the same way."
 }

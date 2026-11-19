@@ -9,6 +9,7 @@
  */
 
 import type * as links from "../links.js";
+import type * as roster from "../roster.js";
 
 import type {
   ApiFromModules,
@@ -19,6 +20,7 @@ import { anyApi, componentsGeneric } from "convex/server";
 
 const fullApi: ApiFromModules<{
   links: typeof links;
+  roster: typeof roster;
 }> = anyApi as any;
 
 /**

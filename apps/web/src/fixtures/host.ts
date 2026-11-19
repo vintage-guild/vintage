@@ -7,7 +7,7 @@ import { createMemoryAgentStore } from '@vintage/agent/testing';
 import { type ApplicationsDeps, applicationsCommands } from '@vintage/applications/commands';
 import { createMemoryApplicationsStore } from '@vintage/applications/testing';
 import { type ArmoryDeps, armoryCommands, fetchArmory } from '@vintage/armory/commands';
-import { createMemoryArmoryStore } from '@vintage/armory/testing';
+import { createMemoryArmoryStore, createMemoryRosterStore } from '@vintage/armory/testing';
 import {
   type CoordinatorDeps,
   coordinatorCommands,
@@ -135,6 +135,7 @@ export function createFixtureHost(
   const polls = createMemoryPollsStore();
   // The armory: the real commands and store, with a fake Blizzard over the example characters.
   const armory = createMemoryArmoryStore();
+  const armoryRoster = createMemoryRosterStore();
   const armoryClient = createFixtureArmoryClient(() => identity.listCharacters(guildId));
   let armoryJobs: Promise<void> = Promise.resolve();
   const fetchLinks = async (g: string, ids: readonly string[]) => {
@@ -158,6 +159,9 @@ export function createFixtureHost(
   });
   const deps: FixtureDeps = {
     armory,
+    armoryRoster,
+    // No fake guild-roster endpoint yet: the dev site has no roster sync trigger.
+    armoryRosterEffects: { sync: async () => {} },
     armoryCharacters: {
       getCharacter: async (g, id) => {
         const c = await identity.getCharacter(g, id);

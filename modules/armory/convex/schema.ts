@@ -59,10 +59,45 @@ export const linkFields = {
   ...linkPatchFields,
 };
 
+export const rosterStatus = v.union(v.literal('pending'), v.literal('found'), v.literal('error'));
+
+export const rosterProfession = v.object({
+  name: v.string(),
+  level: v.number(),
+  maxLevel: nullableNumber,
+});
+
+/** Every field but the entry's id, guild, and blizzardId: what an update may change. */
+export const rosterEntryPatchFields = {
+  name: v.string(),
+  surname: v.string(),
+  slug: v.string(),
+  level: v.number(),
+  guildRank: v.number(),
+  status: rosterStatus,
+  className: nullableString,
+  raceName: nullableString,
+  activeSpec: nullableString,
+  professions: v.array(rosterProfession),
+  avatarUrl: nullableString,
+  profileUrl: nullableString,
+  error: nullableString,
+  checkedAt: nullableNumber,
+};
+
+export const rosterEntryFields = {
+  guildId: v.string(),
+  blizzardId: v.number(),
+  ...rosterEntryPatchFields,
+};
+
 // Every table carries guildId and is read through a guild-scoped index.
 export default defineSchema({
   links: defineTable(linkFields)
     .index('by_guild_name', ['guildId', 'name', 'surname'])
     .index('by_guild_character', ['guildId', 'characterId'])
     .index('by_guild_slug', ['guildId', 'slug']),
+  rosterEntries: defineTable(rosterEntryFields)
+    .index('by_guild_slug', ['guildId', 'slug'])
+    .index('by_guild_rank', ['guildId', 'guildRank']),
 });

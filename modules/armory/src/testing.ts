@@ -1,5 +1,5 @@
-import type { ArmoryLink } from './contract';
-import type { ArmoryCharacter, ArmoryDeps, ArmoryStore } from './store';
+import type { ArmoryLink, RosterEntry } from './contract';
+import type { ArmoryCharacter, ArmoryDeps, ArmoryStore, RosterStore } from './store';
 
 /** Code-point order, like the component's `by_guild_name` index (not the locale's). */
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
@@ -44,21 +44,61 @@ export function createMemoryArmoryStore(): ArmoryStore & { links: Map<string, Ar
   };
 }
 
+const byRank = (a: RosterEntry, b: RosterEntry) =>
+  a.guildRank - b.guildRank || compare(a.name, b.name);
+
+/** In-memory RosterStore for tests. Same behavior contract as the component. */
+export function createMemoryRosterStore(): RosterStore & { entries: Map<string, RosterEntry> } {
+  const entries = new Map<string, RosterEntry>();
+  let seq = 0;
+  return {
+    entries,
+    async listEntries(guildId) {
+      return [...entries.values()].filter((e) => e.guildId === guildId).sort(byRank);
+    },
+    async getEntryBySlug(guildId, slug) {
+      return [...entries.values()].find((e) => e.guildId === guildId && e.slug === slug) ?? null;
+    },
+    async insertEntry(input) {
+      const entry = { ...input, id: `roster_${++seq}` };
+      entries.set(entry.id, entry);
+      return entry;
+    },
+    async updateEntry(guildId, entryId, patch) {
+      const entry = entries.get(entryId);
+      if (!entry || entry.guildId !== guildId) throw new Error(`No roster entry ${entryId}`);
+      const updated = { ...entry, ...patch };
+      entries.set(entryId, updated);
+      return updated;
+    },
+    async deleteEntry(guildId, entryId) {
+      const entry = entries.get(entryId);
+      if (entry && entry.guildId === guildId) entries.delete(entryId);
+    },
+  };
+}
+
 export interface MemoryArmoryDeps extends ArmoryDeps {
   armory: ReturnType<typeof createMemoryArmoryStore>;
+  armoryRoster: ReturnType<typeof createMemoryRosterStore>;
   /** Registered characters by guild; tests add and remove them. */
   characters: Map<string, ArmoryCharacter[]>;
   /** Every fetch asked for, in order. */
   fetches: { guildId: string; linkIds: string[] }[];
+  /** Every roster sync asked for, in order. */
+  rosterSyncs: string[];
 }
 
 export function createMemoryArmoryDeps(): MemoryArmoryDeps {
   const characters = new Map<string, ArmoryCharacter[]>();
   const fetches: MemoryArmoryDeps['fetches'] = [];
+  const rosterSyncs: MemoryArmoryDeps['rosterSyncs'] = [];
   return {
     armory: createMemoryArmoryStore(),
+    armoryRoster: createMemoryRosterStore(),
     characters,
     fetches,
+    rosterSyncs,
     armoryCharacters: {
       async getCharacter(guildId, characterId) {
         return (characters.get(guildId) ?? []).find((c) => c.id === characterId) ?? null;
@@ -70,6 +110,11 @@ export function createMemoryArmoryDeps(): MemoryArmoryDeps {
     armoryEffects: {
       async fetch(guildId, linkIds) {
         fetches.push({ guildId, linkIds: [...linkIds] });
+      },
+    },
+    armoryRosterEffects: {
+      async sync(guildId) {
+        rosterSyncs.push(guildId);
       },
     },
   };

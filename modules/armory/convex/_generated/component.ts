@@ -150,4 +150,85 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         Name
       >;
     };
+    roster: {
+      bySlug: FunctionReference<
+        "query",
+        "internal",
+        { guildId: string; slug: string },
+        any,
+        Name
+      >;
+      insert: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          activeSpec: string | null;
+          avatarUrl: string | null;
+          blizzardId: number;
+          checkedAt: number | null;
+          className: string | null;
+          error: string | null;
+          guildId: string;
+          guildRank: number;
+          level: number;
+          name: string;
+          professions: Array<{
+            level: number;
+            maxLevel: number | null;
+            name: string;
+          }>;
+          profileUrl: string | null;
+          raceName: string | null;
+          slug: string;
+          status: "pending" | "found" | "error";
+          surname: string;
+        },
+        any,
+        Name
+      >;
+      list: FunctionReference<
+        "query",
+        "internal",
+        { guildId: string },
+        any,
+        Name
+      >;
+      remove: FunctionReference<
+        "mutation",
+        "internal",
+        { entryId: string; guildId: string },
+        any,
+        Name
+      >;
+      update: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          entryId: string;
+          guildId: string;
+          patch: {
+            activeSpec?: string | null;
+            avatarUrl?: string | null;
+            checkedAt?: number | null;
+            className?: string | null;
+            error?: string | null;
+            guildRank?: number;
+            level?: number;
+            name?: string;
+            professions?: Array<{
+              level: number;
+              maxLevel: number | null;
+              name: string;
+            }>;
+            profileUrl?: string | null;
+            raceName?: string | null;
+            slug?: string;
+            status?: "pending" | "found" | "error";
+            surname?: string;
+          };
+        },
+        any,
+        Name
+      >;
+    };
   };

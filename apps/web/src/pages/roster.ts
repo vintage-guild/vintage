@@ -1,7 +1,7 @@
 import { css, FASTElement, html, observable, repeat, when } from '@lushly-dev/fast-element';
 import type { RosterListing, RosterProfession } from '@vintage/armory/contract';
 import { getCommandClient } from '@vintage/ui-kit';
-import { classIcon } from '../class-icons';
+import { classIcon, professionIcon } from '../class-icons';
 import { currentSession } from '../session';
 import { pageStyles } from './page-styles';
 
@@ -39,13 +39,28 @@ const classSlug = (e: RosterListing) => e.className?.toLowerCase().replace(/[^a-
 /** The character's name in game: Forever names are first name and surname. */
 const inGameName = (e: RosterListing) => (e.surname ? `${e.name} ${e.surname}` : e.name);
 
-const profession = html<RosterProfession>`
-  <li class="prof" title="${(p) => `${p.name} ${p.level}${p.maxLevel ? ` / ${p.maxLevel}` : ''}`}">
-    <span class="prof-name">${(p) => p.name}</span>
-    <span class="prof-level">${(p) => p.level}${(p) => (p.maxLevel ? `/${p.maxLevel}` : '')}</span>
-    <span class="bar" aria-hidden="true"><span style="inline-size: ${(p) => percent(p)}%"></span></span>
+/** Classic's secondary skills: shown smaller, after the two primaries. */
+const SECONDARY: ReadonlySet<string> = new Set(['Cooking', 'First Aid', 'Fishing']);
+const primaries = (e: RosterListing) => e.professions.filter((p) => !SECONDARY.has(p.name));
+const secondaries = (e: RosterListing) => e.professions.filter((p) => SECONDARY.has(p.name));
+const profLabel = (p: RosterProfession) =>
+  `${p.name} ${p.level}${p.maxLevel ? ` / ${p.maxLevel}` : ''}`;
+
+/** Icon and level; the name and cap are in the tooltip and for screen readers. */
+const profession = (minor: boolean) => html<RosterProfession>`
+  <li class="prof ${minor ? 'minor' : ''}" title="${profLabel}">
+    <img class="prof-icon" src="${(p) => professionIcon(p.name)}" alt="" loading="lazy" />
+    <span class="visually-hidden">${profLabel}</span>
+    <span class="prof-level" aria-hidden="true">${(p) => p.level}</span>
+    ${
+      minor
+        ? ''
+        : html<RosterProfession>`<span class="bar" aria-hidden="true"><span style="inline-size: ${(p) => percent(p)}%"></span></span>`
+    }
   </li>
 `;
+const primary = profession(false);
+const secondary = profession(true);
 
 const row = html<RosterListing, Page>`
   <tr data-status="${(e) => e.status}">
@@ -103,7 +118,7 @@ const row = html<RosterListing, Page>`
     <td data-label="Professions">
       ${when(
         (e) => e.professions.length > 0,
-        html<RosterListing>`<ul class="profs">${repeat((e) => e.professions, profession)}</ul>`,
+        html<RosterListing>`<ul class="profs">${repeat(primaries, primary)}${repeat(secondaries, secondary)}</ul>`,
       )}
       ${when((e) => e.professions.length === 0, html`<small class="muted">—</small>`)}
     </td>
@@ -429,7 +444,9 @@ const styles = css`
   .profs {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.3rem 0.75rem;
+    align-items: center;
+    gap: 0.3rem 0.6rem;
+    margin: 0;
     padding: 0;
     list-style: none;
   }
@@ -437,25 +454,45 @@ const styles = css`
   .prof {
     display: grid;
     grid-template-columns: auto auto;
-    column-gap: 0.35rem;
-    align-items: baseline;
-    min-inline-size: 7.5rem;
+    column-gap: 0.3rem;
+    align-items: center;
+    cursor: default;
   }
 
-  .prof-name {
-    font-size: var(--font-size-xs);
+  .prof-icon {
+    inline-size: 1.25rem;
+    block-size: 1.25rem;
+    border: var(--border-width-thin) solid var(--color-border-strong);
+    border-radius: 0.2rem;
   }
 
   .prof-level {
-    justify-self: end;
+    min-inline-size: 1.6rem;
     font-family: var(--font-family-mono);
     font-size: var(--font-size-xs);
+    color: var(--color-text-primary);
+  }
+
+  /* Secondaries: smaller and dimmer, set off from the primaries by a rule. */
+  .prof.minor .prof-icon {
+    inline-size: 1rem;
+    block-size: 1rem;
+    opacity: 0.8;
+  }
+
+  .prof.minor .prof-level {
+    min-inline-size: 0;
     color: var(--color-text-secondary);
+  }
+
+  .prof:not(.minor) + .prof.minor {
+    padding-inline-start: 0.6rem;
+    border-inline-start: var(--border-width-thin) solid var(--color-border-default);
   }
 
   .bar {
     grid-column: 1 / -1;
-    block-size: 0.2rem;
+    block-size: 0.15rem;
     margin-block-start: 0.15rem;
     border-radius: 0.1rem;
     background: var(--color-surface-sunken);

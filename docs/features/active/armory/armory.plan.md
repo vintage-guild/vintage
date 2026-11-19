@@ -36,8 +36,8 @@ Config (Convex env): `BLIZZARD_CLIENT_ID`, `BLIZZARD_CLIENT_SECRET`, `BLIZZARD_R
 ## Not in this slice (follow-ups)
 
 - **Production:** set `BLIZZARD_CLIENT_ID`, `BLIZZARD_CLIENT_SECRET`, and `BLIZZARD_REGION=us`
-  in the production Convex env (the Vintage Guild client on develop.battle.net). Still unchecked:
-  the slug for names with accents.
+  in the production Convex env (the Vintage Guild client on develop.battle.net). Names with
+  accents work: the lowercased slug, URL-encoded (checked live 2026-11-19).
 - **Website:** item level on rosters and the raid roster. Discord: an `/random character armory`
   view.
 - **Surname in identity:** the reconcile branch's live check covers first/last names from the

@@ -36,13 +36,24 @@ export const toRosterMembers = (roster: GuildRoster): RosterMember[] =>
     guildRank: m.rank,
   }));
 
-/** Primary and secondary professions with spent and max skill points, named ones only. */
+/**
+ * Primary and secondary professions with spent and max skill points, named ones only. Forever
+ * keeps the points in the profession's one tier; a top-level value wins if Blizzard adds one.
+ */
 export const toProfessions = (p: CharacterProfessions | null): RosterProfession[] => {
   const out: RosterProfession[] = [];
   for (const entry of [...(p?.primaries ?? []), ...(p?.secondaries ?? [])]) {
     const name = entry.profession?.name;
     if (!name) continue;
-    out.push({ name, level: entry.skill_points ?? 0, maxLevel: entry.max_skill_points ?? null });
+    const tier = entry.tiers.reduce<(typeof entry.tiers)[number] | undefined>(
+      (best, t) => ((t.skill_points ?? 0) > (best?.skill_points ?? -1) ? t : best),
+      undefined,
+    );
+    out.push({
+      name,
+      level: entry.skill_points ?? tier?.skill_points ?? 0,
+      maxLevel: entry.max_skill_points ?? tier?.max_skill_points ?? null,
+    });
   }
   return out;
 };

@@ -280,15 +280,15 @@ describe('fetchRosterEntry', () => {
         },
       ],
     }),
+    // Blacksmithing in Forever's live shape (points per tier); Cooking flat, as a fallback.
     characterProfessions: async () => ({
       primaries: [
         {
           profession: { id: 164, name: 'Blacksmithing' },
-          skill_points: 150,
-          max_skill_points: 150,
+          tiers: [{ skill_points: 150, max_skill_points: 150 }],
         },
       ],
-      secondaries: [{ profession: { id: 185, name: 'Cooking' }, skill_points: 10 }],
+      secondaries: [{ profession: { id: 185, name: 'Cooking' }, skill_points: 10, tiers: [] }],
     }),
     ...over,
   });

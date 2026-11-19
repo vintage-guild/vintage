@@ -86,20 +86,22 @@ function professionsShape(body: Record<string, unknown> | null): { ok: boolean; 
   if (entries.length === 0) {
     return { ok: true, note: 'lists present but empty: probe a character with professions' };
   }
+  // Forever keeps skill points in `tiers[]` (confirmed 2026-11-19); a top-level value also reads.
+  const points = (e: Record<string, unknown>) =>
+    typeof e.skill_points === 'number' ||
+    (Array.isArray(e.tiers) &&
+      (e.tiers as Record<string, unknown>[]).some((t) => typeof t.skill_points === 'number'));
   const bad = entries.filter(
-    (e) =>
-      typeof (e.profession as { name?: unknown } | undefined)?.name !== 'string' ||
-      typeof e.skill_points !== 'number',
+    (e) => typeof (e.profession as { name?: unknown } | undefined)?.name !== 'string' || !points(e),
   );
   if (bad.length > 0) {
     const keys = Object.keys(bad[0] ?? {}).join(', ');
-    const tiers = bad.some((e) => 'tiers' in e) ? ' (skill points are per tier, as on Retail)' : '';
     return {
       ok: false,
-      note: `${bad.length} of ${entries.length} without profession.name or a top-level skill_points${tiers}; keys: ${keys}`,
+      note: `${bad.length} of ${entries.length} without profession.name or skill_points (top-level or in tiers[]); keys: ${keys}`,
     };
   }
-  return { ok: true, note: `${entries.length} profession(s), each with a name and skill_points` };
+  return { ok: true, note: `${entries.length} profession(s), each with a name and skill points` };
 }
 
 const bearer = await token();
@@ -142,6 +144,14 @@ try {
 console.log('\n### armory module: fetchRosterEntry');
 const entry = await fetchRosterEntry(api, region, name, surname);
 console.log(JSON.stringify(entry, null, 1));
+if (entry.status === 'found' && entry.professions.length > 0) {
+  const zero = entry.professions.filter((p) => p.level === 0).length;
+  check(
+    'profession levels',
+    zero < entry.professions.length,
+    entry.professions.map((p) => `${p.name} ${p.level}/${p.maxLevel ?? '?'}`).join(', '),
+  );
+}
 check(
   'roster entry',
   entry.status === 'found',

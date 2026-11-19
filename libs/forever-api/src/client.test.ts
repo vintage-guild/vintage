@@ -208,22 +208,34 @@ describe('createForeverApi', () => {
   it('reads professions, trimmed to what Vintage shows', async () => {
     const { fetch, calls } = fakeFetch(
       tokenOk,
+      // Forever's live shape: skill points per tier, and every recipe the character knows.
       json(200, {
+        character: { id: 1, name: 'Judgement', surname: 'Judy' },
         primaries: [
           {
             profession: { id: 164, name: 'Blacksmithing' },
-            skill_points: 150,
-            max_skill_points: 150,
+            tiers: [
+              {
+                skill_points: 150,
+                max_skill_points: 225,
+                tier: { id: 2938, name: 'Blacksmithing' },
+                known_recipes: [{ id: 1993, name: 'Green Iron Bracers' }],
+              },
+            ],
           },
         ],
-        secondaries: [{ profession: { id: 185, name: 'Cooking' }, skill_points: 50 }],
+        secondaries: [
+          {
+            profession: { id: 185, name: 'Cooking' },
+            tiers: [{ skill_points: 50, max_skill_points: 75 }],
+          },
+        ],
       }),
     );
     const professions = await api(fetch).characterProfessions('Judgement', 'Judy');
-    expect(professions?.primaries[0]).toMatchObject({
-      profession: { name: 'Blacksmithing' },
-      skill_points: 150,
-      max_skill_points: 150,
+    expect(professions?.primaries[0]).toEqual({
+      profession: { id: 164, name: 'Blacksmithing' },
+      tiers: [{ skill_points: 150, max_skill_points: 225 }],
     });
     expect(professions?.secondaries[0]).toMatchObject({ profession: { name: 'Cooking' } });
     expect(new URL(calls[1]!.url).pathname).toBe(

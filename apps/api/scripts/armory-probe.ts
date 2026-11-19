@@ -1,11 +1,12 @@
 // Probe Blizzard's WoW: Forever profile API with real credentials: each endpoint's status and the
-// shape of what it answers, then the armory module's own fetch of the same character. For checking
-// what the undocumented API really sends (libs/forever-api/README.md). Prints public game data only,
-// never the token or the secret.
+// shape of what it answers, then the armory module's own fetches of the same character and the
+// guild roster, ending in a pass/fail check per piece (exit 1 if any fails). For checking what the
+// undocumented API really sends (libs/forever-api/README.md). Prints public game data only, never
+// the token or the secret. The guild is BLIZZARD_GUILD_SLUG, else the character's guild.
 //   BLIZZARD_CLIENT_ID=… BLIZZARD_CLIENT_SECRET=… pnpm --filter @vintage/api exec tsx \
 //     scripts/armory-probe.ts <Name> <Surname> [region] [--raw]
 
-import { fetchArmory } from '@vintage/armory/commands';
+import { fetchArmory, fetchRosterEntry, toRosterMembers } from '@vintage/armory/commands';
 import {
   apiBase,
   characterSlug,
@@ -64,11 +65,49 @@ async function probe(bearer: string, path: string, namespace = profileNamespace(
   return res.ok ? (body as Record<string, unknown>) : null;
 }
 
+const checks: { name: string; ok: boolean; note: string }[] = [];
+const check = (checkName: string, ok: boolean, note: string) =>
+  checks.push({ name: checkName, ok, note });
+const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
+
+/**
+ * Does `/professions` look like what `characterProfessionsSchema` and `toProfessions` read? The
+ * schema defaults missing lists to [], so a different shape would parse as "no professions"
+ * instead of failing: check the keys themselves.
+ */
+function professionsShape(body: Record<string, unknown> | null): { ok: boolean; note: string } {
+  if (!body) return { ok: false, note: 'no /professions body (see its status above)' };
+  if (!('primaries' in body) && !('secondaries' in body)) {
+    return { ok: false, note: `no primaries/secondaries; keys: ${Object.keys(body).join(', ')}` };
+  }
+  const entries = [body.primaries, body.secondaries].flatMap((list) =>
+    Array.isArray(list) ? (list as Record<string, unknown>[]) : [],
+  );
+  if (entries.length === 0) {
+    return { ok: true, note: 'lists present but empty: probe a character with professions' };
+  }
+  const bad = entries.filter(
+    (e) =>
+      typeof (e.profession as { name?: unknown } | undefined)?.name !== 'string' ||
+      typeof e.skill_points !== 'number',
+  );
+  if (bad.length > 0) {
+    const keys = Object.keys(bad[0] ?? {}).join(', ');
+    const tiers = bad.some((e) => 'tiers' in e) ? ' (skill points are per tier, as on Retail)' : '';
+    return {
+      ok: false,
+      note: `${bad.length} of ${entries.length} without profession.name or a top-level skill_points${tiers}; keys: ${keys}`,
+    };
+  }
+  return { ok: true, note: `${entries.length} profession(s), each with a name and skill_points` };
+}
+
 const bearer = await token();
 console.log(`token: ok (${region})`);
 const slug = encodeURIComponent(characterSlug(name, surname));
 const character = `/profile/wow/character/${slug}`;
 const profile = await probe(bearer, character);
+let professionsBody: Record<string, unknown> | null = null;
 for (const suffix of [
   '/equipment',
   '/character-media',
@@ -78,11 +117,70 @@ for (const suffix of [
   '/professions',
   '/status',
 ]) {
-  await probe(bearer, `${character}${suffix}`);
+  const body = await probe(bearer, `${character}${suffix}`);
+  if (suffix === '/professions') professionsBody = body;
 }
-const guild = (profile?.guild as { slug?: string } | undefined)?.slug;
+const guild =
+  process.env.BLIZZARD_GUILD_SLUG ?? (profile?.guild as { slug?: string } | undefined)?.slug;
 if (guild) await probe(bearer, `/data/wow/guild/${encodeURIComponent(guild)}/roster`);
+check('profile', profile !== null, profile ? 'found' : `${name} ${surname} not found`);
 
-console.log('\n### armory module: fetchArmory');
 const api = createForeverApi({ region, clientId, clientSecret });
+console.log('\n### armory module: fetchArmory');
 console.log(JSON.stringify(await fetchArmory(api, name, surname), null, 1));
+
+const shapeCheck = professionsShape(professionsBody);
+check('professions shape', shapeCheck.ok, shapeCheck.note);
+try {
+  const parsed = await api.characterProfessions(name, surname);
+  const count = (parsed?.primaries.length ?? 0) + (parsed?.secondaries.length ?? 0);
+  check('professions schema', parsed !== null, parsed ? `${count} parsed` : 'not found');
+} catch (err) {
+  check('professions schema', false, message(err));
+}
+
+console.log('\n### armory module: fetchRosterEntry');
+const entry = await fetchRosterEntry(api, region, name, surname);
+console.log(JSON.stringify(entry, null, 1));
+check(
+  'roster entry',
+  entry.status === 'found',
+  entry.status === 'found'
+    ? `${entry.activeSpec ?? 'no spec'} ${entry.className ?? ''}, ${entry.professions.length} profession(s)`
+    : entry.error,
+);
+
+if (!guild) {
+  check('guild roster', false, 'no guild: set BLIZZARD_GUILD_SLUG or probe a guild member');
+} else {
+  console.log(`\n### armory module: toRosterMembers(guildRoster("${guild}"))`);
+  try {
+    const roster = await api.guildRoster(guild);
+    if (!roster) {
+      check('guild roster', false, `guild "${guild}" not found`);
+    } else {
+      const members = toRosterMembers(roster);
+      const ranks = new Map<number, number>();
+      for (const m of members) ranks.set(m.guildRank, (ranks.get(m.guildRank) ?? 0) + 1);
+      const noSurname = members.filter((m) => !m.surname).length;
+      console.log(JSON.stringify(members.slice(0, 5), null, 1));
+      console.log(
+        `ranks: ${[...ranks]
+          .sort(([a], [b]) => a - b)
+          .map(([r, n]) => `${r}×${n}`)
+          .join(' ')}`,
+      );
+      check(
+        'guild roster',
+        members.length > 0 && noSurname === 0,
+        `${members.length} member(s)${noSurname ? `, ${noSurname} without a surname (bad slugs)` : ''}`,
+      );
+    }
+  } catch (err) {
+    check('guild roster', false, message(err));
+  }
+}
+
+console.log('\n### checks');
+for (const c of checks) console.log(`${c.ok ? 'PASS' : 'FAIL'}  ${c.name}: ${c.note}`);
+process.exitCode = checks.every((c) => c.ok) ? 0 : 1;

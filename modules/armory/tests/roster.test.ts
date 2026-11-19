@@ -4,7 +4,7 @@ import { fixedClock, makeCaller, testRegistry } from '@vintage/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { armoryCommands } from '../src/commands';
 import type { RosterEntry, RosterFetchResult, RosterListing, RosterMember } from '../src/contract';
-import { fetchRosterEntry, type RosterClient } from '../src/domain/roster';
+import { fetchRosterEntry, type RosterClient, toRosterMembers } from '../src/domain/roster';
 import type { ArmoryDeps } from '../src/store';
 import { createMemoryArmoryDeps, type MemoryArmoryDeps } from '../src/testing';
 
@@ -231,6 +231,29 @@ describe('armory-guild-roster', () => {
       const entries = await ok<RosterEntry[]>('armory-guild-roster', {}, caller);
       expect(entries.map((e) => e.name)).toEqual(['Alpha', 'Beta', 'Zed']);
     }
+  });
+});
+
+describe('toRosterMembers', () => {
+  it("maps Blizzard's guild roster to the record command's members", () => {
+    expect(
+      toRosterMembers({
+        members: [
+          { character: { id: 7, name: 'Lornn', surname: 'Arcos', level: 60 }, rank: 4 },
+          { character: { id: 8, name: 'Quill' }, rank: 7 },
+        ],
+      }),
+    ).toEqual([
+      {
+        blizzardId: 7,
+        name: 'Lornn',
+        surname: 'Arcos',
+        slug: 'lornn-arcos',
+        level: 60,
+        guildRank: 4,
+      },
+      { blizzardId: 8, name: 'Quill', surname: '', slug: 'quill-', level: 0, guildRank: 7 },
+    ]);
   });
 });
 

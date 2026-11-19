@@ -161,14 +161,12 @@ const rosterTable = (rows: (x: Page) => RosterListing[], label: string) => html<
 const template = html<Page>`
   <div class="page wide">
     <h1>Roster</h1>
-    <p class="lead">
-      Everyone in the guild in game, straight from the WoW: Forever armory: spec, professions,
-      and a link to each character's armory page. Refreshed every half hour.${when(
-        (x) => x.showDiscord,
-        html` A character shows its member's Discord name once they link it on
-          <a href="/characters">Characters</a>.`,
-      )}
-    </p>
+    ${when(
+      (x) => x.showDiscord,
+      html`<p class="muted">
+        Link your characters on <a href="/characters">Characters</a> to show your Discord name.
+      </p>`,
+    )}
     ${when((x) => !x.loaded, html`<p class="muted">Loading the roster…</p>`)}
     ${when((x) => x.error, html<Page>`<p class="error" role="alert">${(x) => x.error}</p>`)}
     ${when(
@@ -228,7 +226,6 @@ const template = html<Page>`
             </div>
             <section aria-labelledby="raiders">
               <h2 id="raiders">Raid roster <span class="tally">${(x) => x.raiders.length}</span></h2>
-              <p class="muted">The Guild Master, officers, and raiders.</p>
               ${rosterTable((x) => x.raiders, 'Raid roster')}
               <h3 id="flex">Flex raiders <span class="tally">${(x) => x.flex.length}</span></h3>
               ${rosterTable((x) => x.flex, 'Flex raiders')}
@@ -238,10 +235,7 @@ const template = html<Page>`
             <section aria-labelledby="others">
               <h2 id="others">Members &amp; alts <span class="tally">${(x) => x.others.length}</span></h2>
               ${rosterTable((x) => x.others, 'Members and alts')}
-              <p class="muted note">
-                Characters under level ${MIN_LEVEL} aren't listed: the armory doesn't show them
-                until they reach it.${(x) => (x.lowLevel > 0 ? ` (${x.lowLevel} in the guild now.)` : '')}
-              </p>
+              <p class="muted note">Characters under level ${MIN_LEVEL} aren't listed.</p>
             </section>
           `,
     )}
@@ -663,10 +657,6 @@ export class Page extends FASTElement {
   /** Everyone the roster shows: level 10 and up. */
   get listed(): RosterListing[] {
     return this.entries.filter((e) => e.level >= MIN_LEVEL);
-  }
-
-  get lowLevel(): number {
-    return this.entries.length - this.listed.length;
   }
 
   get ranks(): number[] {

@@ -63,13 +63,12 @@ const newTab = html`<svg class="new-tab" viewBox="0 0 16 16" width="11" height="
 const recipeLink = <T extends RecipeRef>() =>
   html<T>`<a class="recipe-name recipe-link" href="${(r) => wowheadUrl(r.name, r.itemId)}" target="_blank" rel="noopener noreferrer" data-recipe="${(r) => r.id}">${(r) => r.name}${newTab}<span class="visually-hidden"> (Wowhead, opens in a new tab)</span></a>`;
 
+const characterPath = (slug: string) => `/professions/character/${encodeURIComponent(slug)}`;
+
+/** A crafter's name opens their crafting page, which links on to the armory. */
 const crafter = html<RecipeCrafter>`
   <li class="crafter">
-    ${when(
-      (c) => c.profileUrl,
-      html<RecipeCrafter>`<a class="name" href="${(c) => c.profileUrl ?? ''}" target="_blank" rel="noopener noreferrer" style="${(c) => (c.className ? `color: var(--color-class-${classSlug(c)})` : '')}">${(c) => fullName(c)}${newTab}<span class="visually-hidden"> (armory, opens in a new tab)</span></a>`,
-    )}
-    ${when((c) => !c.profileUrl, html<RecipeCrafter>`<span class="name">${(c) => fullName(c)}</span>`)}
+    <a class="name" href="${(c) => characterPath(c.slug)}" style="${(c) => (c.className ? `color: var(--color-class-${classSlug(c)})` : '')}">${(c) => fullName(c)}</a>
     <span class="skill" title="${(c) => `Skill ${c.skill}${c.maxSkill ? ` / ${c.maxSkill}` : ''}`}">${(c) => c.skill}</span>
   </li>
 `;
@@ -850,7 +849,7 @@ export class Page extends FASTElement {
       [...this.slugByName].find(([full]) => full.split(' ')[0] === name)?.[1];
     this.characterMiss = !slug;
     if (!slug) return;
-    history.pushState({}, '', `/professions/character/${encodeURIComponent(slug)}`);
+    history.pushState({}, '', characterPath(slug));
     window.dispatchEvent(new PopStateEvent('popstate'));
   }
 

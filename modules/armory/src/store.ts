@@ -1,5 +1,12 @@
 import { commandsFor } from '@vintage/guild-kit';
-import type { ArmoryLink, RosterEntry, RosterRecipe, RosterRecipes } from './contract';
+import type {
+  ArmoryLink,
+  ProfessionCatalog,
+  RecipeDetail,
+  RosterEntry,
+  RosterRecipe,
+  RosterRecipes,
+} from './contract';
 
 /**
  * The armory module's data port. Commands depend on this, not on Convex: production wires it
@@ -72,6 +79,24 @@ export interface RosterEffects {
   sync(guildId: string): Promise<void>;
 }
 
+/** The recipe catalog port: one row per profession, wired to the `professionCatalog` table. */
+export interface CatalogStore {
+  /** Sorted by profession name. */
+  listCatalog(guildId: string): Promise<ProfessionCatalog[]>;
+  /** Inserts or replaces one profession's catalog. */
+  putCatalog(catalog: Omit<ProfessionCatalog, 'id'>): Promise<void>;
+  /** Every recipe with details, and the item it makes: small, for links and the sync. */
+  listRecipeItems(guildId: string): Promise<{ recipeId: number; itemId: number | null }[]>;
+  getRecipeDetail(guildId: string, recipeId: number): Promise<RecipeDetail | null>;
+  /** Inserts or replaces each recipe's details. */
+  putRecipeDetails(details: Omit<RecipeDetail, 'id'>[]): Promise<void>;
+}
+
+/** Reads Blizzard's profession catalog outside the transaction (apps/api), then records it. */
+export interface CatalogEffects {
+  sync(guildId: string): Promise<void>;
+}
+
 /** Keys are prefixed so they never collide with another module's deps in apps/api. */
 export interface ArmoryDeps {
   armory: ArmoryStore;
@@ -79,6 +104,8 @@ export interface ArmoryDeps {
   armoryEffects: ArmoryEffects;
   armoryRoster: RosterStore;
   armoryRosterEffects: RosterEffects;
+  armoryCatalog: CatalogStore;
+  armoryCatalogEffects: CatalogEffects;
 }
 
 export const command = commandsFor<ArmoryDeps>();

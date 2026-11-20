@@ -17,6 +17,16 @@ import {
   characterSpecializationsSchema,
   type GuildRoster,
   guildRosterSchema,
+  type Item,
+  itemSchema,
+  type Profession,
+  type ProfessionIndex,
+  type ProfessionSkillTier,
+  professionIndexSchema,
+  professionSchema,
+  professionSkillTierSchema,
+  type Recipe,
+  recipeSchema,
   tokenSchema,
 } from './schemas';
 
@@ -37,6 +47,8 @@ export const OAUTH_TOKEN_URL = 'https://oauth.battle.net/token';
 export const apiBase = (region: ForeverRegion) => `https://${region}.api.blizzard.com`;
 /** Character and guild data. Forever has no realms, so this is the only profile namespace. */
 export const profileNamespace = (region: ForeverRegion) => `profile-forever-${region}`;
+/** Game data that doesn't change per character: professions and their recipe catalogs. */
+export const staticNamespace = (region: ForeverRegion) => `static-forever-${region}`;
 
 export interface ForeverApiOptions {
   region: ForeverRegion;
@@ -93,6 +105,11 @@ export interface ForeverApi {
   characterSpecializations(name: string, surname: string): Promise<CharacterSpecializations | null>;
   characterProfessions(name: string, surname: string): Promise<CharacterProfessions | null>;
   guildRoster(slug: string): Promise<GuildRoster | null>;
+  professionIndex(): Promise<ProfessionIndex | null>;
+  profession(id: number): Promise<Profession | null>;
+  professionSkillTier(professionId: number, tierId: number): Promise<ProfessionSkillTier | null>;
+  recipe(id: number): Promise<Recipe | null>;
+  item(id: number): Promise<Item | null>;
 }
 
 const EXPIRY_MARGIN_MS = 60_000;
@@ -140,11 +157,12 @@ export function createForeverApi(options: ForeverApiOptions): ForeverApi {
     return access_token;
   }
 
-  async function get<S extends z.ZodType>(path: string, schema: S): Promise<z.infer<S> | null> {
-    const query = new URLSearchParams({
-      namespace: profileNamespace(region),
-      locale: LOCALES[region],
-    });
+  async function get<S extends z.ZodType>(
+    path: string,
+    schema: S,
+    namespace = profileNamespace(region),
+  ): Promise<z.infer<S> | null> {
+    const query = new URLSearchParams({ namespace, locale: LOCALES[region] });
     const url = `${apiBase(region)}${path}?${query}`;
     const call = async () =>
       send(url, { headers: { authorization: `Bearer ${await accessToken()}` } }, path);
@@ -189,6 +207,18 @@ export function createForeverApi(options: ForeverApiOptions): ForeverApi {
       get(character(name, surname, '/professions'), characterProfessionsSchema),
     guildRoster: (slug) =>
       get(`/data/wow/guild/${encodeURIComponent(slug)}/roster`, guildRosterSchema),
+    professionIndex: () =>
+      get('/data/wow/profession/index', professionIndexSchema, staticNamespace(region)),
+    profession: (id) =>
+      get(`/data/wow/profession/${id}`, professionSchema, staticNamespace(region)),
+    professionSkillTier: (professionId, tierId) =>
+      get(
+        `/data/wow/profession/${professionId}/skill-tier/${tierId}`,
+        professionSkillTierSchema,
+        staticNamespace(region),
+      ),
+    recipe: (id) => get(`/data/wow/recipe/${id}`, recipeSchema, staticNamespace(region)),
+    item: (id) => get(`/data/wow/item/${id}`, itemSchema, staticNamespace(region)),
   };
 }
 

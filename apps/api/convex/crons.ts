@@ -21,4 +21,7 @@ crons.interval('armory-sweep', { hours: 1 }, internal.armory.sweep);
 /** Guild roster: Blizzard's current membership, plus a stale enrichment batch (armory.ts). */
 crons.interval('armory-roster-sync', { minutes: 30 }, internal.armory.rosterSweep);
 
+/** Every profession's recipe catalog from Blizzard's game data; it rarely changes (armory.ts). */
+crons.interval('armory-catalog-sync', { hours: 24 }, internal.armory.catalogSweep);
+
 export default crons;

@@ -170,6 +170,8 @@ export interface RecipeMatch {
   id: number;
   name: string;
   profession: string;
+  /** The item it makes, for a Wowhead link; null until its details sync. */
+  itemId: number | null;
   crafters: RecipeCrafter[];
 }
 
@@ -223,3 +225,115 @@ export const ROSTER_STALE_MS = 24 * 60 * 60 * 1000;
 export const ROSTER_RECORD_BYTES = 4_000_000;
 /** Roster entries one sync enriches, so a run stays well inside Blizzard's rate limit. */
 export const ROSTER_SYNC_BATCH = 60;
+
+// The recipe catalog: every recipe each profession has, from Blizzard's game data (not any
+// character), so the website can show recipes nobody in the guild knows yet.
+
+/** One of a profession's recipe categories, as Blizzard groups them ("Weapon Stones"). */
+export interface CatalogCategory {
+  name: string;
+  recipes: { id: number; name: string }[];
+}
+
+/** One profession's whole recipe catalog. */
+export interface ProfessionCatalog {
+  id: string;
+  guildId: string;
+  /** Blizzard's profession name: `Blacksmithing`, `First Aid`. */
+  profession: string;
+  professionId: number;
+  categories: CatalogCategory[];
+  /** Epoch ms of the sync that wrote it. */
+  syncedAt: number;
+}
+
+/** A profession on the overview: its size, the guild's coverage, and its best crafters. */
+export interface ProfessionSummary {
+  profession: string;
+  /** Recipes in Blizzard's catalog; null until the catalog has synced. */
+  recipeCount: number | null;
+  /** Catalog recipes someone on the roster knows. */
+  knownCount: number;
+  /** Roster characters (level 10 and up) with the profession, at any skill. */
+  crafterCount: number;
+  /** The best three by skill. */
+  top: RecipeCrafter[];
+}
+
+/** A recipe in a profession's catalog, with everyone on the roster who knows it. */
+export interface CatalogRecipe {
+  id: number;
+  name: string;
+  /** The item it makes, for a Wowhead link; null until its details sync. */
+  itemId: number | null;
+  /** Best skill first; empty when nobody knows it. */
+  crafters: RecipeCrafter[];
+}
+
+/** One profession's whole catalog with the guild's knowledge, for its page. */
+export interface ProfessionDetail {
+  profession: string;
+  recipeCount: number;
+  knownCount: number;
+  categories: { name: string; recipes: CatalogRecipe[] }[];
+}
+
+/**
+ * Blizzard lists a profession's skill itself among a character's known recipes, once per rank
+ * ("Fishing", "Mining"). Not something to craft, so every list leaves it out. What Forever's
+ * gathering skills do make (Fish Bowl, Camp Chair, Incense Candle) stays.
+ */
+export const isSkillRank = (recipe: { name: string }, profession: string) =>
+  recipe.name.trim().toLowerCase() === profession.trim().toLowerCase();
+
+/**
+ * What a recipe makes and takes, from Blizzard's `/recipe/{id}` and the crafted item's
+ * `/item/{id}`, for the website's tooltip. Blizzard doesn't say where a recipe is learned; the
+ * website links the item on Wowhead for that.
+ */
+export interface RecipeDetail {
+  id: string;
+  guildId: string;
+  recipeId: number;
+  itemId: number | null;
+  itemName: string | null;
+  /** Blizzard's quality type, lowercased: `epic`, `rare`, … */
+  quality: string | null;
+  /** How many one craft makes. */
+  quantity: number;
+  /** Tooltip lines in Blizzard's own words: binding, slot, armor, stats, use effects, level. */
+  lines: string[];
+  reagents: { name: string; quantity: number }[];
+  syncedAt: number;
+}
+
+/** A recipe on a character's list. */
+export interface RecipeRef {
+  id: number;
+  name: string;
+  itemId: number | null;
+}
+
+/** One roster character's crafting: each profession's known and missing catalog recipes. */
+export interface CharacterRecipes {
+  name: string;
+  surname: string;
+  slug: string;
+  level: number;
+  className: string | null;
+  profileUrl: string | null;
+  professions: {
+    profession: string;
+    skill: number;
+    maxSkill: number | null;
+    /** By name; includes recipes it knows that the catalog lacks. */
+    known: RecipeRef[];
+    /** Catalog recipes it doesn't know, by name. */
+    missing: RecipeRef[];
+  }[];
+}
+
+/** Recipe details one daily sync fetches at most (two Blizzard calls each), so a run stays short. */
+export const RECIPE_DETAIL_SYNC_LIMIT = 2500;
+/** Recipe details one record call carries. */
+export const RECIPE_DETAIL_BATCH = 50;

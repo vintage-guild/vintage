@@ -96,17 +96,26 @@ const secondaries = (e: RosterListing) => e.professions.filter((p) => SECONDARY.
 const profLabel = (p: RosterProfession) =>
   `${p.name} ${p.level}${p.maxLevel ? ` / ${p.maxLevel}` : ''}`;
 
-/** Icon and level; the name and cap are in the tooltip and for screen readers. */
-const profession = (minor: boolean) => html<RosterProfession>`
-  <li class="prof ${minor ? 'minor' : ''}" title="${profLabel}">
-    <img class="prof-icon" src="${(p) => professionIcon(p.name)}" alt="" loading="lazy" />
-    <span class="visually-hidden">${profLabel}</span>
-    <span class="prof-level" aria-hidden="true">${(p) => p.level}</span>
-    ${
-      minor
-        ? ''
-        : html<RosterProfession>`<span class="bar" aria-hidden="true"><span style="inline-size: ${(p) => percent(p)}%"></span></span>`
-    }
+/** The character's crafting page, at this profession's section. */
+const craftingPath = (p: RosterProfession, e: RosterListing) =>
+  `/professions/character/${encodeURIComponent(e.slug)}#${p.name.toLowerCase().replace(/\s+/g, '-')}`;
+
+/**
+ * Icon and level, linking to the character's crafting page; the name and cap are in the tooltip
+ * and for screen readers.
+ */
+const profession = (minor: boolean) => html<RosterProfession, RosterListing>`
+  <li class="prof ${minor ? 'minor' : ''}">
+    <a class="prof-link" href="${(p, c) => craftingPath(p, c.parent)}" title="${profLabel}">
+      <img class="prof-icon" src="${(p) => professionIcon(p.name)}" alt="" loading="lazy" />
+      <span class="visually-hidden">${profLabel}</span>
+      <span class="prof-level" aria-hidden="true">${(p) => p.level}</span>
+      ${
+        minor
+          ? ''
+          : html<RosterProfession>`<span class="bar" aria-hidden="true"><span style="inline-size: ${(p) => percent(p)}%"></span></span>`
+      }
+    </a>
   </li>
 `;
 const primary = profession(false);
@@ -628,12 +637,28 @@ const styles = css`
     list-style: none;
   }
 
-  .prof {
+  .prof-link {
     display: grid;
     grid-template-columns: auto auto;
     column-gap: 0.3rem;
     align-items: center;
-    cursor: default;
+    color: inherit;
+    text-decoration: none;
+    border-radius: 0.2rem;
+  }
+
+  .prof-link:hover .prof-icon,
+  .prof-link:focus-visible .prof-icon {
+    border-color: var(--color-accent-primary);
+  }
+
+  .prof-link:hover .prof-level {
+    color: var(--color-text-accent);
+  }
+
+  .prof-link:focus-visible {
+    outline: var(--border-width-thin) solid var(--color-focus-ring);
+    outline-offset: var(--border-width-thin);
   }
 
   .prof-icon {

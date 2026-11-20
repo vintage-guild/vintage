@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as catalog from "../catalog.js";
 import type * as links from "../links.js";
 import type * as roster from "../roster.js";
 
@@ -19,6 +20,7 @@ import type {
 import { anyApi, componentsGeneric } from "convex/server";
 
 const fullApi: ApiFromModules<{
+  catalog: typeof catalog;
   links: typeof links;
   roster: typeof roster;
 }> = anyApi as any;

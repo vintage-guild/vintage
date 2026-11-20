@@ -97,6 +97,31 @@ export const rosterEntryFields = {
   ...rosterEntryPatchFields,
 };
 
+export const catalogFields = {
+  guildId: v.string(),
+  profession: v.string(),
+  professionId: v.number(),
+  categories: v.array(
+    v.object({
+      name: v.string(),
+      recipes: v.array(v.object({ id: v.number(), name: v.string() })),
+    }),
+  ),
+  syncedAt: v.number(),
+};
+
+export const recipeDetailFields = {
+  guildId: v.string(),
+  recipeId: v.number(),
+  itemId: nullableNumber,
+  itemName: nullableString,
+  quality: nullableString,
+  quantity: v.number(),
+  lines: v.array(v.string()),
+  reagents: v.array(v.object({ name: v.string(), quantity: v.number() })),
+  syncedAt: v.number(),
+};
+
 // Every table carries guildId and is read through a guild-scoped index.
 export default defineSchema({
   links: defineTable(linkFields)
@@ -112,4 +137,11 @@ export default defineSchema({
     entryId: v.id('rosterEntries'),
     recipes: v.array(rosterRecipe),
   }).index('by_guild_entry', ['guildId', 'entryId']),
+  /** One row per recipe: what it makes and takes, for the website's tooltip. */
+  recipeDetails: defineTable(recipeDetailFields).index('by_guild_recipe', ['guildId', 'recipeId']),
+  /** One row per profession: Blizzard's whole recipe catalog for it, replaced by each sync. */
+  professionCatalog: defineTable(catalogFields).index('by_guild_profession', [
+    'guildId',
+    'profession',
+  ]),
 });

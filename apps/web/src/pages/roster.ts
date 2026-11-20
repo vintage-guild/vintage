@@ -1,6 +1,7 @@
 import { css, FASTElement, html, observable, repeat, when } from '@lushly-dev/fast-element';
 import type { RosterListing, RosterProfession } from '@vintage/armory/contract';
 import { getCommandClient } from '@vintage/ui-kit';
+import { CLASSES, type Role, roleFor, type WowClass } from '@vintage/wow-data';
 import { classIcon, professionIcon } from '../class-icons';
 import { currentSession } from '../session';
 import { pageStyles } from './page-styles';
@@ -25,6 +26,7 @@ export const rankName = (rank: number) => RANK_NAMES[rank] ?? `Rank ${rank + 1}`
 const RAID_RANKS: ReadonlySet<number> = new Set([0, 1, 3]);
 const FLEX_RANK = 4;
 const RECRUIT_RANK = 6;
+const POOL_RANKS: ReadonlySet<number> = new Set([0, 1, 3, FLEX_RANK, RECRUIT_RANK]);
 
 /** Blizzard's armory hides characters below this level, so the roster leaves them out. */
 const MIN_LEVEL = 10;
@@ -32,7 +34,59 @@ const MIN_LEVEL = 10;
 /** The profession card and filter count a profession from this skill level up. */
 const CRAFT_MIN = 225;
 
+/** Canonical display order for the nine launch-era classes in the composition chart. */
+const CLASS_ORDER: readonly { name: string; slug: WowClass }[] = [
+  { name: 'Warrior', slug: 'warrior' },
+  { name: 'Paladin', slug: 'paladin' },
+  { name: 'Hunter', slug: 'hunter' },
+  { name: 'Rogue', slug: 'rogue' },
+  { name: 'Priest', slug: 'priest' },
+  { name: 'Shaman', slug: 'shaman' },
+  { name: 'Mage', slug: 'mage' },
+  { name: 'Warlock', slug: 'warlock' },
+  { name: 'Druid', slug: 'druid' },
+];
+
+export type RosterRole = Role | 'unknown';
+
+const ROLE_META: Record<RosterRole, { label: string; token: string }> = {
+  tank: { label: 'Tank', token: '--color-role-tank' },
+  healer: { label: 'Healer', token: '--color-role-healer' },
+  melee: { label: 'Melee', token: '--color-role-melee' },
+  ranged: { label: 'Ranged', token: '--color-role-ranged' },
+  unknown: { label: 'Unassigned', token: '--color-signup-no-response' },
+};
+
+const ROLE_ORDER: readonly RosterRole[] = ['tank', 'healer', 'melee', 'ranged', 'unknown'];
+
+const PURE_CLASS_ROLE: Partial<Record<WowClass, Role>> = {
+  hunter: 'ranged',
+  mage: 'ranged',
+  warlock: 'ranged',
+  rogue: 'melee',
+};
+
+/** Blizzard's Classic talent tree names that differ from `@vintage/wow-data` spec keys. */
+const SPEC_ALIASES: Record<string, string> = {
+  'feral-combat': 'feral',
+  guardian: 'feral-tank',
+};
+
+/** Infer a roster entry's raid role from its class and active spec, or `'unknown'`. */
+export function rosterRole(e: Pick<RosterListing, 'className' | 'activeSpec'>): RosterRole {
+  const cls = e.className?.toLowerCase().replace(/[^a-z]/g, '') as WowClass | undefined;
+  if (!cls || !(cls in CLASSES)) return 'unknown';
+  if (e.activeSpec) {
+    const raw = e.activeSpec.trim().toLowerCase().replace(/\s+/g, '-');
+    const spec = SPEC_ALIASES[raw] ?? raw;
+    const role = roleFor(cls, spec);
+    if (role) return role;
+  }
+  return PURE_CLASS_ROLE[cls] ?? 'unknown';
+}
+
 type StatKey = 'wowClass' | 'profession';
+type CompScope = 'raid' | 'pool';
 
 interface Stat {
   name: string;
@@ -40,6 +94,55 @@ interface Stat {
   /** Bar length against the card's largest count. */
   pct: number;
   icon: string;
+}
+
+interface ClassColumn {
+  name: string;
+  slug: string;
+  count: number;
+  pct: number;
+  icon: string;
+  color: string;
+  detail: string;
+  filterable: boolean;
+}
+
+interface RoleColumn {
+  role: RosterRole;
+  label: string;
+  count: number;
+  pct: number;
+  share: number;
+  color: string;
+  detail: string;
+}
+
+interface ChartScale {
+  max: number;
+  ticks: number[];
+}
+
+/** Clean integer Y-axis ceiling and evenly spaced gridline ticks. */
+function chartScale(maxVal: number): ChartScale {
+  if (maxVal <= 4) return { max: 4, ticks: [4, 2, 0] };
+  if (maxVal <= 6) return { max: 6, ticks: [6, 4, 2, 0] };
+  if (maxVal <= 8) return { max: 8, ticks: [8, 6, 4, 2, 0] };
+  if (maxVal <= 12) return { max: 12, ticks: [12, 9, 6, 3, 0] };
+  const step = maxVal <= 20 ? 5 : 10;
+  const max = Math.ceil(maxVal / step) * step;
+  const ticks: number[] = [];
+  for (let v = max; v >= 0; v -= step) ticks.push(v);
+  return { max, ticks };
+}
+
+/** Format a compact `"2 Protection, 1 Fury"` breakdown for chart hover tooltips. */
+function formatBreakdown(labels: string[]): string {
+  const counts = new Map<string, number>();
+  for (const label of labels) counts.set(label, (counts.get(label) ?? 0) + 1);
+  return [...counts]
+    .sort(([a, x], [b, y]) => y - x || a.localeCompare(b))
+    .map(([name, count]) => `${count} ${name}`)
+    .join(', ');
 }
 
 /** Counts by name, largest first, with each bar's share of the largest. */
@@ -88,6 +191,10 @@ const inGameName = (e: RosterListing) => (e.surname ? `${e.name} ${e.surname}` :
 
 /** "Opens in a new tab": an arrow leaving a box, in the link's own color. */
 const newTab = html`<svg class="new-tab" viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><path d="M9 2.5h4.5V7M13.5 2.5 7.5 8.5M11.5 9.5v3.5a.5.5 0 0 1-.5.5H3a.5.5 0 0 1-.5-.5V5a.5.5 0 0 1 .5-.5h3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+/** Down-chevron for native selects and collapsible drawers. */
+const chevron = (cls: string) =>
+  html`<svg class="${cls}" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 /** Classic's secondary skills: shown smaller, after the two primaries. */
 const SECONDARY: ReadonlySet<string> = new Set(['Cooking', 'First Aid', 'Fishing']);
@@ -216,20 +323,185 @@ const rosterTable = (rows: (x: Page) => RosterListing[], label: string) => html<
   </div>
 `;
 
+const compDrawer = html<Page>`
+  <section class="comp-drawer ${(x) => (x.compOpen ? 'open' : '')}" aria-labelledby="comp-heading">
+    <button
+      type="button"
+      class="comp-toggle"
+      aria-expanded="${(x) => String(x.compOpen)}"
+      aria-controls="comp-panel"
+      @click="${(x) => x.toggleComp()}"
+    >
+      <span class="comp-toggle-title">
+        <span id="comp-heading" class="card-title">Raid composition</span>
+        <span class="comp-total-pill">${(x) => x.compPool.length} ${(x) => (x.compScope === 'raid' ? 'raiders' : 'in pool')}</span>
+      </span>
+      <span class="comp-mini" aria-hidden="true">
+        ${repeat(
+          (x) => x.compRoleColumns,
+          html<RoleColumn>`<span class="mini-role">
+            <span class="role-dot" style="background: ${(r) => r.color}"></span>
+            <span>${(r) => r.count}</span>
+            <span class="mini-role-label">${(r) => r.label}</span>
+          </span>`,
+        )}
+      </span>
+      <span class="comp-toggle-action">
+        <span>${(x) => (x.compOpen ? 'Hide charts' : 'Show charts')}</span>
+        ${chevron('drawer-chevron')}
+      </span>
+    </button>
+    <div id="comp-panel" class="comp-collapse" ?inert="${(x) => !x.compOpen}">
+      <div class="comp-collapse-inner">
+        <div class="comp-body">
+          <div class="comp-summary">
+            <div class="kpi">
+              <span class="kpi-label">${(x) => (x.compScope === 'raid' ? 'Total raiders' : 'Raid + flex & recruits')}</span>
+              <div class="kpi-row">
+                <strong class="kpi-value">${(x) => x.compPool.length}</strong>
+                <span class="kpi-meta">${(x) => x.compMeta}</span>
+              </div>
+            </div>
+            <div class="scope-tabs" role="group" aria-label="Composition scope">
+              <button
+                type="button"
+                class="scope-btn"
+                aria-pressed="${(x) => String(x.compScope === 'raid')}"
+                @click="${(x) => x.setCompScope('raid')}"
+              >Raid roster <span class="scope-num">${(x) => x.raidPool.length}</span></button>
+              <button
+                type="button"
+                class="scope-btn"
+                aria-pressed="${(x) => String(x.compScope === 'pool')}"
+                @click="${(x) => x.setCompScope('pool')}"
+              >+ Flex &amp; recruits <span class="scope-num">${(x) => x.fullRaidPool.length}</span></button>
+            </div>
+          </div>
+          ${when(
+            (x) => x.compPool.length > 0,
+            html<Page>`
+              <div class="share-bar" role="img" aria-label="${(x) => x.roleShareLabel}">
+                ${repeat(
+                  (x: Page) => x.compRoleColumns.filter((r) => r.count > 0),
+                  html<RoleColumn>`<span
+                    class="share-seg"
+                    style="inline-size: ${(r) => r.share}%; background: ${(r) => r.color}"
+                    title="${(r) => `${r.label}: ${r.count} (${Math.round(r.share)}%)`}"
+                  ></span>`,
+                )}
+              </div>
+            `,
+          )}
+          <div class="comp-charts">
+            <div class="chart-card">
+              <div class="chart-head">
+                <h3 class="card-title">Raiders by class</h3>
+                <span class="chart-hint">Click a bar to filter</span>
+              </div>
+              <div class="vchart class-chart ${(x) => (x.wowClass ? 'has-pick' : '')}">
+                <div class="y-axis" aria-hidden="true">
+                  ${repeat((x) => x.classChartScale.ticks, html<number>`<span>${(t) => t}</span>`)}
+                </div>
+                <div class="plot-area">
+                  <div class="gridlines" aria-hidden="true">
+                    ${repeat((x) => x.classChartScale.ticks, html`<span class="gridline"></span>`)}
+                  </div>
+                  <div class="columns">
+                    ${repeat(
+                      (x) => x.compClassColumns,
+                      html<ClassColumn, Page>`<button
+                        type="button"
+                        class="col-btn ${(c) => (c.count === 0 ? 'zero' : '')}"
+                        ?disabled="${(c) => !c.filterable}"
+                        aria-pressed="${(c, ctx) => String(ctx.parent.wowClass === c.name)}"
+                        aria-label="${(c) => `${c.name}: ${c.count} ${c.count === 1 ? 'raider' : 'raiders'}${c.detail ? ` (${c.detail})` : ''}`}"
+                        title="${(c) => `${c.name}: ${c.count}${c.detail ? ` — ${c.detail}` : ''}`}"
+                        @click="${(c, ctx) => c.filterable && ctx.parent.pick('wowClass', c.name)}"
+                      >
+                        <span class="col-slot">
+                          <span
+                            class="col-bar"
+                            style="block-size: ${(c) => c.pct}%; background: ${(c) => c.color}"
+                          >
+                            <span class="col-val">${(c) => c.count}</span>
+                          </span>
+                        </span>
+                        <span class="col-x">
+                          ${when((c) => c.icon, html<ClassColumn>`<img class="col-icon" src="${(c) => c.icon}" alt="" loading="lazy" />`)}
+                          <span class="col-label">${(c) => c.name}</span>
+                        </span>
+                      </button>`,
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-head">
+                <h3 class="card-title">Raiders by role</h3>
+                <span class="chart-hint">Derived from active spec</span>
+              </div>
+              <div class="vchart role-chart ${(x) => (x.role ? 'has-pick' : '')}">
+                <div class="y-axis" aria-hidden="true">
+                  ${repeat((x) => x.roleChartScale.ticks, html<number>`<span>${(t) => t}</span>`)}
+                </div>
+                <div class="plot-area">
+                  <div class="gridlines" aria-hidden="true">
+                    ${repeat((x) => x.roleChartScale.ticks, html`<span class="gridline"></span>`)}
+                  </div>
+                  <div class="columns">
+                    ${repeat(
+                      (x) => x.compRoleColumns,
+                      html<RoleColumn, Page>`<button
+                        type="button"
+                        class="col-btn ${(r) => (r.count === 0 ? 'zero' : '')}"
+                        aria-pressed="${(r, ctx) => String(ctx.parent.role === r.role)}"
+                        aria-label="${(r) => `${r.label}: ${r.count} (${Math.round(r.share)}%)${r.detail ? ` — ${r.detail}` : ''}`}"
+                        title="${(r) => `${r.label}: ${r.count} (${Math.round(r.share)}%)${r.detail ? ` — ${r.detail}` : ''}`}"
+                        @click="${(r, ctx) => ctx.parent.pickRole(r.role)}"
+                      >
+                        <span class="col-slot">
+                          <span
+                            class="col-bar"
+                            style="block-size: ${(r) => r.pct}%; background: ${(r) => r.color}"
+                          >
+                            <span class="col-val">${(r) => r.count}<small class="col-pct">${(r) => (r.count > 0 ? ` ${Math.round(r.share)}%` : '')}</small></span>
+                          </span>
+                        </span>
+                        <span class="col-x">
+                          <span class="role-dot" style="background: ${(r) => r.color}" aria-hidden="true"></span>
+                          <span class="col-label">${(r) => r.label}</span>
+                        </span>
+                      </button>`,
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+`;
+
 const template = html<Page>`
   <div class="page wide">
-    <h1>Roster</h1>
-    ${when(
-      (x) => x.showDiscord,
-      html`<p class="muted">
-        Link your characters on <a href="/characters">Characters</a> to show your Discord name.
-      </p>`,
-    )}
+    <header class="head">
+      <h1>Roster</h1>
+      ${when(
+        (x) => x.showDiscord,
+        html`<p class="muted">
+          Link your characters on <a href="/characters">Characters</a> to show your Discord name.
+        </p>`,
+      )}
+    </header>
     ${when((x) => !x.loaded, html`<p class="muted">Loading the roster…</p>`)}
     ${when((x) => x.error, html<Page>`<p class="error" role="alert">${(x) => x.error}</p>`)}
     ${when(
       (x) => x.loaded && !x.error,
       html<Page>`
+            ${compDrawer}
             <div class="dashboard">
               <section class="card" aria-labelledby="by-class">
                 <h2 id="by-class" class="card-title">Raid roster by class</h2>
@@ -254,52 +526,80 @@ const template = html<Page>`
               </label>
               <label>
                 <span>Rank</span>
-                <select
-                  @change="${(x, c) => {
-                    x.rank = (c.event.target as HTMLSelectElement).value;
-                  }}"
-                >
-                  <option value="">All ranks</option>
-                  ${repeat(
-                    (x) => x.ranks,
-                    html<number>`<option value="${(r) => r}">${(r) => rankName(r)}</option>`,
-                  )}
-                </select>
+                <span class="select-wrap">
+                  <select
+                    :value="${(x) => x.rank}"
+                    @change="${(x, c) => {
+                      x.rank = (c.event.target as HTMLSelectElement).value;
+                    }}"
+                  >
+                    <option value="" ?selected="${(x) => !x.rank}">All ranks</option>
+                    ${repeat(
+                      (x) => x.ranks,
+                      html<
+                        number,
+                        Page
+                      >`<option value="${(r) => r}" ?selected="${(r, ctx) => ctx.parent.rank === String(r)}">${(r) => rankName(r)}</option>`,
+                    )}
+                  </select>
+                  ${chevron('select-icon')}
+                </span>
               </label>
               <label>
                 <span>Class</span>
-                <select
-                  @change="${(x, c) => {
-                    x.wowClass = (c.event.target as HTMLSelectElement).value;
-                  }}"
-                >
-                  <option value="" ?selected="${(x) => !x.wowClass}">All classes</option>
-                  ${repeat(
-                    (x) => x.classes,
-                    html<
-                      string,
-                      Page
-                    >`<option value="${(c) => c}" ?selected="${(c, ctx) => ctx.parent.wowClass === c}">${(c) => c}</option>`,
-                  )}
-                </select>
+                <span class="select-wrap">
+                  <select
+                    :value="${(x) => x.wowClass}"
+                    @change="${(x, c) => {
+                      x.wowClass = (c.event.target as HTMLSelectElement).value;
+                    }}"
+                  >
+                    <option value="" ?selected="${(x) => !x.wowClass}">All classes</option>
+                    ${repeat(
+                      (x) => x.classes,
+                      html<
+                        string,
+                        Page
+                      >`<option value="${(c) => c}" ?selected="${(c, ctx) => ctx.parent.wowClass === c}">${(c) => c}</option>`,
+                    )}
+                  </select>
+                  ${chevron('select-icon')}
+                </span>
               </label>
               <label>
                 <span>Profession ${CRAFT_MIN}+</span>
-                <select
-                  @change="${(x, c) => {
-                    x.profession = (c.event.target as HTMLSelectElement).value;
-                  }}"
-                >
-                  <option value="" ?selected="${(x) => !x.profession}">All professions</option>
-                  ${repeat(
-                    (x) => x.professions,
-                    html<
-                      string,
-                      Page
-                    >`<option value="${(p) => p}" ?selected="${(p, ctx) => ctx.parent.profession === p}">${(p) => p}</option>`,
-                  )}
-                </select>
+                <span class="select-wrap">
+                  <select
+                    :value="${(x) => x.profession}"
+                    @change="${(x, c) => {
+                      x.profession = (c.event.target as HTMLSelectElement).value;
+                    }}"
+                  >
+                    <option value="" ?selected="${(x) => !x.profession}">All professions</option>
+                    ${repeat(
+                      (x) => x.professions,
+                      html<
+                        string,
+                        Page
+                      >`<option value="${(p) => p}" ?selected="${(p, ctx) => ctx.parent.profession === p}">${(p) => p}</option>`,
+                    )}
+                  </select>
+                  ${chevron('select-icon')}
+                </span>
               </label>
+              ${when(
+                (x) => Boolean(x.role),
+                html<Page>`<button
+                  type="button"
+                  class="active-filter"
+                  @click="${(x) => x.clearRole()}"
+                >
+                  <span class="role-dot" style="background: var(${(x) => ROLE_META[x.role || 'unknown'].token})" aria-hidden="true"></span>
+                  <span>Role: ${(x) => ROLE_META[x.role || 'unknown'].label}</span>
+                  <span aria-hidden="true">×</span>
+                  <span class="visually-hidden"> (clear role filter)</span>
+                </button>`,
+              )}
               <p class="count" aria-live="polite">
                 ${(x) => x.visible.length} of ${(x) => x.listed.length} characters
               </p>
@@ -323,8 +623,22 @@ const template = html<Page>`
 `;
 
 const styles = css`
+  :host {
+    padding-block-start: var(--space-lg);
+  }
+
   .page.wide {
     max-inline-size: 72rem;
+    gap: var(--space-md);
+  }
+
+  .head {
+    display: grid;
+    gap: var(--desk-space-xs);
+  }
+
+  section + section {
+    margin-block-start: var(--space-xs);
   }
 
   /* Discord names are for recruits and up; visitors and members don't get the column. */
@@ -364,6 +678,437 @@ const styles = css`
     white-space: nowrap;
   }
 
+  /* Fold-out raid composition drawer at the top of the page. */
+  .comp-drawer {
+    display: grid;
+    gap: 0;
+    border: var(--border-width-thin) solid var(--color-border-default);
+    border-radius: 0.35rem;
+    background: var(--color-surface-raised);
+    overflow: hidden;
+  }
+
+  .comp-toggle {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-xs) var(--space-md);
+    inline-size: 100%;
+    padding: 0.65rem var(--space-md);
+    border: 0;
+    background: none;
+    color: var(--color-text-primary);
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+  }
+
+  .comp-toggle:hover {
+    background: var(--color-surface-sunken);
+  }
+
+  .comp-toggle-title {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+  }
+
+  .comp-total-pill {
+    padding: 0.1rem 0.5rem;
+    border: var(--border-width-thin) solid var(--color-border-strong);
+    border-radius: 999px;
+    background: var(--color-surface-sunken);
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xs);
+    font-variant-numeric: tabular-nums;
+    color: var(--color-text-primary);
+  }
+
+  .comp-mini {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem var(--space-sm);
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xs);
+    font-variant-numeric: tabular-nums;
+    color: var(--color-text-primary);
+  }
+
+  .mini-role {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .mini-role-label {
+    color: var(--color-text-secondary);
+  }
+
+  .role-dot {
+    inline-size: 0.55rem;
+    block-size: 0.55rem;
+    border-radius: 999px;
+    flex: none;
+  }
+
+  .comp-toggle-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-inline-start: auto;
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xs);
+    letter-spacing: var(--font-tracking-wide);
+    text-transform: uppercase;
+    color: var(--color-text-accent);
+  }
+
+  .drawer-chevron {
+    transition: transform 200ms var(--motion-ease-out);
+  }
+
+  .comp-drawer.open .drawer-chevron {
+    transform: rotate(180deg);
+  }
+
+  .comp-collapse {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 240ms var(--motion-ease-out);
+  }
+
+  .comp-drawer.open .comp-collapse {
+    grid-template-rows: 1fr;
+  }
+
+  .comp-collapse-inner {
+    overflow: hidden;
+  }
+
+  .comp-body {
+    display: grid;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md) var(--space-md);
+    border-block-start: var(--border-width-thin) solid var(--color-border-default);
+  }
+
+  .comp-summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    justify-content: space-between;
+    gap: var(--space-sm) var(--space-md);
+  }
+
+  .kpi {
+    display: grid;
+    gap: 0.15rem;
+  }
+
+  .kpi-label {
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xs);
+    letter-spacing: var(--font-tracking-wider);
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+  }
+
+  .kpi-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.65rem;
+  }
+
+  .kpi-value {
+    font-family: var(--font-family-display);
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-bold);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-text-primary);
+  }
+
+  .kpi-meta {
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+  }
+
+  .scope-tabs {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    padding: 0.2rem;
+    border: var(--border-width-thin) solid var(--color-border-default);
+    border-radius: 0.3rem;
+    background: var(--color-surface-sunken);
+  }
+
+  .scope-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.3rem 0.65rem;
+    border: 0;
+    border-radius: 0.2rem;
+    background: transparent;
+    color: var(--color-text-secondary);
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xs);
+    cursor: pointer;
+  }
+
+  .scope-btn:hover {
+    color: var(--color-text-primary);
+  }
+
+  .scope-btn[aria-pressed='true'] {
+    background: var(--color-surface-raised);
+    color: var(--color-text-primary);
+    box-shadow: var(--shadow-edge);
+  }
+
+  .scope-num {
+    font-variant-numeric: tabular-nums;
+    opacity: 0.8;
+  }
+
+  .share-bar {
+    display: flex;
+    block-size: 0.5rem;
+    border-radius: 999px;
+    background: var(--color-surface-sunken);
+    overflow: hidden;
+    gap: 2px;
+  }
+
+  .share-seg {
+    display: block;
+    block-size: 100%;
+    transition: inline-size 220ms var(--motion-ease-out);
+  }
+
+  .comp-charts {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    gap: var(--space-md);
+  }
+
+  .chart-card {
+    display: grid;
+    gap: var(--space-xs);
+    padding: var(--space-sm) var(--space-md);
+    border: var(--border-width-thin) solid var(--color-border-default);
+    border-radius: 0.3rem;
+    background: var(--color-surface-sunken);
+  }
+
+  .chart-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-xs);
+  }
+
+  .chart-head h3 {
+    margin: 0;
+  }
+
+  .chart-hint {
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+  }
+
+  .vchart {
+    display: grid;
+    grid-template-columns: 1.5rem 1fr;
+    grid-template-rows: 10.5rem auto;
+    column-gap: 0.45rem;
+    padding-block-start: 1.45rem;
+  }
+
+  .y-axis {
+    grid-column: 1;
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: flex-end;
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xs);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    color: var(--color-text-secondary);
+    transform: translateY(-0.35em);
+  }
+
+  .plot-area {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    display: grid;
+    grid-template-rows: 10.5rem auto;
+    position: relative;
+  }
+
+  .gridlines {
+    grid-column: 1;
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    pointer-events: none;
+  }
+
+  .gridline {
+    border-block-start: 1px dashed var(--color-border-default);
+  }
+
+  .gridline:last-child {
+    border-block-start: var(--border-width-thin) solid var(--color-border-strong);
+  }
+
+  .columns {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    z-index: 1;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: 0.35rem;
+    padding-inline: 0.25rem;
+  }
+
+  .col-btn {
+    display: grid;
+    grid-template-rows: 10.5rem auto;
+    justify-items: center;
+    align-items: end;
+    row-gap: 0.45rem;
+    padding: 0;
+    border: 0;
+    border-radius: 0.25rem;
+    background: none;
+    color: var(--color-text-primary);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .col-btn:disabled {
+    cursor: default;
+  }
+
+  .col-slot {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    inline-size: 100%;
+    block-size: 100%;
+  }
+
+  .col-bar {
+    position: relative;
+    inline-size: min(100%, 2.15rem);
+    border-radius: 0.25rem 0.25rem 0 0;
+    box-shadow: var(--shadow-edge);
+    transition:
+      block-size 220ms var(--motion-ease-out),
+      opacity 150ms ease,
+      filter 150ms ease;
+  }
+
+  .role-chart .col-bar {
+    inline-size: min(100%, 3.5rem);
+  }
+
+  .col-val {
+    position: absolute;
+    inset-block-end: calc(100% + 0.25rem);
+    inset-inline-start: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    font-variant-numeric: tabular-nums;
+    color: var(--color-text-primary);
+  }
+
+  .col-pct {
+    font-size: 0.7rem;
+    font-weight: var(--font-weight-regular);
+    color: var(--color-text-secondary);
+  }
+
+  .col-btn.zero .col-val,
+  .col-btn.zero .col-label {
+    color: var(--color-text-secondary);
+    opacity: 0.65;
+  }
+
+  .col-btn.zero .col-icon {
+    opacity: 0.45;
+  }
+
+  .col-x {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    max-inline-size: 100%;
+  }
+
+  .role-chart .col-x {
+    flex-direction: row;
+    gap: 0.35rem;
+  }
+
+  .col-icon {
+    inline-size: 1.15rem;
+    block-size: 1.15rem;
+    border: var(--border-width-thin) solid var(--color-border-strong);
+    border-radius: 0.2rem;
+  }
+
+  .col-label {
+    max-inline-size: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-family-sans);
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+  }
+
+  .col-btn:hover:not(:disabled) .col-bar {
+    filter: brightness(1.12);
+  }
+
+  .col-btn:hover:not(:disabled) .col-label,
+  .col-btn[aria-pressed='true'] .col-label {
+    color: var(--color-text-primary);
+  }
+
+  .col-btn[aria-pressed='true'] .col-label {
+    font-weight: var(--font-weight-bold);
+  }
+
+  .vchart.has-pick .col-btn[aria-pressed='false'] {
+    opacity: 0.38;
+  }
+
+  .comp-toggle:focus-visible,
+  .scope-btn:focus-visible,
+  .col-btn:focus-visible,
+  .active-filter:focus-visible {
+    outline: var(--border-width-thin) solid var(--color-focus-ring);
+    outline-offset: var(--border-width-thin);
+  }
+
   .dashboard {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
@@ -380,7 +1125,7 @@ const styles = css`
     background: var(--color-surface-raised);
   }
 
-  h2.card-title {
+  .card-title {
     font-family: var(--font-family-mono);
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-medium);
@@ -466,12 +1211,12 @@ const styles = css`
     display: flex;
     flex-wrap: wrap;
     align-items: end;
-    gap: var(--space-sm) var(--space-md);
+    gap: var(--space-xs) var(--space-sm);
   }
 
   .controls label {
     display: grid;
-    gap: 0.2rem;
+    gap: 0.25rem;
     font-family: var(--font-family-mono);
     font-size: var(--font-size-xs);
     letter-spacing: var(--font-tracking-wider);
@@ -479,10 +1224,18 @@ const styles = css`
     color: var(--color-text-secondary);
   }
 
+  .select-wrap {
+    position: relative;
+    display: grid;
+    align-items: center;
+  }
+
   .controls input,
   .controls select {
+    box-sizing: border-box;
     min-inline-size: 11rem;
-    padding: 0.45rem 0.6rem;
+    max-inline-size: 100%;
+    padding: 0.45rem 0.75rem;
     border: var(--border-width-thin) solid var(--color-border-strong);
     border-radius: 0.25rem;
     background: var(--color-surface-sunken);
@@ -490,8 +1243,42 @@ const styles = css`
     font: inherit;
     font-family: var(--font-family-sans);
     font-size: var(--font-size-sm);
+    line-height: var(--font-leading-normal);
     letter-spacing: normal;
     text-transform: none;
+  }
+
+  .controls input {
+    min-inline-size: 15rem;
+  }
+
+  .controls select {
+    inline-size: 100%;
+    appearance: none;
+    padding-inline-end: 2.25rem;
+    cursor: pointer;
+  }
+
+  .controls select option {
+    background: var(--color-surface-raised);
+    color: var(--color-text-primary);
+  }
+
+  .select-icon {
+    position: absolute;
+    inset-inline-end: 0.75rem;
+    pointer-events: none;
+    color: var(--color-text-secondary);
+  }
+
+  .controls input:hover,
+  .controls select:hover {
+    border-color: var(--color-text-secondary);
+  }
+
+  .select-wrap:hover .select-icon,
+  .controls select:focus-visible + .select-icon {
+    color: var(--color-text-primary);
   }
 
   .controls input:focus-visible,
@@ -501,9 +1288,30 @@ const styles = css`
     outline-offset: var(--border-width-thin);
   }
 
+  .active-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.42rem 0.65rem;
+    border: var(--border-width-thin) solid var(--color-accent-secondary);
+    border-radius: 0.25rem;
+    background: var(--color-surface-sunken);
+    color: var(--color-text-primary);
+    font-family: var(--font-family-sans);
+    font-size: var(--font-size-sm);
+    line-height: var(--font-leading-normal);
+    cursor: pointer;
+  }
+
+  .active-filter:hover {
+    border-color: var(--color-text-accent);
+  }
+
   .count {
     margin-inline-start: auto;
+    padding-block: 0.45rem;
     font-size: var(--font-size-sm);
+    line-height: var(--font-leading-normal);
     color: var(--color-text-secondary);
   }
 
@@ -642,14 +1450,13 @@ const styles = css`
     grid-template-columns: auto auto;
     column-gap: 0.3rem;
     align-items: center;
-    color: inherit;
     text-decoration: none;
-    border-radius: 0.2rem;
+    color: inherit;
+    border-radius: 0.25rem;
   }
 
-  .prof-link:hover .prof-icon,
-  .prof-link:focus-visible .prof-icon {
-    border-color: var(--color-accent-primary);
+  .prof-link:hover .prof-icon {
+    border-color: var(--color-accent-secondary);
   }
 
   .prof-link:hover .prof-level {
@@ -658,7 +1465,7 @@ const styles = css`
 
   .prof-link:focus-visible {
     outline: var(--border-width-thin) solid var(--color-focus-ring);
-    outline-offset: var(--border-width-thin);
+    outline-offset: 2px;
   }
 
   .prof-icon {
@@ -720,10 +1527,43 @@ const styles = css`
     padding: var(--space-md);
   }
 
+  @media (prefers-reduced-motion: reduce) {
+    .drawer-chevron,
+    .comp-collapse,
+    .share-seg,
+    .col-bar {
+      transition: none;
+    }
+  }
+
+  @media (max-width: 58rem) {
+    .comp-charts {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
   /* Phones: each character becomes a card, cells labelled. */
   @media (max-width: 44rem) {
+    .comp-mini {
+      display: none;
+    }
+
+    .class-chart .col-label {
+      font-size: 0.65rem;
+    }
+
+    .controls label {
+      flex: 1 1 10rem;
+    }
+
+    .controls input {
+      min-inline-size: 0;
+      inline-size: 100%;
+    }
+
     .count {
       margin-inline-start: 0;
+      padding-block: 0;
     }
 
     thead {
@@ -807,7 +1647,13 @@ export class Page extends FASTElement {
   @observable wowClass = '';
   /** A profession name, held at CRAFT_MIN or higher, or '' for any. */
   @observable profession = '';
+  /** An active role filter from the composition chart, or '' for any. */
+  @observable role: RosterRole | '' = '';
   @observable sort: SortKey = 'rank';
+  /** Whether the top raid composition charts drawer is folded open. */
+  @observable compOpen = false;
+  /** Whether the composition charts count core raiders only or include flex & recruits. */
+  @observable compScope: CompScope = 'raid';
 
   connectedCallback(): void {
     super.connectedCallback();
@@ -845,6 +1691,22 @@ export class Page extends FASTElement {
     this.loaded = true;
   }
 
+  toggleComp(): void {
+    this.compOpen = !this.compOpen;
+  }
+
+  setCompScope(scope: CompScope): void {
+    this.compScope = scope;
+  }
+
+  pickRole(role: RosterRole): void {
+    this.role = this.role === role ? '' : role;
+  }
+
+  clearRole(): void {
+    this.role = '';
+  }
+
   sortBy(key: SortKey): void {
     this.sort = key;
   }
@@ -852,6 +1714,134 @@ export class Page extends FASTElement {
   /** Everyone the roster shows: level 10 and up. */
   get listed(): RosterListing[] {
     return this.entries.filter((e) => e.level >= MIN_LEVEL);
+  }
+
+  /** Core raid roster (GM, Officer, Raider) for composition charts. */
+  get raidPool(): RosterListing[] {
+    return this.listed.filter((e) => RAID_RANKS.has(e.guildRank));
+  }
+
+  /** Raid roster plus flex raiders and recruits for full-pool composition charts. */
+  get fullRaidPool(): RosterListing[] {
+    return this.listed.filter((e) => POOL_RANKS.has(e.guildRank));
+  }
+
+  /** Characters currently summarized by the composition charts. */
+  get compPool(): RosterListing[] {
+    return this.compScope === 'raid' ? this.raidPool : this.fullRaidPool;
+  }
+
+  get classChartScale(): ChartScale {
+    const counts = new Map<string, number>();
+    for (const e of this.compPool) {
+      const key = e.className ?? 'Unknown';
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return chartScale(Math.max(0, ...counts.values()));
+  }
+
+  get compClassColumns(): ClassColumn[] {
+    const byClass = new Map<string, RosterListing[]>();
+    for (const e of this.compPool) {
+      const key = e.className ?? '';
+      const list = byClass.get(key) ?? [];
+      list.push(e);
+      byClass.set(key, list);
+    }
+    const max = this.classChartScale.max;
+    const cols: ClassColumn[] = CLASS_ORDER.map(({ name, slug }) => {
+      const members = byClass.get(name) ?? [];
+      const count = members.length;
+      return {
+        name,
+        slug,
+        count,
+        pct: (count / max) * 100,
+        icon: classIcon(name, 'medium'),
+        color: `var(--color-class-${slug})`,
+        detail: formatBreakdown(members.map((m) => m.activeSpec ?? 'No spec')),
+        filterable: count > 0,
+      };
+    });
+    const unknown = byClass.get('') ?? [];
+    if (unknown.length > 0) {
+      cols.push({
+        name: 'Unknown',
+        slug: 'unknown',
+        count: unknown.length,
+        pct: (unknown.length / max) * 100,
+        icon: '',
+        color: 'var(--color-signup-no-response)',
+        detail: `${unknown.length} unenriched`,
+        filterable: false,
+      });
+    }
+    return cols;
+  }
+
+  get roleChartScale(): ChartScale {
+    const counts = new Map<RosterRole, number>();
+    for (const e of this.compPool) {
+      const r = rosterRole(e);
+      counts.set(r, (counts.get(r) ?? 0) + 1);
+    }
+    return chartScale(Math.max(0, ...counts.values()));
+  }
+
+  get compRoleColumns(): RoleColumn[] {
+    const byRole = new Map<RosterRole, RosterListing[]>();
+    for (const e of this.compPool) {
+      const r = rosterRole(e);
+      const list = byRole.get(r) ?? [];
+      list.push(e);
+      byRole.set(r, list);
+    }
+    const max = this.roleChartScale.max;
+    const total = this.compPool.length;
+    const roles = ROLE_ORDER.filter(
+      (r) => r !== 'unknown' || (byRole.get('unknown')?.length ?? 0) > 0,
+    );
+    return roles.map((role) => {
+      const members = byRole.get(role) ?? [];
+      const count = members.length;
+      const meta = ROLE_META[role];
+      return {
+        role,
+        label: meta.label,
+        count,
+        pct: (count / max) * 100,
+        share: total > 0 ? (count / total) * 100 : 0,
+        color: `var(${meta.token})`,
+        detail: formatBreakdown(
+          members.map((m) =>
+            m.className
+              ? m.activeSpec
+                ? `${m.activeSpec} ${m.className}`
+                : m.className
+              : 'Unknown',
+          ),
+        ),
+      };
+    });
+  }
+
+  get compMeta(): string {
+    const total = this.compPool.length;
+    if (total === 0) return 'No raiders yet';
+    const at60 = this.compPool.filter((e) => e.level >= 60).length;
+    const melee = this.compPool.filter((e) => rosterRole(e) === 'melee').length;
+    const ranged = this.compPool.filter((e) => rosterRole(e) === 'ranged').length;
+    const dps = melee + ranged;
+    const parts = [`${at60} at lv 60`];
+    if (dps > 0) parts.push(`${dps} DPS (${melee} melee · ${ranged} ranged)`);
+    return parts.join(' · ');
+  }
+
+  get roleShareLabel(): string {
+    const parts = this.compRoleColumns
+      .filter((r) => r.count > 0)
+      .map((r) => `${r.label} ${r.count} (${Math.round(r.share)}%)`);
+    return `Role share: ${parts.join(', ')}`;
   }
 
   get ranks(): number[] {
@@ -906,6 +1896,7 @@ export class Page extends FASTElement {
         (!this.wowClass || e.className === this.wowClass) &&
         (!this.profession ||
           e.professions.some((p) => p.name === this.profession && p.level >= CRAFT_MIN)) &&
+        (!this.role || rosterRole(e) === this.role) &&
         (!q || `${e.name} ${e.surname} ${this.discordName(e) ?? ''}`.toLowerCase().includes(q)),
     );
     const byName = (a: RosterListing, b: RosterListing) => a.name.localeCompare(b.name);

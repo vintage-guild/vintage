@@ -87,11 +87,8 @@ Every character in the Forever guild's in-game roster, independent of links
   record calls under `ROSTER_RECORD_BYTES` (`chunkBySize`), each with the full member list, so a
   batch heavy with recipes can't outgrow Convex's argument limit.
 - **Recipes live in their own table** (`rosterRecipes`, one row per entry, keyed by entry id),
-  read only by `armory-recipe-search`, so the roster listing and the sync never load them. Older
-  rows' `recipes` field moves there on the entry's next update, or all at once with
-  `npx convex run armory:rosterMigrateRecipes` (it pages 10 rows per transaction and schedules
-  itself to the end). Until then the search reads the legacy field, so it answers the same.
-  Drop the field once no row has it.
+  so the roster listing and staleness check read only roster entries. Recipe search reads the
+  recipes for the guild and uses the roster entries to look up the crafters.
 - **`guildRank` is Blizzard's index** (0 = Guild Master); the API has no rank names, so the
   website names them (`RANK_NAMES` in apps/web's roster page).
 - `armory-guild-roster` is public (Blizzard's armory is) and answers entries sorted by rank, then

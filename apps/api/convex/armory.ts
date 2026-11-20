@@ -9,7 +9,6 @@
 //   npx convex run armory:refresh '{"linkIds":["…"]}'
 //   npx convex run armory:sweep
 //   npx convex run armory:rosterSync '{"guildId":"vintage"}'
-//   npx convex run armory:rosterMigrateRecipes   (once, after recipes moved to their own table)
 
 import {
   chunkBySize,
@@ -27,7 +26,7 @@ import {
 } from '@vintage/armory/contract';
 import { createForeverApi, type ForeverApi, parseRegion } from '@vintage/forever-api';
 import { v } from 'convex/values';
-import { components, internal } from './_generated/api';
+import { internal } from './_generated/api';
 import { internalAction, internalMutation, internalQuery } from './_generated/server';
 import { GUILD_ID, runSystemCommand } from './commands';
 import { armoryStore, rosterStore } from './stores';
@@ -110,30 +109,6 @@ export const rosterStatus = internalQuery({
       blizzardId: e.blizzardId,
       checkedAt: e.checkedAt,
     })),
-});
-
-/**
- * One-off after recipes moved to their own table: moves the legacy recipes 10 entries per
- * transaction, scheduling itself until the roster is done (each entry's next update moves them
- * too). Run once: `npx convex run armory:rosterMigrateRecipes`; watch the logs for the total.
- */
-export const rosterMigrateRecipes = internalMutation({
-  args: { cursor: v.optional(v.union(v.string(), v.null())), moved: v.optional(v.number()) },
-  handler: async (ctx, { cursor = null, moved = 0 }) => {
-    const page = await ctx.runMutation(components.armory.roster.migrateLegacyRecipes, {
-      guildId: GUILD_ID,
-      paginationOpts: { cursor, numItems: 10 },
-    });
-    const total = moved + page.moved;
-    if (page.isDone) {
-      console.log(`armory roster: moved recipes off ${total} entries`);
-      return;
-    }
-    await ctx.scheduler.runAfter(0, internal.armory.rosterMigrateRecipes, {
-      cursor: page.continueCursor,
-      moved: total,
-    });
-  },
 });
 
 /** Write one roster sync's results through `armory-guild-roster-record` (system only). */

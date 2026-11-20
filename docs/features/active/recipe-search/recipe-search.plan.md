@@ -9,11 +9,9 @@ and the guild roster sync already fetches that endpoint.
 ## How it works
 
 - `libs/forever-api` keeps `known_recipes` (id and name) on each profession tier.
-- The roster sync stores each character's recipes in `rosterRecipes`, one row per roster entry
-  (moved off the `rosterEntries` row 2026-11-20 so the roster listing never loads them; older
-  rows move on their next update, or with `armory:rosterMigrateRecipes`; until then the search
-  reads them where they are). A failed
-  `/professions` request keeps the stored recipes.
+- The roster sync stores each character's recipes in `rosterRecipes`, one row per roster entry.
+  The roster listing reads `rosterEntries`. A failed `/professions` request keeps the stored
+  recipes.
 - `armory-recipe-search` (public) matches recipe names by substring, optionally in one profession,
   and answers each recipe with everyone who knows it and their skill, best first, or none. At
   most 50.

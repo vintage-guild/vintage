@@ -128,15 +128,7 @@ export default defineSchema({
     .index('by_guild_name', ['guildId', 'name', 'surname'])
     .index('by_guild_character', ['guildId', 'characterId'])
     .index('by_guild_slug', ['guildId', 'slug']),
-  rosterEntries: defineTable({
-    ...rosterEntryFields,
-    /**
-     * Legacy: recipes used to live on the entry, which made every roster read carry them. They
-     * move to `rosterRecipes` on the entry's next update (or `migrateLegacyRecipes`); drop this
-     * field once no row has it.
-     */
-    recipes: v.optional(v.array(rosterRecipe)),
-  })
+  rosterEntries: defineTable(rosterEntryFields)
     .index('by_guild_slug', ['guildId', 'slug'])
     .index('by_guild_rank', ['guildId', 'guildRank']),
   /** One row per roster entry that knows recipes; read only by the recipe search. */

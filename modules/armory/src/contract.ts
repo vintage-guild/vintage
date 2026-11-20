@@ -279,10 +279,12 @@ export interface ProfessionDetail {
 }
 
 /**
- * Gathering skills: Blizzard lists a few abilities as their "recipes" (Find Herbs), so they have
- * no crafting catalog. Mining stays: it has real smelting recipes.
+ * Blizzard lists a profession's skill itself among a character's known recipes, once per rank
+ * ("Fishing", "Mining"). Not something to craft, so every list leaves it out. What Forever's
+ * gathering skills do make (Fish Bowl, Camp Chair, Incense Candle) stays.
  */
-export const GATHERING_PROFESSIONS: readonly string[] = ['Fishing', 'Herbalism', 'Skinning'];
+export const isSkillRank = (recipe: { name: string }, profession: string) =>
+  recipe.name.trim().toLowerCase() === profession.trim().toLowerCase();
 
 /**
  * What a recipe makes and takes, from Blizzard's `/recipe/{id}` and the crafted item's

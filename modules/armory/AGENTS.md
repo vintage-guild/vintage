@@ -116,9 +116,14 @@ so the website can show recipes nobody in the guild knows
   and name; ids match a character's known recipes). Daily, apps/api's `armory:catalogSync` reads
   the profession index, each profession's skill tiers, and each tier's categories, and records
   one profession per `armory-catalog-record` call, replacing the row. A profession that fails
-  keeps its last catalog. Skipped: "Test Profession" and `GATHERING_PROFESSIONS` (Fishing,
-  Herbalism, Skinning, whose "recipes" are abilities); Mining stays for its smelting.
-- `armory-profession-list` (public): each crafting profession's catalog size (null before the
+  keeps its last catalog. Only "Test Profession" is skipped: Forever gives Fishing, Herbalism,
+  and Skinning a few crafts each (Fish Bowl, Incense Candle, Camp Chair).
+- **Skill ranks aren't recipes.** Blizzard lists a profession's skill among a character's known
+  recipes, once per rank ("Fishing", "Mining"). `isSkillRank` (contract) drops any recipe named
+  after its profession, in the catalog fetch and wherever known recipes are read
+  (`knownRecipes`, `armory-character-recipes`), so the stored rows keep them and no list shows
+  them.
+- `armory-profession-list` (public): each profession's catalog size (null before the
   first sync), how many of those someone knows, how many roster characters level 10 and up have
   it, and the best three by skill.
 - `armory-profession-get` (public): one profession's catalog in its categories, each recipe with

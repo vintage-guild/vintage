@@ -573,6 +573,109 @@
       }
     },
     {
+      "name": "armory-catalog-record",
+      "description": "Record one profession’s recipe catalog from Blizzard, replacing what was there. Run by the catalog sync.",
+      "tier": "officer",
+      "mutation": true,
+      "destructive": false,
+      "systemOnly": true,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "profession": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 48
+          },
+          "professionId": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "categories": {
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "maxLength": 80
+                },
+                "recipes": {
+                  "maxItems": 1000,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 120
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "name",
+                "recipes"
+              ]
+            }
+          }
+        },
+        "required": [
+          "profession",
+          "professionId",
+          "categories"
+        ]
+      }
+    },
+    {
+      "name": "armory-catalog-sync",
+      "description": "Ask Blizzard for every profession’s recipe catalog and record it (armory-catalog-record, one profession per call). Run by the cron once a day.",
+      "tier": "officer",
+      "mutation": true,
+      "destructive": false,
+      "systemOnly": true,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "armory-character-recipes",
+      "description": "One roster character’s crafting, by slug (`strattaca-windfury`): for each crafting profession it has, its skill, the recipes it knows, and the catalog’s recipes it doesn’t, each with the item it makes (null until synced). Errors: CHARACTER_NOT_FOUND.",
+      "tier": "public",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 96
+          }
+        },
+        "required": [
+          "slug"
+        ]
+      }
+    },
+    {
       "name": "armory-get",
       "description": "What the WoW: Forever armory says about a registered character: level, class, guild, item level, equipped gear, portrait, and when it was last checked; `link` is null when the character isn’t linked (armory-link links it). `status` is pending until the first fetch, then found, not-found (wrong surname, under level 10, or not logged out since), or error. `classMismatch` means the armory character’s class differs from the registered one.",
       "tier": "member",
@@ -900,8 +1003,84 @@
       }
     },
     {
+      "name": "armory-profession-get",
+      "description": "One profession’s whole recipe catalog, in Blizzard’s categories, each recipe with everyone on the roster who knows it (best skill first) or none. Recipes the roster knows that the catalog lacks are listed under \"Other\". The profession may be written any case, with spaces or hyphens (`first-aid`). Errors: PROFESSION_NOT_FOUND.",
+      "tier": "public",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "profession": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 48
+          }
+        },
+        "required": [
+          "profession"
+        ]
+      }
+    },
+    {
+      "name": "armory-profession-list",
+      "description": "Every crafting profession (not Fishing, Herbalism, or Skinning), for the website’s overview: how many recipes Blizzard’s catalog has (null before the catalog syncs), how many someone on the roster knows, how many roster characters (level 10 and up) have the profession, and the best three by skill. Sorted by profession name.",
+      "tier": "public",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "armory-recipe-detail-record",
+      "description": "Record recipes’ details from Blizzard (the item each makes, its tooltip lines, and the reagents), replacing what was there. Run by the catalog sync.",
+      "tier": "officer",
+      "mutation": true,
+      "destructive": false,
+      "systemOnly": true,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "details": {
+            "maxItems": 50,
+            "type": "array",
+            "items": {}
+          }
+        },
+        "required": [
+          "details"
+        ]
+      }
+    },
+    {
+      "name": "armory-recipe-get",
+      "description": "One recipe’s details for a tooltip: the item it makes (name, quality, how many), the item’s lines in Blizzard’s words (binding, slot, armor, stats, use effects, required level), and the reagents. `detail` is null until the daily catalog sync has fetched it. Blizzard doesn’t say where a recipe is learned.",
+      "tier": "public",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "recipeId": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "recipeId"
+        ]
+      }
+    },
+    {
       "name": "armory-recipe-search",
-      "description": "Find recipes someone in the guild’s in-game roster knows, by part of the recipe’s name (at least 2 letters, any case), optionally in one profession. Answers each matching recipe with everyone who knows it (name, level, class, armory page, and their skill in that profession), highest skill first; recipes sorted by name, at most 50. `truncated` is true when more matched. Recipes come from the roster sync, so a character shows its new recipes within a day.",
+      "description": "Find recipes by part of the name (at least 2 letters, any case), optionally in one profession: every recipe in Blizzard’s catalog plus any the roster knows that the catalog lacks. Answers each with everyone on the roster who knows it (name, level, class, armory page, and their skill in that profession), highest skill first, or none; recipes sorted by name, at most 50. `truncated` is true when more matched. Known recipes come from the roster sync, so a character shows its new recipes within a day.",
       "tier": "public",
       "mutation": false,
       "destructive": false,

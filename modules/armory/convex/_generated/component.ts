@@ -23,6 +23,64 @@ import type { FunctionReference } from "convex/server";
  */
 export type ComponentApi<Name extends string | undefined = string | undefined> =
   {
+    catalog: {
+      getRecipeDetail: FunctionReference<
+        "query",
+        "internal",
+        { guildId: string; recipeId: number },
+        any,
+        Name
+      >;
+      list: FunctionReference<
+        "query",
+        "internal",
+        { guildId: string },
+        any,
+        Name
+      >;
+      listRecipeItems: FunctionReference<
+        "query",
+        "internal",
+        { guildId: string },
+        any,
+        Name
+      >;
+      put: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          categories: Array<{
+            name: string;
+            recipes: Array<{ id: number; name: string }>;
+          }>;
+          guildId: string;
+          profession: string;
+          professionId: number;
+          syncedAt: number;
+        },
+        any,
+        Name
+      >;
+      putRecipeDetails: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          details: Array<{
+            guildId: string;
+            itemId: number | null;
+            itemName: string | null;
+            lines: Array<string>;
+            quality: string | null;
+            quantity: number;
+            reagents: Array<{ name: string; quantity: number }>;
+            recipeId: number;
+            syncedAt: number;
+          }>;
+        },
+        any,
+        Name
+      >;
+    };
     links: {
       byCharacter: FunctionReference<
         "query",

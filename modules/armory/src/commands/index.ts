@@ -1,10 +1,29 @@
+import {
+  armoryCatalogRecord,
+  armoryCatalogSync,
+  armoryProfessionGet,
+  armoryProfessionList,
+} from './catalog';
 import { armoryLink, armoryRefresh, armoryUnlink } from './link';
 import { armoryGet, armoryList } from './read';
+import {
+  armoryCharacterRecipes,
+  armoryRecipeDetailRecord,
+  armoryRecipeGet,
+} from './recipe-details';
 import { armoryRecipeSearch } from './recipes';
 import { armoryGuildRoster, armoryGuildRosterRecord, armoryGuildRosterSync } from './roster';
 import { armoryRecord, armorySweep } from './system';
 
+export { type CatalogClient, catalogProfessions, fetchCatalog } from '../domain/catalog';
 export { type ArmoryClient, fetchArmory } from '../domain/fetch';
+export {
+  fetchRecipeDetail,
+  itemLines,
+  type RecipeClient,
+  type RecipeDetailFetch,
+  toRecipeDetail,
+} from '../domain/recipe';
 export {
   chunkBySize,
   fetchRosterEntry,
@@ -18,6 +37,8 @@ export type {
   ArmoryDeps,
   ArmoryEffects,
   ArmoryStore,
+  CatalogEffects,
+  CatalogStore,
   RosterEffects,
   RosterStore,
 } from '../store';
@@ -35,4 +56,11 @@ export const armoryCommands = [
   armoryGuildRosterSync,
   armoryGuildRosterRecord,
   armoryRecipeSearch,
+  armoryCatalogSync,
+  armoryCatalogRecord,
+  armoryProfessionList,
+  armoryProfessionGet,
+  armoryRecipeDetailRecord,
+  armoryRecipeGet,
+  armoryCharacterRecipes,
 ] as const;

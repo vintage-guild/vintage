@@ -7,7 +7,11 @@ import { createMemoryAgentStore } from '@vintage/agent/testing';
 import { type ApplicationsDeps, applicationsCommands } from '@vintage/applications/commands';
 import { createMemoryApplicationsStore } from '@vintage/applications/testing';
 import { type ArmoryDeps, armoryCommands, fetchArmory } from '@vintage/armory/commands';
-import { createMemoryArmoryStore, createMemoryRosterStore } from '@vintage/armory/testing';
+import {
+  createMemoryArmoryStore,
+  createMemoryCatalogStore,
+  createMemoryRosterStore,
+} from '@vintage/armory/testing';
 import {
   type CoordinatorDeps,
   coordinatorCommands,
@@ -162,6 +166,9 @@ export function createFixtureHost(
     armoryRoster,
     // No fake guild-roster endpoint yet: the dev site has no roster sync trigger.
     armoryRosterEffects: { sync: async () => {} },
+    armoryCatalog: createMemoryCatalogStore(),
+    // The dev catalog is seeded through armory-catalog-record (seed.ts); there's no Blizzard here.
+    armoryCatalogEffects: { sync: async () => {} },
     armoryCharacters: {
       getCharacter: async (g, id) => {
         const c = await identity.getCharacter(g, id);

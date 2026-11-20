@@ -80,7 +80,7 @@ export interface NewCharacterInput {
   class: string;
   spec: string;
   role?: Role;
-  secondaryRole?: Role;
+  alsoRoles?: Role[];
 }
 
 export interface SignupPorts {
@@ -278,7 +278,7 @@ function roleOptions(signup: Signup, character: Character | undefined, needed: C
   ];
   for (const role of ROLES) {
     const hints = [
-      character?.secondaryRole === role ? 'secondary role' : '',
+      character?.alsoRoles.includes(role) ? 'also plays' : '',
       neededHint(role, needed).slice(3),
     ].filter(Boolean);
     options.push({

@@ -2,8 +2,15 @@
 // system-only commands (the sync never calls Blizzard directly; apps/api's action does, then
 // hands the results back here — same split as armory-sweep/armory-record).
 import { error, success, tierAllows } from '@vintage/guild-kit';
+import { classRoles, cleanAlsoRoles, isWowClass, type WowClass } from '@vintage/wow-data';
 import { z } from 'zod';
-import { ROSTER_ROLES, ROSTER_SYNC_BATCH, type RosterEntry, type RosterListing } from '../contract';
+import {
+  ROSTER_ROLES,
+  ROSTER_SYNC_BATCH,
+  type RosterEntry,
+  type RosterListing,
+  type RosterRole,
+} from '../contract';
 import { MAX_ERROR } from '../domain/fetch';
 import { type ArmoryCharacter, type ArmoryDeps, command } from '../store';
 
@@ -11,13 +18,39 @@ type RosterDeps = Pick<ArmoryDeps, 'armoryRoster'>;
 
 const rosterRoleSchema = z.enum(ROSTER_ROLES);
 
+/** Blizzard's class name ("Warrior") as a class `@vintage/wow-data` knows, or null. */
+function classOf(className: string | null): WowClass | null {
+  const key = className?.toLowerCase().replace(/\s+/g, '') ?? '';
+  return isWowClass(key) ? key : null;
+}
+
+/**
+ * An entry's other roles after an officer's edit: the given list cleaned for its class (every
+ * role while the class is unknown) and main role; otherwise the old list without the main role.
+ */
+function entryAlsoRoles(
+  entry: RosterEntry,
+  preferredRole: RosterRole,
+  alsoRoles: RosterRole[] | undefined,
+): { alsoRoles: RosterRole[] } | { rejected: RosterRole[]; wowClass: WowClass } {
+  const wowClass = classOf(entry.className);
+  if (alsoRoles === undefined) {
+    return { alsoRoles: (entry.alsoRoles ?? []).filter((r) => r !== preferredRole) };
+  }
+  // An entry not yet enriched has no class: let a druid's every role through until it does.
+  const cleaned = cleanAlsoRoles(wowClass ?? 'druid', preferredRole, alsoRoles);
+  if (wowClass && cleaned.rejected.length > 0) return { rejected: cleaned.rejected, wowClass };
+  return { alsoRoles: cleaned.alsoRoles };
+}
+
 export const armoryGuildRoster = command({
   name: 'armory-guild-roster',
   description:
     'Every character currently in the guild’s in-game roster (Blizzard’s own membership, not ' +
     'a member’s claim): level, class, race, guild rank, active spec, professions, portrait, ' +
-    'a link to its armory page, its declared main/secondary raid roles (from the matched ' +
-    'registered character, else officer-assigned on the entry), and, for recruits and up, ' +
+    'a link to its armory page, its declared main raid role and the other roles it plays ' +
+    '(`preferredRole`, `alsoRoles`: from the matched registered character, else ' +
+    'officer-assigned on the entry), and, for recruits and up, ' +
     'the guild member and character id (`memberId`, `characterId`; always null below recruit). ' +
     'Open to everyone. Sorted by guild rank, then name. Synced from Blizzard in ' +
     'the background (armory-guild-roster-sync); a character shows "pending" until its first ' +
@@ -54,7 +87,7 @@ export const armoryGuildRoster = command({
           memberId: showMember ? (matched?.memberId ?? null) : null,
           characterId: showMember ? (matched?.id ?? null) : null,
           preferredRole: matched?.role ?? e.preferredRole ?? null,
-          secondaryRole: matched ? (matched.secondaryRole ?? null) : (e.secondaryRole ?? null),
+          alsoRoles: matched ? (matched.alsoRoles ?? []) : (e.alsoRoles ?? []),
         };
       })
       .sort(byRank);
@@ -65,17 +98,18 @@ export const armoryGuildRoster = command({
 export const armoryGuildRosterRoleSet = command({
   name: 'armory-guild-roster-role-set',
   description:
-    'Set or clear an officer-assigned main and optional secondary raid role on a guild roster ' +
-    'entry (used for unlinked characters; linked characters keep their role in identity). ' +
-    'Clearing preferredRole also clears secondaryRole.',
+    'Set or clear an officer-assigned main raid role and the other roles it plays on a guild ' +
+    'roster entry (used for unlinked characters; linked characters keep their roles in ' +
+    'identity). alsoRoles takes only roles the class can play and leaves out the main role; ' +
+    'omitted, the current list stays. Clearing preferredRole also clears alsoRoles.',
   tier: 'officer',
   mutation: true,
   input: z.object({
     slug: z.string().trim().min(1).max(96),
     preferredRole: rosterRoleSchema.nullable(),
-    secondaryRole: rosterRoleSchema.nullable().optional(),
+    alsoRoles: z.array(rosterRoleSchema).max(8).optional(),
   }),
-  handler: async ({ slug, preferredRole, secondaryRole }, { guildId, deps }) => {
+  handler: async ({ slug, preferredRole, alsoRoles }, { guildId, deps }) => {
     const normalized = slug.toLowerCase();
     const entry = await deps.armoryRoster.getEntryBySlug(guildId, normalized);
     if (!entry) {
@@ -84,23 +118,22 @@ export const armoryGuildRosterRoleSet = command({
         retryable: false,
       });
     }
-    const nextSecondary =
-      preferredRole === null
-        ? null
-        : secondaryRole === undefined
-          ? entry.secondaryRole === preferredRole
-            ? null
-            : (entry.secondaryRole ?? null)
-          : secondaryRole === preferredRole
-            ? null
-            : secondaryRole;
+    const also =
+      preferredRole === null ? { alsoRoles: [] } : entryAlsoRoles(entry, preferredRole, alsoRoles);
+    if ('rejected' in also) {
+      return error('INVALID_ROLE', `A ${also.wowClass} can't play ${also.rejected.join(' or ')}`, {
+        suggestion: `alsoRoles takes the roles a ${also.wowClass} can play: ${classRoles(also.wowClass).join(', ')}`,
+        retryable: false,
+      });
+    }
     const updated = await deps.armoryRoster.updateEntry(guildId, entry.id, {
       preferredRole,
-      secondaryRole: nextSecondary,
+      alsoRoles: also.alsoRoles,
     });
+    const extra = also.alsoRoles.length > 0 ? ` (also ${also.alsoRoles.join(', ')})` : '';
     return success(updated, {
       reasoning: preferredRole
-        ? `${entry.name} set to ${preferredRole}${nextSecondary ? ` (secondary ${nextSecondary})` : ''}`
+        ? `${entry.name} set to ${preferredRole}${extra}`
         : `Cleared raid role for ${entry.name}`,
     });
   },

@@ -61,11 +61,7 @@ export function createMemoryIdentityStore(): IdentityStore & {
       return c && c.guildId === guildId ? c : null;
     },
     async insertCharacter(input) {
-      const character: Character = {
-        ...input,
-        secondaryRole: input.secondaryRole ?? null,
-        id: id('character'),
-      };
+      const character: Character = { ...input, id: id('character') };
       characters.set(character.id, character);
       return character;
     },

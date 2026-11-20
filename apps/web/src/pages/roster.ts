@@ -1,4 +1,12 @@
-import { css, FASTElement, html, observable, repeat, when } from '@lushly-dev/fast-element';
+import {
+  css,
+  type ExecutionContext,
+  FASTElement,
+  html,
+  observable,
+  repeat,
+  when,
+} from '@lushly-dev/fast-element';
 import {
   ROSTER_ROLES,
   type RosterListing,
@@ -6,7 +14,7 @@ import {
   type RosterRole,
 } from '@vintage/armory/contract';
 import { getCommandClient } from '@vintage/ui-kit';
-import type { WowClass } from '@vintage/wow-data';
+import { classRoles, isWowClass, type WowClass } from '@vintage/wow-data';
 import { classIcon, professionIcon } from '../class-icons';
 import { currentSession } from '../session';
 import { pageStyles } from './page-styles';
@@ -206,6 +214,29 @@ const profession = (minor: boolean) => html<RosterProfession, RosterListing>`
 const primary = profession(false);
 const secondary = profession(true);
 
+/** The roles a roster character's class can play; every role while its class is unknown. */
+function playableRoles(e: RosterListing): readonly RosterRole[] {
+  const key = e.className?.toLowerCase().replace(/\s+/g, '') ?? '';
+  return isWowClass(key) ? classRoles(key) : ROSTER_ROLES;
+}
+
+/** The page, from inside the role editor's repeat of roles. */
+const editorPage = (c: ExecutionContext) => c.parentContext.parent as unknown as Page;
+
+const alsoOption = html<RosterRole>`
+  <label class="also-option">
+    <input
+      type="checkbox"
+      :checked="${(r, c) => editorPage(c).editAlso.includes(r)}"
+      ?disabled="${(_r, c) => editorPage(c).savingRole}"
+      @change="${(r, c) => {
+        editorPage(c).toggleEditAlso(r, (c.event.target as HTMLInputElement).checked);
+      }}"
+    />
+    <span>${(r) => ROLE_META[r].label}</span>
+  </label>
+`;
+
 const roleEditor = html<RosterListing, Page>`
   <div class="role-editor">
     <label class="role-field">
@@ -231,29 +262,13 @@ const roleEditor = html<RosterListing, Page>`
         ${chevron('select-icon')}
       </span>
     </label>
-    <label class="role-field">
-      <span>Secondary</span>
-      <span class="select-wrap compact">
-        <select
-          aria-label="Secondary raid role"
-          :value="${(_e, c) => c.parent.editSecondary}"
-          ?disabled="${(_e, c) => c.parent.savingRole || !c.parent.editRole}"
-          @change="${(_e, c) => {
-            c.parent.setEditSecondary((c.event.target as HTMLSelectElement).value);
-          }}"
-        >
-          <option value="">None</option>
-          ${repeat(
-            () => ROSTER_ROLES,
-            html<
-              RosterRole,
-              Page
-            >`<option value="${(r) => r}" ?selected="${(r, ctx) => ctx.parent.editSecondary === r}">${(r) => ROLE_META[r].label}</option>`,
-          )}
-        </select>
-        ${chevron('select-icon')}
-      </span>
-    </label>
+    ${when(
+      (e, c) => c.parent.alsoChoices(e).length > 0,
+      html<RosterListing, Page>`<fieldset class="role-field also-field">
+        <legend>Also plays</legend>
+        ${repeat((e, c) => c.parent.alsoChoices(e), alsoOption)}
+      </fieldset>`,
+    )}
     <div class="role-actions">
       <button
         type="button"
@@ -290,8 +305,8 @@ const roleView = html<RosterListing, Page>`
       )}
       ${when((e) => !e.preferredRole, html`<small class="muted">Not set</small>`)}
       ${when(
-        (e) => Boolean(e.secondaryRole),
-        html<RosterListing>`<small class="muted">Off: ${(e) => ROLE_META[e.secondaryRole!].label}</small>`,
+        (e) => e.alsoRoles.length > 0,
+        html<RosterListing>`<small class="muted">Also ${(e) => e.alsoRoles.map((r) => ROLE_META[r].label).join(', ')}</small>`,
       )}
     </div>
     ${when(
@@ -1497,6 +1512,29 @@ const styles = css`
     color: var(--color-text-secondary);
   }
 
+  .also-field {
+    border: 0;
+    margin: 0;
+    padding: 0;
+    min-inline-size: 0;
+  }
+
+  .also-field legend {
+    padding: 0;
+  }
+
+  .also-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-inline-end: 0.5rem;
+    font-family: var(--font-family-sans);
+    font-size: 0.8rem;
+    letter-spacing: normal;
+    text-transform: none;
+    color: var(--color-text-primary);
+  }
+
   .role-actions {
     display: flex;
     gap: 0.35rem;
@@ -1877,7 +1915,8 @@ export class Page extends FASTElement {
   /** Inline role editor state: slug of the row being edited, or '' when closed. */
   @observable editingSlug = '';
   @observable editRole: RosterRole | '' = '';
-  @observable editSecondary: RosterRole | '' = '';
+  /** The other roles being edited, in `ROSTER_ROLES` order. */
+  @observable editAlso: RosterRole[] = [];
   @observable savingRole = false;
   @observable roleEditError = '';
 
@@ -1906,7 +1945,7 @@ export class Page extends FASTElement {
   startRoleEdit(e: RosterListing): void {
     this.editingSlug = e.slug;
     this.editRole = e.preferredRole ?? (e.characterId ? 'melee' : '');
-    this.editSecondary = e.secondaryRole ?? '';
+    this.editAlso = e.alsoRoles.filter((r) => playableRoles(e).includes(r));
     this.roleEditError = '';
   }
 
@@ -1917,21 +1956,32 @@ export class Page extends FASTElement {
 
   setEditRole(value: string): void {
     this.editRole = isRosterRole(value) ? value : '';
-    if (!this.editRole || this.editSecondary === this.editRole) this.editSecondary = '';
+    this.editAlso = this.editRole ? this.editAlso.filter((r) => r !== this.editRole) : [];
   }
 
-  setEditSecondary(value: string): void {
-    const next = isRosterRole(value) ? value : '';
-    this.editSecondary = next && next !== this.editRole ? next : '';
+  /**
+   * The other roles the editor offers for a row: its class's roles besides the main one. Empty
+   * (no control) for a class with one role, or before a main role is picked.
+   */
+  alsoChoices(e: RosterListing): RosterRole[] {
+    const playable = playableRoles(e);
+    if (!this.editRole || playable.length < 2) return [];
+    return playable.filter((r) => r !== this.editRole);
+  }
+
+  toggleEditAlso(role: RosterRole, on: boolean): void {
+    const next = new Set(this.editAlso);
+    if (on) next.add(role);
+    else next.delete(role);
+    this.editAlso = ROSTER_ROLES.filter((r) => next.has(r));
   }
 
   async saveRole(entry: RosterListing): Promise<void> {
     if (this.savingRole) return;
     const preferredRole: RosterRole | null = this.editRole || null;
-    const secondaryRole: RosterRole | null =
-      preferredRole && this.editSecondary && this.editSecondary !== preferredRole
-        ? this.editSecondary
-        : null;
+    const alsoRoles: RosterRole[] = preferredRole
+      ? this.editAlso.filter((r) => r !== preferredRole)
+      : [];
     this.savingRole = true;
     this.roleEditError = '';
     try {
@@ -1941,7 +1991,7 @@ export class Page extends FASTElement {
           ? await client.run('character-update', {
               characterId: entry.characterId,
               role: preferredRole,
-              secondaryRole,
+              alsoRoles,
             })
           : {
               success: false as const,
@@ -1950,14 +2000,14 @@ export class Page extends FASTElement {
         : await client.run('armory-guild-roster-role-set', {
             slug: entry.slug,
             preferredRole,
-            secondaryRole,
+            alsoRoles,
           });
       if (!result.success) {
         this.roleEditError = result.error?.message ?? 'Could not save role.';
         return;
       }
       this.entries = this.entries.map((row) =>
-        row.slug === entry.slug ? { ...row, preferredRole, secondaryRole } : row,
+        row.slug === entry.slug ? { ...row, preferredRole, alsoRoles } : row,
       );
       this.editingSlug = '';
     } finally {
@@ -2110,10 +2160,10 @@ export class Page extends FASTElement {
         list.push(e);
         byMain.set(e.preferredRole, list);
       }
-      if (e.secondaryRole) {
-        const list = bySecondary.get(e.secondaryRole) ?? [];
+      for (const also of e.alsoRoles) {
+        const list = bySecondary.get(also) ?? [];
         list.push(e);
-        bySecondary.set(e.secondaryRole, list);
+        bySecondary.set(also, list);
       }
     }
     const max = this.roleChartScale.max;

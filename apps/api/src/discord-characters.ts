@@ -39,6 +39,7 @@ import type { Character, Member } from '@vintage/identity/contract';
 import {
   CLASS_NAMES,
   CLASSES,
+  classRoles,
   normalizeCharacterName,
   ROLES,
   type Role,
@@ -63,8 +64,6 @@ const REMOVE_PREFIX = 'char-rm';
 export const NEW_CHARACTER = 'new';
 /** The role select's "follow the spec" choice. */
 export const GUESS_ROLE = 'guess';
-/** The secondary role select's "none" choice. */
-export const NO_SECONDARY_ROLE = 'none';
 
 const NEEDS_MEMBER =
   'Characters need the Member rank or higher in this server. Ask an officer if that seems wrong.';
@@ -86,9 +85,32 @@ export interface AutocompletePorts extends MemberPorts {
 
 const failure = (result: CommandResult<unknown>) => failureText(result, NEEDS_MEMBER);
 
-/** "**Aeryn** · Holy Priest, healer (off: ranged) · main" */
+/** " · also ranged, melee" for the other roles a character plays; "" when none. */
+const alsoText = (c: Character) =>
+  c.alsoRoles.length > 0 ? ` · also ${c.alsoRoles.map((r) => ROLE_WORDS[r]).join(', ')}` : '';
+
+/** "**Aeryn** · Holy Priest, healer · also ranged · main" */
 const line = (c: Character) =>
-  `**${c.name}** · ${playing(c)}${c.rolePicked ? ' (picked)' : ''}${c.secondaryRole ? ` · off: ${ROLE_WORDS[c.secondaryRole]}` : ''}${c.isMain ? ' · main' : ''}`;
+  `**${c.name}** · ${playing(c)}${c.rolePicked ? ' (picked)' : ''}${alsoText(c)}${c.isMain ? ' · main' : ''}`;
+
+/**
+ * The `also` option's roles ("tank, melee" or "tank melee"), or the words that aren't roles.
+ * A class with one role plays nothing else, so the option is ignored for it.
+ */
+export function parseAlsoRoles(
+  typed: unknown,
+  wowClass: unknown,
+): { alsoRoles: Role[] } | { unknown: string[] } | null {
+  if (typeof typed !== 'string' || !typed.trim()) return null;
+  if (isClass(String(wowClass)) && classRoles(wowClass as WowClass).length < 2) return null;
+  const words = typed
+    .toLowerCase()
+    .split(/[\s,]+/)
+    .filter(Boolean);
+  const unknown = words.filter((w) => !isRole(w));
+  if (unknown.length > 0) return { unknown };
+  return { alsoRoles: words as Role[] };
+}
 
 const isRole = (s: string | undefined): s is Role =>
   !!s && (ROLES as readonly string[]).includes(s);
@@ -145,12 +167,18 @@ const notYours = (typed: string) =>
 
 async function add(ports: CharacterPorts, caller: Caller, interaction: Interaction) {
   const o = commandOptions(interaction);
+  const also = parseAlsoRoles(o.also, o.class);
+  if (also && 'unknown' in also) {
+    return ephemeral(
+      `**${also.unknown.join(', ').slice(0, 60)}** isn't a role. \`also\` takes tank, healer, melee, or ranged.`,
+    );
+  }
   const result = await ports.run(caller, 'character-add', {
     name: o.name,
     class: o.class,
     spec: typeof o.spec === 'string' ? o.spec.trim().toLowerCase() : o.spec,
     ...(isRole(String(o.role)) ? { role: o.role } : {}),
-    ...(isRole(String(o['secondary-role'])) ? { secondaryRole: o['secondary-role'] } : {}),
+    ...(also ? { alsoRoles: also.alsoRoles } : {}),
     ...(o.main === true ? { isMain: true } : {}),
   });
   if (!result.success) return ephemeral(failure(result));
@@ -340,10 +368,10 @@ const ROLE_OPTIONS: SelectOption[] = [
   ...ROLES.map((r) => ({ label: titleCase(ROLE_WORDS[r]), value: r })),
 ];
 
-const SECONDARY_ROLE_OPTIONS: SelectOption[] = [
-  { label: 'None', value: NO_SECONDARY_ROLE, default: true },
-  ...ROLES.map((r) => ({ label: titleCase(ROLE_WORDS[r]), value: r })),
-];
+const ALSO_ROLE_OPTIONS: SelectOption[] = ROLES.map((r) => ({
+  label: titleCase(ROLE_WORDS[r]),
+  value: r,
+}));
 
 /** What the note field says for a late or tentative answer. */
 export interface NoteField {
@@ -353,7 +381,7 @@ export interface NoteField {
 
 /**
  * The New character form. `note` adds the late/tentative reason field (one form, one step);
- * without `note`, the fifth modal slot asks for an optional secondary / flex role.
+ * without `note`, the fifth modal slot asks for the other roles it can play.
  */
 export function newCharacterForm(customId: string, title: string, note?: NoteField) {
   return modal(
@@ -392,9 +420,13 @@ export function newCharacterForm(customId: string, title: string, note?: NoteFie
         ]
       : [
           label(
-            'Secondary role (optional)',
-            stringSelect('secondary_role', SECONDARY_ROLE_OPTIONS, { required: false }),
-            'An off-spec role you can flex to',
+            'Other roles it can play (optional)',
+            stringSelect('also', ALSO_ROLE_OPTIONS, {
+              required: false,
+              min_values: 0,
+              max_values: ALSO_ROLE_OPTIONS.length,
+            }),
+            'Only roles its class can play count',
           ),
         ]),
   );
@@ -405,7 +437,7 @@ export function newCharacterForm(customId: string, title: string, note?: NoteFie
  * the form had no note field, null when it was left empty.
  */
 export function readNewCharacter(interaction: Interaction): {
-  input: { name: string; class: string; spec: string; role?: Role; secondaryRole?: Role };
+  input: { name: string; class: string; spec: string; role?: Role; alsoRoles?: Role[] };
   note: string | null | undefined;
 } {
   const text = modalValues(interaction);
@@ -414,7 +446,9 @@ export function readNewCharacter(interaction: Interaction): {
   // Without a spec list the class's first spec stands in, and Change spec fixes it after.
   const firstSpec = isClass(wowClass) ? Object.keys(CLASSES[wowClass])[0]! : '';
   const role = picked.role?.[0];
-  const secondaryRole = picked.secondary_role?.[0];
+  // The form can't narrow the list to the class picked beside it, so other roles drop here.
+  const playable: readonly string[] = isClass(wowClass) ? classRoles(wowClass) : ROLES;
+  const alsoRoles = (picked.also ?? []).filter((r): r is Role => isRole(r) && playable.includes(r));
   const note = text.note?.trim();
   return {
     input: {
@@ -422,7 +456,7 @@ export function readNewCharacter(interaction: Interaction): {
       class: wowClass,
       spec: picked.spec?.[0] ?? firstSpec,
       ...(isRole(role) ? { role } : {}),
-      ...(isRole(secondaryRole) ? { secondaryRole } : {}),
+      ...(alsoRoles.length > 0 ? { alsoRoles } : {}),
     },
     note: note === undefined ? undefined : note || null,
   };

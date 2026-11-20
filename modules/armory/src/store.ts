@@ -36,7 +36,8 @@ export interface ArmoryCharacter {
   name: string;
   class: string;
   role?: RosterRole;
-  secondaryRole?: RosterRole | null;
+  /** Other roles it plays (identity's `Character.alsoRoles`). */
+  alsoRoles?: RosterRole[];
 }
 
 /**

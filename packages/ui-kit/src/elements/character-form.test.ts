@@ -192,6 +192,37 @@ describe('vintage-character-form', () => {
     });
   });
 
+  it('offers the other roles the class can play, and none for a class with one role', async () => {
+    const client = useClient((_, input) => ({
+      success: true,
+      data: { id: 'c4', ...(input as object) },
+    }));
+    const form = await filledForm();
+    const boxes = () =>
+      [...form.shadowRoot!.querySelectorAll('.also-roles violet-checkbox')].map((b) =>
+        b.textContent?.trim(),
+      );
+    // A holy paladin heals; it can also tank or melee.
+    expect(boxes()).toEqual(['Tank', 'Melee DPS']);
+    form.toggleAlso('melee', true);
+    form.toggleAlso('tank', true);
+    await form.addCharacter();
+    expect(client.run).toHaveBeenCalledWith('character-add', {
+      name: 'aeryn',
+      class: 'paladin',
+      spec: 'holy',
+      alsoRoles: ['tank', 'melee'],
+      isMain: false,
+    });
+
+    form.setName('Kel');
+    form.setClass('mage');
+    form.setSpec('frost');
+    await settle();
+    expect(boxes()).toEqual([]);
+    expect(form.shadowRoot?.querySelector('.also-roles')).toBeNull();
+  });
+
   describe('editing (#149)', () => {
     const BRAKK = {
       id: 'c9',
@@ -276,6 +307,19 @@ describe('vintage-character-form', () => {
         class: 'paladin',
         spec: 'retribution',
         role: 'tank',
+      });
+    });
+
+    it('sends the other roles when they change, and again with a new class', async () => {
+      const client = useClient((_, input) => ({ success: true, data: input }));
+      const form = await editing({ ...BRAKK, alsoRoles: ['melee'] } as typeof BRAKK);
+      expect(form.alsoPicks).toEqual(['melee']);
+      expect(form.saveCharacterCanExecute).toBe(false);
+      form.toggleAlso('melee', false);
+      await form.saveCharacter();
+      expect(client.run).toHaveBeenLastCalledWith('character-update', {
+        characterId: 'c9',
+        alsoRoles: [],
       });
     });
 

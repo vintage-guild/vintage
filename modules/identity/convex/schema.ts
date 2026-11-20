@@ -78,7 +78,11 @@ export default defineSchema({
     // True when the member picked the role; otherwise it follows the spec. Optional so rows
     // from before #149 stay valid; read as false (guessed).
     rolePicked: v.optional(v.boolean()),
-    // Optional off-spec / flex role; null or absent when none.
+    // Other roles the character also plays (see Character.alsoRoles). Optional so rows from
+    // before it stay valid; read as [].
+    alsoRoles: v.optional(v.array(role)),
+    // Legacy single off-role from #301, read as `alsoRoles` until the row is next written.
+    // Drop once no row has it.
     secondaryRole: v.optional(v.union(role, v.null())),
     isMain: v.boolean(),
   })

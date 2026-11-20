@@ -26,7 +26,7 @@ const entry = (
   memberId: null,
   characterId: null,
   preferredRole: null,
-  secondaryRole: null,
+  alsoRoles: [],
   ...overrides,
 });
 
@@ -44,7 +44,7 @@ const ROSTER: RosterListing[] = [
     memberId: 'm1',
     characterId: 'c1',
     preferredRole: 'tank',
-    secondaryRole: 'melee',
+    alsoRoles: ['melee'],
   }),
   entry({
     id: 'r2',
@@ -55,7 +55,7 @@ const ROSTER: RosterListing[] = [
     activeSpec: 'Retribution',
     professions: [{ name: 'Blacksmithing', level: 235, maxLevel: 300 }],
     preferredRole: null,
-    secondaryRole: null,
+    alsoRoles: [],
   }),
   entry({
     id: 'r3',
@@ -67,7 +67,7 @@ const ROSTER: RosterListing[] = [
     memberId: 'm2',
     characterId: 'c2',
     preferredRole: 'ranged',
-    secondaryRole: null,
+    alsoRoles: [],
   }),
   entry({
     id: 'r4',
@@ -77,7 +77,7 @@ const ROSTER: RosterListing[] = [
     activeSpec: 'Feral Combat',
     professions: [{ name: 'Leatherworking', level: 300, maxLevel: 300 }],
     preferredRole: 'healer',
-    secondaryRole: 'melee',
+    alsoRoles: ['melee'],
   }),
 ];
 
@@ -204,14 +204,13 @@ describe('/roster', () => {
     const mainSelect = root.querySelector<HTMLSelectElement>(
       'select[aria-label="Main raid role"]',
     )!;
-    const secSelect = root.querySelector<HTMLSelectElement>(
-      'select[aria-label="Secondary raid role"]',
-    )!;
     mainSelect.value = 'healer';
     mainSelect.dispatchEvent(new Event('change'));
     await flush();
-    secSelect.value = 'tank';
-    secSelect.dispatchEvent(new Event('change'));
+    // A paladin healer can also tank or melee; ranged and healer aren't offered.
+    const alsoBoxes = [...root.querySelectorAll<HTMLInputElement>('.also-option input')];
+    expect(alsoBoxes.map((b) => b.parentElement!.textContent!.trim())).toEqual(['Tank', 'Melee']);
+    alsoBoxes[0]!.click();
     await flush();
 
     root.querySelector<HTMLButtonElement>('.role-save')!.click();
@@ -219,7 +218,7 @@ describe('/roster', () => {
     expect(client.run).toHaveBeenCalledWith('armory-guild-roster-role-set', {
       slug: 'plate-windfury',
       preferredRole: 'healer',
-      secondaryRole: 'tank',
+      alsoRoles: ['tank'],
     });
 
     // Edit linked character (Strattaca) → calls character-update.
@@ -237,7 +236,7 @@ describe('/roster', () => {
     expect(client.run).toHaveBeenCalledWith('character-update', {
       characterId: 'c1',
       role: 'melee',
-      secondaryRole: null,
+      alsoRoles: [],
     });
 
     // Non-officer member (m2) only sees Edit on their own linked character (Aeryn).
@@ -250,6 +249,11 @@ describe('/roster', () => {
     expect(buttons.map((b) => b.getAttribute('aria-label'))).toEqual([
       'Edit raid role for Aeryn Windfury',
     ]);
+    // A mage plays one role: no Also plays control.
+    buttons[0]!.click();
+    await flush();
+    expect(raiderRoot.querySelector('select[aria-label="Main raid role"]')).not.toBeNull();
+    expect(raiderRoot.querySelector('.also-field')).toBeNull();
   });
 
   it('keeps the Class and Profession dropdown values in sync with stat-bar toggles after manual select changes', async () => {

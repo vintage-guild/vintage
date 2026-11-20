@@ -148,20 +148,24 @@ export interface RosterEntry {
   checkedAt: number | null;
   /** Officer-assigned main raid role for unlinked roster entries (preserved across syncs). */
   preferredRole?: RosterRole | null;
-  /** Officer-assigned secondary / flex raid role for unlinked roster entries. */
-  secondaryRole?: RosterRole | null;
+  /**
+   * Officer-assigned other roles an unlinked roster entry also plays: roles its class can play,
+   * never `preferredRole`. Absent or [] when none.
+   */
+  alsoRoles?: RosterRole[];
 }
 
 /**
  * A roster character as `armory-guild-roster` answers it, with the guild member and registered
- * character it belongs to (for recruits and up; null below recruit), plus its declared main and
- * secondary raid roles (from the matched registered character, else officer-assigned on the entry).
+ * character it belongs to (for recruits and up; null below recruit), plus its declared main role
+ * and the other roles it plays (from the matched registered character, else officer-assigned on
+ * the entry).
  */
 export interface RosterListing extends RosterEntry {
   memberId: string | null;
   characterId: string | null;
   preferredRole: RosterRole | null;
-  secondaryRole: RosterRole | null;
+  alsoRoles: RosterRole[];
 }
 
 /** A roster character who can craft a recipe, with its skill in that profession. */

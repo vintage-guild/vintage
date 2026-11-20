@@ -221,6 +221,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "internal",
         {
           activeSpec: string | null;
+          alsoRoles?: Array<"tank" | "healer" | "melee" | "ranged">;
           avatarUrl: string | null;
           blizzardId: number;
           checkedAt: number | null;
@@ -238,7 +239,6 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           }>;
           profileUrl: string | null;
           raceName: string | null;
-          secondaryRole?: "tank" | "healer" | "melee" | "ranged" | null;
           slug: string;
           status: "pending" | "found" | "error";
           surname: string;
@@ -286,6 +286,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           guildId: string;
           patch: {
             activeSpec?: string | null;
+            alsoRoles?: Array<"tank" | "healer" | "melee" | "ranged">;
             avatarUrl?: string | null;
             checkedAt?: number | null;
             className?: string | null;
@@ -301,7 +302,6 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             }>;
             profileUrl?: string | null;
             raceName?: string | null;
-            secondaryRole?: "tank" | "healer" | "melee" | "ranged" | null;
             slug?: string;
             status?: "pending" | "found" | "error";
             surname?: string;

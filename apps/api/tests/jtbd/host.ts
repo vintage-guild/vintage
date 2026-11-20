@@ -239,7 +239,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
             name: c.name,
             class: c.class,
             role: c.role,
-            secondaryRole: c.secondaryRole ?? null,
+            alsoRoles: c.alsoRoles,
           }
         );
       },
@@ -250,7 +250,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
           name: c.name,
           class: c.class,
           role: c.role,
-          secondaryRole: c.secondaryRole ?? null,
+          alsoRoles: c.alsoRoles,
         })),
     },
     armoryEffects: { fetch: async (_g, ids) => void armoryQueue.push(...ids) },

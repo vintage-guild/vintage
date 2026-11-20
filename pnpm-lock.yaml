@@ -413,6 +413,9 @@ importers:
       '@vintage/guild-kit':
         specifier: workspace:*
         version: link:../../packages/guild-kit
+      '@vintage/wow-data':
+        specifier: workspace:*
+        version: link:../../libs/wow-data
       convex:
         specifier: 'catalog:'
         version: 1.47.0(react@19.3.1)

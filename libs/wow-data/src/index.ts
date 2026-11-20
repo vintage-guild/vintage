@@ -33,6 +33,34 @@ export function roleFor(wowClass: WowClass, spec: string): Role | undefined {
   return Object.hasOwn(specs, spec) ? specs[spec] : undefined;
 }
 
+/** The raid roles a class can play, in `ROLES` order (one for mage, warlock, rogue, hunter). */
+export function classRoles(wowClass: WowClass): Role[] {
+  const played = new Set<Role>(Object.values(CLASSES[wowClass]));
+  return ROLES.filter((r) => played.has(r));
+}
+
+/** Whether `value` is a class name (`warrior`, any case). */
+export function isWowClass(value: string): value is WowClass {
+  return Object.hasOwn(CLASSES, value);
+}
+
+/**
+ * The other roles a character also plays, cleaned: roles its class can play, besides its main
+ * role, each once, in `ROLES` order. Answers the roles the class can't play in `rejected`.
+ */
+export function cleanAlsoRoles(
+  wowClass: WowClass,
+  mainRole: Role,
+  roles: readonly Role[],
+): { alsoRoles: Role[]; rejected: Role[] } {
+  const playable = new Set(classRoles(wowClass));
+  const wanted = new Set(roles);
+  return {
+    alsoRoles: ROLES.filter((r) => wanted.has(r) && playable.has(r) && r !== mainRole),
+    rejected: ROLES.filter((r) => wanted.has(r) && !playable.has(r)),
+  };
+}
+
 /**
  * Character names on WoW: Forever: a first name of 2–12 letters and, since Forever gives
  * characters first and last names, an optional last name of 1–12 letters after one space

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { CLASS_NAMES, characterNameSchema, normalizeCharacterName, roleFor } from './index';
+import {
+  CLASS_NAMES,
+  characterNameSchema,
+  classRoles,
+  cleanAlsoRoles,
+  isWowClass,
+  normalizeCharacterName,
+  roleFor,
+} from './index';
 
 describe('wow-data', () => {
   it('maps class + spec to a raid role', () => {
@@ -11,6 +19,25 @@ describe('wow-data', () => {
   it('rejects a spec from another class', () => {
     expect(roleFor('mage', 'holy')).toBeUndefined();
     expect(roleFor('rogue', 'constructor')).toBeUndefined();
+  });
+
+  it('lists the roles each class can play', () => {
+    expect(classRoles('druid')).toEqual(['tank', 'healer', 'melee', 'ranged']);
+    expect(classRoles('shaman')).toEqual(['healer', 'melee', 'ranged']);
+    expect(classRoles('mage')).toEqual(['ranged']);
+    expect(isWowClass('rogue')).toBe(true);
+    expect(isWowClass('Rogue')).toBe(false);
+  });
+
+  it('cleans the other roles a character plays', () => {
+    expect(cleanAlsoRoles('shaman', 'healer', ['ranged', 'healer', 'melee', 'ranged'])).toEqual({
+      alsoRoles: ['melee', 'ranged'],
+      rejected: [],
+    });
+    expect(cleanAlsoRoles('mage', 'ranged', ['tank'])).toEqual({
+      alsoRoles: [],
+      rejected: ['tank'],
+    });
   });
 
   it('lists the nine launch classes', () => {

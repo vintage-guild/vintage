@@ -25,17 +25,17 @@ async function must<T>(promise: Promise<{ success: boolean; data?: T; error?: un
   return result.data as T;
 }
 
-const FIXTURE_SECONDARY: Record<string, 'tank' | 'healer' | 'melee' | 'ranged'> = {
-  'warrior:protection': 'melee',
-  'warrior:arms': 'tank',
-  'warrior:fury': 'tank',
-  'paladin:holy': 'tank',
-  'druid:restoration': 'ranged',
-  'shaman:restoration': 'ranged',
+/** The other roles some fixture characters also play, by class and spec. */
+const FIXTURE_ALSO: Record<string, ('tank' | 'healer' | 'melee' | 'ranged')[]> = {
+  'warrior:protection': ['melee'],
+  'warrior:arms': ['tank'],
+  'warrior:fury': ['tank'],
+  'paladin:holy': ['tank', 'melee'],
+  'druid:restoration': ['ranged', 'melee'],
+  'shaman:restoration': ['ranged'],
 };
 
-const fixtureSecondaryRole = (cls: string, spec: string) =>
-  FIXTURE_SECONDARY[`${cls}:${spec}`] ?? null;
+const fixtureAlsoRoles = (cls: string, spec: string) => FIXTURE_ALSO[`${cls}:${spec}`] ?? [];
 
 export async function seedFixtures(host: FixtureHost): Promise<void> {
   const members = new Map<string, Member>();
@@ -63,7 +63,7 @@ export async function seedFixtures(host: FixtureHost): Promise<void> {
         name: m.character ?? m.name,
         class: m.class,
         spec: m.spec,
-        secondaryRole: fixtureSecondaryRole(m.class, m.spec),
+        alsoRoles: fixtureAlsoRoles(m.class, m.spec),
         isMain: true,
       }),
     );

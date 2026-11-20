@@ -45,6 +45,7 @@ const character = (
   class: cls,
   spec,
   role,
+  alsoRoles: [],
   isMain: true,
 });
 

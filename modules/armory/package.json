@@ -18,6 +18,7 @@
   "dependencies": {
     "@vintage/forever-api": "workspace:*",
     "@vintage/guild-kit": "workspace:*",
+    "@vintage/wow-data": "workspace:*",
     "convex": "catalog:",
     "zod": "catalog:"
   },

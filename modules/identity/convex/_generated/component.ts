@@ -35,6 +35,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "mutation",
         "internal",
         {
+          alsoRoles: Array<"tank" | "healer" | "melee" | "ranged">;
           class: string;
           guildId: string;
           isMain: boolean;
@@ -42,7 +43,6 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           name: string;
           role: "tank" | "healer" | "melee" | "ranged";
           rolePicked?: boolean;
-          secondaryRole?: "tank" | "healer" | "melee" | "ranged" | null;
           spec: string;
         },
         any,
@@ -69,12 +69,12 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           characterId: string;
           guildId: string;
           patch: {
+            alsoRoles?: Array<"tank" | "healer" | "melee" | "ranged">;
             class?: string;
             isMain?: boolean;
             name?: string;
             role?: "tank" | "healer" | "melee" | "ranged";
             rolePicked?: boolean;
-            secondaryRole?: "tank" | "healer" | "melee" | "ranged" | null;
             spec?: string;
           };
         },

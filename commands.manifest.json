@@ -697,7 +697,7 @@
     },
     {
       "name": "armory-guild-roster",
-      "description": "Every character currently in the guild’s in-game roster (Blizzard’s own membership, not a member’s claim): level, class, race, guild rank, active spec, professions, portrait, a link to its armory page, its declared main/secondary raid roles (from the matched registered character, else officer-assigned on the entry), and, for recruits and up, the guild member and character id (`memberId`, `characterId`; always null below recruit). Open to everyone. Sorted by guild rank, then name. Synced from Blizzard in the background (armory-guild-roster-sync); a character shows \"pending\" until its first enrichment pass, and \"error\" when the armory fetch failed (the guild roster listing is kept either way).",
+      "description": "Every character currently in the guild’s in-game roster (Blizzard’s own membership, not a member’s claim): level, class, race, guild rank, active spec, professions, portrait, a link to its armory page, its declared main raid role and the other roles it plays (`preferredRole`, `alsoRoles`: from the matched registered character, else officer-assigned on the entry), and, for recruits and up, the guild member and character id (`memberId`, `characterId`; always null below recruit). Open to everyone. Sorted by guild rank, then name. Synced from Blizzard in the background (armory-guild-roster-sync); a character shows \"pending\" until its first enrichment pass, and \"error\" when the armory fetch failed (the guild roster listing is kept either way).",
       "tier": "public",
       "mutation": false,
       "destructive": false,
@@ -947,7 +947,7 @@
     },
     {
       "name": "armory-guild-roster-role-set",
-      "description": "Set or clear an officer-assigned main and optional secondary raid role on a guild roster entry (used for unlinked characters; linked characters keep their role in identity). Clearing preferredRole also clears secondaryRole.",
+      "description": "Set or clear an officer-assigned main raid role and the other roles it plays on a guild roster entry (used for unlinked characters; linked characters keep their roles in identity). alsoRoles takes only roles the class can play and leaves out the main role; omitted, the current list stays. Clearing preferredRole also clears alsoRoles.",
       "tier": "officer",
       "mutation": true,
       "destructive": false,
@@ -976,21 +976,18 @@
               }
             ]
           },
-          "secondaryRole": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "tank",
-                  "healer",
-                  "melee",
-                  "ranged"
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ]
+          "alsoRoles": {
+            "maxItems": 8,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "tank",
+                "healer",
+                "melee",
+                "ranged"
+              ]
+            }
           }
         },
         "required": [
@@ -1494,7 +1491,7 @@
     },
     {
       "name": "character-add",
-      "description": "Register one of your characters (main or alt). role is optional: leave it out to guess it from the spec, or pick one (a Fury warrior who tanks). secondaryRole is an optional off-spec / flex role.",
+      "description": "Register one of your characters (main or alt). role is optional: leave it out to guess it from the spec, or pick one (a Fury warrior who tanks). alsoRoles lists other roles it can play (only roles its class can play; the main role is left out).",
       "tier": "member",
       "mutation": true,
       "destructive": false,
@@ -1533,21 +1530,19 @@
               "ranged"
             ]
           },
-          "secondaryRole": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "tank",
-                  "healer",
-                  "melee",
-                  "ranged"
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ]
+          "alsoRoles": {
+            "default": [],
+            "maxItems": 8,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "tank",
+                "healer",
+                "melee",
+                "ranged"
+              ]
+            }
           },
           "isMain": {
             "default": false,
@@ -1603,7 +1598,7 @@
     },
     {
       "name": "character-update",
-      "description": "Edit a character: name, class, spec, role, secondaryRole, or make it your main. role null goes back to guessing it from the spec; a guessed role follows a spec change, a picked one stays. secondaryRole null clears it. A new class needs a spec of that class.",
+      "description": "Edit a character: name, class, spec, role, alsoRoles, or make it your main. role null goes back to guessing it from the spec; a guessed role follows a spec change, a picked one stays. alsoRoles replaces the other roles it plays ([] clears them); a class change clears them and a new main role leaves them. A new class needs a spec of that class.",
       "tier": "member",
       "mutation": true,
       "destructive": false,
@@ -1653,21 +1648,18 @@
               }
             ]
           },
-          "secondaryRole": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "tank",
-                  "healer",
-                  "melee",
-                  "ranged"
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ]
+          "alsoRoles": {
+            "maxItems": 8,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "tank",
+                "healer",
+                "melee",
+                "ranged"
+              ]
+            }
           },
           "isMain": {
             "type": "boolean",

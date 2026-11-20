@@ -40,6 +40,7 @@ const CHARACTERS: Character[] = [
     class: 'warrior' as const,
     spec: 'fury',
     role: 'melee' as const,
+    alsoRoles: [],
     isMain: true,
   })),
   {
@@ -50,6 +51,7 @@ const CHARACTERS: Character[] = [
     class: 'mage',
     spec: 'frost',
     role: 'ranged',
+    alsoRoles: [],
     isMain: false,
   },
 ];

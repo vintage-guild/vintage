@@ -9,17 +9,25 @@
 //   npx convex run armory:refresh '{"linkIds":["…"]}'
 //   npx convex run armory:sweep
 //   npx convex run armory:rosterSync '{"guildId":"vintage"}'
+//   npx convex run armory:rosterMigrateRecipes   (once, after recipes moved to their own table)
 
-import { fetchArmory, fetchRosterEntry, toRosterMembers } from '@vintage/armory/commands';
+import {
+  chunkBySize,
+  fetchArmory,
+  fetchRosterEntry,
+  serializedBytes,
+  toRosterMembers,
+} from '@vintage/armory/commands';
 import {
   type ArmoryFetchResult,
+  ROSTER_RECORD_BYTES,
   ROSTER_STALE_MS,
   ROSTER_SYNC_BATCH,
   type RosterFetchResult,
 } from '@vintage/armory/contract';
 import { createForeverApi, type ForeverApi, parseRegion } from '@vintage/forever-api';
 import { v } from 'convex/values';
-import { internal } from './_generated/api';
+import { components, internal } from './_generated/api';
 import { internalAction, internalMutation, internalQuery } from './_generated/server';
 import { GUILD_ID, runSystemCommand } from './commands';
 import { armoryStore, rosterStore } from './stores';
@@ -94,14 +102,38 @@ export const refresh = internalAction({
   },
 });
 
-/** The guild-roster entries' slug and last check, for staleness — nothing heavier is needed. */
+/** The guild-roster entries' Blizzard id and last check, for staleness. */
 export const rosterStatus = internalQuery({
   args: { guildId: v.string() },
   handler: async (ctx, { guildId }) =>
     (await rosterStore(ctx).listEntries(guildId)).map((e) => ({
-      slug: e.slug,
+      blizzardId: e.blizzardId,
       checkedAt: e.checkedAt,
     })),
+});
+
+/**
+ * One-off after recipes moved to their own table: moves the legacy recipes 10 entries per
+ * transaction, scheduling itself until the roster is done (each entry's next update moves them
+ * too). Run once: `npx convex run armory:rosterMigrateRecipes`; watch the logs for the total.
+ */
+export const rosterMigrateRecipes = internalMutation({
+  args: { cursor: v.optional(v.union(v.string(), v.null())), moved: v.optional(v.number()) },
+  handler: async (ctx, { cursor = null, moved = 0 }) => {
+    const page = await ctx.runMutation(components.armory.roster.migrateLegacyRecipes, {
+      guildId: GUILD_ID,
+      paginationOpts: { cursor, numItems: 10 },
+    });
+    const total = moved + page.moved;
+    if (page.isDone) {
+      console.log(`armory roster: moved recipes off ${total} entries`);
+      return;
+    }
+    await ctx.scheduler.runAfter(0, internal.armory.rosterMigrateRecipes, {
+      cursor: page.continueCursor,
+      moved: total,
+    });
+  },
 });
 
 /** Write one roster sync's results through `armory-guild-roster-record` (system only). */
@@ -134,16 +166,23 @@ export const rosterSync = internalAction({
       return;
     }
     const members = toRosterMembers(roster);
+    if (members.length === 0) {
+      // armory-guild-roster-record refuses this too; skip the fetches.
+      console.error(`armory roster sync: guild "${slug}" answered no members`);
+      return;
+    }
 
     const known = await ctx.runQuery(internal.armory.rosterStatus, { guildId });
-    const checkedAt = new Map(known.map((e) => [e.slug, e.checkedAt]));
+    // By Blizzard's id, so a rename isn't mistaken for a new, never-checked character.
+    const checkedAt = new Map(known.map((e) => [e.blizzardId, e.checkedAt]));
     const at = Date.now();
+    const last = (m: (typeof members)[number]) => checkedAt.get(m.blizzardId) ?? null;
     const due = members
       .filter((m) => {
-        const last = checkedAt.get(m.slug) ?? null;
-        return last === null || last <= at - ROSTER_STALE_MS;
+        const t = last(m);
+        return t === null || t <= at - ROSTER_STALE_MS;
       })
-      .sort((a, b) => (checkedAt.get(a.slug) ?? -1) - (checkedAt.get(b.slug) ?? -1));
+      .sort((a, b) => (last(a) ?? -1) - (last(b) ?? -1));
     const batch = due.slice(0, ROSTER_SYNC_BATCH);
 
     const enriched: { slug: string; result: RosterFetchResult }[] = [];
@@ -155,9 +194,17 @@ export const rosterSync = internalAction({
       });
     }
 
-    const recorded = await ctx.runMutation(internal.armory.rosterRecord, { members, enriched });
-    if (!recorded.success) {
-      console.error(`armory roster sync: record refused: ${recorded.error?.code}`);
+    // Every call carries the full member list (reconciling it again is a no-op), so splitting
+    // the enrichments by size never drops anyone from the roster.
+    for (const chunk of chunkBySize(enriched, ROSTER_RECORD_BYTES - serializedBytes(members))) {
+      const recorded = await ctx.runMutation(internal.armory.rosterRecord, {
+        members,
+        enriched: chunk,
+      });
+      if (!recorded.success) {
+        console.error(`armory roster sync: record refused: ${recorded.error?.code}`);
+        return;
+      }
     }
   },
 });

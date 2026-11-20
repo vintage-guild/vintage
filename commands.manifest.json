@@ -606,7 +606,7 @@
     },
     {
       "name": "armory-guild-roster-record",
-      "description": "Record one sync’s results: the guild’s current member list from Blizzard (inserts new characters as pending, drops ones no longer in the guild) and whichever members’ details were just re-fetched. Run by the sync action.",
+      "description": "Record one sync’s results: the guild’s current member list from Blizzard (inserts new characters as pending, matches by Blizzard’s character id so a rename keeps its row and is re-checked, drops ones no longer in the guild, ignores a repeated id or slug) and whichever members’ details were just re-fetched. A found result keeps any field it leaves out (that request failed); a result that doesn’t fit is recorded as that character’s error instead of refusing the batch. An empty member list is refused while the roster has entries: Blizzard answering with no one is an outage, not the guild disbanding. Run by the sync action.",
       "tier": "officer",
       "mutation": true,
       "destructive": false,
@@ -670,6 +670,10 @@
                   "maxLength": 96
                 },
                 "result": {
+                  "default": {
+                    "status": "error",
+                    "error": "Armory answer out of bounds (result: invalid)"
+                  },
                   "oneOf": [
                     {
                       "type": "object",
@@ -747,7 +751,6 @@
                           }
                         },
                         "recipes": {
-                          "default": [],
                           "maxItems": 1500,
                           "type": "array",
                           "items": {
@@ -803,9 +806,6 @@
                         "status",
                         "className",
                         "raceName",
-                        "activeSpec",
-                        "professions",
-                        "avatarUrl",
                         "profileUrl"
                       ]
                     },

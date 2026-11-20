@@ -1,5 +1,5 @@
 import { commandsFor } from '@vintage/guild-kit';
-import type { ArmoryLink, RosterEntry } from './contract';
+import type { ArmoryLink, RosterEntry, RosterRecipe, RosterRecipes } from './contract';
 
 /**
  * The armory module's data port. Commands depend on this, not on Convex: production wires it
@@ -54,9 +54,14 @@ export interface RosterStore {
   updateEntry(
     guildId: string,
     entryId: string,
-    patch: Partial<Omit<RosterEntry, 'id' | 'guildId' | 'blizzardId' | 'slug'>>,
+    patch: Partial<Omit<RosterEntry, 'id' | 'guildId' | 'blizzardId'>>,
   ): Promise<RosterEntry>;
+  /** Deletes the entry and its recipes. */
   deleteEntry(guildId: string, entryId: string): Promise<void>;
+  /** Every entry's recipes, for `armory-recipe-search`; entries with none are left out. */
+  listRecipes(guildId: string): Promise<RosterRecipes[]>;
+  /** Replaces one entry's recipes. */
+  setRecipes(guildId: string, entryId: string, recipes: RosterRecipe[]): Promise<void>;
 }
 
 /**

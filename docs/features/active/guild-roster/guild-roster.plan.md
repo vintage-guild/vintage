@@ -1,6 +1,6 @@
 # Guild roster: a public roster page fed by the Forever armory
 
-**Status:** proposed (2026-11-19). **Owner module:** armory (extended, not a new module — it
+**Status:** active (built 2026-11-19; hardened 2026-11-20). **Owner module:** armory (extended, not a new module — it
 already owns the Blizzard client wiring and the Convex component this needs).
 
 ## Why
@@ -80,8 +80,8 @@ cycles through full enrichment within a few hours without bursting Blizzard's ra
 
 ### 5. Website: `/roster`
 
-A new page (`apps/web/src/pages/roster.ts`) and a `vintage-roster-table` element in
-`packages/ui-kit`: name (linking to `profileUrl`), portrait, class, active spec, professions
+A new page (`apps/web/src/pages/roster.ts`; the table lives in the page, there is no ui-kit
+element): name (linking to `profileUrl`), portrait, class, active spec, professions
 with levels, sorted by guild rank. Public read (recruit tier already allows anyone signed in at
 recruit+; the page itself can be public like the home page's recruiting band, since this is
 exactly what the Google Sheet already shows anyone in Discord).
@@ -92,12 +92,13 @@ exactly what the Google Sheet already shows anyone in Discord).
    Blizzard's API gives a rank *index*, not a label, and nothing yet maps that index to
    "Raider" or "Member." **v1 shows the whole in-game roster** (which for this guild is already
    just raiders, members, and recruits — nobody else is in the in-game guild) sorted by rank
-   index. A `roster-rank-names-set`-style config (mirroring `guild-roles-set`) to label and
-   optionally filter rank indices is a clean follow-up once there's a reason to hide anyone.
-2. **Professions shape is unverified.** Needs a live probe once `BLIZZARD_CLIENT_ID`/`SECRET`
-   are available in an environment that can run `armory-probe.ts` against `/professions`.
-3. **Guild slug**: assumed `vintage`; needs confirming against the live Blizzard guild once
-   deployed (`BLIZZARD_GUILD_SLUG` env, default `vintage`, overridable without a deploy).
+   index. **Resolved:** the website names the indices (`RANK_NAMES` in
+   `apps/web/src/pages/roster.ts`, checked against the live roster); a
+   `roster-rank-names-set`-style config is a follow-up once officers want to edit them.
+2. ~~Professions shape is unverified.~~ Confirmed live 2026-11-19 (points and recipes in
+   `tiers[]`; see the forever-api README).
+3. **Guild slug**: `vintage` synced live 2026-11-19 (113 characters, per
+   [recipe-search](../recipe-search/recipe-search.plan.md)); `BLIZZARD_GUILD_SLUG` overrides it.
 
 ## Decisions
 
@@ -106,6 +107,12 @@ exactly what the Google Sheet already shows anyone in Discord).
 | 2026-11-19 | Extend `modules/armory`, not a new module | It already owns the Blizzard client, the Convex component, and the `armory` commitlint/ownership scope; a guild-wide roster is a natural second table in the same component, not a separate concern |
 | 2026-11-19 | Roster entries are independent of identity links | Blizzard's guild roster already includes everyone in-game; requiring every raider to register and link first would make the page less complete than the Google Sheet it replaces |
 | 2026-11-19 | No gear/item level on this page | Not asked for; keeps the sync to 4 endpoints per character instead of 5 |
+| 2026-11-20 | A failed sub-request keeps the stored fields | A 429 on `/professions` blanked a character's professions and recipes for a day (the next pass is 24 h out) |
+| 2026-11-20 | An empty Blizzard roster is refused | `members` defaults to `[]`; one bad answer would have deleted every row and its enrichment |
+| 2026-11-20 | Results are checked one by one | One answer past a bound refused the whole batch, membership included, and the same stalest rows were retried first forever |
+| 2026-11-20 | Recipes in their own table, keyed by entry id | They're most of each row's bytes; the public roster read, the sync, and the staleness query all loaded them to throw them away |
+| 2026-11-20 | Match roster rows by `blizzardId` only | A rename deleted and re-inserted the row, losing its enrichment; a slug fallback would hand a renamed character's row to whoever takes the freed name |
+| 2026-11-20 | Split the record call by serialized size | 60 characters with hundreds of recipes each can outgrow one Convex argument; every chunk carries the full member list, so splitting never drops a member |
 
 ## Tasks
 

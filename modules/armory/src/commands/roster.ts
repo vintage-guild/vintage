@@ -1,10 +1,13 @@
 // The guild roster: public (it's Blizzard's public armory data), synced by a cron through two
 // system-only commands (the sync never calls Blizzard directly; apps/api's action does, then
 // hands the results back here — same split as armory-sweep/armory-record).
-import { success, tierAllows } from '@vintage/guild-kit';
+import { error, success, tierAllows } from '@vintage/guild-kit';
 import { z } from 'zod';
-import { ROSTER_SYNC_BATCH, type RosterListing } from '../contract';
-import { command } from '../store';
+import { ROSTER_SYNC_BATCH, type RosterEntry, type RosterListing } from '../contract';
+import { MAX_ERROR } from '../domain/fetch';
+import { type ArmoryDeps, command } from '../store';
+
+type RosterDeps = Pick<ArmoryDeps, 'armoryRoster'>;
 
 export const armoryGuildRoster = command({
   name: 'armory-guild-roster',
@@ -23,10 +26,7 @@ export const armoryGuildRoster = command({
   handler: async (_input, { guildId, deps, caller }) => {
     const byRank = (a: RosterListing, b: RosterListing) =>
       a.guildRank - b.guildRank || a.name.localeCompare(b.name);
-    // Recipes are hundreds per character; armory-recipe-search reads them instead.
-    const entries = (await deps.armoryRoster.listEntries(guildId)).map(
-      ({ recipes: _recipes, ...entry }) => entry,
-    );
+    const entries = await deps.armoryRoster.listEntries(guildId);
     // Which Discord member plays which character is the guild's to know, like member-list.
     if (!tierAllows(caller.tier, 'recruit')) {
       return success(entries.map((e) => ({ ...e, memberId: null })).sort(byRank));
@@ -98,111 +98,201 @@ const recipeSchema = z.object({
   profession: text(48),
 });
 
-const enrichedSchema = z.object({
-  slug: text(96),
-  result: z.discriminatedUnion('status', [
-    z.object({
-      status: z.literal('found'),
-      className: nullableText(48),
-      raceName: nullableText(48),
-      activeSpec: nullableText(48),
-      professions: z.array(professionSchema).max(16),
-      recipes: z.array(recipeSchema).max(1500).default([]),
-      avatarUrl: url(500),
-      profileUrl: url(300),
-    }),
-    z.object({ status: z.literal('error'), error: text(300) }),
-  ]),
+/** One enrichment as the sync found it; fields left out of `found` failed and are kept. */
+const resultSchema = z.discriminatedUnion('status', [
+  z.object({
+    status: z.literal('found'),
+    className: nullableText(48),
+    raceName: nullableText(48),
+    activeSpec: nullableText(48).optional(),
+    professions: z.array(professionSchema).max(16).optional(),
+    recipes: z.array(recipeSchema).max(1500).optional(),
+    avatarUrl: url(500).optional(),
+    profileUrl: url(300),
+  }),
+  z.object({ status: z.literal('error'), error: text(MAX_ERROR) }),
+]);
+
+const OUT_OF_BOUNDS = 'Armory answer out of bounds';
+
+/**
+ * A result that doesn't fit `resultSchema` becomes that character's error instead of refusing
+ * the whole input, so one bad answer can't stall every sync after it.
+ */
+const checkedResult = resultSchema.catch((ctx) => {
+  // The manifest's JSON Schema export calls this with no context, to show it as the default.
+  const issue = ctx?.issues[0];
+  const where = issue?.path?.length ? issue.path.join('.') : 'result';
+  return {
+    status: 'error' as const,
+    error: `${OUT_OF_BOUNDS} (${where}: ${issue?.message ?? 'invalid'})`.slice(0, MAX_ERROR),
+  };
 });
+
+type Member = z.infer<typeof memberSchema>;
+type CheckedResult = z.infer<typeof checkedResult>;
+
+const pendingEntry = (guildId: string, m: Member): Omit<RosterEntry, 'id'> => ({
+  guildId,
+  blizzardId: m.blizzardId,
+  name: m.name,
+  surname: m.surname,
+  slug: m.slug,
+  level: m.level,
+  guildRank: m.guildRank,
+  status: 'pending',
+  className: null,
+  raceName: null,
+  activeSpec: null,
+  professions: [],
+  avatarUrl: null,
+  profileUrl: null,
+  error: null,
+  checkedAt: null,
+});
+
+/**
+ * Blizzard's members, each id and each slug once (the first wins): two answers for one
+ * character, or two characters on one slug, would otherwise write the same row twice.
+ */
+const uniqueMembers = (members: Member[]) => {
+  const ids = new Set<number>();
+  const slugs = new Set<string>();
+  return members.filter((m) => {
+    if (ids.has(m.blizzardId) || slugs.has(m.slug)) return false;
+    ids.add(m.blizzardId);
+    slugs.add(m.slug);
+    return true;
+  });
+};
+
+/**
+ * Bring the table's membership in line with Blizzard's: delete who left, insert who joined,
+ * update level, rank, and renames. Rows are matched by Blizzard's character id only: a slug can
+ * pass to another character (a rename frees it), so a new id on a known slug is a new character.
+ * A renamed row loses its armory link (it named the old slug) and is due again at once.
+ * Answers the entries by their current slug.
+ */
+async function syncMembers(
+  deps: RosterDeps,
+  guildId: string,
+  existing: RosterEntry[],
+  members: Member[],
+) {
+  const byId = new Map(existing.map((e) => [e.blizzardId, e]));
+  const present = new Set(members.map((m) => m.blizzardId));
+  const counts = { inserted: 0, removed: 0, renamed: 0 };
+  for (const entry of existing.filter((e) => !present.has(e.blizzardId))) {
+    await deps.armoryRoster.deleteEntry(guildId, entry.id);
+    counts.removed++;
+  }
+  const current = new Map<string, RosterEntry>();
+  for (const member of members) {
+    const found = byId.get(member.blizzardId);
+    if (!found) {
+      current.set(member.slug, await deps.armoryRoster.insertEntry(pendingEntry(guildId, member)));
+      counts.inserted++;
+      continue;
+    }
+    const rename = found.slug !== member.slug;
+    if (rename) counts.renamed++;
+    const changed = rename || found.level !== member.level || found.guildRank !== member.guildRank;
+    const { name, surname, slug, level, guildRank } = member;
+    current.set(
+      member.slug,
+      changed
+        ? await deps.armoryRoster.updateEntry(guildId, found.id, {
+            name,
+            surname,
+            slug,
+            level,
+            guildRank,
+            ...(rename ? { profileUrl: null, checkedAt: null } : {}),
+          })
+        : found,
+    );
+  }
+  return { current, ...counts };
+}
+
+/** Write one enrichment; a found result's left-out fields (failed requests) keep their values. */
+async function recordResult(
+  deps: RosterDeps,
+  guildId: string,
+  entryId: string,
+  result: CheckedResult,
+  at: number,
+) {
+  if (result.status === 'error') {
+    await deps.armoryRoster.updateEntry(guildId, entryId, {
+      status: 'error',
+      error: result.error,
+      checkedAt: at,
+    });
+    return;
+  }
+  const { status, recipes, ...fields } = result;
+  await deps.armoryRoster.updateEntry(guildId, entryId, {
+    ...fields,
+    status,
+    error: null,
+    checkedAt: at,
+  });
+  if (recipes) await deps.armoryRoster.setRecipes(guildId, entryId, recipes);
+}
 
 export const armoryGuildRosterRecord = command({
   name: 'armory-guild-roster-record',
   description:
     'Record one sync’s results: the guild’s current member list from Blizzard (inserts new ' +
-    'characters as pending, drops ones no longer in the guild) and whichever members’ details ' +
-    'were just re-fetched. Run by the sync action.',
+    'characters as pending, matches by Blizzard’s character id so a rename keeps its row and is ' +
+    're-checked, drops ones no longer in the guild, ignores a repeated id or slug) and whichever members’ details were just re-fetched. A found result keeps ' +
+    'any field it leaves out (that request failed); a result that doesn’t fit is recorded as ' +
+    'that character’s error instead of refusing the batch. An empty member list is refused ' +
+    'while the roster has entries: Blizzard answering with no one is an outage, not the guild ' +
+    'disbanding. Run by the sync action.',
   tier: 'officer',
   systemOnly: true,
   mutation: true,
   input: z.object({
     members: z.array(memberSchema).max(2000),
-    enriched: z.array(enrichedSchema).max(ROSTER_SYNC_BATCH),
+    enriched: z.array(z.object({ slug: text(96), result: checkedResult })).max(ROSTER_SYNC_BATCH),
   }),
   handler: async ({ members, enriched }, { guildId, deps, now }) => {
     const at = now();
     const existing = await deps.armoryRoster.listEntries(guildId);
-    const bySlug = new Map(existing.map((e) => [e.slug, e]));
-    const current = new Set(members.map((m) => m.slug));
-
-    let inserted = 0;
-    let removed = 0;
-    for (const entry of existing) {
-      if (current.has(entry.slug)) continue;
-      await deps.armoryRoster.deleteEntry(guildId, entry.id);
-      bySlug.delete(entry.slug);
-      removed++;
+    if (members.length === 0 && existing.length > 0) {
+      return error('ARMORY_ROSTER_EMPTY', 'Blizzard answered an empty guild roster', {
+        suggestion: 'Nothing was changed; the next sync tries again.',
+      });
     }
-    for (const member of members) {
-      const found = bySlug.get(member.slug);
-      if (!found) {
-        const created = await deps.armoryRoster.insertEntry({
-          guildId,
-          blizzardId: member.blizzardId,
-          name: member.name,
-          surname: member.surname,
-          slug: member.slug,
-          level: member.level,
-          guildRank: member.guildRank,
-          status: 'pending',
-          className: null,
-          raceName: null,
-          activeSpec: null,
-          professions: [],
-          recipes: [],
-          avatarUrl: null,
-          profileUrl: null,
-          error: null,
-          checkedAt: null,
-        });
-        bySlug.set(member.slug, created);
-        inserted++;
-      } else if (found.level !== member.level || found.guildRank !== member.guildRank) {
-        bySlug.set(
-          member.slug,
-          await deps.armoryRoster.updateEntry(guildId, found.id, {
-            level: member.level,
-            guildRank: member.guildRank,
-          }),
-        );
-      }
-    }
+    const unique = uniqueMembers(members);
+    const duplicates = members.length - unique.length;
+    const { current, inserted, removed, renamed } = await syncMembers(
+      deps,
+      guildId,
+      existing,
+      unique,
+    );
 
     let enrichedCount = 0;
+    let rejected = 0;
     for (const { slug, result } of enriched) {
-      const target = bySlug.get(slug);
+      const target = current.get(slug);
       if (!target) continue; // Dropped from the guild mid-sync.
-      const patch =
-        result.status === 'found'
-          ? {
-              status: 'found' as const,
-              className: result.className,
-              raceName: result.raceName,
-              activeSpec: result.activeSpec,
-              professions: result.professions,
-              recipes: result.recipes,
-              avatarUrl: result.avatarUrl,
-              profileUrl: result.profileUrl,
-              error: null,
-              checkedAt: at,
-            }
-          : { status: 'error' as const, error: result.error, checkedAt: at };
-      bySlug.set(slug, await deps.armoryRoster.updateEntry(guildId, target.id, patch));
+      if (result.status === 'error' && result.error.startsWith(OUT_OF_BOUNDS)) rejected++;
+      await recordResult(deps, guildId, target.id, result, at);
       enrichedCount++;
     }
 
     return success(
-      { inserted, removed, enriched: enrichedCount },
-      { reasoning: `${inserted} new, ${removed} removed, ${enrichedCount} enriched` },
+      { inserted, removed, renamed, enriched: enrichedCount, rejected, duplicates },
+      {
+        reasoning:
+          `${inserted} new, ${removed} removed, ${renamed} renamed, ${enrichedCount} enriched` +
+          (rejected ? ` (${rejected} out of bounds, recorded as errors)` : '') +
+          (duplicates ? ` (${duplicates} duplicate member(s) ignored)` : ''),
+      },
     );
   },
 });

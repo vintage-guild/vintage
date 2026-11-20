@@ -266,6 +266,10 @@ export function rosterStore(ctx: Ctx): RosterStore {
     deleteEntry: async (guildId, entryId) => {
       await writable(ctx).runMutation(armory.roster.remove, { guildId, entryId });
     },
+    listRecipes: (guildId) => ctx.runQuery(armory.roster.listRecipes, { guildId }),
+    setRecipes: async (guildId, entryId, recipes) => {
+      await writable(ctx).runMutation(armory.roster.setRecipes, { guildId, entryId, recipes });
+    },
   };
 }
 

@@ -2,8 +2,28 @@
 // roster itself (Blizzard's armory shows the same recipes to anyone).
 import { success } from '@vintage/guild-kit';
 import { z } from 'zod';
-import { RECIPE_SEARCH_LIMIT, type RecipeMatch } from '../contract';
+import {
+  RECIPE_SEARCH_LIMIT,
+  type RecipeCrafter,
+  type RecipeMatch,
+  type RosterEntry,
+} from '../contract';
 import { command } from '../store';
+
+/** A roster character as a recipe's crafter, with its skill in the recipe's profession. */
+const toCrafter = (entry: RosterEntry, profession: string): RecipeCrafter => {
+  const skill = entry.professions.find((p) => p.name === profession);
+  return {
+    name: entry.name,
+    surname: entry.surname,
+    slug: entry.slug,
+    level: entry.level,
+    className: entry.className,
+    profileUrl: entry.profileUrl,
+    skill: skill?.level ?? 0,
+    maxSkill: skill?.maxLevel ?? null,
+  };
+};
 
 export const armoryRecipeSearch = command({
   name: 'armory-recipe-search',
@@ -22,27 +42,24 @@ export const armoryRecipeSearch = command({
   handler: async ({ query, profession }, { guildId, deps }) => {
     const needle = query.toLowerCase();
     const matches = new Map<number, RecipeMatch>();
-    for (const entry of await deps.armoryRoster.listEntries(guildId)) {
-      for (const recipe of entry.recipes) {
+    const [entries, known] = await Promise.all([
+      deps.armoryRoster.listEntries(guildId),
+      deps.armoryRoster.listRecipes(guildId),
+    ]);
+    const byId = new Map(entries.map((e) => [e.id, e]));
+    for (const { entryId, recipes } of known) {
+      const entry = byId.get(entryId);
+      if (!entry) continue;
+      for (const recipe of recipes) {
         if (profession && recipe.profession !== profession) continue;
         if (!recipe.name.toLowerCase().includes(needle)) continue;
-        const skill = entry.professions.find((p) => p.name === recipe.profession);
         const match = matches.get(recipe.id) ?? {
           id: recipe.id,
           name: recipe.name,
           profession: recipe.profession,
           crafters: [],
         };
-        match.crafters.push({
-          name: entry.name,
-          surname: entry.surname,
-          slug: entry.slug,
-          level: entry.level,
-          className: entry.className,
-          profileUrl: entry.profileUrl,
-          skill: skill?.level ?? 0,
-          maxSkill: skill?.maxLevel ?? null,
-        });
+        match.crafters.push(toCrafter(entry, recipe.profession));
         matches.set(recipe.id, match);
       }
     }

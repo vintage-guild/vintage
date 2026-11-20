@@ -97,7 +97,7 @@ export const ARMORY_SWEEP_BATCH = 25;
 
 // Guild roster: every character currently in the Forever guild's in-game roster (Blizzard's own
 // membership, from `guildRoster()`), independent of any member's link. Replaces the officers'
-// Google Sheet (docs/features/proposed/guild-roster).
+// Google Sheet (docs/features/active/guild-roster).
 
 export const ROSTER_STATUSES = ['pending', 'found', 'error'] as const;
 export type RosterStatus = (typeof ROSTER_STATUSES)[number];
@@ -135,8 +135,6 @@ export interface RosterEntry {
   raceName: string | null;
   activeSpec: string | null;
   professions: RosterProfession[];
-  /** Every recipe it knows; read through `armory-recipe-search`, not the roster listing. */
-  recipes: RosterRecipe[];
   avatarUrl: string | null;
   /** The character's public armory page. */
   profileUrl: string | null;
@@ -151,7 +149,7 @@ export interface RosterEntry {
  * the member who linked it to the armory, else the one whose registered character has its full
  * name. Null when no member claims it. A claim, like a link: never proof of ownership.
  */
-export interface RosterListing extends Omit<RosterEntry, 'recipes'> {
+export interface RosterListing extends RosterEntry {
   memberId: string | null;
 }
 
@@ -178,16 +176,30 @@ export interface RecipeMatch {
 /** Recipes one search answers at most; a longer list means the query is too broad. */
 export const RECIPE_SEARCH_LIMIT = 50;
 
-/** What one roster character's enrichment found, as `armory-guild-roster-record` takes it. */
+/**
+ * Every recipe one roster character knows, kept apart from its `RosterEntry` (hundreds per
+ * character) and read only by `armory-recipe-search`.
+ */
+export interface RosterRecipes {
+  /** The `RosterEntry` it belongs to. */
+  entryId: string;
+  recipes: RosterRecipe[];
+}
+
+/**
+ * What one roster character's enrichment found, as `armory-guild-roster-record` takes it. A
+ * field left out means its request failed (a 429 or a 5xx, say): the record keeps what it had
+ * instead of blanking it until the next pass. `null` and `[]` mean Blizzard answered with none.
+ */
 export type RosterFetchResult =
   | {
       status: 'found';
       className: string | null;
       raceName: string | null;
-      activeSpec: string | null;
-      professions: RosterProfession[];
-      recipes: RosterRecipe[];
-      avatarUrl: string | null;
+      activeSpec?: string | null;
+      professions?: RosterProfession[];
+      recipes?: RosterRecipe[];
+      avatarUrl?: string | null;
       profileUrl: string | null;
     }
   | { status: 'error'; error: string };
@@ -204,5 +216,10 @@ export interface RosterMember {
 
 /** An entry is re-enriched by the sync once its last check is this old. */
 export const ROSTER_STALE_MS = 24 * 60 * 60 * 1000;
+/**
+ * Serialized bytes one `armory-guild-roster-record` call stays under, well inside Convex's
+ * argument limit: 60 characters with hundreds of recipes each can outgrow a single call.
+ */
+export const ROSTER_RECORD_BYTES = 4_000_000;
 /** Roster entries one sync enriches, so a run stays well inside Blizzard's rate limit. */
 export const ROSTER_SYNC_BATCH = 60;

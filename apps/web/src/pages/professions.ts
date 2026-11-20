@@ -281,6 +281,8 @@ export class Page extends FASTElement {
 
   pickProfession(value: string): void {
     this.profession = value;
+    // Search now; a search still waiting on the debounce would only repeat it.
+    clearTimeout(this.timer);
     void this.search();
   }
 

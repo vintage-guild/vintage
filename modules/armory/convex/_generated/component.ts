@@ -179,7 +179,6 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           }>;
           profileUrl: string | null;
           raceName: string | null;
-          recipes?: Array<{ id: number; name: string; profession: string }>;
           slug: string;
           status: "pending" | "found" | "error";
           surname: string;
@@ -194,10 +193,45 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         any,
         Name
       >;
+      listRecipes: FunctionReference<
+        "query",
+        "internal",
+        { guildId: string },
+        any,
+        Name
+      >;
+      migrateLegacyRecipes: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          guildId: string;
+          paginationOpts: {
+            cursor: string | null;
+            endCursor?: string | null;
+            id?: number;
+            maximumBytesRead?: number;
+            maximumRowsRead?: number;
+            numItems: number;
+          };
+        },
+        any,
+        Name
+      >;
       remove: FunctionReference<
         "mutation",
         "internal",
         { entryId: string; guildId: string },
+        any,
+        Name
+      >;
+      setRecipes: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          entryId: string;
+          guildId: string;
+          recipes: Array<{ id: number; name: string; profession: string }>;
+        },
         any,
         Name
       >;
@@ -223,7 +257,6 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             }>;
             profileUrl?: string | null;
             raceName?: string | null;
-            recipes?: Array<{ id: number; name: string; profession: string }>;
             slug?: string;
             status?: "pending" | "found" | "error";
             surname?: string;

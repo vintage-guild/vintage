@@ -9,6 +9,7 @@
 //   npx convex run armory:refresh '{"linkIds":["…"]}'
 //   npx convex run armory:sweep
 //   npx convex run armory:rosterSync '{"guildId":"vintage"}'
+//   npx convex run armory:rosterMigrateRecipes   (once, until it answers 0)
 
 import { fetchArmory, fetchRosterEntry, toRosterMembers } from '@vintage/armory/commands';
 import {
@@ -19,7 +20,7 @@ import {
 } from '@vintage/armory/contract';
 import { createForeverApi, type ForeverApi, parseRegion } from '@vintage/forever-api';
 import { v } from 'convex/values';
-import { internal } from './_generated/api';
+import { components, internal } from './_generated/api';
 import { internalAction, internalMutation, internalQuery } from './_generated/server';
 import { GUILD_ID, runSystemCommand } from './commands';
 import { armoryStore, rosterStore } from './stores';
@@ -94,14 +95,27 @@ export const refresh = internalAction({
   },
 });
 
-/** The guild-roster entries' slug and last check, for staleness — nothing heavier is needed. */
+/** The guild-roster entries' Blizzard id and last check, for staleness. */
 export const rosterStatus = internalQuery({
   args: { guildId: v.string() },
   handler: async (ctx, { guildId }) =>
     (await rosterStore(ctx).listEntries(guildId)).map((e) => ({
-      slug: e.slug,
+      blizzardId: e.blizzardId,
       checkedAt: e.checkedAt,
     })),
+});
+
+/**
+ * One-off after recipes moved to their own table: moves up to 25 entries' legacy recipes per
+ * run (each entry's next update moves them too). Run until it answers 0.
+ */
+export const rosterMigrateRecipes = internalMutation({
+  args: {},
+  handler: (ctx) =>
+    ctx.runMutation(components.armory.roster.migrateLegacyRecipes, {
+      guildId: GUILD_ID,
+      limit: 25,
+    }),
 });
 
 /** Write one roster sync's results through `armory-guild-roster-record` (system only). */
@@ -134,16 +148,23 @@ export const rosterSync = internalAction({
       return;
     }
     const members = toRosterMembers(roster);
+    if (members.length === 0) {
+      // armory-guild-roster-record refuses this too; skip the fetches.
+      console.error(`armory roster sync: guild "${slug}" answered no members`);
+      return;
+    }
 
     const known = await ctx.runQuery(internal.armory.rosterStatus, { guildId });
-    const checkedAt = new Map(known.map((e) => [e.slug, e.checkedAt]));
+    // By Blizzard's id, so a rename isn't mistaken for a new, never-checked character.
+    const checkedAt = new Map(known.map((e) => [e.blizzardId, e.checkedAt]));
     const at = Date.now();
+    const last = (m: (typeof members)[number]) => checkedAt.get(m.blizzardId) ?? null;
     const due = members
       .filter((m) => {
-        const last = checkedAt.get(m.slug) ?? null;
-        return last === null || last <= at - ROSTER_STALE_MS;
+        const t = last(m);
+        return t === null || t <= at - ROSTER_STALE_MS;
       })
-      .sort((a, b) => (checkedAt.get(a.slug) ?? -1) - (checkedAt.get(b.slug) ?? -1));
+      .sort((a, b) => (last(a) ?? -1) - (last(b) ?? -1));
     const batch = due.slice(0, ROSTER_SYNC_BATCH);
 
     const enriched: { slug: string; result: RosterFetchResult }[] = [];

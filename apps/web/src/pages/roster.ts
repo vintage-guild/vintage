@@ -182,7 +182,9 @@ const sortButton = (key: SortKey, label: string) => html<Page>`<button
   @click="${(x) => x.sortBy(key)}"
 >${label}${(x) => (x.sort === key ? ' ▾' : '')}</button>`;
 
-const ariaSort = (key: SortKey) => (x: Page) => (x.sort === key ? 'ascending' : 'none');
+/** Level sorts highest first; rank (0 = Guild Master) and name sort ascending. */
+const ariaSort = (key: SortKey) => (x: Page) =>
+  x.sort !== key ? 'none' : key === 'level' ? 'descending' : 'ascending';
 
 const rosterTable = (rows: (x: Page) => RosterListing[], label: string) => html<Page>`
   <div class="table-wrap">

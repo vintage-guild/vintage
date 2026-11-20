@@ -158,6 +158,127 @@ describe('armory-guild-roster-record', () => {
     expect(result).toMatchObject({ success: true, data: { enriched: 0 } });
   });
 
+  it('keeps the stored fields a found result leaves out (their request failed)', async () => {
+    const full: RosterFetchResult = {
+      status: 'found',
+      className: 'Paladin',
+      raceName: 'Human',
+      activeSpec: 'Retribution',
+      professions: [{ name: 'Blacksmithing', level: 300, maxLevel: 300 }],
+      recipes: [{ id: 1993, name: 'Green Iron Bracers', profession: 'Blacksmithing' }],
+      avatarUrl: 'https://render.worldofwarcraft.com/a.jpg',
+      profileUrl:
+        'https://worldofwarcraft.blizzard.com/en-us/forever/us/armory/character/judgement-judy',
+    };
+    await record([member()], [{ slug: 'judgement-judy', result: full }]);
+    clock.advance(1000);
+    const { activeSpec: _s, professions: _p, recipes: _r, avatarUrl: _a, ...partial } = full;
+    await record([member()], [{ slug: 'judgement-judy', result: partial }]);
+    const [entry] = await ok<RosterEntry[]>('armory-guild-roster', {}, recruit);
+    expect(entry).toMatchObject({
+      status: 'found',
+      activeSpec: 'Retribution',
+      professions: full.professions,
+      avatarUrl: full.avatarUrl,
+      checkedAt: NOW + 1000,
+    });
+    expect([...deps.armoryRoster.recipes.values()].map((r) => r.recipes)).toEqual([full.recipes]);
+  });
+
+  it('refuses an empty member list while the roster has entries, changing nothing', async () => {
+    await record([member()], []);
+    const result = await record([], []);
+    expect(code(result)).toBe('ARMORY_ROSTER_EMPTY');
+    expect(await ok<RosterEntry[]>('armory-guild-roster', {}, recruit)).toHaveLength(1);
+  });
+
+  it('records an out-of-bounds answer as that character’s error, and the rest of the sync', async () => {
+    await record([member()], []);
+    const result = await record(
+      [
+        member(),
+        member({ blizzardId: 2, name: 'Bulwark', surname: 'Stone', slug: 'bulwark-stone' }),
+      ],
+      [
+        {
+          slug: 'judgement-judy',
+          result: {
+            status: 'found',
+            className: 'Paladin',
+            raceName: 'Human',
+            professions: [],
+            recipes: [{ id: 1, name: 'x'.repeat(500), profession: 'Blacksmithing' }],
+            avatarUrl: null,
+            profileUrl: null,
+          },
+        },
+      ],
+    );
+    expect(result).toMatchObject({ success: true, data: { inserted: 1, rejected: 1 } });
+    const entries = await ok<RosterEntry[]>('armory-guild-roster', {}, recruit);
+    expect(entries.map((e) => e.slug).sort()).toEqual(['bulwark-stone', 'judgement-judy']);
+    expect(entries.find((e) => e.slug === 'judgement-judy')).toMatchObject({
+      status: 'error',
+      error: expect.stringContaining('out of bounds (recipes.0.name'),
+    });
+  });
+
+  it('follows a rename by Blizzard’s id, keeping the enrichment and recipes', async () => {
+    await record(
+      [member()],
+      [
+        {
+          slug: 'judgement-judy',
+          result: {
+            status: 'found',
+            className: 'Paladin',
+            raceName: 'Human',
+            activeSpec: 'Holy',
+            professions: [],
+            recipes: [{ id: 1, name: 'Iron Helm', profession: 'Blacksmithing' }],
+            avatarUrl: null,
+            profileUrl: null,
+          },
+        },
+      ],
+    );
+    const [before] = await ok<RosterEntry[]>('armory-guild-roster', {}, recruit);
+    const result = await record([member({ surname: 'Jury', slug: 'judgement-jury' })], []);
+    expect(result).toMatchObject({ data: { inserted: 0, removed: 0, renamed: 1 } });
+    const [after] = await ok<RosterEntry[]>('armory-guild-roster', {}, recruit);
+    expect(after).toMatchObject({
+      id: before?.id,
+      surname: 'Jury',
+      slug: 'judgement-jury',
+      activeSpec: 'Holy',
+    });
+    expect(deps.armoryRoster.recipes.get(before!.id)?.recipes).toHaveLength(1);
+  });
+
+  it('drops a departed character’s recipes with it', async () => {
+    await record(
+      [
+        member(),
+        member({ blizzardId: 2, name: 'Bulwark', surname: 'Stone', slug: 'bulwark-stone' }),
+      ],
+      [
+        {
+          slug: 'bulwark-stone',
+          result: {
+            status: 'found',
+            className: 'Warrior',
+            raceName: 'Orc',
+            recipes: [{ id: 1, name: 'Iron Helm', profession: 'Blacksmithing' }],
+            profileUrl: null,
+          },
+        },
+      ],
+    );
+    expect(deps.armoryRoster.recipes.size).toBe(1);
+    await record([member()], []);
+    expect(deps.armoryRoster.recipes.size).toBe(0);
+  });
+
   it('is for the system only', async () => {
     expect(
       code(await run('armory-guild-roster-record', { members: [member()], enriched: [] }, officer)),
@@ -345,18 +466,25 @@ describe('fetchRosterEntry', () => {
     expect(failing).toEqual({ status: 'error', error: 'Blizzard: 503' });
   });
 
-  it('records the profile even when professions or media fail', async () => {
+  it('records the profile even when professions or media fail, leaving their fields out', async () => {
     const result = await fetchRosterEntry(
       client({
         characterProfessions: async () => {
-          throw new ForeverApiError('http', '/professions', 404, 'gone');
+          throw new ForeverApiError('http', '/professions', 429, 'Blizzard: 429');
         },
+        characterSpecializations: async () => {
+          throw new ForeverApiError('http', '/specializations', 503, 'Blizzard: 503');
+        },
+        // A 404: Blizzard has no media, which is an answer.
         characterMedia: async () => null,
       }),
       'us',
       'Judgement',
       'Judy',
     );
-    expect(result).toMatchObject({ status: 'found', professions: [], avatarUrl: null });
+    expect(result).toMatchObject({ status: 'found', className: 'Paladin', avatarUrl: null });
+    expect(result).not.toHaveProperty('professions');
+    expect(result).not.toHaveProperty('recipes');
+    expect(result).not.toHaveProperty('activeSpec');
   });
 });

@@ -1,4 +1,4 @@
-import type { ArmoryLink, RosterEntry } from './contract';
+import type { ArmoryLink, RosterEntry, RosterRecipe } from './contract';
 import type { ArmoryCharacter, ArmoryDeps, ArmoryStore, RosterStore } from './store';
 
 /** Code-point order, like the component's `by_guild_name` index (not the locale's). */
@@ -48,11 +48,17 @@ const byRank = (a: RosterEntry, b: RosterEntry) =>
   a.guildRank - b.guildRank || compare(a.name, b.name);
 
 /** In-memory RosterStore for tests. Same behavior contract as the component. */
-export function createMemoryRosterStore(): RosterStore & { entries: Map<string, RosterEntry> } {
+export function createMemoryRosterStore(): RosterStore & {
+  entries: Map<string, RosterEntry>;
+  /** Recipes by entry id. */
+  recipes: Map<string, { guildId: string; recipes: RosterRecipe[] }>;
+} {
   const entries = new Map<string, RosterEntry>();
+  const recipes = new Map<string, { guildId: string; recipes: RosterRecipe[] }>();
   let seq = 0;
   return {
     entries,
+    recipes,
     async listEntries(guildId) {
       return [...entries.values()].filter((e) => e.guildId === guildId).sort(byRank);
     },
@@ -73,7 +79,20 @@ export function createMemoryRosterStore(): RosterStore & { entries: Map<string, 
     },
     async deleteEntry(guildId, entryId) {
       const entry = entries.get(entryId);
-      if (entry && entry.guildId === guildId) entries.delete(entryId);
+      if (entry && entry.guildId === guildId) {
+        entries.delete(entryId);
+        recipes.delete(entryId);
+      }
+    },
+    async listRecipes(guildId) {
+      return [...recipes]
+        .filter(([, r]) => r.guildId === guildId && r.recipes.length > 0)
+        .map(([entryId, r]) => ({ entryId, recipes: r.recipes }));
+    },
+    async setRecipes(guildId, entryId, list) {
+      const entry = entries.get(entryId);
+      if (!entry || entry.guildId !== guildId) throw new Error(`No roster entry ${entryId}`);
+      recipes.set(entryId, { guildId, recipes: [...list] });
     },
   };
 }

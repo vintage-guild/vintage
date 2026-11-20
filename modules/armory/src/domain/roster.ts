@@ -36,10 +36,7 @@ export const toRosterMembers = (roster: GuildRoster): RosterMember[] =>
     guildRank: m.rank,
   }));
 
-/**
- * Primary and secondary professions with spent and max skill points, named ones only. Forever
- * keeps the points in the profession's one tier; a top-level value wins if Blizzard adds one.
- */
+/** Every named recipe the character's professions list, each once, with its profession. */
 export const toRecipes = (p: CharacterProfessions | null): RosterRecipe[] => {
   const seen = new Map<number, RosterRecipe>();
   for (const entry of [...(p?.primaries ?? []), ...(p?.secondaries ?? [])]) {
@@ -56,6 +53,10 @@ export const toRecipes = (p: CharacterProfessions | null): RosterRecipe[] => {
   return [...seen.values()];
 };
 
+/**
+ * Primary and secondary professions with spent and max skill points, named ones only. Forever
+ * keeps the points in the profession's one tier; a top-level value wins if Blizzard adds one.
+ */
 export const toProfessions = (p: CharacterProfessions | null): RosterProfession[] => {
   const out: RosterProfession[] = [];
   for (const entry of [...(p?.primaries ?? []), ...(p?.secondaries ?? [])]) {
@@ -90,19 +91,25 @@ export async function fetchRosterEntry(
   // In the guild roster but the profile 404s (not logged out since level 10, say): the next
   // sync tries again. Only guildRoster() dropping the slug removes the row.
   if (!profile) return { status: 'error', error: 'Not in the armory yet' };
+  // A request that fails leaves its fields out, so the record keeps what it had; `null` (a 404)
+  // means Blizzard has none.
+  const failed = Symbol('failed');
+  const settle = <T>(p: Promise<T>) => p.catch((): typeof failed => failed);
   const [media, specs, professions] = await Promise.all([
-    client.characterMedia(name, surname).catch(() => null),
-    client.characterSpecializations(name, surname).catch(() => null),
-    client.characterProfessions(name, surname).catch(() => null),
+    settle(client.characterMedia(name, surname)),
+    settle(client.characterSpecializations(name, surname)),
+    settle(client.characterProfessions(name, surname)),
   ]);
+  const spec = profile.active_spec?.name;
   return {
     status: 'found',
     className: profile.character_class?.name ?? null,
     raceName: profile.race?.name ?? null,
-    activeSpec: profile.active_spec?.name ?? toActiveSpec(specs),
-    professions: toProfessions(professions),
-    recipes: toRecipes(professions),
-    avatarUrl: toAvatar(media),
+    ...(spec ? { activeSpec: spec } : specs === failed ? {} : { activeSpec: toActiveSpec(specs) }),
+    ...(professions === failed
+      ? {}
+      : { professions: toProfessions(professions), recipes: toRecipes(professions) }),
+    ...(media === failed ? {} : { avatarUrl: toAvatar(media) }),
     profileUrl: armoryProfileUrl(region, name, surname),
   };
 }

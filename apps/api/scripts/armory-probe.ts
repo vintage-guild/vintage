@@ -144,19 +144,23 @@ try {
 console.log('\n### armory module: fetchRosterEntry');
 const entry = await fetchRosterEntry(api, region, name, surname);
 console.log(JSON.stringify(entry, null, 1));
-if (entry.status === 'found' && entry.professions.length > 0) {
-  const zero = entry.professions.filter((p) => p.level === 0).length;
+// A field left out of a found entry means its request failed (the sync keeps the stored value).
+const professionsList = entry.status === 'found' ? entry.professions : undefined;
+if (entry.status === 'found' && !professionsList) {
+  check('profession levels', false, 'the /professions request failed');
+} else if (professionsList && professionsList.length > 0) {
+  const zero = professionsList.filter((p) => p.level === 0).length;
   check(
     'profession levels',
-    zero < entry.professions.length,
-    entry.professions.map((p) => `${p.name} ${p.level}/${p.maxLevel ?? '?'}`).join(', '),
+    zero < professionsList.length,
+    professionsList.map((p) => `${p.name} ${p.level}/${p.maxLevel ?? '?'}`).join(', '),
   );
 }
 check(
   'roster entry',
   entry.status === 'found',
   entry.status === 'found'
-    ? `${entry.activeSpec ?? 'no spec'} ${entry.className ?? ''}, ${entry.professions.length} profession(s)`
+    ? `${entry.activeSpec ?? 'no spec'} ${entry.className ?? ''}, ${professionsList?.length ?? 'unknown'} profession(s)`
     : entry.error,
 );
 

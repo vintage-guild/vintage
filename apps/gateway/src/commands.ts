@@ -306,7 +306,18 @@ const CHARACTER_GROUP = {
         {
           type: T.STRING,
           name: 'role',
-          description: 'The role it plays (default: guessed from the spec)',
+          description: 'Main raid role (default: guessed from the spec)',
+          choices: [
+            { name: 'Tank', value: 'tank' },
+            { name: 'Healer', value: 'healer' },
+            { name: 'Melee DPS', value: 'melee' },
+            { name: 'Ranged DPS', value: 'ranged' },
+          ],
+        },
+        {
+          type: T.STRING,
+          name: 'secondary-role',
+          description: 'Optional off-spec / flex raid role',
           choices: [
             { name: 'Tank', value: 'tank' },
             { name: 'Healer', value: 'healer' },

@@ -78,6 +78,8 @@ export default defineSchema({
     // True when the member picked the role; otherwise it follows the spec. Optional so rows
     // from before #149 stay valid; read as false (guessed).
     rolePicked: v.optional(v.boolean()),
+    // Optional off-spec / flex role; null or absent when none.
+    secondaryRole: v.optional(v.union(role, v.null())),
     isMain: v.boolean(),
   })
     .index('by_guild', ['guildId'])

@@ -76,6 +76,8 @@ export interface Character {
    * is guessed from the spec, and a spec change re-guesses it.
    */
   rolePicked?: boolean;
+  /** Optional off-spec / flex role the member can fill; never the same as `role`. */
+  secondaryRole?: Role | null;
   isMain: boolean;
 }
 

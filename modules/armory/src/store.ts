@@ -7,6 +7,7 @@ import type {
   RosterEntry,
   RosterRecipe,
   RosterRecipes,
+  RosterRole,
 } from './contract';
 
 /**
@@ -34,6 +35,8 @@ export interface ArmoryCharacter {
   memberId: string;
   name: string;
   class: string;
+  role?: RosterRole;
+  secondaryRole?: RosterRole | null;
 }
 
 /**

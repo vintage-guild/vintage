@@ -73,6 +73,14 @@ export const rosterRecipe = v.object({
   profession: v.string(),
 });
 
+const rosterRole = v.union(
+  v.literal('tank'),
+  v.literal('healer'),
+  v.literal('melee'),
+  v.literal('ranged'),
+);
+const nullableRosterRole = v.union(rosterRole, v.null());
+
 /** Every field but the entry's id, guild, and blizzardId: what an update may change. */
 export const rosterEntryPatchFields = {
   name: v.string(),
@@ -89,6 +97,9 @@ export const rosterEntryPatchFields = {
   profileUrl: nullableString,
   error: nullableString,
   checkedAt: nullableNumber,
+  // Officer-assigned roles for unlinked roster entries; optional so existing rows stay valid.
+  preferredRole: v.optional(nullableRosterRole),
+  secondaryRole: v.optional(nullableRosterRole),
 };
 
 export const rosterEntryFields = {

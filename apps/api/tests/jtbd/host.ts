@@ -232,7 +232,16 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     armoryCharacters: {
       getCharacter: async (g, id) => {
         const c = await identity.getCharacter(g, id);
-        return c && { id: c.id, memberId: c.memberId, name: c.name, class: c.class };
+        return (
+          c && {
+            id: c.id,
+            memberId: c.memberId,
+            name: c.name,
+            class: c.class,
+            role: c.role,
+            secondaryRole: c.secondaryRole ?? null,
+          }
+        );
       },
       listCharacters: async (g) =>
         (await identity.listCharacters(g)).map((c) => ({
@@ -240,6 +249,8 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
           memberId: c.memberId,
           name: c.name,
           class: c.class,
+          role: c.role,
+          secondaryRole: c.secondaryRole ?? null,
         })),
     },
     armoryEffects: { fetch: async (_g, ids) => void armoryQueue.push(...ids) },

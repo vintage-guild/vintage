@@ -72,7 +72,12 @@ export function createMemoryRosterStore(): RosterStore & {
       return [...entries.values()].find((e) => e.guildId === guildId && e.slug === slug) ?? null;
     },
     async insertEntry(input) {
-      const entry = { ...input, id: `roster_${++seq}` };
+      const entry: RosterEntry = {
+        ...input,
+        preferredRole: input.preferredRole ?? null,
+        secondaryRole: input.secondaryRole ?? null,
+        id: `roster_${++seq}`,
+      };
       entries.set(entry.id, entry);
       return entry;
     },

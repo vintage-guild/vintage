@@ -25,6 +25,18 @@ async function must<T>(promise: Promise<{ success: boolean; data?: T; error?: un
   return result.data as T;
 }
 
+const FIXTURE_SECONDARY: Record<string, 'tank' | 'healer' | 'melee' | 'ranged'> = {
+  'warrior:protection': 'melee',
+  'warrior:arms': 'tank',
+  'warrior:fury': 'tank',
+  'paladin:holy': 'tank',
+  'druid:restoration': 'ranged',
+  'shaman:restoration': 'ranged',
+};
+
+const fixtureSecondaryRole = (cls: string, spec: string) =>
+  FIXTURE_SECONDARY[`${cls}:${spec}`] ?? null;
+
 export async function seedFixtures(host: FixtureHost): Promise<void> {
   const members = new Map<string, Member>();
   const characters = new Map<string, string>();
@@ -51,6 +63,7 @@ export async function seedFixtures(host: FixtureHost): Promise<void> {
         name: m.character ?? m.name,
         class: m.class,
         spec: m.spec,
+        secondaryRole: fixtureSecondaryRole(m.class, m.spec),
         isMain: true,
       }),
     );

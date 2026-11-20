@@ -68,6 +68,21 @@ function playPatch(character: Character, input: PlayEdit): Partial<Character> | 
   return role ? { class: wowClass, spec, ...role } : null;
 }
 
+/** Secondary role patch: clears when matching the main role or when class changes. */
+function secondaryRolePatch(
+  character: Character,
+  play: Partial<Character>,
+  secondaryRole: Role | null | undefined,
+): Partial<Character> {
+  const finalRole = play.role ?? character.role;
+  if (secondaryRole !== undefined) {
+    return { secondaryRole: secondaryRole && secondaryRole !== finalRole ? secondaryRole : null };
+  }
+  const classChanged = play.class !== undefined && play.class !== character.class;
+  if (classChanged || character.secondaryRole === finalRole) return { secondaryRole: null };
+  return {};
+}
+
 /** Make `character` the member's only main. */
 async function makeOnlyMain(deps: IdentityDeps, guildId: string, character: Character) {
   const siblings = await deps.identity.listCharacters(guildId, { memberId: character.memberId });
@@ -85,7 +100,8 @@ export const characterAdd = command({
   name: 'character-add',
   description:
     'Register one of your characters (main or alt). role is optional: leave it out to guess ' +
-    'it from the spec, or pick one (a Fury warrior who tanks).',
+    'it from the spec, or pick one (a Fury warrior who tanks). secondaryRole is an optional ' +
+    'off-spec / flex role.',
   tier: 'member',
   mutation: true,
   input: z.object({
@@ -93,12 +109,15 @@ export const characterAdd = command({
     class: classSchema,
     spec: z.string().min(1),
     role: roleSchema.optional(),
+    secondaryRole: roleSchema.nullable().optional(),
     isMain: z.boolean().default(false),
   }),
   handler: async (input, { caller, guildId, deps }) => {
     if (!caller.memberId) return notSignedIn();
     const role = roleOf(input.class, input.spec, input.role);
     if (!role) return badSpec(input.class, input.spec);
+    const secondaryRole =
+      input.secondaryRole && input.secondaryRole !== role.role ? input.secondaryRole : null;
 
     const name = normalizeCharacterName(input.name);
     const all = await deps.identity.listCharacters(guildId);
@@ -117,6 +136,7 @@ export const characterAdd = command({
       class: input.class,
       spec: input.spec,
       ...role,
+      secondaryRole,
       isMain,
     });
     return success(character, {
@@ -128,9 +148,9 @@ export const characterAdd = command({
 export const characterUpdate = command({
   name: 'character-update',
   description:
-    'Edit a character: name, class, spec, role, or make it your main. role null goes back to ' +
-    'guessing it from the spec; a guessed role follows a spec change, a picked one stays. A new ' +
-    'class needs a spec of that class.',
+    'Edit a character: name, class, spec, role, secondaryRole, or make it your main. role null ' +
+    'goes back to guessing it from the spec; a guessed role follows a spec change, a picked one ' +
+    'stays. secondaryRole null clears it. A new class needs a spec of that class.',
   tier: 'member',
   mutation: true,
   input: z.object({
@@ -139,6 +159,7 @@ export const characterUpdate = command({
     class: classSchema.optional(),
     spec: z.string().min(1).optional(),
     role: roleSchema.nullable().optional(),
+    secondaryRole: roleSchema.nullable().optional(),
     isMain: z.literal(true).optional(),
   }),
   handler: async (input, { caller, guildId, deps }) => {
@@ -148,7 +169,10 @@ export const characterUpdate = command({
 
     const play = playPatch(character, input);
     if (!play) return badSpec(input.class ?? character.class, input.spec ?? character.spec);
-    const patch: Partial<Character> = { ...play };
+    const patch: Partial<Character> = {
+      ...play,
+      ...secondaryRolePatch(character, play, input.secondaryRole),
+    };
     const name = input.name === undefined ? character.name : normalizeCharacterName(input.name);
     if (name !== character.name) {
       const all = await deps.identity.listCharacters(guildId);

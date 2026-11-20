@@ -230,6 +230,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           guildRank: number;
           level: number;
           name: string;
+          preferredRole?: "tank" | "healer" | "melee" | "ranged" | null;
           professions: Array<{
             level: number;
             maxLevel: number | null;
@@ -237,6 +238,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           }>;
           profileUrl: string | null;
           raceName: string | null;
+          secondaryRole?: "tank" | "healer" | "melee" | "ranged" | null;
           slug: string;
           status: "pending" | "found" | "error";
           surname: string;
@@ -291,6 +293,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             guildRank?: number;
             level?: number;
             name?: string;
+            preferredRole?: "tank" | "healer" | "melee" | "ranged" | null;
             professions?: Array<{
               level: number;
               maxLevel: number | null;
@@ -298,6 +301,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             }>;
             profileUrl?: string | null;
             raceName?: string | null;
+            secondaryRole?: "tank" | "healer" | "melee" | "ranged" | null;
             slug?: string;
             status?: "pending" | "found" | "error";
             surname?: string;

@@ -697,7 +697,7 @@
     },
     {
       "name": "armory-guild-roster",
-      "description": "Every character currently in the guild’s in-game roster (Blizzard’s own membership, not a member’s claim): level, class, race, guild rank, active spec, professions, portrait, a link to its armory page, and, for recruits and up, the guild member who claims it (`memberId`: whoever linked it to the armory, else whose registered character has its full name; null when none, and always null below recruit). Open to everyone. Sorted by guild rank, then name. Synced from Blizzard in the background (armory-guild-roster-sync); a character shows \"pending\" until its first enrichment pass, and \"error\" when the armory fetch failed (the guild roster listing is kept either way).",
+      "description": "Every character currently in the guild’s in-game roster (Blizzard’s own membership, not a member’s claim): level, class, race, guild rank, active spec, professions, portrait, a link to its armory page, its declared main/secondary raid roles (from the matched registered character, else officer-assigned on the entry), and, for recruits and up, the guild member and character id (`memberId`, `characterId`; always null below recruit). Open to everyone. Sorted by guild rank, then name. Synced from Blizzard in the background (armory-guild-roster-sync); a character shows \"pending\" until its first enrichment pass, and \"error\" when the armory fetch failed (the guild roster listing is kept either way).",
       "tier": "public",
       "mutation": false,
       "destructive": false,
@@ -942,6 +942,60 @@
         "required": [
           "members",
           "enriched"
+        ]
+      }
+    },
+    {
+      "name": "armory-guild-roster-role-set",
+      "description": "Set or clear an officer-assigned main and optional secondary raid role on a guild roster entry (used for unlinked characters; linked characters keep their role in identity). Clearing preferredRole also clears secondaryRole.",
+      "tier": "officer",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 96
+          },
+          "preferredRole": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "tank",
+                  "healer",
+                  "melee",
+                  "ranged"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "secondaryRole": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "tank",
+                  "healer",
+                  "melee",
+                  "ranged"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "slug",
+          "preferredRole"
         ]
       }
     },
@@ -1440,7 +1494,7 @@
     },
     {
       "name": "character-add",
-      "description": "Register one of your characters (main or alt). role is optional: leave it out to guess it from the spec, or pick one (a Fury warrior who tanks).",
+      "description": "Register one of your characters (main or alt). role is optional: leave it out to guess it from the spec, or pick one (a Fury warrior who tanks). secondaryRole is an optional off-spec / flex role.",
       "tier": "member",
       "mutation": true,
       "destructive": false,
@@ -1477,6 +1531,22 @@
               "healer",
               "melee",
               "ranged"
+            ]
+          },
+          "secondaryRole": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "tank",
+                  "healer",
+                  "melee",
+                  "ranged"
+                ]
+              },
+              {
+                "type": "null"
+              }
             ]
           },
           "isMain": {
@@ -1533,7 +1603,7 @@
     },
     {
       "name": "character-update",
-      "description": "Edit a character: name, class, spec, role, or make it your main. role null goes back to guessing it from the spec; a guessed role follows a spec change, a picked one stays. A new class needs a spec of that class.",
+      "description": "Edit a character: name, class, spec, role, secondaryRole, or make it your main. role null goes back to guessing it from the spec; a guessed role follows a spec change, a picked one stays. secondaryRole null clears it. A new class needs a spec of that class.",
       "tier": "member",
       "mutation": true,
       "destructive": false,
@@ -1568,6 +1638,22 @@
             "minLength": 1
           },
           "role": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "tank",
+                  "healer",
+                  "melee",
+                  "ranged"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "secondaryRole": {
             "anyOf": [
               {
                 "type": "string",
@@ -2182,7 +2268,7 @@
     },
     {
       "name": "member-sync",
-      "description": "Sync one member's guild rank and tier from their Discord server membership and roles. System only: runs at sign-in and from the role-sync cron.",
+      "description": "Sync one member's guild rank and tier from their Discord server membership and roles. System only: runs at sign-in and from the role-sync cron. adminAccess grants officer tier while keeping the member’s real Discord guild rank (from deployment config, never a user).",
       "tier": "officer",
       "mutation": true,
       "destructive": false,
@@ -2207,6 +2293,9 @@
             "items": {
               "type": "string"
             }
+          },
+          "adminAccess": {
+            "type": "boolean"
           }
         },
         "required": [

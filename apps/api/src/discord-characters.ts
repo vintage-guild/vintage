@@ -63,6 +63,8 @@ const REMOVE_PREFIX = 'char-rm';
 export const NEW_CHARACTER = 'new';
 /** The role select's "follow the spec" choice. */
 export const GUESS_ROLE = 'guess';
+/** The secondary role select's "none" choice. */
+export const NO_SECONDARY_ROLE = 'none';
 
 const NEEDS_MEMBER =
   'Characters need the Member rank or higher in this server. Ask an officer if that seems wrong.';
@@ -84,9 +86,9 @@ export interface AutocompletePorts extends MemberPorts {
 
 const failure = (result: CommandResult<unknown>) => failureText(result, NEEDS_MEMBER);
 
-/** "**Aeryn** · Holy Priest, healer · main" */
+/** "**Aeryn** · Holy Priest, healer (off: ranged) · main" */
 const line = (c: Character) =>
-  `**${c.name}** · ${playing(c)}${c.rolePicked ? ' (picked)' : ''}${c.isMain ? ' · main' : ''}`;
+  `**${c.name}** · ${playing(c)}${c.rolePicked ? ' (picked)' : ''}${c.secondaryRole ? ` · off: ${ROLE_WORDS[c.secondaryRole]}` : ''}${c.isMain ? ' · main' : ''}`;
 
 const isRole = (s: string | undefined): s is Role =>
   !!s && (ROLES as readonly string[]).includes(s);
@@ -148,6 +150,7 @@ async function add(ports: CharacterPorts, caller: Caller, interaction: Interacti
     class: o.class,
     spec: typeof o.spec === 'string' ? o.spec.trim().toLowerCase() : o.spec,
     ...(isRole(String(o.role)) ? { role: o.role } : {}),
+    ...(isRole(String(o['secondary-role'])) ? { secondaryRole: o['secondary-role'] } : {}),
     ...(o.main === true ? { isMain: true } : {}),
   });
   if (!result.success) return ephemeral(failure(result));
@@ -337,13 +340,21 @@ const ROLE_OPTIONS: SelectOption[] = [
   ...ROLES.map((r) => ({ label: titleCase(ROLE_WORDS[r]), value: r })),
 ];
 
+const SECONDARY_ROLE_OPTIONS: SelectOption[] = [
+  { label: 'None', value: NO_SECONDARY_ROLE, default: true },
+  ...ROLES.map((r) => ({ label: titleCase(ROLE_WORDS[r]), value: r })),
+];
+
 /** What the note field says for a late or tentative answer. */
 export interface NoteField {
   label: string;
   placeholder: string;
 }
 
-/** The New character form. `note` adds the late/tentative reason field (one form, one step). */
+/**
+ * The New character form. `note` adds the late/tentative reason field (one form, one step);
+ * without `note`, the fifth modal slot asks for an optional secondary / flex role.
+ */
 export function newCharacterForm(customId: string, title: string, note?: NoteField) {
   return modal(
     customId,
@@ -363,7 +374,7 @@ export function newCharacterForm(customId: string, title: string, note?: NoteFie
         ]
       : []),
     label(
-      'Role',
+      'Main role',
       stringSelect('role', ROLE_OPTIONS, { required: false }),
       'For a Fury warrior who tanks, say',
     ),
@@ -379,7 +390,13 @@ export function newCharacterForm(customId: string, title: string, note?: NoteFie
             }),
           ),
         ]
-      : []),
+      : [
+          label(
+            'Secondary role (optional)',
+            stringSelect('secondary_role', SECONDARY_ROLE_OPTIONS, { required: false }),
+            'An off-spec role you can flex to',
+          ),
+        ]),
   );
 }
 
@@ -388,7 +405,7 @@ export function newCharacterForm(customId: string, title: string, note?: NoteFie
  * the form had no note field, null when it was left empty.
  */
 export function readNewCharacter(interaction: Interaction): {
-  input: { name: string; class: string; spec: string; role?: Role };
+  input: { name: string; class: string; spec: string; role?: Role; secondaryRole?: Role };
   note: string | null | undefined;
 } {
   const text = modalValues(interaction);
@@ -397,6 +414,7 @@ export function readNewCharacter(interaction: Interaction): {
   // Without a spec list the class's first spec stands in, and Change spec fixes it after.
   const firstSpec = isClass(wowClass) ? Object.keys(CLASSES[wowClass])[0]! : '';
   const role = picked.role?.[0];
+  const secondaryRole = picked.secondary_role?.[0];
   const note = text.note?.trim();
   return {
     input: {
@@ -404,6 +422,7 @@ export function readNewCharacter(interaction: Interaction): {
       class: wowClass,
       spec: picked.spec?.[0] ?? firstSpec,
       ...(isRole(role) ? { role } : {}),
+      ...(isRole(secondaryRole) ? { secondaryRole } : {}),
     },
     note: note === undefined ? undefined : note || null,
   };

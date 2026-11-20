@@ -102,6 +102,10 @@ export const ARMORY_SWEEP_BATCH = 25;
 export const ROSTER_STATUSES = ['pending', 'found', 'error'] as const;
 export type RosterStatus = (typeof ROSTER_STATUSES)[number];
 
+/** Raid roles matching `@vintage/wow-data`'s `ROLES` union. */
+export const ROSTER_ROLES = ['tank', 'healer', 'melee', 'ranged'] as const;
+export type RosterRole = (typeof ROSTER_ROLES)[number];
+
 /** One profession on a roster character, with its spent and max skill points. */
 export interface RosterProfession {
   name: string;
@@ -142,15 +146,22 @@ export interface RosterEntry {
   error: string | null;
   /** Epoch ms; null until the first enrichment pass. */
   checkedAt: number | null;
+  /** Officer-assigned main raid role for unlinked roster entries (preserved across syncs). */
+  preferredRole?: RosterRole | null;
+  /** Officer-assigned secondary / flex raid role for unlinked roster entries. */
+  secondaryRole?: RosterRole | null;
 }
 
 /**
- * A roster character as `armory-guild-roster` answers it, with the guild member it belongs to:
- * the member who linked it to the armory, else the one whose registered character has its full
- * name. Null when no member claims it. A claim, like a link: never proof of ownership.
+ * A roster character as `armory-guild-roster` answers it, with the guild member and registered
+ * character it belongs to (for recruits and up; null below recruit), plus its declared main and
+ * secondary raid roles (from the matched registered character, else officer-assigned on the entry).
  */
 export interface RosterListing extends RosterEntry {
   memberId: string | null;
+  characterId: string | null;
+  preferredRole: RosterRole | null;
+  secondaryRole: RosterRole | null;
 }
 
 /** A roster character who can craft a recipe, with its skill in that profession. */

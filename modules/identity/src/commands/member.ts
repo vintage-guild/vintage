@@ -100,7 +100,8 @@ export const memberSync = command({
   name: 'member-sync',
   description:
     "Sync one member's guild rank and tier from their Discord server membership and roles. " +
-    'System only: runs at sign-in and from the role-sync cron.',
+    'System only: runs at sign-in and from the role-sync cron. adminAccess grants officer tier ' +
+    'while keeping the member’s real Discord guild rank (from deployment config, never a user).',
   tier: 'officer',
   mutation: true,
   systemOnly: true,
@@ -110,11 +111,13 @@ export const memberSync = command({
     /** Whether they're in the guild's Discord server at all. */
     inServer: z.boolean(),
     roleIds: z.array(z.string()),
+    /** Deployment-configured admin/developer access: officer tier without changing guild rank. */
+    adminAccess: z.boolean().optional(),
   }),
   handler: async (input, { guildId, deps, now }) => {
     const map = await deps.identity.getRoleRankMap(guildId);
     const rank = resolveRank(input.inServer, input.roleIds, map);
-    const tier = tierForRank(rank);
+    const tier = input.inServer && input.adminAccess ? 'officer' : tierForRank(rank);
     const before = await deps.identity.getMemberByDiscordId(guildId, input.discordId);
     const at = now();
     const previousRank = before ? before.rank : null;

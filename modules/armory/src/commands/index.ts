@@ -12,7 +12,12 @@ import {
   armoryRecipeGet,
 } from './recipe-details';
 import { armoryRecipeSearch } from './recipes';
-import { armoryGuildRoster, armoryGuildRosterRecord, armoryGuildRosterSync } from './roster';
+import {
+  armoryGuildRoster,
+  armoryGuildRosterRecord,
+  armoryGuildRosterRoleSet,
+  armoryGuildRosterSync,
+} from './roster';
 import { armoryRecord, armorySweep } from './system';
 
 export { type CatalogClient, catalogProfessions, fetchCatalog } from '../domain/catalog';
@@ -55,6 +60,7 @@ export const armoryCommands = [
   armoryGuildRoster,
   armoryGuildRosterSync,
   armoryGuildRosterRecord,
+  armoryGuildRosterRoleSet,
   armoryRecipeSearch,
   armoryCatalogSync,
   armoryCatalogRecord,

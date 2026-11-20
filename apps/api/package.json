@@ -38,7 +38,7 @@
     "@vintage/raids": "workspace:*",
     "@vintage/site": "workspace:*",
     "@vintage/wow-data": "workspace:*",
-    "better-auth": "1.6.33",
+    "better-auth": "1.6.34",
     "convex": "catalog:",
     "zod": "catalog:"
   },

@@ -56,6 +56,9 @@ const fullName = (c: { name: string; surname: string }) =>
   c.surname ? `${c.name} ${c.surname}` : c.name;
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
+/** Back to the overview, from a profession or a character. */
+const backLink = html`<a class="back" href="/professions"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M13.5 8h-11M7 3.5 2.5 8 7 12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>All professions</a>`;
+
 /** "Opens in a new tab": an arrow leaving a box, in the link's own color. */
 const newTab = html`<svg class="new-tab" viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><path d="M9 2.5h4.5V7M13.5 2.5 7.5 8.5M11.5 9.5v3.5a.5.5 0 0 1-.5.5H3a.5.5 0 0 1-.5-.5V5a.5.5 0 0 1 .5-.5h3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
@@ -200,7 +203,7 @@ const category = html<Category, Page>`
 `;
 
 const detail = html<Page>`
-  <a class="back" href="/professions">All professions</a>
+  ${backLink}
   ${when(
     (x) => x.detail,
     html<Page>`
@@ -265,7 +268,7 @@ const characterProfession = html<CharacterProfession, Page>`
 `;
 
 const characterView = html<Page>`
-  <a class="back" href="/professions">All professions</a>
+  ${backLink}
   ${when(
     (x) => x.character,
     html<Page>`
@@ -668,7 +671,49 @@ const styles = css`
   }
 
   .back {
-    font-size: var(--font-size-sm);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    justify-self: start;
+    padding: 0.4rem 0.75rem 0.4rem 0.6rem;
+    border: var(--border-width-thin) solid var(--color-border-strong);
+    border-radius: 0.2rem;
+    background: var(--color-surface-raised);
+    color: var(--color-text-secondary);
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xs);
+    letter-spacing: var(--font-tracking-wider);
+    text-transform: uppercase;
+    text-decoration: none;
+    transition:
+      color var(--motion-duration-normal) var(--motion-ease-out),
+      border-color var(--motion-duration-normal) var(--motion-ease-out);
+  }
+
+  .back svg {
+    transition: translate var(--motion-duration-normal) var(--motion-ease-out);
+  }
+
+  .back:hover,
+  .back:focus-visible {
+    border-color: var(--color-accent-primary);
+    color: var(--color-text-accent);
+  }
+
+  .back:hover svg {
+    translate: -3px 0;
+  }
+
+  .back:focus-visible {
+    outline: var(--border-width-thin) solid var(--color-focus-ring);
+    outline-offset: var(--border-width-thin);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .back,
+    .back svg {
+      transition: none;
+    }
   }
 
   .title {

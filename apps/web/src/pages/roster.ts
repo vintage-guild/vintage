@@ -29,6 +29,53 @@ const RECRUIT_RANK = 6;
 /** Blizzard's armory hides characters below this level, so the roster leaves them out. */
 const MIN_LEVEL = 10;
 
+/** The profession card and filter count a profession from this skill level up. */
+const CRAFT_MIN = 225;
+
+type StatKey = 'wowClass' | 'profession';
+
+interface Stat {
+  name: string;
+  count: number;
+  /** Bar length against the card's largest count. */
+  pct: number;
+  icon: string;
+}
+
+/** Counts by name, largest first, with each bar's share of the largest. */
+function toStats(names: string[], icon: (name: string) => string): Stat[] {
+  const counts = new Map<string, number>();
+  for (const name of names) counts.set(name, (counts.get(name) ?? 0) + 1);
+  const max = Math.max(1, ...counts.values());
+  return [...counts]
+    .sort(([a, x], [b, y]) => y - x || a.localeCompare(b))
+    .map(([name, count]) => ({ name, count, pct: (count / max) * 100, icon: icon(name) }));
+}
+
+/** A ranked bar list; a bar's button toggles the matching filter. */
+const statList = (stats: (x: Page) => Stat[], key: StatKey, unit: string) => html<Page>`
+  <ul class="stats ${(x) => (x[key] ? 'has-pick' : '')}">
+    ${repeat(
+      stats,
+      html<Stat, Page>`<li>
+        <button
+          type="button"
+          class="stat"
+          aria-pressed="${(s, c) => String(c.parent[key] === s.name)}"
+          aria-label="${(s) => `${s.name}, ${s.count} ${unit}`}"
+          @click="${(s, c) => c.parent.pick(key, s.name)}"
+        >
+          <img class="stat-icon" src="${(s) => s.icon}" alt="" loading="lazy" />
+          <span class="stat-name">${(s) => s.name}</span>
+          <span class="stat-track"><span class="stat-bar" style="inline-size: ${(s) => s.pct}%"></span></span>
+          <span class="stat-count">${(s) => s.count}</span>
+        </button>
+      </li>`,
+    )}
+  </ul>
+  ${when((x) => stats(x).length === 0, html`<p class="muted">None yet.</p>`)}
+`;
+
 type SortKey = 'rank' | 'name' | 'level';
 
 const percent = (p: RosterProfession) =>
@@ -161,19 +208,27 @@ const rosterTable = (rows: (x: Page) => RosterListing[], label: string) => html<
 const template = html<Page>`
   <div class="page wide">
     <h1>Roster</h1>
-    <p class="lead">
-      Everyone in the guild in game, straight from the WoW: Forever armory: spec, professions,
-      and a link to each character's armory page. Refreshed every half hour.${when(
-        (x) => x.showDiscord,
-        html` A character shows its member's Discord name once they link it on
-          <a href="/characters">Characters</a>.`,
-      )}
-    </p>
+    ${when(
+      (x) => x.showDiscord,
+      html`<p class="muted">
+        Link your characters on <a href="/characters">Characters</a> to show your Discord name.
+      </p>`,
+    )}
     ${when((x) => !x.loaded, html`<p class="muted">Loading the roster…</p>`)}
     ${when((x) => x.error, html<Page>`<p class="error" role="alert">${(x) => x.error}</p>`)}
     ${when(
       (x) => x.loaded && !x.error,
       html<Page>`
+            <div class="dashboard">
+              <section class="card" aria-labelledby="by-class">
+                <h2 id="by-class" class="card-title">Raid roster by class</h2>
+                ${statList((x) => x.classStats, 'wowClass', 'in the raid roster')}
+              </section>
+              <section class="card" aria-labelledby="by-profession">
+                <h2 id="by-profession" class="card-title">Primary professions ${CRAFT_MIN}+</h2>
+                ${statList((x) => x.professionStats, 'profession', `at ${CRAFT_MIN} or higher`)}
+              </section>
+            </div>
             <div class="controls" role="search">
               <label>
                 <span>Search</span>
@@ -204,22 +259,34 @@ const template = html<Page>`
                 <span>Class</span>
                 <select
                   @change="${(x, c) => {
-                    x.className = (c.event.target as HTMLSelectElement).value;
+                    x.wowClass = (c.event.target as HTMLSelectElement).value;
                   }}"
                 >
-                  <option value="">All classes</option>
-                  ${repeat((x) => x.classes, html<string>`<option value="${(c) => c}">${(c) => c}</option>`)}
+                  <option value="" ?selected="${(x) => !x.wowClass}">All classes</option>
+                  ${repeat(
+                    (x) => x.classes,
+                    html<
+                      string,
+                      Page
+                    >`<option value="${(c) => c}" ?selected="${(c, ctx) => ctx.parent.wowClass === c}">${(c) => c}</option>`,
+                  )}
                 </select>
               </label>
               <label>
-                <span>Profession</span>
+                <span>Profession ${CRAFT_MIN}+</span>
                 <select
                   @change="${(x, c) => {
                     x.profession = (c.event.target as HTMLSelectElement).value;
                   }}"
                 >
-                  <option value="">All professions</option>
-                  ${repeat((x) => x.professions, html<string>`<option value="${(p) => p}">${(p) => p}</option>`)}
+                  <option value="" ?selected="${(x) => !x.profession}">All professions</option>
+                  ${repeat(
+                    (x) => x.professions,
+                    html<
+                      string,
+                      Page
+                    >`<option value="${(p) => p}" ?selected="${(p, ctx) => ctx.parent.profession === p}">${(p) => p}</option>`,
+                  )}
                 </select>
               </label>
               <p class="count" aria-live="polite">
@@ -228,7 +295,6 @@ const template = html<Page>`
             </div>
             <section aria-labelledby="raiders">
               <h2 id="raiders">Raid roster <span class="tally">${(x) => x.raiders.length}</span></h2>
-              <p class="muted">The Guild Master, officers, and raiders.</p>
               ${rosterTable((x) => x.raiders, 'Raid roster')}
               <h3 id="flex">Flex raiders <span class="tally">${(x) => x.flex.length}</span></h3>
               ${rosterTable((x) => x.flex, 'Flex raiders')}
@@ -238,10 +304,7 @@ const template = html<Page>`
             <section aria-labelledby="others">
               <h2 id="others">Members &amp; alts <span class="tally">${(x) => x.others.length}</span></h2>
               ${rosterTable((x) => x.others, 'Members and alts')}
-              <p class="muted note">
-                Characters under level ${MIN_LEVEL} aren't listed: the armory doesn't show them
-                until they reach it.${(x) => (x.lowLevel > 0 ? ` (${x.lowLevel} in the guild now.)` : '')}
-              </p>
+              <p class="muted note">Characters under level ${MIN_LEVEL} aren't listed.</p>
             </section>
           `,
     )}
@@ -288,6 +351,104 @@ const styles = css`
     overflow: hidden;
     clip-path: inset(50%);
     white-space: nowrap;
+  }
+
+  .dashboard {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
+    gap: var(--space-md);
+  }
+
+  .card {
+    display: grid;
+    align-content: start;
+    gap: var(--space-xs);
+    padding: var(--space-sm) var(--space-md) var(--space-md);
+    border: var(--border-width-thin) solid var(--color-border-default);
+    border-radius: 0.35rem;
+    background: var(--color-surface-raised);
+  }
+
+  h2.card-title {
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    letter-spacing: var(--font-tracking-wider);
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+  }
+
+  .stats {
+    display: grid;
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .stat {
+    display: grid;
+    grid-template-columns: 1.15rem 7.5rem 1fr 2rem;
+    align-items: center;
+    gap: 0.5rem;
+    inline-size: 100%;
+    min-block-size: 1.75rem;
+    padding: 0.15rem 0.35rem;
+    border: 0;
+    border-radius: 0.25rem;
+    background: none;
+    color: var(--color-text-primary);
+    font: inherit;
+    font-size: var(--font-size-sm);
+    text-align: start;
+    cursor: pointer;
+  }
+
+  .stat:hover,
+  .stat:focus-visible {
+    background: var(--color-surface-sunken);
+  }
+
+  .stat:focus-visible {
+    outline: var(--border-width-thin) solid var(--color-focus-ring);
+  }
+
+  .stat-icon {
+    inline-size: 1.15rem;
+    block-size: 1.15rem;
+    border: var(--border-width-thin) solid var(--color-border-strong);
+    border-radius: 0.2rem;
+  }
+
+  .stat-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* One series, one color; the bar grows from the left with a rounded data end. */
+  .stat-bar {
+    display: block;
+    min-inline-size: 2px;
+    block-size: 0.6rem;
+    border-radius: 0 4px 4px 0;
+    background: var(--color-accent-secondary);
+  }
+
+  .stat-count {
+    justify-self: end;
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xs);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* A picked bar stays; the rest step back. */
+  .has-pick .stat[aria-pressed='false'] {
+    opacity: 0.45;
+  }
+
+  .stat[aria-pressed='true'] .stat-name {
+    font-weight: var(--font-weight-bold);
   }
 
   .controls {
@@ -615,8 +776,9 @@ export class Page extends FASTElement {
   @observable query = '';
   /** A rank index as text, or '' for every rank. */
   @observable rank = '';
-  @observable className = '';
-  /** A profession name, or '' for any. */
+  /** A class name, or '' for any. Not `className`: that's the element's class attribute. */
+  @observable wowClass = '';
+  /** A profession name, held at CRAFT_MIN or higher, or '' for any. */
   @observable profession = '';
   @observable sort: SortKey = 'rank';
 
@@ -665,10 +827,6 @@ export class Page extends FASTElement {
     return this.entries.filter((e) => e.level >= MIN_LEVEL);
   }
 
-  get lowLevel(): number {
-    return this.entries.length - this.listed.length;
-  }
-
   get ranks(): number[] {
     return [...new Set(this.listed.map((e) => e.guildRank))].sort((a, b) => a - b);
   }
@@ -677,8 +835,39 @@ export class Page extends FASTElement {
     return [...new Set(this.listed.flatMap((e) => (e.className ? [e.className] : [])))].sort();
   }
 
+  /** Professions someone listed holds at CRAFT_MIN or higher, for the filter. */
   get professions(): string[] {
-    return [...new Set(this.listed.flatMap((e) => e.professions.map((p) => p.name)))].sort();
+    return [
+      ...new Set(
+        this.listed.flatMap((e) =>
+          e.professions.filter((p) => p.level >= CRAFT_MIN).map((p) => p.name),
+        ),
+      ),
+    ].sort();
+  }
+
+  /** The raid roster's characters by class. */
+  get classStats(): Stat[] {
+    const raid = this.listed.filter((e) => RAID_RANKS.has(e.guildRank) && e.className);
+    return toStats(
+      raid.map((e) => e.className ?? ''),
+      (name) => classIcon(name, 'medium'),
+    );
+  }
+
+  /** Listed characters by primary profession held at CRAFT_MIN or higher. */
+  get professionStats(): Stat[] {
+    const names = this.listed.flatMap((e) =>
+      primaries(e)
+        .filter((p) => p.level >= CRAFT_MIN)
+        .map((p) => p.name),
+    );
+    return toStats(names, (name) => professionIcon(name, 'medium'));
+  }
+
+  /** A card's bar sets its filter, or clears it when already set. */
+  pick(key: StatKey, name: string): void {
+    this[key] = this[key] === name ? '' : name;
   }
 
   get visible(): RosterListing[] {
@@ -687,8 +876,9 @@ export class Page extends FASTElement {
     const filtered = this.listed.filter(
       (e) =>
         (rank === null || e.guildRank === rank) &&
-        (!this.className || e.className === this.className) &&
-        (!this.profession || e.professions.some((p) => p.name === this.profession)) &&
+        (!this.wowClass || e.className === this.wowClass) &&
+        (!this.profession ||
+          e.professions.some((p) => p.name === this.profession && p.level >= CRAFT_MIN)) &&
         (!q || `${e.name} ${e.surname} ${this.discordName(e) ?? ''}`.toLowerCase().includes(q)),
     );
     const byName = (a: RosterListing, b: RosterListing) => a.name.localeCompare(b.name);

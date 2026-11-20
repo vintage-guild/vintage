@@ -14,6 +14,7 @@ export {
   OAUTH_TOKEN_URL,
   parseRegion,
   profileNamespace,
+  staticNamespace,
 } from './client';
 export type {
   CharacterEquipment,
@@ -22,4 +23,7 @@ export type {
   CharacterProfile,
   CharacterSpecializations,
   GuildRoster,
+  Profession,
+  ProfessionIndex,
+  ProfessionSkillTier,
 } from './schemas';

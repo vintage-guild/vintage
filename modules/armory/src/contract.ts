@@ -223,3 +223,59 @@ export const ROSTER_STALE_MS = 24 * 60 * 60 * 1000;
 export const ROSTER_RECORD_BYTES = 4_000_000;
 /** Roster entries one sync enriches, so a run stays well inside Blizzard's rate limit. */
 export const ROSTER_SYNC_BATCH = 60;
+
+// The recipe catalog: every recipe each profession has, from Blizzard's game data (not any
+// character), so the website can show recipes nobody in the guild knows yet.
+
+/** One of a profession's recipe categories, as Blizzard groups them ("Weapon Stones"). */
+export interface CatalogCategory {
+  name: string;
+  recipes: { id: number; name: string }[];
+}
+
+/** One profession's whole recipe catalog. */
+export interface ProfessionCatalog {
+  id: string;
+  guildId: string;
+  /** Blizzard's profession name: `Blacksmithing`, `First Aid`. */
+  profession: string;
+  professionId: number;
+  categories: CatalogCategory[];
+  /** Epoch ms of the sync that wrote it. */
+  syncedAt: number;
+}
+
+/** A profession on the overview: its size, the guild's coverage, and its best crafters. */
+export interface ProfessionSummary {
+  profession: string;
+  /** Recipes in Blizzard's catalog; null until the catalog has synced. */
+  recipeCount: number | null;
+  /** Catalog recipes someone on the roster knows. */
+  knownCount: number;
+  /** Roster characters (level 10 and up) with the profession, at any skill. */
+  crafterCount: number;
+  /** The best three by skill. */
+  top: RecipeCrafter[];
+}
+
+/** A recipe in a profession's catalog, with everyone on the roster who knows it. */
+export interface CatalogRecipe {
+  id: number;
+  name: string;
+  /** Best skill first; empty when nobody knows it. */
+  crafters: RecipeCrafter[];
+}
+
+/** One profession's whole catalog with the guild's knowledge, for its page. */
+export interface ProfessionDetail {
+  profession: string;
+  recipeCount: number;
+  knownCount: number;
+  categories: { name: string; recipes: CatalogRecipe[] }[];
+}
+
+/**
+ * Gathering skills: Blizzard lists a few abilities as their "recipes" (Find Herbs), so they have
+ * no crafting catalog. Mining stays: it has real smelting recipes.
+ */
+export const GATHERING_PROFESSIONS: readonly string[] = ['Fishing', 'Herbalism', 'Skinning'];

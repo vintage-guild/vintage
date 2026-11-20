@@ -23,7 +23,7 @@ export class VintageRoutes extends RouterConfiguration {
       },
       { path: 'roster', title: 'Roster', element: page(() => import('./pages/roster')) },
       {
-        path: 'professions',
+        path: 'professions/{profession?}',
         title: 'Professions',
         element: page(() => import('./pages/professions')),
       },

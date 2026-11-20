@@ -118,6 +118,35 @@ export const guildRosterSchema = z.object({
 });
 export type GuildRoster = z.infer<typeof guildRosterSchema>;
 
+/**
+ * Game data, `static-forever-{region}` namespace (checked live 2026-11-20). `/data/wow/profession/
+ * index` lists every profession (a "Test Profession" among them); `/profession/{id}` names its
+ * `skill_tiers` (one per profession in Forever); `/profession/{id}/skill-tier/{tierId}` holds the
+ * whole recipe catalog in categories (Blacksmithing: 33 categories, 507 recipes). Recipe ids match
+ * a character's `known_recipes`.
+ */
+export const professionIndexSchema = z.object({
+  professions: z.array(named).default([]),
+});
+export type ProfessionIndex = z.infer<typeof professionIndexSchema>;
+
+export const professionSchema = z.object({
+  id: z.number().int(),
+  name: z.string().optional(),
+  type: z.object({ type: z.string() }).optional(),
+  skill_tiers: z.array(named).default([]),
+});
+export type Profession = z.infer<typeof professionSchema>;
+
+export const professionSkillTierSchema = z.object({
+  id: z.number().int(),
+  name: z.string().optional(),
+  categories: z
+    .array(z.object({ name: z.string().optional(), recipes: z.array(named).default([]) }))
+    .default([]),
+});
+export type ProfessionSkillTier = z.infer<typeof professionSkillTierSchema>;
+
 /** `https://oauth.battle.net/token` with `grant_type=client_credentials`. */
 export const tokenSchema = z.object({
   access_token: z.string().min(1),

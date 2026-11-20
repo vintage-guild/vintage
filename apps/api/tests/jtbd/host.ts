@@ -8,7 +8,11 @@ import { createRegistryTools } from '@vintage/agent-runtime';
 import { renderOnboardingDm } from '@vintage/applications/commands';
 import { createMemoryApplicationsStore } from '@vintage/applications/testing';
 import { type ArmoryClient, fetchArmory } from '@vintage/armory/commands';
-import { createMemoryArmoryStore, createMemoryRosterStore } from '@vintage/armory/testing';
+import {
+  createMemoryArmoryStore,
+  createMemoryCatalogStore,
+  createMemoryRosterStore,
+} from '@vintage/armory/testing';
 import { runTick } from '@vintage/coordinator/commands';
 import { createFakeDiscord, createMemoryCoordinatorStore } from '@vintage/coordinator/testing';
 import type { DecisionsPort } from '@vintage/decisions';
@@ -241,6 +245,8 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     armoryEffects: { fetch: async (_g, ids) => void armoryQueue.push(...ids) },
     armoryRoster: armoryRosterStore,
     armoryRosterEffects: { sync: async (g) => void rosterSyncs.push(g) },
+    armoryCatalog: createMemoryCatalogStore(),
+    armoryCatalogEffects: { sync: async () => {} },
   };
   const registry = testRegistry<VintageDeps>(commands, clock);
   const discord = createFakeDiscord();

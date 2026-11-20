@@ -1,5 +1,5 @@
-import type { ArmoryLink, RosterEntry, RosterRecipe } from './contract';
-import type { ArmoryCharacter, ArmoryDeps, ArmoryStore, RosterStore } from './store';
+import type { ArmoryLink, ProfessionCatalog, RosterEntry, RosterRecipe } from './contract';
+import type { ArmoryCharacter, ArmoryDeps, ArmoryStore, CatalogStore, RosterStore } from './store';
 
 /** Code-point order, like the component's `by_guild_name` index (not the locale's). */
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
@@ -97,27 +97,59 @@ export function createMemoryRosterStore(): RosterStore & {
   };
 }
 
+/** In-memory CatalogStore for tests. One row per guild and profession, like the component. */
+export function createMemoryCatalogStore(): CatalogStore & { rows: ProfessionCatalog[] } {
+  const rows: ProfessionCatalog[] = [];
+  let seq = 0;
+  return {
+    rows,
+    async listCatalog(guildId) {
+      return rows
+        .filter((r) => r.guildId === guildId)
+        .sort((a, b) => compare(a.profession, b.profession));
+    },
+    async putCatalog(catalog) {
+      const at = rows.findIndex(
+        (r) => r.guildId === catalog.guildId && r.profession === catalog.profession,
+      );
+      if (at >= 0) rows[at] = { ...catalog, id: rows[at]?.id ?? `catalog_${++seq}` };
+      else rows.push({ ...catalog, id: `catalog_${++seq}` });
+    },
+  };
+}
+
 export interface MemoryArmoryDeps extends ArmoryDeps {
   armory: ReturnType<typeof createMemoryArmoryStore>;
   armoryRoster: ReturnType<typeof createMemoryRosterStore>;
+  armoryCatalog: ReturnType<typeof createMemoryCatalogStore>;
   /** Registered characters by guild; tests add and remove them. */
   characters: Map<string, ArmoryCharacter[]>;
   /** Every fetch asked for, in order. */
   fetches: { guildId: string; linkIds: string[] }[];
   /** Every roster sync asked for, in order. */
   rosterSyncs: string[];
+  /** Every catalog sync asked for, in order. */
+  catalogSyncs: string[];
 }
 
 export function createMemoryArmoryDeps(): MemoryArmoryDeps {
   const characters = new Map<string, ArmoryCharacter[]>();
   const fetches: MemoryArmoryDeps['fetches'] = [];
   const rosterSyncs: MemoryArmoryDeps['rosterSyncs'] = [];
+  const catalogSyncs: MemoryArmoryDeps['catalogSyncs'] = [];
   return {
     armory: createMemoryArmoryStore(),
     armoryRoster: createMemoryRosterStore(),
+    armoryCatalog: createMemoryCatalogStore(),
     characters,
     fetches,
     rosterSyncs,
+    catalogSyncs,
+    armoryCatalogEffects: {
+      async sync(guildId) {
+        catalogSyncs.push(guildId);
+      },
+    },
     armoryCharacters: {
       async getCharacter(guildId, characterId) {
         return (characters.get(guildId) ?? []).find((c) => c.id === characterId) ?? null;

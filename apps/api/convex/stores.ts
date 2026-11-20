@@ -15,7 +15,8 @@ import {
   type ApplicationsConfig,
   defaultApplicationsConfig,
 } from '@vintage/applications/contract';
-import type { ArmoryDeps, ArmoryStore, RosterStore } from '@vintage/armory/commands';
+import type { ArmoryDeps, ArmoryStore, CatalogStore, RosterStore } from '@vintage/armory/commands';
+import type { ProfessionCatalog } from '@vintage/armory/contract';
 import type { CoordinatorDeps, CoordinatorStore, TickSource } from '@vintage/coordinator/commands';
 import { type CoordinatorConfig, defaultConfig } from '@vintage/coordinator/contract';
 import type { Caller, CommandResult } from '@vintage/guild-kit';
@@ -255,6 +256,21 @@ export function armoryStore(ctx: Ctx): ArmoryStore {
 // Referenced by name to avoid a type cycle between this file and the generated api.
 const refreshArmory = makeFunctionReference<'action', { linkIds: string[] }>('armory:refresh');
 const syncRoster = makeFunctionReference<'action', { guildId: string }>('armory:rosterSync');
+const syncCatalog = makeFunctionReference<'action', { guildId: string }>('armory:catalogSync');
+
+export function catalogStore(ctx: Ctx): CatalogStore {
+  return {
+    listCatalog: async (guildId) => {
+      const rows: ProfessionCatalog[] = await ctx.runQuery(armory.catalog.list, { guildId });
+      return rows.sort((a, b) =>
+        a.profession < b.profession ? -1 : a.profession > b.profession ? 1 : 0,
+      );
+    },
+    putCatalog: async (catalog) => {
+      await writable(ctx).runMutation(armory.catalog.put, catalog);
+    },
+  };
+}
 
 export function rosterStore(ctx: Ctx): RosterStore {
   return {
@@ -300,6 +316,12 @@ export function armoryDeps(ctx: Ctx): ArmoryDeps {
     armoryRosterEffects: {
       sync: async (guildId) => {
         await writable(ctx).scheduler.runAfter(0, syncRoster, { guildId });
+      },
+    },
+    armoryCatalog: catalogStore(ctx),
+    armoryCatalogEffects: {
+      sync: async (guildId) => {
+        await writable(ctx).scheduler.runAfter(0, syncCatalog, { guildId });
       },
     },
   };

@@ -10,10 +10,13 @@
 //   npx convex run armory:sweep
 //   npx convex run armory:rosterSync '{"guildId":"vintage"}'
 //   npx convex run armory:rosterMigrateRecipes   (once, after recipes moved to their own table)
+//   npx convex run armory:catalogSweep           (the recipe catalog; the cron runs it daily)
 
 import {
+  catalogProfessions,
   chunkBySize,
   fetchArmory,
+  fetchCatalog,
   fetchRosterEntry,
   serializedBytes,
   toRosterMembers,
@@ -143,6 +146,57 @@ export const rosterRecord = internalMutation({
     enriched: v.array(v.object({ slug: v.string(), result: v.any() })),
   },
   handler: (ctx, args) => runSystemCommand(ctx, 'armory-guild-roster-record', args),
+});
+
+/** Write one profession's catalog through `armory-catalog-record` (system only). */
+export const catalogRecord = internalMutation({
+  args: { profession: v.string(), professionId: v.number(), categories: v.any() },
+  handler: (ctx, args) => runSystemCommand(ctx, 'armory-catalog-record', args),
+});
+
+/** The cron's entry point: `armory-catalog-sync` schedules `catalogSync`. */
+export const catalogSweep = internalMutation({
+  args: {},
+  handler: (ctx) => runSystemCommand(ctx, 'armory-catalog-sync', {}),
+});
+
+/**
+ * Read every profession's recipe catalog from Blizzard's game data and record it, one profession
+ * per call so a big one (Blacksmithing: 507 recipes) never shares an argument with the rest.
+ * Gathering skills (their "recipes" are abilities) and Blizzard's "Test Profession" are skipped. A
+ * profession that fails keeps its last catalog.
+ */
+export const catalogSync = internalAction({
+  args: { guildId: v.string() },
+  handler: async (ctx) => {
+    const api = armoryClient();
+    if (typeof api === 'string') {
+      console.error(`armory catalog sync: ${api}`);
+      return;
+    }
+    const index = await api.professionIndex();
+    if (!index) {
+      console.error('armory catalog sync: no profession index');
+      return;
+    }
+    let recorded = 0;
+    for (const { id, name } of catalogProfessions(index)) {
+      try {
+        const categories = await fetchCatalog(api, id);
+        if (categories.length === 0) continue;
+        const result = await ctx.runMutation(internal.armory.catalogRecord, {
+          profession: name,
+          professionId: id,
+          categories,
+        });
+        if (result.success) recorded++;
+        else console.error(`armory catalog sync: ${name}: record refused: ${result.error?.code}`);
+      } catch (err) {
+        console.error(`armory catalog sync: ${name}: ${err instanceof Error ? err.message : err}`);
+      }
+    }
+    console.log(`armory catalog sync: ${recorded} profession(s) recorded`);
+  },
 });
 
 /** The cron's entry point: `armory-guild-roster-sync` schedules this action. */

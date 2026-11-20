@@ -14,7 +14,7 @@ import {
   ROLE_IDS,
 } from './data';
 import type { FixtureHost } from './host';
-import { fixtureRosterSync, fixtureSurname } from './roster';
+import { fixtureCatalog, fixtureRosterSync, fixtureSurname } from './roster';
 
 const discordIdOf = (m: FixtureMember) =>
   `2${String([...m.name].reduce((n, c) => n * 31 + c.charCodeAt(0), 7)).padStart(16, '0')}`;
@@ -170,6 +170,10 @@ async function seedArmory(
   await host.armoryIdle();
   // The guild roster, as one sync of Blizzard's in-game roster and the armory would record it.
   await must(host.run(host.system, 'armory-guild-roster-record', fixtureRosterSync()));
+  // The recipe catalog, as the daily catalog sync would record it from Blizzard's game data.
+  for (const profession of fixtureCatalog()) {
+    await must(host.run(host.system, 'armory-catalog-record', profession));
+  }
 }
 
 /** The other polls: a closed result, an officers-only vote, and an open ranked poll. */

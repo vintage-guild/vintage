@@ -205,6 +205,43 @@ describe('createForeverApi', () => {
     ]);
   });
 
+  it('reads the profession catalog from the static namespace', async () => {
+    const { fetch, calls } = fakeFetch(
+      tokenOk,
+      json(200, { professions: [{ id: 164, name: 'Blacksmithing' }] }),
+      json(200, {
+        id: 164,
+        name: 'Blacksmithing',
+        type: { type: 'PRIMARY', name: 'Primary' },
+        skill_tiers: [{ id: 2938, name: 'Blacksmithing' }],
+      }),
+      json(200, {
+        id: 2938,
+        name: 'Blacksmithing',
+        categories: [
+          { name: 'Weapon Stones', recipes: [{ id: 1631, name: 'Rough Sharpening Stone' }] },
+        ],
+      }),
+    );
+    const client = api(fetch);
+    expect((await client.professionIndex())?.professions).toEqual([
+      { id: 164, name: 'Blacksmithing' },
+    ]);
+    expect((await client.profession(164))?.skill_tiers).toEqual([
+      { id: 2938, name: 'Blacksmithing' },
+    ]);
+    expect((await client.professionSkillTier(164, 2938))?.categories).toEqual([
+      { name: 'Weapon Stones', recipes: [{ id: 1631, name: 'Rough Sharpening Stone' }] },
+    ]);
+    const urls = calls.slice(1).map((c) => new URL(c.url));
+    expect(urls.map((u) => u.pathname)).toEqual([
+      '/data/wow/profession/index',
+      '/data/wow/profession/164',
+      '/data/wow/profession/164/skill-tier/2938',
+    ]);
+    expect(urls.every((u) => u.searchParams.get('namespace') === 'static-forever-us')).toBe(true);
+  });
+
   it('reads professions, trimmed to what Vintage shows', async () => {
     const { fetch, calls } = fakeFetch(
       tokenOk,

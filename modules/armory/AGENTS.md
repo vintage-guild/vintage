@@ -13,9 +13,9 @@ Blizzard hasn't documented the Forever API, so its shapes may change under us.
 | `src/domain/fetch.ts` | `fetchArmory`: one character's profile, equipment, and media through `@vintage/forever-api`, mapped to a result; never throws |
 | `src/domain/roster.ts` | `fetchRosterEntry`: one guild-roster character's class, race, spec, professions, known recipes, portrait, and armory page; never throws |
 | `src/store.ts` | `ArmoryStore` and `RosterStore` ports, `ArmoryCharacters` (identity's characters, adapted by apps/api), `ArmoryEffects` (the fetch) and `RosterEffects` (the roster sync), both scheduled by apps/api, `command` |
-| `src/commands/` | `armory-link`, `armory-unlink` (destructive), `armory-refresh`, `armory-get`, `armory-list`, `armory-guild-roster`, `armory-recipe-search`; system only: `armory-sweep`, `armory-record`, `armory-guild-roster-sync`, `armory-guild-roster-record` |
+| `src/commands/` | `armory-link`, `armory-unlink` (destructive), `armory-refresh`, `armory-get`, `armory-list`, `armory-guild-roster`, `armory-recipe-search`, `armory-profession-list`, `armory-profession-get`; system only: `armory-sweep`, `armory-record`, `armory-guild-roster-sync`, `armory-guild-roster-record`, `armory-catalog-sync`, `armory-catalog-record` |
 | `src/testing.ts` | Memory stores and deps; deps record the fetches and roster syncs asked for |
-| `convex/` | The `armory` Convex component: the `links`, `rosterEntries`, and `rosterRecipes` tables |
+| `convex/` | The `armory` Convex component: the `links`, `rosterEntries`, `rosterRecipes`, and `professionCatalog` tables |
 
 ## Rules
 
@@ -100,6 +100,27 @@ Every character in the Forever guild's in-game roster, independent of links
   what is the guild's to know, like `member-list`. A claim like any link; Battle.net sign-in will
   verify it.
 - `armory-recipe-search` is public too: recipes whose name contains the query (2+ letters, any
-  case), optionally in one profession, each with every roster character who knows it and their
-  skill, best first. At most `RECIPE_SEARCH_LIMIT` (50) recipes, with `truncated` when more matched.
-  It scans `rosterRecipes`, fine at guild size (about 100 characters, a few hundred recipes each).
+  case), optionally in one profession, from the catalog (below) plus any the roster knows that the
+  catalog lacks, each with every roster character who knows it and their skill, best first, or
+  none. At most `RECIPE_SEARCH_LIMIT` (50) recipes, with `truncated` when more matched. It scans
+  `rosterRecipes` and the catalog, fine at guild size.
+
+## Recipe catalog
+
+Every recipe each crafting profession has, from Blizzard's game data (`static-forever-{region}`),
+so the website can show recipes nobody in the guild knows
+([feature doc](../../docs/features/active/recipe-search/recipe-search.plan.md)).
+
+- **One row per profession** in `professionCatalog`: Blizzard's categories and their recipes (id
+  and name; ids match a character's known recipes). Daily, apps/api's `armory:catalogSync` reads
+  the profession index, each profession's skill tiers, and each tier's categories, and records
+  one profession per `armory-catalog-record` call, replacing the row. A profession that fails
+  keeps its last catalog. Skipped: "Test Profession" and `GATHERING_PROFESSIONS` (Fishing,
+  Herbalism, Skinning, whose "recipes" are abilities); Mining stays for its smelting.
+- `armory-profession-list` (public): each crafting profession's catalog size (null before the
+  first sync), how many of those someone knows, how many roster characters level 10 and up have
+  it, and the best three by skill.
+- `armory-profession-get` (public): one profession's catalog in its categories, each recipe with
+  everyone who knows it, best first, or none; recipes the roster knows that the catalog lacks go
+  under "Other". Takes the name in any case, with spaces or hyphens (`first-aid`). Errors:
+  `PROFESSION_NOT_FOUND`.

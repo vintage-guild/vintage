@@ -23,6 +23,31 @@ import type { FunctionReference } from "convex/server";
  */
 export type ComponentApi<Name extends string | undefined = string | undefined> =
   {
+    catalog: {
+      list: FunctionReference<
+        "query",
+        "internal",
+        { guildId: string },
+        any,
+        Name
+      >;
+      put: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          categories: Array<{
+            name: string;
+            recipes: Array<{ id: number; name: string }>;
+          }>;
+          guildId: string;
+          profession: string;
+          professionId: number;
+          syncedAt: number;
+        },
+        any,
+        Name
+      >;
+    };
     links: {
       byCharacter: FunctionReference<
         "query",

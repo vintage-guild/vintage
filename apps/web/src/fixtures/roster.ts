@@ -160,6 +160,39 @@ const RECIPE_IDS = new Map(
     .map(([name], i) => [name, 90000 + i]),
 );
 
+/** Recipes in the catalog that no example character knows (above everyone's skill). */
+const UNKNOWN: Record<string, string[]> = {
+  Alchemy: ['Elixir of the Mongoose', 'Flask of Supreme Power'],
+  Blacksmithing: ['Elemental Sharpening Stone', 'Dark Iron Plate'],
+  Engineering: ['Gnomish Battle Chicken'],
+  Leatherworking: ['Onyxia Scale Cloak'],
+  Tailoring: ['Runecloth Robe'],
+};
+
+/** One `armory-catalog-record` input per profession: the recipes above, plus the unknown ones. */
+export function fixtureCatalog(): {
+  profession: string;
+  professionId: number;
+  categories: { name: string; recipes: { id: number; name: string }[] }[];
+}[] {
+  return Object.entries(RECIPES).map(([profession, list], i) => {
+    const unknown = (UNKNOWN[profession] ?? []).map((name, j) => ({
+      id: 95000 + i * 10 + j,
+      name,
+    }));
+    return {
+      profession,
+      professionId: 100 + i,
+      categories: [
+        {
+          name: 'Recipes',
+          recipes: [...list.map(([name]) => ({ id: RECIPE_IDS.get(name) ?? 0, name })), ...unknown],
+        },
+      ],
+    };
+  });
+}
+
 /** Every recipe the character's professions are high enough to know. */
 const knownRecipes = (professions: RosterProfession[]): RosterRecipe[] =>
   professions.flatMap((p) =>

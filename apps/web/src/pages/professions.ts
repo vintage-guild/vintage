@@ -245,7 +245,7 @@ type CharacterProfession = CharacterRecipes['professions'][number];
 const refRow = html<RecipeRef>`<li class="ref">${recipeLink<RecipeRef>()}</li>`;
 
 const characterProfession = html<CharacterProfession, Page>`
-  <section class="category" aria-label="${(p) => p.profession}">
+  <section class="category" id="${(p) => professionSlug(p.profession)}" aria-label="${(p) => p.profession}">
     <h2 class="category-head">
       <span class="with-icon">
         <img class="icon" src="${(p) => professionIcon(p.profession)}" alt="" loading="lazy" />
@@ -902,10 +902,29 @@ export class Page extends FASTElement {
     const result = await getCommandClient().read<CharacterRecipes>('armory-character-recipes', {
       slug,
     });
-    if (result.success && result.data) this.character = result.data;
-    else if (result.error?.code === 'CHARACTER_NOT_FOUND')
+    if (result.success && result.data) {
+      this.character = result.data;
+      this.scrollToHash();
+    } else if (result.error?.code === 'CHARACTER_NOT_FOUND')
       this.error = 'No one on the roster by that name.';
     else this.error = result.error?.message ?? 'Could not read the character.';
+  }
+
+  /**
+   * `#blacksmithing` (from a profession on the roster) scrolls to that profession once it has
+   * rendered; the page's sections live in its shadow root, so the browser can't find them itself.
+   */
+  private scrollToHash(): void {
+    const id = decodeURIComponent(location.hash.slice(1));
+    if (!id) return;
+    setTimeout(() => {
+      const section = this.shadowRoot?.getElementById(id);
+      if (!section) return;
+      // Below the sticky header, which wraps to two rows on narrower windows.
+      const header = document.querySelector('vintage-logo-header')?.getBoundingClientRect().height;
+      const top = section.getBoundingClientRect().top + window.scrollY - (header ?? 0) - 12;
+      window.scrollTo({ top: Math.max(0, top), behavior: 'instant' });
+    });
   }
 
   /** Recipes on a character's list after the name filter. */

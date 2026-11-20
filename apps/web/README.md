@@ -59,7 +59,10 @@ pnpm --filter @vintage/web build   # dist/
   (`art-phone-src`), one scene per launch raid behind its ledger row (dimmed until the raids
   unlock), the shield and staff on the recruiting band, the coordinator's raven beside the news
   heading, and the dusk sky under the footer. The tab and home-screen icons (`public/icon-*.png`,
-  `apple-touch-icon.png`) are sized from the square emblem in `assets/brand`.
+  `apple-touch-icon.png`) are sized from the square emblem in `assets/brand`. The link-preview
+  card (`public/og-image.jpg`, 1200×630, the Open Graph tags in `index.html`) is the hero art
+  scaled to the card's height, a dark fade on the left, and the color logo
+  (`assets/brand/vintage-logo-color-800.png`) over it.
 - Theme: `data-theme` on `<html>` (`vintage-dark` default, `vintage-parchment`), saved in
   `localStorage` and applied before first paint. The switch lives on `/ui` for now.
 - **Development fixtures** (`src/fixtures/`): in dev, `main.ts` installs an in-memory guild

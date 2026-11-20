@@ -13,9 +13,10 @@ Blizzard hasn't documented the Forever API, so its shapes may change under us.
 | `src/domain/fetch.ts` | `fetchArmory`: one character's profile, equipment, and media through `@vintage/forever-api`, mapped to a result; never throws |
 | `src/domain/roster.ts` | `fetchRosterEntry`: one guild-roster character's class, race, spec, professions, known recipes, portrait, and armory page; never throws |
 | `src/store.ts` | `ArmoryStore` and `RosterStore` ports, `ArmoryCharacters` (identity's characters, adapted by apps/api), `ArmoryEffects` (the fetch) and `RosterEffects` (the roster sync), both scheduled by apps/api, `command` |
-| `src/commands/` | `armory-link`, `armory-unlink` (destructive), `armory-refresh`, `armory-get`, `armory-list`, `armory-guild-roster`, `armory-recipe-search`, `armory-profession-list`, `armory-profession-get`; system only: `armory-sweep`, `armory-record`, `armory-guild-roster-sync`, `armory-guild-roster-record`, `armory-catalog-sync`, `armory-catalog-record` |
+| `src/commands/` | `armory-link`, `armory-unlink` (destructive), `armory-refresh`, `armory-get`, `armory-list`, `armory-guild-roster`, `armory-recipe-search`, `armory-profession-list`, `armory-profession-get`, `armory-recipe-get`, `armory-character-recipes`; system only: `armory-sweep`, `armory-record`, `armory-guild-roster-sync`, `armory-guild-roster-record`, `armory-catalog-sync`, `armory-catalog-record`, `armory-recipe-detail-record` |
 | `src/testing.ts` | Memory stores and deps; deps record the fetches and roster syncs asked for |
-| `convex/` | The `armory` Convex component: the `links`, `rosterEntries`, `rosterRecipes`, and `professionCatalog` tables |
+| `src/domain/catalog.ts`, `src/domain/recipe.ts` | `fetchCatalog` (one profession's categories and recipes); `fetchRecipeDetail` (a recipe and its crafted item, as tooltip lines and reagents; throws when a request fails) |
+| `convex/` | The `armory` Convex component: the `links`, `rosterEntries`, `rosterRecipes`, `professionCatalog`, and `recipeDetails` tables |
 
 ## Rules
 
@@ -123,4 +124,18 @@ so the website can show recipes nobody in the guild knows
 - `armory-profession-get` (public): one profession's catalog in its categories, each recipe with
   everyone who knows it, best first, or none; recipes the roster knows that the catalog lacks go
   under "Other". Takes the name in any case, with spaces or hyphens (`first-aid`). Errors:
-  `PROFESSION_NOT_FOUND`.
+  `PROFESSION_NOT_FOUND`. Each recipe carries `itemId`, the item it makes (null until its
+  details sync), which the website links to Wowhead.
+- **Recipe details** (`recipeDetails`, one row per recipe): after the catalog, the sync fetches
+  each recipe without details (Blizzard's recipe, then its crafted item), up to
+  `RECIPE_DETAIL_SYNC_LIMIT` (2,500) a run, 6 at a time, and records them in batches of
+  `RECIPE_DETAIL_BATCH` (50) through `armory-recipe-detail-record`. Details aren't refetched;
+  a recipe that fails is tried again the next day. `toRecipeDetail` trims to the record's bounds,
+  and the record checks each detail on its own, answering `refused` (recipe id and the first
+  issue) for any that don't fit, so one odd item never costs its batch.
+- Blizzard has no source for a recipe (trainer, vendor, drop); the website links to Wowhead.
+- `armory-recipe-get` (public): one recipe's `detail` (the item's name, quality, quantity,
+  Blizzard's tooltip lines, the reagents), null until synced.
+- `armory-character-recipes` (public): one roster character by slug, any case, with each
+  crafting profession it has, its skill, the recipes it knows, and the catalog's recipes it
+  doesn't, by name. Errors: `CHARACTER_NOT_FOUND`.

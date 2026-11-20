@@ -9,10 +9,14 @@ import {
 } from '@lushly-dev/fast-element';
 import type {
   CatalogRecipe,
+  CharacterRecipes,
   ProfessionDetail,
   ProfessionSummary,
   RecipeCrafter,
+  RecipeDetail,
   RecipeMatch,
+  RecipeRef,
+  RosterListing,
 } from '@vintage/armory/contract';
 import { getCommandClient } from '@vintage/ui-kit';
 import { professionIcon } from '../class-icons';
@@ -27,16 +31,37 @@ const SHOWN = 3;
 /** `First Aid` is `/professions/first-aid`. */
 export const professionSlug = (name: string) => name.toLowerCase().replace(/\s+/g, '-');
 
-/** The profession in `/professions/<slug>`, or empty on the overview. */
-export const professionFromPath = (path: string) =>
-  decodeURIComponent(path.replace(/^\/+|\/+$/g, '').split('/')[1] ?? '');
+type View = { kind: 'overview' } | { kind: 'profession' | 'character'; value: string };
 
-const classSlug = (c: RecipeCrafter) => c.className?.toLowerCase().replace(/[^a-z]/g, '') ?? '';
-const fullName = (c: RecipeCrafter) => (c.surname ? `${c.name} ${c.surname}` : c.name);
+/** `/professions`, `/professions/<profession>`, or `/professions/character/<slug>`. */
+export function viewFromPath(path: string): View {
+  const [, first, second] = path
+    .replace(/^\/+|\/+$/g, '')
+    .split('/')
+    .map(decodeURIComponent);
+  if (first === 'character' && second) return { kind: 'character', value: second };
+  if (first) return { kind: 'profession', value: first };
+  return { kind: 'overview' };
+}
+
+/** Where to find a recipe: its item on Wowhead's Forever site, or a Wowhead search by name. */
+export const wowheadUrl = (name: string, itemId: number | null) =>
+  itemId
+    ? `https://www.wowhead.com/forever/item=${itemId}`
+    : `https://www.wowhead.com/forever/search?q=${encodeURIComponent(name)}`;
+
+const classSlug = (c: { className: string | null }) =>
+  c.className?.toLowerCase().replace(/[^a-z]/g, '') ?? '';
+const fullName = (c: { name: string; surname: string }) =>
+  c.surname ? `${c.name} ${c.surname}` : c.name;
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 /** "Opens in a new tab": an arrow leaving a box, in the link's own color. */
 const newTab = html`<svg class="new-tab" viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><path d="M9 2.5h4.5V7M13.5 2.5 7.5 8.5M11.5 9.5v3.5a.5.5 0 0 1-.5.5H3a.5.5 0 0 1-.5-.5V5a.5.5 0 0 1 .5-.5h3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+/** A recipe's name: links to Wowhead; hovering or focusing it opens the page's tooltip. */
+const recipeLink = <T extends RecipeRef>() =>
+  html<T>`<a class="recipe-name recipe-link" href="${(r) => wowheadUrl(r.name, r.itemId)}" target="_blank" rel="noopener noreferrer" data-recipe="${(r) => r.id}">${(r) => r.name}${newTab}<span class="visually-hidden"> (Wowhead, opens in a new tab)</span></a>`;
 
 const crafter = html<RecipeCrafter>`
   <li class="crafter">
@@ -56,7 +81,7 @@ const match = html<RecipeMatch>`
   <li class="recipe">
     <img class="icon" src="${(r) => professionIcon(r.profession)}" alt="" loading="lazy" />
     <div class="what">
-      <span class="recipe-name">${(r) => r.name}</span>
+      ${recipeLink<RecipeMatch>()}
       <a class="sub" href="${(r) => `/professions/${professionSlug(r.profession)}`}">${(r) => r.profession}</a>
     </div>
     ${when(
@@ -77,7 +102,7 @@ const isOpen = (r: CatalogRecipe, c: ExecutionContext<Category>) =>
 /** A recipe in a profession's list: the best crafters, the rest behind "+N more". */
 const catalogRecipe = html<CatalogRecipe, Category>`
   <li class="row">
-    <span class="recipe-name">${(r) => r.name}</span>
+    ${recipeLink<CatalogRecipe>()}
     ${when(
       (r) => r.crafters.length > 0,
       html<
@@ -130,7 +155,21 @@ const overview = html<Page>`
         @input="${(x, c) => x.type((c.event.target as HTMLInputElement).value)}"
       />
     </label>
+    <label>
+      <span>Character</span>
+      <input
+        type="search"
+        list="roster-names"
+        placeholder="Character name"
+        autocomplete="off"
+        @change="${(x, c) => x.pickCharacter((c.event.target as HTMLInputElement).value)}"
+      />
+    </label>
+    <datalist id="roster-names">
+      ${repeat((x) => x.rosterNames, html<string>`<option value="${(n) => n}"></option>`)}
+    </datalist>
   </div>
+  ${when((x) => x.characterMiss, html`<p class="muted">No one on the roster by that name.</p>`)}
   ${when((x) => x.error, html<Page>`<p class="error" role="alert">${(x) => x.error}</p>`)}
   ${when(
     (x) => x.searched && !x.error,
@@ -199,16 +238,231 @@ const detail = html<Page>`
   ${when((x) => x.error, html<Page>`<p class="error" role="alert">${(x) => x.error}</p>`)}
 `;
 
+type CharacterProfession = CharacterRecipes['professions'][number];
+
+const refRow = html<RecipeRef>`<li class="ref">${recipeLink<RecipeRef>()}</li>`;
+
+const characterProfession = html<CharacterProfession, Page>`
+  <section class="category" aria-label="${(p) => p.profession}">
+    <h2 class="category-head">
+      <span class="with-icon">
+        <img class="icon" src="${(p) => professionIcon(p.profession)}" alt="" loading="lazy" />
+        ${(p) => p.profession}
+        <span class="skill">${(p) => p.skill}${(p) => (p.maxSkill ? ` / ${p.maxSkill}` : '')}</span>
+      </span>
+      <small>${(p) => p.known.length} known · ${(p) => p.missing.length} missing</small>
+    </h2>
+    <div class="split">
+      <div>
+        <h3>Known</h3>
+        <ul class="refs">${repeat((p, c) => c.parent.matching(p.known), refRow)}</ul>
+      </div>
+      <div>
+        <h3>Missing</h3>
+        <ul class="refs">${repeat((p, c) => c.parent.matching(p.missing), refRow)}</ul>
+      </div>
+    </div>
+  </section>
+`;
+
+const characterView = html<Page>`
+  <a class="back" href="/professions">All professions</a>
+  ${when(
+    (x) => x.character,
+    html<Page>`
+      <div class="title">
+        <h1>
+          ${when(
+            (x) => x.character?.profileUrl,
+            html<Page>`<a class="name" href="${(x) => x.character?.profileUrl ?? ''}" target="_blank" rel="noopener noreferrer" style="${(x) => (x.character?.className ? `color: var(--color-class-${classSlug(x.character)})` : '')}">${(x) => (x.character ? fullName(x.character) : '')}${newTab}<span class="visually-hidden"> (armory, opens in a new tab)</span></a>`,
+          )}
+          ${when(
+            (x) => !x.character?.profileUrl,
+            html<Page>`${(x) => (x.character ? fullName(x.character) : '')}`,
+          )}
+        </h1>
+        <span class="muted">Level ${(x) => x.character?.level}${(x) => (x.character?.className ? ` ${x.character.className}` : '')}</span>
+      </div>
+      <div class="controls" role="search">
+        <label>
+          <span>Recipe</span>
+          <input
+            type="search"
+            placeholder="Recipe name"
+            :value="${(x) => x.filter}"
+            @input="${(x, c) => {
+              x.filter = (c.event.target as HTMLInputElement).value;
+            }}"
+          />
+        </label>
+      </div>
+      ${repeat((x) => x.character?.professions ?? [], characterProfession)}
+      ${when(
+        (x) => x.character?.professions.length === 0,
+        html`<p class="muted">No crafting professions on the armory yet.</p>`,
+      )}
+    `,
+  )}
+  ${when((x) => x.error, html<Page>`<p class="error" role="alert">${(x) => x.error}</p>`)}
+`;
+
+/**
+ * The recipe tooltip: what the item does and takes. One for the page, placed by the hovered link.
+ * A popover, so it sits in the top layer over the footer and the fixed bars, whatever their order.
+ */
+const tooltip = html<Page>`
+  <div
+    class="tip"
+    role="tooltip"
+    id="recipe-tip"
+    popover="manual"
+    style="${(x) => `left: ${x.tipX}px; ${x.tipPlace}`}"
+  >
+    ${when((x) => x.tipLoading, html`<span class="muted">Loading…</span>`)}
+    ${when(
+      (x) => !x.tipLoading && !x.tipDetail,
+      html<Page>`<strong>${(x) => x.tipName}</strong><span class="muted">Details load after the next daily sync.</span>`,
+    )}
+    ${when(
+      (x) => !x.tipLoading && x.tipDetail,
+      html<Page>`
+        <strong class="${(x) => `q-${x.tipDetail?.quality ?? 'common'}`}">${(x) => x.tipDetail?.itemName ?? x.tipName}${(x) => ((x.tipDetail?.quantity ?? 1) > 1 ? ` ×${x.tipDetail?.quantity}` : '')}</strong>
+        ${repeat((x) => x.tipDetail?.lines ?? [], html<string>`<span>${(l) => l}</span>`)}
+        ${when(
+          (x) => (x.tipDetail?.reagents.length ?? 0) > 0,
+          html<Page>`<span class="tip-head">Reagents</span>${repeat(
+            (x) => x.tipDetail?.reagents ?? [],
+            html<{
+              name: string;
+              quantity: number;
+            }>`<span>${(r) => r.quantity} × ${(r) => r.name}</span>`,
+          )}`,
+        )}
+        <span class="tip-foot">Open it on Wowhead to see where it’s learned.</span>
+      `,
+    )}
+  </div>
+`;
+
 const template = html<Page>`
-  <div class="page wide">
-    ${when((x) => !x.slug, overview)}
-    ${when((x) => x.slug, detail)}
+  <div
+    class="page wide"
+    @mouseover="${(x, c) => x.onPointer(c.event as MouseEvent, true)}"
+    @mouseout="${(x, c) => x.onPointer(c.event as MouseEvent, false)}"
+    @focusin="${(x, c) => x.onPointer(c.event, true)}"
+    @focusout="${(x, c) => x.onPointer(c.event, false)}"
+  >
+    ${when((x) => x.view.kind === 'overview', overview)}
+    ${when((x) => x.view.kind === 'profession', detail)}
+    ${when((x) => x.view.kind === 'character', characterView)}
+    ${tooltip}
   </div>
 `;
 
 const styles = css`
   .page.wide {
+    position: relative;
     max-inline-size: 72rem;
+  }
+
+  .recipe-link {
+    color: var(--color-text-primary);
+    text-decoration: none;
+  }
+
+  .recipe-link:hover {
+    text-decoration: underline;
+  }
+
+  .recipe-link .new-tab {
+    opacity: 0.45;
+  }
+
+  .tip {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    overflow: visible;
+    inline-size: 18rem;
+    padding: var(--space-sm);
+    color: var(--color-text-primary);
+    border: var(--border-width-thin) solid var(--color-border-strong);
+    border-radius: 0.3rem;
+    background: var(--color-surface-raised);
+    box-shadow: var(--shadow-low);
+    font-size: var(--font-size-xs);
+    pointer-events: none;
+  }
+
+  .tip:popover-open {
+    display: grid;
+    gap: 0.15rem;
+  }
+
+  .tip strong {
+    font-size: var(--font-size-sm);
+  }
+
+  .tip-head {
+    margin-block-start: var(--space-xs);
+    font-weight: var(--font-weight-bold);
+  }
+
+  .tip-foot {
+    margin-block-start: var(--space-xs);
+    color: var(--color-text-secondary);
+  }
+
+  .q-poor {
+    color: var(--color-quality-poor);
+  }
+
+  .q-uncommon {
+    color: var(--color-quality-uncommon);
+  }
+
+  .q-rare {
+    color: var(--color-quality-rare);
+  }
+
+  .q-epic {
+    color: var(--color-quality-epic);
+  }
+
+  .q-legendary {
+    color: var(--color-quality-legendary);
+  }
+
+  .with-icon {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+  }
+
+  .split {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+    gap: var(--space-md);
+    padding-block-start: var(--space-xs);
+  }
+
+  .split h3 {
+    margin: 0 0 var(--space-xs);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+  }
+
+  .refs {
+    display: grid;
+    gap: 0.2rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: var(--font-size-sm);
+  }
+
+  .refs .recipe-name {
+    font-weight: var(--font-weight-regular);
   }
 
   .muted {
@@ -527,14 +781,32 @@ const styles = css`
 `;
 
 /**
- * `/professions`: an overview card per crafting profession (`armory-profession-list`) and a recipe
- * search across them all (`armory-recipe-search`). `/professions/<name>`: that profession's whole
- * recipe catalog with who knows each recipe (`armory-profession-get`). Open to all.
+ * `/professions`: an overview card per crafting profession (`armory-profession-list`), a recipe
+ * search across them all (`armory-recipe-search`), and a character search from the roster.
+ * `/professions/<name>`: that profession's whole recipe catalog with who knows each recipe
+ * (`armory-profession-get`). `/professions/character/<slug>`: one character's known and missing
+ * recipes (`armory-character-recipes`). Every recipe links to Wowhead and shows what it makes and
+ * takes on hover or focus (`armory-recipe-get`). Open to all.
  */
 export class Page extends FASTElement {
-  readonly slug = professionFromPath(location.pathname);
+  readonly view = viewFromPath(location.pathname);
   @observable summaries: ProfessionSummary[] = [];
   @observable detail: ProfessionDetail | null = null;
+  @observable character: CharacterRecipes | null = null;
+  /** "First Last" for each roster character, for the character search's suggestions. */
+  @observable rosterNames: string[] = [];
+  @observable characterMiss = false;
+  @observable tipOpen = false;
+  @observable tipLoading = false;
+  @observable tipName = '';
+  @observable tipDetail: RecipeDetail | null = null;
+  @observable tipX = 0;
+  /** `top: …` below the link, or `bottom: …` above it when the window has no room below. */
+  @observable tipPlace = 'top: 0px';
+  private slugByName = new Map<string, string>();
+  /** Recipe details already read, by recipe id; null when not synced yet. */
+  private tips = new Map<number, RecipeDetail | null>();
+  private tipFor = 0;
   @observable query = '';
   @observable results: RecipeMatch[] = [];
   @observable truncated = false;
@@ -552,11 +824,115 @@ export class Page extends FASTElement {
 
   connectedCallback(): void {
     super.connectedCallback();
-    void (this.slug ? this.loadDetail() : this.loadSummaries());
+    window.addEventListener('scroll', this.onScroll, { capture: true, passive: true });
+    if (this.view.kind === 'profession') void this.loadDetail(this.view.value);
+    else if (this.view.kind === 'character') void this.loadCharacter(this.view.value);
+    else {
+      void this.loadSummaries();
+      void this.loadRosterNames();
+    }
+  }
+
+  async loadRosterNames(): Promise<void> {
+    const result = await getCommandClient().read<RosterListing[]>('armory-guild-roster', {});
+    if (!result.success || !result.data) return;
+    const listed = result.data.filter((e) => e.level >= 10);
+    this.slugByName = new Map(listed.map((e) => [fullName(e).toLowerCase(), e.slug]));
+    this.rosterNames = listed.map((e) => fullName(e)).sort((a, b) => a.localeCompare(b));
+  }
+
+  /** Open a character picked or typed in the character search; a name off the roster says so. */
+  pickCharacter(value: string): void {
+    const name = value.trim().toLowerCase();
+    if (!name) return;
+    const slug =
+      this.slugByName.get(name) ??
+      [...this.slugByName].find(([full]) => full.split(' ')[0] === name)?.[1];
+    this.characterMiss = !slug;
+    if (!slug) return;
+    history.pushState({}, '', `/professions/character/${encodeURIComponent(slug)}`);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  }
+
+  async loadCharacter(slug: string): Promise<void> {
+    const result = await getCommandClient().read<CharacterRecipes>('armory-character-recipes', {
+      slug,
+    });
+    if (result.success && result.data) this.character = result.data;
+    else if (result.error?.code === 'CHARACTER_NOT_FOUND')
+      this.error = 'No one on the roster by that name.';
+    else this.error = result.error?.message ?? 'Could not read the character.';
+  }
+
+  /** Recipes on a character's list after the name filter. */
+  matching(recipes: RecipeRef[]): RecipeRef[] {
+    const needle = this.filter.trim().toLowerCase();
+    return needle ? recipes.filter((r) => r.name.toLowerCase().includes(needle)) : recipes;
+  }
+
+  /** Hover or focus moving onto or off a recipe link opens or closes its tooltip. */
+  onPointer(event: Event, entering: boolean): void {
+    const link = (event.composedPath()[0] as Element | undefined)?.closest?.(
+      'a[data-recipe]',
+    ) as HTMLAnchorElement | null;
+    if (!link) return;
+    const next = (event as MouseEvent | FocusEvent).relatedTarget as Node | null;
+    if (!entering && next && link.contains(next)) return;
+    if (entering) void this.openTip(link);
+    else this.closeTip();
+  }
+
+  private get tipEl(): HTMLElement | null {
+    return this.shadowRoot?.querySelector<HTMLElement>('#recipe-tip') ?? null;
+  }
+
+  /** The tooltip is placed for where the link was, so a scroll closes it. */
+  private readonly onScroll = () => {
+    if (this.tipOpen) this.closeTip();
+  };
+
+  closeTip(): void {
+    this.tipOpen = false;
+    const tip = this.tipEl;
+    if (tip?.matches(':popover-open')) tip.hidePopover();
+  }
+
+  async openTip(link: HTMLAnchorElement): Promise<void> {
+    const id = Number(link.dataset.recipe);
+    const tip = this.tipEl;
+    if (!tip || !id) return;
+    const at = link.getBoundingClientRect();
+    const width = 18 * Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+    this.tipX = Math.max(8, Math.min(at.left, window.innerWidth - width - 8));
+    this.tipPlace =
+      window.innerHeight - at.bottom >= 320 || at.top < 320
+        ? `top: ${at.bottom + 6}px`
+        : `bottom: ${window.innerHeight - at.top + 6}px`;
+    this.tipName = link.firstChild?.textContent?.trim() ?? '';
+    this.tipFor = id;
+    this.tipOpen = true;
+    if (!tip.matches(':popover-open')) tip.showPopover();
+    link.setAttribute('aria-describedby', 'recipe-tip');
+    if (this.tips.has(id)) {
+      this.tipDetail = this.tips.get(id) ?? null;
+      this.tipLoading = false;
+      return;
+    }
+    this.tipLoading = true;
+    const result = await getCommandClient().read<{ detail: RecipeDetail | null }>(
+      'armory-recipe-get',
+      { recipeId: id },
+    );
+    const detail = result.success ? (result.data?.detail ?? null) : null;
+    if (result.success) this.tips.set(id, detail);
+    if (this.tipFor !== id) return;
+    this.tipDetail = detail;
+    this.tipLoading = false;
   }
 
   disconnectedCallback(): void {
     super.disconnectedCallback();
+    window.removeEventListener('scroll', this.onScroll, true);
     clearTimeout(this.timer);
     this.asked++;
   }
@@ -567,9 +943,9 @@ export class Page extends FASTElement {
     else this.error = result.error?.message ?? 'Could not read the professions.';
   }
 
-  async loadDetail(): Promise<void> {
+  async loadDetail(profession: string): Promise<void> {
     const result = await getCommandClient().read<ProfessionDetail>('armory-profession-get', {
-      profession: this.slug,
+      profession,
     });
     if (result.success && result.data) this.detail = result.data;
     else if (result.error?.code === 'PROFESSION_NOT_FOUND') this.error = 'No such profession.';

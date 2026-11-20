@@ -15,6 +15,12 @@ import { bySkill, knownRecipes, toCrafter } from './crafters';
 /** Characters below this level aren't on the armory, so they aren't counted as crafters. */
 const MIN_LEVEL = 10;
 
+/** Each recipe's crafted item id, by recipe id; null when its details haven't synced. */
+export const itemLookup = (items: { recipeId: number; itemId: number | null }[]) => {
+  const byRecipe = new Map(items.map((i) => [i.recipeId, i.itemId]));
+  return (recipeId: number) => byRecipe.get(recipeId) ?? null;
+};
+
 /** `First Aid`, `first-aid`, and `first aid` are the same profession. */
 const sameProfession = (a: string, b: string) =>
   a.toLowerCase().replace(/[-\s]+/g, ' ') === b.toLowerCase().replace(/[-\s]+/g, ' ');
@@ -118,12 +124,14 @@ export const armoryProfessionGet = command({
   tier: 'public',
   input: z.object({ profession: z.string().trim().min(1).max(48) }),
   handler: async ({ profession }, { guildId, deps }) => {
-    const [entries, known, catalog] = await Promise.all([
+    const [entries, known, catalog, items] = await Promise.all([
       deps.armoryRoster.listEntries(guildId),
       deps.armoryRoster.listRecipes(guildId),
       deps.armoryCatalog.listCatalog(guildId),
+      deps.armoryCatalog.listRecipeItems(guildId),
     ]);
     const knownById = knownRecipes(entries, known);
+    const itemOf = itemLookup(items);
     const row = catalog.find((c) => sameProfession(c.profession, profession));
     const knownHere = [...knownById.values()].filter((k) =>
       sameProfession(k.recipe.profession, profession),
@@ -136,12 +144,22 @@ export const armoryProfessionGet = command({
       name: c.name,
       recipes: c.recipes.map((r): CatalogRecipe => {
         inCatalog.add(r.id);
-        return { id: r.id, name: r.name, crafters: knownById.get(r.id)?.crafters ?? [] };
+        return {
+          id: r.id,
+          name: r.name,
+          itemId: itemOf(r.id),
+          crafters: knownById.get(r.id)?.crafters ?? [],
+        };
       }),
     }));
     const other = knownHere
       .filter((k) => !inCatalog.has(k.recipe.id))
-      .map((k) => ({ id: k.recipe.id, name: k.recipe.name, crafters: k.crafters }))
+      .map((k) => ({
+        id: k.recipe.id,
+        name: k.recipe.name,
+        itemId: itemOf(k.recipe.id),
+        crafters: k.crafters,
+      }))
       .sort((a, b) => a.name.localeCompare(b.name));
     if (other.length > 0) categories.push({ name: 'Other', recipes: other });
 

@@ -17,12 +17,16 @@ import {
   chunkBySize,
   fetchArmory,
   fetchCatalog,
+  fetchRecipeDetail,
   fetchRosterEntry,
+  type RecipeDetailFetch,
   serializedBytes,
   toRosterMembers,
 } from '@vintage/armory/commands';
 import {
   type ArmoryFetchResult,
+  RECIPE_DETAIL_BATCH,
+  RECIPE_DETAIL_SYNC_LIMIT,
   ROSTER_RECORD_BYTES,
   ROSTER_STALE_MS,
   ROSTER_SYNC_BATCH,
@@ -31,9 +35,14 @@ import {
 import { createForeverApi, type ForeverApi, parseRegion } from '@vintage/forever-api';
 import { v } from 'convex/values';
 import { components, internal } from './_generated/api';
-import { internalAction, internalMutation, internalQuery } from './_generated/server';
+import {
+  type ActionCtx,
+  internalAction,
+  internalMutation,
+  internalQuery,
+} from './_generated/server';
 import { GUILD_ID, runSystemCommand } from './commands';
-import { armoryStore, rosterStore } from './stores';
+import { armoryStore, catalogStore, rosterStore } from './stores';
 
 /** The links to fetch, as name and surname; ids that are gone are left out. */
 export const load = internalQuery({
@@ -154,6 +163,64 @@ export const catalogRecord = internalMutation({
   handler: (ctx, args) => runSystemCommand(ctx, 'armory-catalog-record', args),
 });
 
+/** Recipes that already have details, so the sync only asks Blizzard about new ones. */
+export const recipeDetailIds = internalQuery({
+  args: {},
+  handler: async (ctx) =>
+    (await catalogStore(ctx).listRecipeItems(GUILD_ID)).map((r) => r.recipeId),
+});
+
+/** Write a batch of recipe details through `armory-recipe-detail-record` (system only). */
+export const recipeDetailRecord = internalMutation({
+  args: { details: v.array(v.any()) },
+  handler: (ctx, args) => runSystemCommand(ctx, 'armory-recipe-detail-record', args),
+});
+
+const messageOf = (err: unknown) => (err instanceof Error ? err.message : String(err));
+
+/** Requests in flight at once while fetching recipe details. */
+const DETAIL_CONCURRENCY = 6;
+
+/**
+ * Fetch details (the recipe, then its crafted item) for catalog recipes that have none, up to
+ * `RECIPE_DETAIL_SYNC_LIMIT` per run, and record them in batches. A recipe that fails is retried
+ * the next day. Answers how many were recorded.
+ */
+async function syncRecipeDetails(
+  ctx: ActionCtx,
+  api: ForeverApi,
+  recipeIds: number[],
+): Promise<number> {
+  const have = new Set(await ctx.runQuery(internal.armory.recipeDetailIds, {}));
+  const todo = [...new Set(recipeIds)]
+    .filter((id) => !have.has(id))
+    .slice(0, RECIPE_DETAIL_SYNC_LIMIT);
+  const fetched: RecipeDetailFetch[] = [];
+  for (let i = 0; i < todo.length; i += DETAIL_CONCURRENCY) {
+    const batch = todo.slice(i, i + DETAIL_CONCURRENCY);
+    const results = await Promise.allSettled(batch.map((id) => fetchRecipeDetail(api, id)));
+    for (const r of results) if (r.status === 'fulfilled') fetched.push(r.value);
+  }
+  let recorded = 0;
+  for (let i = 0; i < fetched.length; i += RECIPE_DETAIL_BATCH) {
+    const details = fetched.slice(i, i + RECIPE_DETAIL_BATCH);
+    const result = await ctx.runMutation(internal.armory.recipeDetailRecord, { details });
+    if (!result.success) {
+      console.error(`armory catalog sync: details refused: ${result.error?.message}`);
+      continue;
+    }
+    const data = result.data as {
+      recorded: number;
+      refused: { recipeId: unknown; issue: string }[];
+    };
+    recorded += data.recorded;
+    for (const r of data.refused) {
+      console.error(`armory catalog sync: recipe ${String(r.recipeId)} refused: ${r.issue}`);
+    }
+  }
+  return recorded;
+}
+
 /** The cron's entry point: `armory-catalog-sync` schedules `catalogSync`. */
 export const catalogSweep = internalMutation({
   args: {},
@@ -180,6 +247,7 @@ export const catalogSync = internalAction({
       return;
     }
     let recorded = 0;
+    const recipeIds: number[] = [];
     for (const { id, name } of catalogProfessions(index)) {
       try {
         const categories = await fetchCatalog(api, id);
@@ -191,11 +259,14 @@ export const catalogSync = internalAction({
         });
         if (result.success) recorded++;
         else console.error(`armory catalog sync: ${name}: record refused: ${result.error?.code}`);
+        recipeIds.push(...categories.flatMap((c) => c.recipes.map((r) => r.id)));
       } catch (err) {
-        console.error(`armory catalog sync: ${name}: ${err instanceof Error ? err.message : err}`);
+        console.error(`armory catalog sync: ${name}: ${messageOf(err)}`);
       }
     }
     console.log(`armory catalog sync: ${recorded} profession(s) recorded`);
+    const detailed = await syncRecipeDetails(ctx, api, recipeIds);
+    console.log(`armory catalog sync: ${detailed} recipe detail(s) recorded`);
   },
 });
 

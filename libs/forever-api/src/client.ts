@@ -17,12 +17,16 @@ import {
   characterSpecializationsSchema,
   type GuildRoster,
   guildRosterSchema,
+  type Item,
+  itemSchema,
   type Profession,
   type ProfessionIndex,
   type ProfessionSkillTier,
   professionIndexSchema,
   professionSchema,
   professionSkillTierSchema,
+  type Recipe,
+  recipeSchema,
   tokenSchema,
 } from './schemas';
 
@@ -104,6 +108,8 @@ export interface ForeverApi {
   professionIndex(): Promise<ProfessionIndex | null>;
   profession(id: number): Promise<Profession | null>;
   professionSkillTier(professionId: number, tierId: number): Promise<ProfessionSkillTier | null>;
+  recipe(id: number): Promise<Recipe | null>;
+  item(id: number): Promise<Item | null>;
 }
 
 const EXPIRY_MARGIN_MS = 60_000;
@@ -211,6 +217,8 @@ export function createForeverApi(options: ForeverApiOptions): ForeverApi {
         professionSkillTierSchema,
         staticNamespace(region),
       ),
+    recipe: (id) => get(`/data/wow/recipe/${id}`, recipeSchema, staticNamespace(region)),
+    item: (id) => get(`/data/wow/item/${id}`, itemSchema, staticNamespace(region)),
   };
 }
 

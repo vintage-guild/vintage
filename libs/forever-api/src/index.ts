@@ -23,7 +23,9 @@ export type {
   CharacterProfile,
   CharacterSpecializations,
   GuildRoster,
+  Item,
   Profession,
   ProfessionIndex,
   ProfessionSkillTier,
+  Recipe,
 } from './schemas';

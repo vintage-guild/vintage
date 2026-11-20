@@ -147,6 +147,56 @@ export const professionSkillTierSchema = z.object({
 });
 export type ProfessionSkillTier = z.infer<typeof professionSkillTierSchema>;
 
+/** `/data/wow/recipe/{id}` (static): the item it makes and its reagents. No source (trainer, drop). */
+export const recipeSchema = z.object({
+  id: z.number().int(),
+  name: z.string().optional(),
+  crafted_item: named.optional(),
+  crafted_quantity: z.object({ value: z.number().optional() }).optional(),
+  reagents: z
+    .array(z.object({ reagent: named, quantity: z.number().int().default(1) }))
+    .default([]),
+});
+export type Recipe = z.infer<typeof recipeSchema>;
+
+const display = z.object({ display_string: z.string().optional() }).optional();
+
+/**
+ * `/data/wow/item/{id}` (static), trimmed to what a tooltip shows: `preview_item` carries
+ * Blizzard's own display strings ("565 Armor", "+18 Strength", "Use: Restores 1,350 mana").
+ */
+export const itemSchema = z.object({
+  id: z.number().int(),
+  name: z.string().optional(),
+  quality: z.object({ type: z.string(), name: z.string().optional() }).optional(),
+  preview_item: z
+    .object({
+      binding: z.object({ name: z.string() }).optional(),
+      item_subclass: z.object({ name: z.string() }).optional(),
+      inventory_type: z.object({ type: z.string(), name: z.string() }).optional(),
+      is_subclass_hidden: z.boolean().optional(),
+      armor: z.object({ display }).optional(),
+      weapon: z
+        .object({
+          damage: z.object({ display_string: z.string().optional() }).optional(),
+          attack_speed: z.object({ display_string: z.string().optional() }).optional(),
+          dps: z.object({ display_string: z.string().optional() }).optional(),
+        })
+        .optional(),
+      stats: z.array(z.object({ is_equip_bonus: z.boolean().optional(), display })).default([]),
+      spells: z.array(z.object({ description: z.string().optional() })).default([]),
+      requirements: z
+        .object({
+          level: z.object({ display_string: z.string().optional() }).optional(),
+          skill: z.object({ display_string: z.string().optional() }).optional(),
+        })
+        .optional(),
+      description: z.string().optional(),
+    })
+    .optional(),
+});
+export type Item = z.infer<typeof itemSchema>;
+
 /** `https://oauth.battle.net/token` with `grant_type=client_credentials`. */
 export const tokenSchema = z.object({
   access_token: z.string().min(1),

@@ -269,6 +269,12 @@ export function catalogStore(ctx: Ctx): CatalogStore {
     putCatalog: async (catalog) => {
       await writable(ctx).runMutation(armory.catalog.put, catalog);
     },
+    listRecipeItems: (guildId) => ctx.runQuery(armory.catalog.listRecipeItems, { guildId }),
+    getRecipeDetail: (guildId, recipeId) =>
+      ctx.runQuery(armory.catalog.getRecipeDetail, { guildId, recipeId }),
+    putRecipeDetails: async (details) => {
+      await writable(ctx).runMutation(armory.catalog.putRecipeDetails, { details });
+    },
   };
 }
 

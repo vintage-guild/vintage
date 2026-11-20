@@ -27,17 +27,22 @@ and the guild roster sync already fetches that endpoint.
   profession (crafters, recipes known of the catalog, the best three) and the recipe search.
   `/professions/<name>`: every recipe in Blizzard's categories with who knows it, a name filter,
   and an All recipes / Known in the guild toggle.
+- **Recipe details** (2026-11-20): the same daily sync fetches `/data/wow/recipe/{id}` (the
+  crafted item and reagents) and `/data/wow/item/{id}` (the item's display strings) for catalog
+  recipes that have none yet, up to 2,500 a run, into `recipeDetails`. The first run took about 2
+  minutes for 2,484 recipes. `armory-recipe-get` answers one for the website's tooltip.
+- **Where a recipe is learned** isn't in Blizzard's API (trainer, vendor, drop). Each recipe name
+  links to its crafted item on Wowhead's Forever section (`wowhead.com/forever/item=<id>`; the
+  ids match), or a Wowhead search when the item isn't synced. We link rather than scrape.
+- **A character's crafting**: `armory-character-recipes` answers, per crafting profession, what a
+  roster character knows and which catalog recipes it's missing. The website's
+  `/professions/character/<slug>`, reached from the Character search on `/professions`.
 
 Checked live 2026-11-19: 113 characters synced with recipes; "sharpening" found 5 Blacksmithing
 recipes, "bandage" 10 First Aid recipes. Forever has recipes Classic doesn't (healing potions under
 First Aid, "Discolored Healing Potion"). Catalog checked live 2026-11-20: 9 crafting professions
 recorded; Blacksmithing 507 recipes in 33 categories (115 known in the guild), Leatherworking 592,
 Tailoring 471.
-
-## Open questions
-
-- Links from a recipe to Wowhead: `/data/wow/recipe/{id}` answers the crafted item (its id is
-  Wowhead's item id) and the reagents, checked live 2026-11-20; not stored yet.
 
 ## Next: raid kills
 

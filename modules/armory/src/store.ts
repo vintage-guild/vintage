@@ -2,6 +2,7 @@ import { commandsFor } from '@vintage/guild-kit';
 import type {
   ArmoryLink,
   ProfessionCatalog,
+  RecipeDetail,
   RosterEntry,
   RosterRecipe,
   RosterRecipes,
@@ -84,6 +85,11 @@ export interface CatalogStore {
   listCatalog(guildId: string): Promise<ProfessionCatalog[]>;
   /** Inserts or replaces one profession's catalog. */
   putCatalog(catalog: Omit<ProfessionCatalog, 'id'>): Promise<void>;
+  /** Every recipe with details, and the item it makes: small, for links and the sync. */
+  listRecipeItems(guildId: string): Promise<{ recipeId: number; itemId: number | null }[]>;
+  getRecipeDetail(guildId: string, recipeId: number): Promise<RecipeDetail | null>;
+  /** Inserts or replaces each recipe's details. */
+  putRecipeDetails(details: Omit<RecipeDetail, 'id'>[]): Promise<void>;
 }
 
 /** Reads Blizzard's profession catalog outside the transaction (apps/api), then records it. */

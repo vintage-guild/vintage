@@ -1,4 +1,10 @@
-import type { ArmoryLink, ProfessionCatalog, RosterEntry, RosterRecipe } from './contract';
+import type {
+  ArmoryLink,
+  ProfessionCatalog,
+  RecipeDetail,
+  RosterEntry,
+  RosterRecipe,
+} from './contract';
 import type { ArmoryCharacter, ArmoryDeps, ArmoryStore, CatalogStore, RosterStore } from './store';
 
 /** Code-point order, like the component's `by_guild_name` index (not the locale's). */
@@ -98,11 +104,34 @@ export function createMemoryRosterStore(): RosterStore & {
 }
 
 /** In-memory CatalogStore for tests. One row per guild and profession, like the component. */
-export function createMemoryCatalogStore(): CatalogStore & { rows: ProfessionCatalog[] } {
+export function createMemoryCatalogStore(): CatalogStore & {
+  rows: ProfessionCatalog[];
+  details: RecipeDetail[];
+} {
   const rows: ProfessionCatalog[] = [];
+  const details: RecipeDetail[] = [];
   let seq = 0;
   return {
     rows,
+    details,
+    async listRecipeItems(guildId) {
+      return details
+        .filter((d) => d.guildId === guildId)
+        .map((d) => ({ recipeId: d.recipeId, itemId: d.itemId }));
+    },
+    async getRecipeDetail(guildId, recipeId) {
+      return details.find((d) => d.guildId === guildId && d.recipeId === recipeId) ?? null;
+    },
+    async putRecipeDetails(list) {
+      for (const detail of list) {
+        const at = details.findIndex(
+          (d) => d.guildId === detail.guildId && d.recipeId === detail.recipeId,
+        );
+        const row = { ...detail, id: details[at]?.id ?? `detail_${++seq}` };
+        if (at >= 0) details[at] = row;
+        else details.push(row);
+      }
+    },
     async listCatalog(guildId) {
       return rows
         .filter((r) => r.guildId === guildId)

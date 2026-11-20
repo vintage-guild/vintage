@@ -4,6 +4,7 @@ import { success } from '@vintage/guild-kit';
 import { z } from 'zod';
 import { RECIPE_SEARCH_LIMIT, type RecipeMatch } from '../contract';
 import { command } from '../store';
+import { itemLookup } from './catalog';
 import { knownRecipes } from './crafters';
 
 export const armoryRecipeSearch = command({
@@ -22,23 +23,30 @@ export const armoryRecipeSearch = command({
   }),
   handler: async ({ query, profession }, { guildId, deps }) => {
     const needle = query.toLowerCase();
-    const [entries, known, catalog] = await Promise.all([
+    const [entries, known, catalog, items] = await Promise.all([
       deps.armoryRoster.listEntries(guildId),
       deps.armoryRoster.listRecipes(guildId),
       deps.armoryCatalog.listCatalog(guildId),
+      deps.armoryCatalog.listRecipeItems(guildId),
     ]);
+    const itemOf = itemLookup(items);
     const matches = new Map<number, RecipeMatch>();
     const wanted = (name: string, prof: string) =>
       (!profession || prof === profession) && name.toLowerCase().includes(needle);
     for (const { recipe, crafters } of knownRecipes(entries, known).values()) {
       if (wanted(recipe.name, recipe.profession)) {
-        matches.set(recipe.id, { ...recipe, crafters });
+        matches.set(recipe.id, { ...recipe, itemId: itemOf(recipe.id), crafters });
       }
     }
     for (const row of catalog) {
       for (const recipe of row.categories.flatMap((c) => c.recipes)) {
         if (!matches.has(recipe.id) && wanted(recipe.name, row.profession)) {
-          matches.set(recipe.id, { ...recipe, profession: row.profession, crafters: [] });
+          matches.set(recipe.id, {
+            ...recipe,
+            profession: row.profession,
+            itemId: itemOf(recipe.id),
+            crafters: [],
+          });
         }
       }
     }

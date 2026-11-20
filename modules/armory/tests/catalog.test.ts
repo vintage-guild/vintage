@@ -1,8 +1,9 @@
 import { type Caller, systemCaller } from '@vintage/guild-kit';
 import { fixedClock, makeCaller, testRegistry } from '@vintage/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { armoryCommands, catalogProfessions, fetchCatalog } from '../src/commands';
+import { armoryCommands, catalogProfessions, fetchCatalog, toRecipeDetail } from '../src/commands';
 import type {
+  CharacterRecipes,
   ProfessionDetail,
   ProfessionSummary,
   RecipeMatch,
@@ -179,7 +180,7 @@ describe('armory-recipe-search with the catalog', () => {
       query: 'helm',
     });
     expect(recipes).toEqual([
-      { id: helm.id, name: helm.name, profession: 'Blacksmithing', crafters: [] },
+      { id: helm.id, name: helm.name, profession: 'Blacksmithing', itemId: null, crafters: [] },
     ]);
   });
 });
@@ -217,5 +218,113 @@ describe('fetchCatalog and catalogProfessions', () => {
     expect(categories).toEqual([
       { name: 'Weapon Stones', recipes: [{ id: 1631, name: 'Rough Sharpening Stone' }] },
     ]);
+  });
+});
+
+describe('recipe details', () => {
+  const lionheart = {
+    recipeId: helm.id,
+    itemId: 12640,
+    itemName: 'Lionheart Helm',
+    quality: 'epic',
+    quantity: 1,
+    lines: ['Binds when equipped', '+18 Strength'],
+    reagents: [{ name: 'Thorium Bar', quantity: 80 }],
+  };
+
+  it('records details for the system, answers them to anyone, and links the item', async () => {
+    await recordCatalog();
+    expect(
+      await ok('armory-recipe-detail-record', { details: [lionheart, { recipeId: 7 }] }, system),
+    ).toEqual({
+      recorded: 1,
+      refused: [{ recipeId: 7, issue: expect.stringMatching(/^itemId: /) }],
+    });
+    const refused = await run('armory-recipe-detail-record', { details: [lionheart] }, officer);
+    expect(refused.success).toBe(false);
+    const { detail } = await ok<{ detail: Record<string, unknown> | null }>('armory-recipe-get', {
+      recipeId: helm.id,
+    });
+    expect(detail).toMatchObject({ ...lionheart, syncedAt: NOW });
+    const page = await ok<ProfessionDetail>('armory-profession-get', {
+      profession: 'Blacksmithing',
+    });
+    expect(page.categories[1]?.recipes[0]).toMatchObject({ name: 'Lionheart Helm', itemId: 12640 });
+  });
+
+  it('answers null for a recipe whose details have not synced', async () => {
+    expect(await ok('armory-recipe-get', { recipeId: 1 })).toEqual({ detail: null });
+  });
+});
+
+describe('armory-character-recipes', () => {
+  it('splits a character’s professions into known and missing catalog recipes', async () => {
+    await recordCatalog();
+    const brick = await ok<CharacterRecipes>('armory-character-recipes', { slug: 'Brick-Stone' });
+    expect(brick).toMatchObject({ name: 'Brick', slug: 'brick-stone' });
+    expect(brick.professions).toEqual([
+      {
+        profession: 'Blacksmithing',
+        skill: 255,
+        maxSkill: 300,
+        known: [
+          { id: forever.id, name: forever.name, itemId: null },
+          { id: stone.id, name: stone.name, itemId: null },
+        ],
+        missing: [{ id: helm.id, name: helm.name, itemId: null }],
+      },
+    ]);
+  });
+
+  it('says when there is no such character', async () => {
+    const missing = await run('armory-character-recipes', { slug: 'nobody-here' }, visitor);
+    expect(missing.success ? 'OK' : missing.error?.code).toBe('CHARACTER_NOT_FOUND');
+  });
+});
+
+describe('itemLines and toRecipeDetail', () => {
+  it('reads Blizzard’s display strings in tooltip order, marking equip bonuses', () => {
+    const detail = toRecipeDetail(
+      9331,
+      {
+        id: 9331,
+        crafted_item: { id: 12640, name: 'Lionheart Helm' },
+        crafted_quantity: { value: 1 },
+        reagents: [{ reagent: { id: 12359, name: 'Thorium Bar' }, quantity: 80 }],
+      },
+      {
+        id: 12640,
+        name: 'Lionheart Helm',
+        quality: { type: 'EPIC', name: 'Epic' },
+        preview_item: {
+          binding: { name: 'Binds when equipped' },
+          inventory_type: { type: 'HEAD', name: 'Head' },
+          item_subclass: { name: 'Plate' },
+          armor: { display: { display_string: '565 Armor' } },
+          stats: [
+            { display: { display_string: '+18 Strength' } },
+            { is_equip_bonus: true, display: { display_string: '+20 Hit' } },
+          ],
+          spells: [],
+          requirements: { level: { display_string: 'Requires Level 56' } },
+        },
+      },
+    );
+    expect(detail).toEqual({
+      recipeId: 9331,
+      itemId: 12640,
+      itemName: 'Lionheart Helm',
+      quality: 'epic',
+      quantity: 1,
+      lines: [
+        'Binds when equipped',
+        'Head, Plate',
+        '565 Armor',
+        '+18 Strength',
+        'Equip: +20 Hit',
+        'Requires Level 56',
+      ],
+      reagents: [{ name: 'Thorium Bar', quantity: 80 }],
+    });
   });
 });

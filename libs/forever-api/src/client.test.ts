@@ -242,6 +242,39 @@ describe('createForeverApi', () => {
     expect(urls.every((u) => u.searchParams.get('namespace') === 'static-forever-us')).toBe(true);
   });
 
+  it('reads a recipe and its crafted item from the static namespace', async () => {
+    const { fetch, calls } = fakeFetch(
+      tokenOk,
+      json(200, {
+        id: 9331,
+        name: 'Lionheart Helm',
+        crafted_item: { id: 12640, name: 'Lionheart Helm' },
+        reagents: [{ reagent: { id: 12359, name: 'Thorium Bar' }, quantity: 80 }],
+        crafted_quantity: { value: 1 },
+      }),
+      json(200, {
+        id: 12640,
+        name: 'Lionheart Helm',
+        quality: { type: 'EPIC', name: 'Epic' },
+        preview_item: {
+          binding: { type: 'ON_EQUIP', name: 'Binds when equipped' },
+          stats: [{ value: 18, display: { display_string: '+18 Strength' } }],
+          sell_price: { value: 21894 },
+        },
+      }),
+    );
+    const client = api(fetch);
+    expect((await client.recipe(9331))?.reagents).toEqual([
+      { reagent: { id: 12359, name: 'Thorium Bar' }, quantity: 80 },
+    ]);
+    const item = await client.item(12640);
+    expect(item?.preview_item?.stats[0]?.display?.display_string).toBe('+18 Strength');
+    expect(calls.slice(1).map((c) => new URL(c.url).pathname)).toEqual([
+      '/data/wow/recipe/9331',
+      '/data/wow/item/12640',
+    ]);
+  });
+
   it('reads professions, trimmed to what Vintage shows', async () => {
     const { fetch, calls } = fakeFetch(
       tokenOk,

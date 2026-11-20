@@ -152,8 +152,26 @@ const pendingEntry = (guildId: string, m: Member): Omit<RosterEntry, 'id'> => ({
 });
 
 /**
+ * Blizzard's members, each id and each slug once (the first wins): two answers for one
+ * character, or two characters on one slug, would otherwise write the same row twice.
+ */
+const uniqueMembers = (members: Member[]) => {
+  const ids = new Set<number>();
+  const slugs = new Set<string>();
+  return members.filter((m) => {
+    if (ids.has(m.blizzardId) || slugs.has(m.slug)) return false;
+    ids.add(m.blizzardId);
+    slugs.add(m.slug);
+    return true;
+  });
+};
+
+/**
  * Bring the table's membership in line with Blizzard's: delete who left, insert who joined,
- * update level, rank, and renames. Answers the entries by their current slug.
+ * update level, rank, and renames. Rows are matched by Blizzard's character id only: a slug can
+ * pass to another character (a rename frees it), so a new id on a known slug is a new character.
+ * A renamed row loses its armory link (it named the old slug) and is due again at once.
+ * Answers the entries by their current slug.
  */
 async function syncMembers(
   deps: RosterDeps,
@@ -162,18 +180,15 @@ async function syncMembers(
   members: Member[],
 ) {
   const byId = new Map(existing.map((e) => [e.blizzardId, e]));
-  const bySlug = new Map(existing.map((e) => [e.slug, e]));
-  // Blizzard's id first, so a renamed character keeps its row; the slug for rows without one.
-  const match = (m: Member) => byId.get(m.blizzardId) ?? bySlug.get(m.slug);
-  const kept = new Set(members.flatMap((m) => match(m)?.id ?? []));
+  const present = new Set(members.map((m) => m.blizzardId));
   const counts = { inserted: 0, removed: 0, renamed: 0 };
-  for (const entry of existing.filter((e) => !kept.has(e.id))) {
+  for (const entry of existing.filter((e) => !present.has(e.blizzardId))) {
     await deps.armoryRoster.deleteEntry(guildId, entry.id);
     counts.removed++;
   }
   const current = new Map<string, RosterEntry>();
   for (const member of members) {
-    const found = match(member);
+    const found = byId.get(member.blizzardId);
     if (!found) {
       current.set(member.slug, await deps.armoryRoster.insertEntry(pendingEntry(guildId, member)));
       counts.inserted++;
@@ -192,6 +207,7 @@ async function syncMembers(
             slug,
             level,
             guildRank,
+            ...(rename ? { profileUrl: null, checkedAt: null } : {}),
           })
         : found,
     );
@@ -229,8 +245,8 @@ export const armoryGuildRosterRecord = command({
   name: 'armory-guild-roster-record',
   description:
     'Record one sync’s results: the guild’s current member list from Blizzard (inserts new ' +
-    'characters as pending, follows a rename by Blizzard’s character id, drops ones no longer ' +
-    'in the guild) and whichever members’ details were just re-fetched. A found result keeps ' +
+    'characters as pending, matches by Blizzard’s character id so a rename keeps its row and is ' +
+    're-checked, drops ones no longer in the guild, ignores a repeated id or slug) and whichever members’ details were just re-fetched. A found result keeps ' +
     'any field it leaves out (that request failed); a result that doesn’t fit is recorded as ' +
     'that character’s error instead of refusing the batch. An empty member list is refused ' +
     'while the roster has entries: Blizzard answering with no one is an outage, not the guild ' +
@@ -250,11 +266,13 @@ export const armoryGuildRosterRecord = command({
         suggestion: 'Nothing was changed; the next sync tries again.',
       });
     }
+    const unique = uniqueMembers(members);
+    const duplicates = members.length - unique.length;
     const { current, inserted, removed, renamed } = await syncMembers(
       deps,
       guildId,
       existing,
-      members,
+      unique,
     );
 
     let enrichedCount = 0;
@@ -268,11 +286,12 @@ export const armoryGuildRosterRecord = command({
     }
 
     return success(
-      { inserted, removed, renamed, enriched: enrichedCount, rejected },
+      { inserted, removed, renamed, enriched: enrichedCount, rejected, duplicates },
       {
         reasoning:
           `${inserted} new, ${removed} removed, ${renamed} renamed, ${enrichedCount} enriched` +
-          (rejected ? ` (${rejected} out of bounds, recorded as errors)` : ''),
+          (rejected ? ` (${rejected} out of bounds, recorded as errors)` : '') +
+          (duplicates ? ` (${duplicates} duplicate member(s) ignored)` : ''),
       },
     );
   },

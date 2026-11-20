@@ -4,7 +4,13 @@ import { fixedClock, makeCaller, testRegistry } from '@vintage/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { armoryCommands } from '../src/commands';
 import type { RosterEntry, RosterFetchResult, RosterListing, RosterMember } from '../src/contract';
-import { fetchRosterEntry, type RosterClient, toRosterMembers } from '../src/domain/roster';
+import {
+  chunkBySize,
+  fetchRosterEntry,
+  type RosterClient,
+  serializedBytes,
+  toRosterMembers,
+} from '../src/domain/roster';
 import type { ArmoryDeps } from '../src/store';
 import { createMemoryArmoryDeps, type MemoryArmoryDeps } from '../src/testing';
 
@@ -223,7 +229,7 @@ describe('armory-guild-roster-record', () => {
     });
   });
 
-  it('follows a rename by Blizzard’s id, keeping the enrichment and recipes', async () => {
+  it('follows a rename by Blizzard’s id, keeping enrichment and recipes but re-checking it', async () => {
     await record(
       [member()],
       [
@@ -237,7 +243,8 @@ describe('armory-guild-roster-record', () => {
             professions: [],
             recipes: [{ id: 1, name: 'Iron Helm', profession: 'Blacksmithing' }],
             avatarUrl: null,
-            profileUrl: null,
+            profileUrl:
+              'https://worldofwarcraft.blizzard.com/en-us/forever/us/armory/character/judgement-judy',
           },
         },
       ],
@@ -251,8 +258,72 @@ describe('armory-guild-roster-record', () => {
       surname: 'Jury',
       slug: 'judgement-jury',
       activeSpec: 'Holy',
+      // The old link named the old slug; the next sync rebuilds it first thing.
+      profileUrl: null,
+      checkedAt: null,
     });
     expect(deps.armoryRoster.recipes.get(before!.id)?.recipes).toHaveLength(1);
+  });
+
+  for (const order of ['renamed first', 'newcomer first'] as const) {
+    it(`gives a freed slug to the new character, not the renamed one's row (${order})`, async () => {
+      const recipe = { id: 1, name: 'Iron Helm', profession: 'Blacksmithing' };
+      await record(
+        [member({ blizzardId: 10, name: 'Alice', surname: 'Ash', slug: 'alice-ash' })],
+        [
+          {
+            slug: 'alice-ash',
+            result: {
+              status: 'found',
+              className: 'Warrior',
+              raceName: 'Orc',
+              recipes: [recipe],
+              profileUrl: null,
+            },
+          },
+        ],
+      );
+      const [alice] = await ok<RosterEntry[]>('armory-guild-roster', {}, recruit);
+      const renamed = member({ blizzardId: 10, name: 'Beth', surname: 'Ash', slug: 'beth-ash' });
+      const newcomer = member({ blizzardId: 20, name: 'Alice', surname: 'Ash', slug: 'alice-ash' });
+      const result = await record(
+        order === 'renamed first' ? [renamed, newcomer] : [newcomer, renamed],
+        [{ slug: 'alice-ash', result: { status: 'error', error: 'Not in the armory yet' } }],
+      );
+      expect(result).toMatchObject({ data: { inserted: 1, removed: 0, renamed: 1 } });
+      const entries = await ok<RosterEntry[]>('armory-guild-roster', {}, recruit);
+      const bySlug = Object.fromEntries(entries.map((e) => [e.slug, e]));
+      expect(bySlug['beth-ash']).toMatchObject({
+        id: alice?.id,
+        blizzardId: 10,
+        className: 'Warrior',
+      });
+      expect(bySlug['alice-ash']).toMatchObject({
+        blizzardId: 20,
+        status: 'error',
+        className: null,
+      });
+      expect(bySlug['alice-ash']?.id).not.toBe(alice?.id);
+      expect(deps.armoryRoster.recipes.get(alice!.id)?.recipes).toEqual([recipe]);
+    });
+  }
+
+  it('ignores a repeated id or slug in Blizzard’s list, keeping the first', async () => {
+    const result = await record(
+      [
+        member(),
+        member({ name: 'Copy', slug: 'copy-judy' }),
+        member({ blizzardId: 3 }),
+        member({ blizzardId: 4, name: 'Bulwark', surname: 'Stone', slug: 'bulwark-stone' }),
+      ],
+      [],
+    );
+    expect(result).toMatchObject({ data: { inserted: 2, duplicates: 2 } });
+    const entries = await ok<RosterEntry[]>('armory-guild-roster', {}, recruit);
+    expect(entries.map((e) => [e.blizzardId, e.slug])).toEqual([
+      [4, 'bulwark-stone'],
+      [1, 'judgement-judy'],
+    ]);
   });
 
   it('drops a departed character’s recipes with it', async () => {
@@ -486,5 +557,48 @@ describe('fetchRosterEntry', () => {
     expect(result).not.toHaveProperty('professions');
     expect(result).not.toHaveProperty('recipes');
     expect(result).not.toHaveProperty('activeSpec');
+  });
+});
+
+describe('chunkBySize', () => {
+  const found = (slug: string, recipes: number) => ({
+    slug,
+    result: {
+      status: 'found' as const,
+      className: 'Mage',
+      raceName: 'Gnome',
+      recipes: Array.from({ length: recipes }, (_, i) => ({
+        id: i,
+        name: `Recipe ${i}`,
+        profession: 'Tailoring',
+      })),
+      profileUrl: null,
+    },
+  });
+
+  it('always answers one chunk, so the membership is recorded with nothing enriched', () => {
+    expect(chunkBySize([], 1000)).toEqual([[]]);
+  });
+
+  it('splits enrichments so no chunk passes the budget, keeping their order', () => {
+    const items = ['a', 'b', 'c', 'd'].map((slug) => found(slug, 20));
+    const one = serializedBytes(items[0]);
+    const chunks = chunkBySize(items, one * 2 + 10);
+    expect(chunks.map((c) => c.map((e) => e.slug))).toEqual([
+      ['a', 'b'],
+      ['c', 'd'],
+    ]);
+    for (const chunk of chunks) {
+      expect(chunk.reduce((n, e) => n + serializedBytes(e), 0)).toBeLessThanOrEqual(one * 2 + 10);
+    }
+  });
+
+  it('sends one answer too big on its own as that character’s error', () => {
+    const [chunk] = chunkBySize([found('huge', 500), found('small', 1)], 2000);
+    expect(chunk?.[0]).toMatchObject({
+      slug: 'huge',
+      result: { status: 'error', error: expect.stringContaining('too large') },
+    });
+    expect(chunk?.[1]?.slug).toBe('small');
   });
 });

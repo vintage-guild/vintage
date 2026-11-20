@@ -1,4 +1,5 @@
 // Component functions for the guild roster. Called only by apps/api through `components.armory`.
+import { paginationOptsValidator } from 'convex/server';
 import { v } from 'convex/values';
 import type { Doc, Id } from './_generated/dataModel';
 import { type MutationCtx, mutation, query } from './_generated/server';
@@ -99,18 +100,31 @@ export const remove = mutation({
   },
 });
 
-/** Every entry's recipes in the guild; entries with none are left out. */
+/**
+ * Every entry's recipes in the guild; entries with none are left out. Until every row is
+ * migrated, an entry whose recipes still sit on the row itself (the legacy field) is read from
+ * there, so the search answers the same before and after the move.
+ */
 export const listRecipes = query({
   args: { guildId: v.string() },
-  handler: async (ctx, { guildId }) =>
-    (
-      await ctx.db
-        .query('rosterRecipes')
-        .withIndex('by_guild_entry', (q) => q.eq('guildId', guildId))
-        .collect()
-    )
-      .filter((r) => r.recipes.length > 0)
-      .map((r) => ({ entryId: r.entryId as string, recipes: r.recipes })),
+  handler: async (ctx, { guildId }) => {
+    const moved = await ctx.db
+      .query('rosterRecipes')
+      .withIndex('by_guild_entry', (q) => q.eq('guildId', guildId))
+      .collect();
+    const out = new Map(moved.map((r) => [r.entryId as string, r.recipes]));
+    // Legacy rows carry their recipes; migrated rows are small, so this scan stays cheap.
+    const entries = await ctx.db
+      .query('rosterEntries')
+      .withIndex('by_guild_rank', (q) => q.eq('guildId', guildId))
+      .collect();
+    for (const doc of entries) {
+      if (doc.recipes && !out.has(doc._id)) out.set(doc._id, doc.recipes);
+    }
+    return [...out]
+      .filter(([, recipes]) => recipes.length > 0)
+      .map(([entryId, recipes]) => ({ entryId, recipes }));
+  },
 });
 
 /** Replace one entry's recipes. */
@@ -128,21 +142,21 @@ export const setRecipes = mutation({
 });
 
 /**
- * One-off: move up to `limit` entries' legacy recipes into `rosterRecipes`. Answers how many
- * moved; run again until it answers 0 (apps/api `armory:rosterMigrateRecipes`).
+ * One-off: move one page of entries' legacy recipes into `rosterRecipes`. Pages by cursor, so
+ * each run reads a bounded number of rows; call again with `continueCursor` until `isDone`
+ * (apps/api `armory:rosterMigrateRecipes` does).
  */
 export const migrateLegacyRecipes = mutation({
-  args: { guildId: v.string(), limit: v.number() },
-  handler: async (ctx, { guildId, limit }) => {
-    let moved = 0;
-    const docs = await ctx.db
+  args: { guildId: v.string(), paginationOpts: paginationOptsValidator },
+  handler: async (ctx, { guildId, paginationOpts }) => {
+    const page = await ctx.db
       .query('rosterEntries')
       .withIndex('by_guild_rank', (q) => q.eq('guildId', guildId))
-      .collect();
-    for (const doc of docs) {
-      if (moved >= limit) break;
+      .paginate(paginationOpts);
+    let moved = 0;
+    for (const doc of page.page) {
       if (await moveLegacyRecipes(ctx, doc)) moved++;
     }
-    return moved;
+    return { moved, continueCursor: page.continueCursor, isDone: page.isDone };
   },
 });

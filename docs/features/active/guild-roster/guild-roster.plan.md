@@ -111,7 +111,8 @@ exactly what the Google Sheet already shows anyone in Discord).
 | 2026-11-20 | An empty Blizzard roster is refused | `members` defaults to `[]`; one bad answer would have deleted every row and its enrichment |
 | 2026-11-20 | Results are checked one by one | One answer past a bound refused the whole batch, membership included, and the same stalest rows were retried first forever |
 | 2026-11-20 | Recipes in their own table, keyed by entry id | They're most of each row's bytes; the public roster read, the sync, and the staleness query all loaded them to throw them away |
-| 2026-11-20 | Match roster rows by `blizzardId` before the slug | A rename deleted and re-inserted the row, losing its enrichment |
+| 2026-11-20 | Match roster rows by `blizzardId` only | A rename deleted and re-inserted the row, losing its enrichment; a slug fallback would hand a renamed character's row to whoever takes the freed name |
+| 2026-11-20 | Split the record call by serialized size | 60 characters with hundreds of recipes each can outgrow one Convex argument; every chunk carries the full member list, so splitting never drops a member |
 
 ## Tasks
 

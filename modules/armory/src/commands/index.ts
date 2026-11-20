@@ -5,7 +5,13 @@ import { armoryGuildRoster, armoryGuildRosterRecord, armoryGuildRosterSync } fro
 import { armoryRecord, armorySweep } from './system';
 
 export { type ArmoryClient, fetchArmory } from '../domain/fetch';
-export { fetchRosterEntry, type RosterClient, toRosterMembers } from '../domain/roster';
+export {
+  chunkBySize,
+  fetchRosterEntry,
+  type RosterClient,
+  serializedBytes,
+  toRosterMembers,
+} from '../domain/roster';
 export type {
   ArmoryCharacter,
   ArmoryCharacters,

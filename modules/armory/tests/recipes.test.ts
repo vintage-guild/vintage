@@ -27,8 +27,9 @@ const search = async (input: unknown) => {
   return result.data as Search;
 };
 
+// Blizzard's id from the name, distinct per character (the record dedupes repeated ids).
 const member = (name: string, surname: string): RosterMember => ({
-  blizzardId: name.length,
+  blizzardId: [...name].reduce((n, c) => n * 31 + c.charCodeAt(0), 7),
   name,
   surname,
   slug: `${name}-${surname}`.toLowerCase(),

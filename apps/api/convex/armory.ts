@@ -9,11 +9,18 @@
 //   npx convex run armory:refresh '{"linkIds":["…"]}'
 //   npx convex run armory:sweep
 //   npx convex run armory:rosterSync '{"guildId":"vintage"}'
-//   npx convex run armory:rosterMigrateRecipes   (once, until it answers 0)
+//   npx convex run armory:rosterMigrateRecipes   (once, after recipes moved to their own table)
 
-import { fetchArmory, fetchRosterEntry, toRosterMembers } from '@vintage/armory/commands';
+import {
+  chunkBySize,
+  fetchArmory,
+  fetchRosterEntry,
+  serializedBytes,
+  toRosterMembers,
+} from '@vintage/armory/commands';
 import {
   type ArmoryFetchResult,
+  ROSTER_RECORD_BYTES,
   ROSTER_STALE_MS,
   ROSTER_SYNC_BATCH,
   type RosterFetchResult,
@@ -106,16 +113,27 @@ export const rosterStatus = internalQuery({
 });
 
 /**
- * One-off after recipes moved to their own table: moves up to 25 entries' legacy recipes per
- * run (each entry's next update moves them too). Run until it answers 0.
+ * One-off after recipes moved to their own table: moves the legacy recipes 10 entries per
+ * transaction, scheduling itself until the roster is done (each entry's next update moves them
+ * too). Run once: `npx convex run armory:rosterMigrateRecipes`; watch the logs for the total.
  */
 export const rosterMigrateRecipes = internalMutation({
-  args: {},
-  handler: (ctx) =>
-    ctx.runMutation(components.armory.roster.migrateLegacyRecipes, {
+  args: { cursor: v.optional(v.union(v.string(), v.null())), moved: v.optional(v.number()) },
+  handler: async (ctx, { cursor = null, moved = 0 }) => {
+    const page = await ctx.runMutation(components.armory.roster.migrateLegacyRecipes, {
       guildId: GUILD_ID,
-      limit: 25,
-    }),
+      paginationOpts: { cursor, numItems: 10 },
+    });
+    const total = moved + page.moved;
+    if (page.isDone) {
+      console.log(`armory roster: moved recipes off ${total} entries`);
+      return;
+    }
+    await ctx.scheduler.runAfter(0, internal.armory.rosterMigrateRecipes, {
+      cursor: page.continueCursor,
+      moved: total,
+    });
+  },
 });
 
 /** Write one roster sync's results through `armory-guild-roster-record` (system only). */
@@ -176,9 +194,17 @@ export const rosterSync = internalAction({
       });
     }
 
-    const recorded = await ctx.runMutation(internal.armory.rosterRecord, { members, enriched });
-    if (!recorded.success) {
-      console.error(`armory roster sync: record refused: ${recorded.error?.code}`);
+    // Every call carries the full member list (reconciling it again is a no-op), so splitting
+    // the enrichments by size never drops anyone from the roster.
+    for (const chunk of chunkBySize(enriched, ROSTER_RECORD_BYTES - serializedBytes(members))) {
+      const recorded = await ctx.runMutation(internal.armory.rosterRecord, {
+        members,
+        enriched: chunk,
+      });
+      if (!recorded.success) {
+        console.error(`armory roster sync: record refused: ${recorded.error?.code}`);
+        return;
+      }
     }
   },
 });

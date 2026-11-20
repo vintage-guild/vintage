@@ -113,3 +113,39 @@ export async function fetchRosterEntry(
     profileUrl: armoryProfileUrl(region, name, surname),
   };
 }
+
+const encoder = new TextEncoder();
+/** A value's size as JSON, in UTF-8 bytes. */
+export const serializedBytes = (value: unknown) => encoder.encode(JSON.stringify(value)).length;
+
+type Enriched = { slug: string; result: RosterFetchResult };
+
+/**
+ * One sync's enrichments in chunks of at most `budget` bytes, for one record call each; always
+ * at least one chunk, so the membership is recorded even with nothing enriched. A result too
+ * big on its own goes as that character's error instead.
+ */
+export function chunkBySize(enriched: Enriched[], budget: number): Enriched[][] {
+  const chunks: Enriched[][] = [[]];
+  let size = 0;
+  for (const item of enriched) {
+    let entry = item;
+    let n = serializedBytes(entry);
+    if (n > budget) {
+      entry = {
+        slug: item.slug,
+        result: { status: 'error', error: `Armory answer too large to record (${n} bytes)` },
+      };
+      n = serializedBytes(entry);
+    }
+    const last = chunks[chunks.length - 1] ?? [];
+    if (size + n > budget && last.length > 0) {
+      chunks.push([entry]);
+      size = n;
+    } else {
+      last.push(entry);
+      size += n;
+    }
+  }
+  return chunks;
+}

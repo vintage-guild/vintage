@@ -70,8 +70,10 @@ Every character in the Forever guild's in-game roster, independent of links
 - **Blizzard's roster is the membership.** Every 30 minutes apps/api's `armory:rosterSync` reads
   `guildRoster(BLIZZARD_GUILD_SLUG)` (default `vintage`) and hands the full member list to
   `armory-guild-roster-record`, which inserts new characters as `pending`, updates level and
-  rank, follows renames by Blizzard's character id (`blizzardId`, then the slug for a row that
-  predates it), and deletes characters no longer in the guild with their recipes. An empty member
+  rank, and deletes characters no longer in the guild with their recipes. Rows match by
+  Blizzard's character id (`blizzardId`) only: a rename keeps its row (its armory link is
+  cleared and it's re-enriched next sync), and a newcomer on a freed slug gets a new row. A
+  repeated id or slug in Blizzard's list is ignored (the first wins). An empty member
   list is refused (`ARMORY_ROSTER_EMPTY`) while the table has rows: that's Blizzard failing, not
   the guild emptying.
 - **Enrichment is paced.** Each sync also enriches up to `ROSTER_SYNC_BATCH` (60) characters
@@ -81,11 +83,15 @@ Every character in the Forever guild's in-game roster, independent of links
   and the record keeps the stored ones rather than blanking them for a day.
 - **One bad answer never stalls the sync.** The record checks each enrichment on its own; one
   that doesn't fit the bounds is stored as that character's `error`, and the rest of the batch
-  and the membership changes still land.
+  and the membership changes still land. The sync action splits the enrichments over several
+  record calls under `ROSTER_RECORD_BYTES` (`chunkBySize`), each with the full member list, so a
+  batch heavy with recipes can't outgrow Convex's argument limit.
 - **Recipes live in their own table** (`rosterRecipes`, one row per entry, keyed by entry id),
   read only by `armory-recipe-search`, so the roster listing and the sync never load them. Older
-  rows' `recipes` field moves there on the entry's next update, or run
-  `npx convex run armory:rosterMigrateRecipes` until it answers 0; then drop the field.
+  rows' `recipes` field moves there on the entry's next update, or all at once with
+  `npx convex run armory:rosterMigrateRecipes` (it pages 10 rows per transaction and schedules
+  itself to the end). Until then the search reads the legacy field, so it answers the same.
+  Drop the field once no row has it.
 - **`guildRank` is Blizzard's index** (0 = Guild Master); the API has no rank names, so the
   website names them (`RANK_NAMES` in apps/web's roster page).
 - `armory-guild-roster` is public (Blizzard's armory is) and answers entries sorted by rank, then

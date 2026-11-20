@@ -216,5 +216,10 @@ export interface RosterMember {
 
 /** An entry is re-enriched by the sync once its last check is this old. */
 export const ROSTER_STALE_MS = 24 * 60 * 60 * 1000;
+/**
+ * Serialized bytes one `armory-guild-roster-record` call stays under, well inside Convex's
+ * argument limit: 60 characters with hundreds of recipes each can outgrow a single call.
+ */
+export const ROSTER_RECORD_BYTES = 4_000_000;
 /** Roster entries one sync enriches, so a run stays well inside Blizzard's rate limit. */
 export const ROSTER_SYNC_BATCH = 60;

@@ -203,7 +203,17 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
       migrateLegacyRecipes: FunctionReference<
         "mutation",
         "internal",
-        { guildId: string; limit: number },
+        {
+          guildId: string;
+          paginationOpts: {
+            cursor: string | null;
+            endCursor?: string | null;
+            id?: number;
+            maximumBytesRead?: number;
+            maximumRowsRead?: number;
+            numItems: number;
+          };
+        },
         any,
         Name
       >;

@@ -3,17 +3,20 @@
 // knowledge by the profession overview and each profession's page. Public like the roster.
 import { error, success } from '@vintage/guild-kit';
 import { z } from 'zod';
-import type { CatalogRecipe, ProfessionDetail, ProfessionSummary } from '../contract';
+import type { CatalogRecipe, ProfessionDetail, ProfessionSummary, RecipeItem } from '../contract';
 import { command } from '../store';
 import { bySkill, knownRecipes, toCrafter } from './crafters';
 
 /** Characters below this level aren't on the armory, so they aren't counted as crafters. */
 const MIN_LEVEL = 10;
 
-/** Each recipe's crafted item id, by recipe id; null when its details haven't synced. */
-export const itemLookup = (items: { recipeId: number; itemId: number | null }[]) => {
-  const byRecipe = new Map(items.map((i) => [i.recipeId, i.itemId]));
-  return (recipeId: number) => byRecipe.get(recipeId) ?? null;
+/** Each recipe's crafted item and its quality, by recipe id; nulls until its details sync. */
+export const itemLookup = (items: ({ recipeId: number } & RecipeItem)[]) => {
+  const byRecipe = new Map(items.map((i) => [i.recipeId, i]));
+  return (recipeId: number): RecipeItem => {
+    const item = byRecipe.get(recipeId);
+    return { itemId: item?.itemId ?? null, quality: item?.quality ?? null };
+  };
 };
 
 /** `First Aid`, `first-aid`, and `first aid` are the same profession. */
@@ -141,7 +144,7 @@ export const armoryProfessionGet = command({
         return {
           id: r.id,
           name: r.name,
-          itemId: itemOf(r.id),
+          ...itemOf(r.id),
           crafters: knownById.get(r.id)?.crafters ?? [],
         };
       }),
@@ -151,7 +154,7 @@ export const armoryProfessionGet = command({
       .map((k) => ({
         id: k.recipe.id,
         name: k.recipe.name,
-        itemId: itemOf(k.recipe.id),
+        ...itemOf(k.recipe.id),
         crafters: k.crafters,
       }))
       .sort((a, b) => a.name.localeCompare(b.name));

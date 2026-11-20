@@ -35,7 +35,7 @@ export const armoryRecipeSearch = command({
       (!profession || prof === profession) && name.toLowerCase().includes(needle);
     for (const { recipe, crafters } of knownRecipes(entries, known).values()) {
       if (wanted(recipe.name, recipe.profession)) {
-        matches.set(recipe.id, { ...recipe, itemId: itemOf(recipe.id), crafters });
+        matches.set(recipe.id, { ...recipe, ...itemOf(recipe.id), crafters });
       }
     }
     for (const row of catalog) {
@@ -44,7 +44,7 @@ export const armoryRecipeSearch = command({
           matches.set(recipe.id, {
             ...recipe,
             profession: row.profession,
-            itemId: itemOf(recipe.id),
+            ...itemOf(recipe.id),
             crafters: [],
           });
         }

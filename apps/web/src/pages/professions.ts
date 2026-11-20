@@ -63,9 +63,13 @@ const backLink = html`<a class="back" href="/professions"><svg viewBox="0 0 16 1
 /** "Opens in a new tab": an arrow leaving a box, in the link's own color. */
 const newTab = html`<svg class="new-tab" viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><path d="M9 2.5h4.5V7M13.5 2.5 7.5 8.5M11.5 9.5v3.5a.5.5 0 0 1-.5.5H3a.5.5 0 0 1-.5-.5V5a.5.5 0 0 1 .5-.5h3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
+/** `q-epic` for an epic item, colored like the tooltip; common and unsynced keep the text color. */
+export const qualityClass = (quality: string | null) =>
+  quality && /^[a-z]+$/.test(quality) ? `q-${quality}` : '';
+
 /** A recipe's name: links to Wowhead; hovering or focusing it opens the page's tooltip. */
 const recipeLink = <T extends RecipeRef>() =>
-  html<T>`<a class="recipe-name recipe-link" href="${(r) => wowheadUrl(r.name, r.itemId)}" target="_blank" rel="noopener noreferrer" data-recipe="${(r) => r.id}">${(r) => r.name}${newTab}<span class="visually-hidden"> (Wowhead, opens in a new tab)</span></a>`;
+  html<T>`<a class="recipe-name recipe-link ${(r) => qualityClass(r.quality)}" href="${(r) => wowheadUrl(r.name, r.itemId)}" target="_blank" rel="noopener noreferrer" data-recipe="${(r) => r.id}">${(r) => r.name}${newTab}<span class="visually-hidden"> (Wowhead, opens in a new tab)</span></a>`;
 
 const characterPath = (slug: string) => `/professions/character/${encodeURIComponent(slug)}`;
 

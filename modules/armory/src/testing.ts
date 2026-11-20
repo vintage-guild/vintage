@@ -117,7 +117,7 @@ export function createMemoryCatalogStore(): CatalogStore & {
     async listRecipeItems(guildId) {
       return details
         .filter((d) => d.guildId === guildId)
-        .map((d) => ({ recipeId: d.recipeId, itemId: d.itemId }));
+        .map((d) => ({ recipeId: d.recipeId, itemId: d.itemId, quality: d.quality }));
     },
     async getRecipeDetail(guildId, recipeId) {
       return details.find((d) => d.guildId === guildId && d.recipeId === recipeId) ?? null;

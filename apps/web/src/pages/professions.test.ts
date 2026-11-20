@@ -1,5 +1,5 @@
-// `/professions/character/<slug>#<profession>`, opened from a profession on the roster, scrolls to
-// that profession once the character's crafting has rendered.
+// A character's crafting page: `#<profession>` (a profession linked from the roster) scrolls to
+// that profession once it has rendered, and each recipe's name takes its item's quality color.
 import { vi } from 'vitest';
 
 // A browser's frame is ~16ms away, later than a zero timeout; happy-dom's comes sooner. FAST reads
@@ -25,7 +25,14 @@ const character: CharacterRecipes = {
     profession,
     skill: 150,
     maxSkill: 150,
-    known: [],
+    known:
+      profession === 'Blacksmithing'
+        ? [
+            { id: 1, name: 'Lionheart Helm', itemId: 12640, quality: 'epic' },
+            { id: 2, name: 'Rough Sharpening Stone', itemId: 2862, quality: 'common' },
+            { id: 3, name: 'Not Synced Yet', itemId: null, quality: null },
+          ]
+        : [],
     missing: [],
   })),
 };
@@ -38,20 +45,25 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+/** Open Cast Iron's crafting page at `url`. */
+async function open(url: string): Promise<Element | null> {
+  restore = setCommandClient({
+    read: async <T>() => ({ success: true, data: character }) as CommandResult<T>,
+    run: async <T>() => ({ success: false }) as CommandResult<T>,
+  });
+  history.replaceState(null, '', url);
+  await import('./professions');
+  document.body.innerHTML = '<vintage-professions-page></vintage-professions-page>';
+  return document.querySelector('vintage-professions-page');
+}
+
 describe('a character’s crafting page', () => {
   it('scrolls to the profession in the link once it renders', async () => {
-    restore = setCommandClient({
-      read: async <T>() => ({ success: true, data: character }) as CommandResult<T>,
-      run: async <T>() => ({ success: false }) as CommandResult<T>,
-    });
-    history.replaceState(null, '', '/professions/character/cast-iron#blacksmithing');
     const scrolled: string[] = [];
     vi.spyOn(window, 'scrollTo').mockImplementation(() => {
       scrolled.push(location.hash);
     });
-    await import('./professions');
-    document.body.innerHTML = '<vintage-professions-page></vintage-professions-page>';
-    const page = document.querySelector('vintage-professions-page');
+    const page = await open('/professions/character/cast-iron#blacksmithing');
     const section = () => page?.shadowRoot?.getElementById('blacksmithing');
 
     for (let i = 0; i < 20 && scrolled.length === 0; i++) {
@@ -60,5 +72,22 @@ describe('a character’s crafting page', () => {
     }
     expect(section()).toBeTruthy();
     expect(scrolled).toEqual(['#blacksmithing']);
+  });
+
+  it('colors each recipe name by its item’s quality', async () => {
+    const page = await open('/professions/character/cast-iron');
+    const links = () => [...(page?.shadowRoot?.querySelectorAll('a.recipe-link') ?? [])];
+    for (let i = 0; i < 20 && links().length === 0; i++) {
+      await new Promise((r) => setTimeout(r, 0));
+      await Updates.next();
+    }
+    const quality = (name: string) =>
+      [...(links().find((a) => a.textContent?.includes(name))?.classList ?? [])].filter((c) =>
+        c.startsWith('q-'),
+      );
+    expect(quality('Lionheart Helm')).toEqual(['q-epic']);
+    // Common and unsynced recipes keep the page's text color.
+    expect(quality('Rough Sharpening Stone')).toEqual(['q-common']);
+    expect(quality('Not Synced Yet')).toEqual([]);
   });
 });

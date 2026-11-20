@@ -126,8 +126,9 @@ so the website can show recipes nobody in the guild knows
 - `armory-profession-get` (public): one profession's catalog in its categories, each recipe with
   everyone who knows it, best first, or none; recipes the roster knows that the catalog lacks go
   under "Other". Takes the name in any case, with spaces or hyphens (`first-aid`). Errors:
-  `PROFESSION_NOT_FOUND`. Each recipe carries `itemId`, the item it makes (null until its
-  details sync), which the website links to Wowhead.
+  `PROFESSION_NOT_FOUND`. Each recipe carries `itemId`, the item it makes, which the website
+  links to Wowhead, and the item's `quality`, which colors the name. Both are null until the
+  recipe's details sync. The search and `armory-character-recipes` carry them too.
 - **Recipe details** (`recipeDetails`, one row per recipe): after the catalog, the sync fetches
   each recipe without details (Blizzard's recipe, then its crafted item), up to
   `RECIPE_DETAIL_SYNC_LIMIT` (2,500) a run, 6 at a time, and records them in batches of

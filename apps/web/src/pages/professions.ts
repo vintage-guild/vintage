@@ -5,6 +5,7 @@ import {
   html,
   observable,
   repeat,
+  Updates,
   when,
 } from '@lushly-dev/fast-element';
 import type {
@@ -913,11 +914,12 @@ export class Page extends FASTElement {
   /**
    * `#blacksmithing` (from a profession on the roster) scrolls to that profession once it has
    * rendered; the page's sections live in its shadow root, so the browser can't find them itself.
+   * FAST renders on the next animation frame, so wait for that rather than a timeout.
    */
   private scrollToHash(): void {
     const id = decodeURIComponent(location.hash.slice(1));
     if (!id) return;
-    setTimeout(() => {
+    void Updates.next().then(() => {
       const section = this.shadowRoot?.getElementById(id);
       if (!section) return;
       // Below the sticky header, which wraps to two rows on narrower windows.

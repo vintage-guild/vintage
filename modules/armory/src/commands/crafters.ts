@@ -1,5 +1,11 @@
 // Who on the roster knows which recipe, shared by the recipe search and the profession views.
-import type { RecipeCrafter, RosterEntry, RosterRecipe, RosterRecipes } from '../contract';
+import {
+  isSkillRank,
+  type RecipeCrafter,
+  type RosterEntry,
+  type RosterRecipe,
+  type RosterRecipes,
+} from '../contract';
 
 /** A roster character as a recipe's crafter, with its skill in the recipe's profession. */
 export const toCrafter = (entry: RosterEntry, profession: string): RecipeCrafter => {
@@ -30,6 +36,7 @@ export function knownRecipes(
     const entry = byId.get(entryId);
     if (!entry) continue;
     for (const recipe of recipes) {
+      if (isSkillRank(recipe, recipe.profession)) continue;
       const hit = out.get(recipe.id) ?? { recipe, crafters: [] };
       hit.crafters.push(toCrafter(entry, recipe.profession));
       out.set(recipe.id, hit);

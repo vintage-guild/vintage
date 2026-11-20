@@ -4,7 +4,7 @@ import { error, success } from '@vintage/guild-kit';
 import { z } from 'zod';
 import {
   type CharacterRecipes,
-  GATHERING_PROFESSIONS,
+  isSkillRank,
   RECIPE_DETAIL_BATCH,
   type RecipeRef,
 } from '../contract';
@@ -73,8 +73,8 @@ const byName = (a: RecipeRef, b: RecipeRef) => a.name.localeCompare(b.name);
 export const armoryCharacterRecipes = command({
   name: 'armory-character-recipes',
   description:
-    'One roster character’s crafting, by slug (`strattaca-windfury`): for each crafting ' +
-    'profession it has, its skill, the recipes it knows, and the catalog’s recipes it doesn’t, ' +
+    'One roster character’s crafting, by slug (`strattaca-windfury`): for each ' +
+    'profession it has with something to make, its skill, the recipes it knows, and the catalog’s recipes it doesn’t, ' +
     'each with the item it makes (null until synced). Errors: CHARACTER_NOT_FOUND.',
   tier: 'public',
   input: z.object({ slug: z.string().trim().toLowerCase().min(3).max(96) }),
@@ -89,9 +89,8 @@ export const armoryCharacterRecipes = command({
     const itemOf = itemLookup(items);
     const mine = known.find((k) => k.entryId === entry.id)?.recipes ?? [];
     const professions = entry.professions
-      .filter((p) => !GATHERING_PROFESSIONS.includes(p.name))
       .map((p) => {
-        const knownHere = mine.filter((r) => r.profession === p.name);
+        const knownHere = mine.filter((r) => r.profession === p.name && !isSkillRank(r, p.name));
         const knownIds = new Set(knownHere.map((r) => r.id));
         const row = catalog.find((c) => c.profession === p.name);
         return {
@@ -103,7 +102,7 @@ export const armoryCharacterRecipes = command({
             .sort(byName),
           missing: (row?.categories ?? [])
             .flatMap((c) => c.recipes)
-            .filter((r) => !knownIds.has(r.id))
+            .filter((r) => !knownIds.has(r.id) && !isSkillRank(r, p.name))
             .map((r) => ({ id: r.id, name: r.name, itemId: itemOf(r.id) }))
             .sort(byName),
         };

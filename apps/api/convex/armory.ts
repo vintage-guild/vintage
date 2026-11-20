@@ -250,7 +250,7 @@ export const catalogSync = internalAction({
     const recipeIds: number[] = [];
     for (const { id, name } of catalogProfessions(index)) {
       try {
-        const categories = await fetchCatalog(api, id);
+        const categories = await fetchCatalog(api, id, name);
         if (categories.length === 0) continue;
         const result = await ctx.runMutation(internal.armory.catalogRecord, {
           profession: name,

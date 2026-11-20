@@ -20,7 +20,9 @@ and the guild roster sync already fetches that endpoint.
 - **The recipe catalog** (2026-11-20): every recipe each crafting profession has, from Blizzard's
   game data (`static-forever-{region}`: `/data/wow/profession/index`, `/profession/{id}`,
   `/profession/{id}/skill-tier/{tierId}`), in `professionCatalog`, one row per profession, synced
-  daily. Recipe ids match a character's known recipes. Gathering skills are skipped.
+  daily. Recipe ids match a character's known recipes. Fishing, Herbalism, and Skinning were
+  skipped at first because Blizzard lists their skill ranks as recipes. They came back
+  2026-11-20 once those ranks were filtered out: Forever gives each a few crafts.
   `armory-profession-list` and `armory-profession-get` read it with the roster's knowledge, and
   the search covers it, so recipes nobody knows show as "No one yet".
 - `/professions` on the website, linked from the header next to Roster: a card per crafting

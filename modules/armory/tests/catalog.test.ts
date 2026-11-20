@@ -186,7 +186,7 @@ describe('armory-recipe-search with the catalog', () => {
 });
 
 describe('fetchCatalog and catalogProfessions', () => {
-  it('skips the test profession and gathering skills', () => {
+  it('skips only the test profession', () => {
     const names = catalogProfessions({
       professions: [
         { id: 164, name: 'Blacksmithing' },
@@ -195,7 +195,7 @@ describe('fetchCatalog and catalogProfessions', () => {
         { id: 186, name: 'Mining' },
       ],
     }).map((p) => p.name);
-    expect(names).toEqual(['Blacksmithing', 'Mining']);
+    expect(names).toEqual(['Blacksmithing', 'Herbalism', 'Mining']);
   });
 
   it('collects named recipes from every skill tier, dropping empty categories', async () => {
@@ -214,9 +214,69 @@ describe('fetchCatalog and catalogProfessions', () => {
         }),
       },
       164,
+      'Blacksmithing',
     );
     expect(categories).toEqual([
       { name: 'Weapon Stones', recipes: [{ id: 1631, name: 'Rough Sharpening Stone' }] },
+    ]);
+  });
+
+  it('leaves out the skill’s own ranks', async () => {
+    const categories = await fetchCatalog(
+      {
+        profession: async () => ({ id: 356, skill_tiers: [{ id: 1 }] }),
+        professionSkillTier: async () => ({
+          id: 1,
+          categories: [
+            {
+              name: 'Fishing',
+              recipes: [
+                { id: 7620, name: 'Fishing' },
+                { id: 9000, name: 'Fish Bowl' },
+              ],
+            },
+          ],
+        }),
+      },
+      356,
+      'Fishing',
+    );
+    expect(categories).toEqual([{ name: 'Fishing', recipes: [{ id: 9000, name: 'Fish Bowl' }] }]);
+  });
+});
+
+describe('skill ranks among known recipes', () => {
+  it('are left out of the professions, the search, and a character’s crafting', async () => {
+    await run(
+      'armory-guild-roster-record',
+      {
+        members: [member('Anvil'), member('Brick'), member('Pip', 5), member('Cast')],
+        enriched: [
+          {
+            slug: 'cast-stone',
+            result: {
+              ...smith(0, []),
+              professions: [{ name: 'Fishing', level: 150, maxLevel: 150 }],
+              recipes: [
+                { id: 7620, name: 'Fishing', profession: 'Fishing' },
+                { id: 9002, name: 'Fish Bowl', profession: 'Fishing' },
+              ],
+            },
+          },
+        ],
+      },
+      system,
+    );
+    const list = await ok<ProfessionSummary[]>('armory-profession-list', {});
+    expect(list.find((p) => p.profession === 'Fishing')).toMatchObject({
+      knownCount: 1,
+      crafterCount: 1,
+    });
+    const search = await ok<{ recipes: RecipeMatch[] }>('armory-recipe-search', { query: 'fish' });
+    expect(search.recipes.map((r) => r.name)).toEqual(['Fish Bowl']);
+    const cast = await ok<CharacterRecipes>('armory-character-recipes', { slug: 'cast-stone' });
+    expect(cast.professions).toMatchObject([
+      { profession: 'Fishing', known: [{ id: 9002, name: 'Fish Bowl' }], missing: [] },
     ]);
   });
 });

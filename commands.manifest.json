@@ -656,7 +656,7 @@
     },
     {
       "name": "armory-character-recipes",
-      "description": "One roster character’s crafting, by slug (`strattaca-windfury`): for each crafting profession it has, its skill, the recipes it knows, and the catalog’s recipes it doesn’t, each with the item it makes (null until synced). Errors: CHARACTER_NOT_FOUND.",
+      "description": "One roster character’s crafting, by slug (`strattaca-windfury`): for each profession it has with something to make, its skill, the recipes it knows, and the catalog’s recipes it doesn’t, each with the item it makes (null until synced). Errors: CHARACTER_NOT_FOUND.",
       "tier": "public",
       "mutation": false,
       "destructive": false,
@@ -1025,7 +1025,7 @@
     },
     {
       "name": "armory-profession-list",
-      "description": "Every crafting profession (not Fishing, Herbalism, or Skinning), for the website’s overview: how many recipes Blizzard’s catalog has (null before the catalog syncs), how many someone on the roster knows, how many roster characters (level 10 and up) have the profession, and the best three by skill. Sorted by profession name.",
+      "description": "Every profession with something to make, for the website’s overview. Forever gives Fishing, Herbalism, and Skinning a few crafts each, so they’re included. For each: how many recipes Blizzard’s catalog has (null before the catalog syncs), how many someone on the roster knows, how many roster characters (level 10 and up) have the profession, and the best three by skill. Sorted by profession name.",
       "tier": "public",
       "mutation": false,
       "destructive": false,

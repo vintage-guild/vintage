@@ -3,12 +3,7 @@
 // knowledge by the profession overview and each profession's page. Public like the roster.
 import { error, success } from '@vintage/guild-kit';
 import { z } from 'zod';
-import {
-  type CatalogRecipe,
-  GATHERING_PROFESSIONS,
-  type ProfessionDetail,
-  type ProfessionSummary,
-} from '../contract';
+import type { CatalogRecipe, ProfessionDetail, ProfessionSummary } from '../contract';
 import { command } from '../store';
 import { bySkill, knownRecipes, toCrafter } from './crafters';
 
@@ -75,9 +70,9 @@ export const armoryCatalogRecord = command({
 export const armoryProfessionList = command({
   name: 'armory-profession-list',
   description:
-    'Every crafting profession (not Fishing, Herbalism, or Skinning), for the website’s ' +
-    'overview: how many recipes Blizzard’s ' +
-    'catalog has (null before the catalog syncs), how many someone on the roster knows, how ' +
+    'Every profession with something to make, for the website’s overview. Forever gives ' +
+    'Fishing, Herbalism, and Skinning a few crafts each, so they’re included. For each: how ' +
+    'many recipes Blizzard’s catalog has (null before the catalog syncs), how many someone on the roster knows, how ' +
     'many roster characters (level 10 and up) have the profession, and the best three by ' +
     'skill. Sorted by profession name.',
   tier: 'public',
@@ -91,7 +86,6 @@ export const armoryProfessionList = command({
     const knownById = knownRecipes(entries, known);
     const names = new Set(catalog.map((c) => c.profession));
     for (const { recipe } of knownById.values()) names.add(recipe.profession);
-    for (const gathering of GATHERING_PROFESSIONS) names.delete(gathering);
     const listed = entries.filter((e) => e.level >= MIN_LEVEL);
     const summaries: ProfessionSummary[] = [...names].sort().map((profession) => {
       const row = catalog.find((c) => c.profession === profession);

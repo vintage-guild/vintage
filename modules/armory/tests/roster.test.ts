@@ -426,6 +426,94 @@ describe('armory-guild-roster', () => {
       expect(entries.map((e) => e.name)).toEqual(['Alpha', 'Beta', 'Zed']);
     }
   });
+
+  it('lets officers assign roles on unlinked roster entries and resolves declared roles publicly', async () => {
+    await record(
+      [
+        member({ blizzardId: 10, name: 'Unlinked', surname: 'One', slug: 'unlinked-one' }),
+        member({ blizzardId: 11, name: 'Linked', surname: 'Two', slug: 'linked-two' }),
+      ],
+      [],
+    );
+    deps.characters.set(GUILD, [
+      {
+        id: 'c-linked',
+        memberId: 'm-linked',
+        name: 'Linked Two',
+        class: 'warrior',
+        role: 'tank',
+        secondaryRole: 'melee',
+      },
+    ]);
+
+    const denied = await run(
+      'armory-guild-roster-role-set',
+      { slug: 'unlinked-one', preferredRole: 'healer', secondaryRole: 'ranged' },
+      recruit,
+    );
+    expect(denied.success).toBe(false);
+
+    const set = await ok<RosterEntry>(
+      'armory-guild-roster-role-set',
+      { slug: 'unlinked-one', preferredRole: 'healer', secondaryRole: 'ranged' },
+      makeCaller('officer'),
+    );
+    expect(set).toMatchObject({ preferredRole: 'healer', secondaryRole: 'ranged' });
+
+    // Re-syncing from Blizzard preserves officer-assigned roles.
+    await record(
+      [
+        member({
+          blizzardId: 10,
+          name: 'Unlinked',
+          surname: 'One',
+          slug: 'unlinked-one',
+          level: 60,
+        }),
+        member({ blizzardId: 11, name: 'Linked', surname: 'Two', slug: 'linked-two', level: 60 }),
+      ],
+      [],
+    );
+
+    const pub = await ok<
+      {
+        slug: string;
+        memberId: string | null;
+        characterId: string | null;
+        preferredRole: string | null;
+        secondaryRole: string | null;
+      }[]
+    >('armory-guild-roster', {}, makeCaller('public'));
+    expect(pub.find((e) => e.slug === 'linked-two')).toMatchObject({
+      memberId: null,
+      characterId: null,
+      preferredRole: 'tank',
+      secondaryRole: 'melee',
+    });
+    expect(pub.find((e) => e.slug === 'unlinked-one')).toMatchObject({
+      memberId: null,
+      characterId: null,
+      preferredRole: 'healer',
+      secondaryRole: 'ranged',
+    });
+
+    const guild = await ok<{ slug: string; memberId: string | null; characterId: string | null }[]>(
+      'armory-guild-roster',
+      {},
+      recruit,
+    );
+    expect(guild.find((e) => e.slug === 'linked-two')).toMatchObject({
+      memberId: 'm-linked',
+      characterId: 'c-linked',
+    });
+
+    const cleared = await ok<RosterEntry>(
+      'armory-guild-roster-role-set',
+      { slug: 'unlinked-one', preferredRole: null },
+      makeCaller('officer'),
+    );
+    expect(cleared).toMatchObject({ preferredRole: null, secondaryRole: null });
+  });
 });
 
 describe('toRosterMembers', () => {

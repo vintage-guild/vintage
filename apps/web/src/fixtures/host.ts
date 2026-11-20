@@ -172,7 +172,16 @@ export function createFixtureHost(
     armoryCharacters: {
       getCharacter: async (g, id) => {
         const c = await identity.getCharacter(g, id);
-        return c && { id: c.id, memberId: c.memberId, name: c.name, class: c.class };
+        return (
+          c && {
+            id: c.id,
+            memberId: c.memberId,
+            name: c.name,
+            class: c.class,
+            role: c.role,
+            secondaryRole: c.secondaryRole ?? null,
+          }
+        );
       },
       listCharacters: async (g) =>
         (await identity.listCharacters(g)).map((c) => ({
@@ -180,6 +189,8 @@ export function createFixtureHost(
           memberId: c.memberId,
           name: c.name,
           class: c.class,
+          role: c.role,
+          secondaryRole: c.secondaryRole ?? null,
         })),
     },
     // apps/api schedules a Convex action; here the fetch runs after a pause, off the command.

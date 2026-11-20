@@ -297,11 +297,20 @@ export function rosterStore(ctx: Ctx): RosterStore {
 
 /** Identity's characters, as armory reads them; fetches run as a scheduled action (armory.ts). */
 export function armoryDeps(ctx: Ctx): ArmoryDeps {
-  const asArmoryCharacter = ({ id, memberId, name, class: cls }: Character) => ({
+  const asArmoryCharacter = ({
     id,
     memberId,
     name,
     class: cls,
+    role,
+    secondaryRole,
+  }: Character) => ({
+    id,
+    memberId,
+    name,
+    class: cls,
+    role,
+    secondaryRole: secondaryRole ?? null,
   });
   return {
     armory: armoryStore(ctx),

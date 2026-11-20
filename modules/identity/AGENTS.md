@@ -41,7 +41,10 @@ Members, characters, and Discord roles → guild rank → permission tier (PLAN 
 - Role sync (`apps/api/convex/roleSync.ts`, every 15 min) reads the whole `GuildDirectory` before
   planning. Never plan from a partial or empty directory: missing members are synced as gone.
 - Rank decides tier (`RANK_TIER` in the contract). Discord-only Friends and anyone without a
-  rank role are `public`; being in the Discord server alone grants nothing.
+  rank role are `public`; being in the Discord server alone grants nothing. Exception: `member-sync`
+  accepts a trusted `adminAccess` flag (from Convex's `VINTAGE_ADMIN_DISCORD_IDS` env var) that
+  grants `officer` tier while keeping the member's real guild `rank`, so developers can use
+  `/officers` without displaying as an Officer on the site.
 - Rank and tier are separate on purpose: Raider and Flex Raider share the `raider` tier, but the
   coordinator gives Raiders priority.
 - A member's first character becomes their main; setting a new main clears the old one. The main
@@ -52,8 +55,11 @@ Members, characters, and Discord roles → guild rank → permission tier (PLAN 
   `character-add`/`character-update`, stored with `rolePicked`; a Fury warrior who tanks). A
   guessed role follows a spec change, a picked one stays, `role: null` goes back to guessing,
   and a class change starts over. Rows from before #149 have no `rolePicked` and read as false.
+  Optional `secondaryRole` stores an off-spec / flex role (`null` when none, cleared if it matches
+  the main role or the class changes).
 - `character-update` edits name (unique, normalized), class (with a spec of that class), spec,
-  role, and main. Discord's `/random character` and the site's Characters page both use it.
+  role, secondaryRole, and main. Discord's `/random character`, the site's Characters page, and
+  the Roster page's inline role editor all use it.
 - Members edit only their own characters; officers can edit anyone's.
 - Character names are unique per guild, stored capitalized.
 - When you change a component function, keep `src/testing.ts` behaving the same way, and run

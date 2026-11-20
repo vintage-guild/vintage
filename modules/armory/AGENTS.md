@@ -93,10 +93,14 @@ Every character in the Forever guild's in-game roster, independent of links
 - **`guildRank` is Blizzard's index** (0 = Guild Master); the API has no rank names, so the
   website names them (`RANK_NAMES` in apps/web's roster page).
 - `armory-guild-roster` is public (Blizzard's armory is) and answers entries sorted by rank, then
-  name, each with `memberId`: the member who linked it, else the one whose registered character
-  is its full "First Last" name, else null. Below recruit `memberId` is always null: who plays
-  what is the guild's to know, like `member-list`. A claim like any link; Battle.net sign-in will
-  verify it.
+  name, each with `preferredRole` and `secondaryRole` (from the matched registered character,
+  else officer-assigned on the roster entry, else null), plus `memberId` and `characterId`
+  (the member/character who linked it, else the registered character matching its full
+  "First Last" name, else null; below recruit both are always null: who plays what is the
+  guild's to know, like `member-list`).
+- `armory-guild-roster-role-set` (officer) sets or clears `preferredRole` and `secondaryRole`
+  directly on an unlinked roster entry (preserved across Blizzard syncs; clearing `preferredRole`
+  also clears `secondaryRole`). Linked characters keep their roles in `identity` (`character-update`).
 - `armory-recipe-search` is public too: recipes whose name contains the query (2+ letters, any
   case), optionally in one profession, from the catalog (below) plus any the roster knows that the
   catalog lacks, each with every roster character who knows it and their skill, best first, or

@@ -32,6 +32,7 @@ export interface CharacterInput {
   class: WowClass;
   spec: string;
   role?: Role;
+  secondaryRole?: Role;
   isMain: boolean;
 }
 
@@ -44,6 +45,7 @@ export interface EditableCharacter {
   role: string;
   /** True when the role was picked rather than guessed from the spec. */
   rolePicked?: boolean;
+  secondaryRole?: string | null;
   isMain: boolean;
 }
 
@@ -54,6 +56,7 @@ export interface CharacterPatch {
   class?: WowClass;
   spec?: string;
   role?: Role | null;
+  secondaryRole?: Role | null;
   isMain?: true;
 }
 
@@ -113,6 +116,21 @@ const template = html<VintageCharacterForm>`
       @change="${(x, c) => x.setRole(fieldValue(c.event))}"
     >
       <violet-option value="">${(x) => x.guessLabel}</violet-option>
+      ${repeat(
+        () => ROLES,
+        html<Role>`<violet-option value="${(r) => r}">${(r) => roleLabel(r)}</violet-option>`,
+      )}
+    </violet-select>
+
+    <violet-select
+      label="Secondary role"
+      name="secondaryRole"
+      placeholder="None"
+      :value="${(x) => x.secondaryRolePick}"
+      supporting-text="Optional off-spec role you can flex to on raid nights"
+      @change="${(x, c) => x.setSecondaryRole(fieldValue(c.event))}"
+    >
+      <violet-option value="">None</violet-option>
       ${repeat(
         () => ROLES,
         html<Role>`<violet-option value="${(r) => r}">${(r) => roleLabel(r)}</violet-option>`,
@@ -242,6 +260,8 @@ export class VintageCharacterForm extends FASTElement {
   @observable spec = '';
   /** A picked role, or '' to guess it from the spec. */
   @observable rolePick: Role | '' = GUESS;
+  /** Optional off-spec / flex role, or '' for none. */
+  @observable secondaryRolePick: Role | '' = '';
   @observable isMain = false;
   @observable busy = false;
   @observable statusText = '';
@@ -260,6 +280,8 @@ export class VintageCharacterForm extends FASTElement {
     this.wowClass = isWowClass(next.class) ? next.class : '';
     this.spec = next.spec;
     this.rolePick = next.rolePicked && isRole(next.role) ? next.role : GUESS;
+    this.secondaryRolePick =
+      next.secondaryRole && isRole(next.secondaryRole) ? next.secondaryRole : '';
     this.isMain = next.isMain;
     this.statusKind = 'idle';
     this.statusText = '';
@@ -301,11 +323,16 @@ export class VintageCharacterForm extends FASTElement {
   get input(): CharacterInput | null {
     const name = characterNameSchema.safeParse(this.name);
     if (!name.success || !this.wowClass || !this.role) return null;
+    const secondary =
+      this.secondaryRolePick && this.secondaryRolePick !== this.role
+        ? this.secondaryRolePick
+        : undefined;
     return {
       name: name.data,
       class: this.wowClass,
       spec: this.spec,
       ...(this.rolePick ? { role: this.rolePick } : {}),
+      ...(secondary ? { secondaryRole: secondary } : {}),
       isMain: this.isMain,
     };
   }
@@ -326,6 +353,11 @@ export class VintageCharacterForm extends FASTElement {
     const resend = !c.rolePicked || this.rolePick !== c.role || patch.class !== undefined;
     if (this.rolePick && resend) patch.role = this.rolePick;
     if (!this.rolePick && c.rolePicked) patch.role = null;
+    const beforeSecondary = c.secondaryRole ?? null;
+    const nextSecondary = input.secondaryRole ?? null;
+    if (nextSecondary !== beforeSecondary || (nextSecondary && patch.class !== undefined)) {
+      patch.secondaryRole = nextSecondary;
+    }
     if (input.isMain && !c.isMain) patch.isMain = true;
     return Object.keys(patch).length > 1 ? patch : null;
   }
@@ -358,6 +390,10 @@ export class VintageCharacterForm extends FASTElement {
 
   setRole(value: string): void {
     this.rolePick = isRole(value) ? value : GUESS;
+  }
+
+  setSecondaryRole(value: string): void {
+    this.secondaryRolePick = isRole(value) ? value : '';
   }
 
   setMain(value: boolean): void {
@@ -440,6 +476,7 @@ export class VintageCharacterForm extends FASTElement {
     this.wowClass = '';
     this.spec = '';
     this.rolePick = GUESS;
+    this.secondaryRolePick = '';
     this.isMain = false;
   }
 

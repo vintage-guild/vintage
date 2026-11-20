@@ -42,6 +42,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           name: string;
           role: "tank" | "healer" | "melee" | "ranged";
           rolePicked?: boolean;
+          secondaryRole?: "tank" | "healer" | "melee" | "ranged" | null;
           spec: string;
         },
         any,
@@ -73,6 +74,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             name?: string;
             role?: "tank" | "healer" | "melee" | "ranged";
             rolePicked?: boolean;
+            secondaryRole?: "tank" | "healer" | "melee" | "ranged" | null;
             spec?: string;
           };
         },

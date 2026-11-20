@@ -3,21 +3,23 @@
 // hands the results back here — same split as armory-sweep/armory-record).
 import { error, success, tierAllows } from '@vintage/guild-kit';
 import { z } from 'zod';
-import { ROSTER_SYNC_BATCH, type RosterEntry, type RosterListing } from '../contract';
+import { ROSTER_ROLES, ROSTER_SYNC_BATCH, type RosterEntry, type RosterListing } from '../contract';
 import { MAX_ERROR } from '../domain/fetch';
-import { type ArmoryDeps, command } from '../store';
+import { type ArmoryCharacter, type ArmoryDeps, command } from '../store';
 
 type RosterDeps = Pick<ArmoryDeps, 'armoryRoster'>;
+
+const rosterRoleSchema = z.enum(ROSTER_ROLES);
 
 export const armoryGuildRoster = command({
   name: 'armory-guild-roster',
   description:
     'Every character currently in the guild’s in-game roster (Blizzard’s own membership, not ' +
     'a member’s claim): level, class, race, guild rank, active spec, professions, portrait, ' +
-    'a link to its armory page, and, for recruits and up, the guild member who claims it ' +
-    '(`memberId`: whoever linked it to the armory, else whose registered character has its ' +
-    'full name; null when none, and always null below recruit). Open to everyone. Sorted by ' +
-    'guild rank, then name. Synced from Blizzard in ' +
+    'a link to its armory page, its declared main/secondary raid roles (from the matched ' +
+    'registered character, else officer-assigned on the entry), and, for recruits and up, ' +
+    'the guild member and character id (`memberId`, `characterId`; always null below recruit). ' +
+    'Open to everyone. Sorted by guild rank, then name. Synced from Blizzard in ' +
     'the background (armory-guild-roster-sync); a character shows "pending" until its first ' +
     'enrichment pass, and "error" when the armory fetch failed (the guild roster listing is ' +
     'kept either way).',
@@ -26,30 +28,81 @@ export const armoryGuildRoster = command({
   handler: async (_input, { guildId, deps, caller }) => {
     const byRank = (a: RosterListing, b: RosterListing) =>
       a.guildRank - b.guildRank || a.name.localeCompare(b.name);
-    const entries = await deps.armoryRoster.listEntries(guildId);
-    // Which Discord member plays which character is the guild's to know, like member-list.
-    if (!tierAllows(caller.tier, 'recruit')) {
-      return success(entries.map((e) => ({ ...e, memberId: null })).sort(byRank));
-    }
-    const [links, characters] = await Promise.all([
+    const [entries, links, characters] = await Promise.all([
+      deps.armoryRoster.listEntries(guildId),
       deps.armory.listLinks(guildId),
       deps.armoryCharacters.listCharacters(guildId),
     ]);
-    const ownerOf = new Map(characters.map((c) => [c.id, c.memberId]));
-    const memberBySlug = new Map<string, string>();
+    const charById = new Map(characters.map((c) => [c.id, c]));
+    const charBySlug = new Map<string, ArmoryCharacter>();
     for (const link of links) {
-      const memberId = ownerOf.get(link.characterId);
-      if (memberId) memberBySlug.set(link.slug, memberId);
+      const char = charById.get(link.characterId);
+      if (char) charBySlug.set(link.slug, char);
     }
     // A registered "First Last" is the armory's `first-last`; a link wins over a name match.
     for (const c of characters) {
       const slug = c.name.trim().toLowerCase().split(/\s+/).join('-');
-      if (!memberBySlug.has(slug)) memberBySlug.set(slug, c.memberId);
+      if (!charBySlug.has(slug)) charBySlug.set(slug, c);
     }
+    // Which Discord member plays which character is the guild's to know, like member-list.
+    const showMember = tierAllows(caller.tier, 'recruit');
     const listed: RosterListing[] = entries
-      .map((e) => ({ ...e, memberId: memberBySlug.get(e.slug) ?? null }))
+      .map((e) => {
+        const matched = charBySlug.get(e.slug);
+        return {
+          ...e,
+          memberId: showMember ? (matched?.memberId ?? null) : null,
+          characterId: showMember ? (matched?.id ?? null) : null,
+          preferredRole: matched?.role ?? e.preferredRole ?? null,
+          secondaryRole: matched ? (matched.secondaryRole ?? null) : (e.secondaryRole ?? null),
+        };
+      })
       .sort(byRank);
     return success(listed);
+  },
+});
+
+export const armoryGuildRosterRoleSet = command({
+  name: 'armory-guild-roster-role-set',
+  description:
+    'Set or clear an officer-assigned main and optional secondary raid role on a guild roster ' +
+    'entry (used for unlinked characters; linked characters keep their role in identity). ' +
+    'Clearing preferredRole also clears secondaryRole.',
+  tier: 'officer',
+  mutation: true,
+  input: z.object({
+    slug: z.string().trim().min(1).max(96),
+    preferredRole: rosterRoleSchema.nullable(),
+    secondaryRole: rosterRoleSchema.nullable().optional(),
+  }),
+  handler: async ({ slug, preferredRole, secondaryRole }, { guildId, deps }) => {
+    const normalized = slug.toLowerCase();
+    const entry = await deps.armoryRoster.getEntryBySlug(guildId, normalized);
+    if (!entry) {
+      return error('ROSTER_ENTRY_NOT_FOUND', `No roster character "${slug}"`, {
+        suggestion: 'Read armory-guild-roster to find the character slug',
+        retryable: false,
+      });
+    }
+    const nextSecondary =
+      preferredRole === null
+        ? null
+        : secondaryRole === undefined
+          ? entry.secondaryRole === preferredRole
+            ? null
+            : (entry.secondaryRole ?? null)
+          : secondaryRole === preferredRole
+            ? null
+            : secondaryRole;
+    const updated = await deps.armoryRoster.updateEntry(guildId, entry.id, {
+      preferredRole,
+      secondaryRole: nextSecondary,
+    });
+    return success(updated, {
+      reasoning: preferredRole
+        ? `${entry.name} set to ${preferredRole}${nextSecondary ? ` (secondary ${nextSecondary})` : ''}`
+        : `Cleared raid role for ${entry.name}`,
+    });
   },
 });
 

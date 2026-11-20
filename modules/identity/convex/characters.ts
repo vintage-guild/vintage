@@ -5,8 +5,13 @@ import { mutation, query } from './_generated/server';
 import { role } from './schema';
 
 const toCharacter = (doc: Doc<'characters'>) => {
-  const { _id, _creationTime, rolePicked, ...rest } = doc;
-  return { id: _id as string, rolePicked: rolePicked ?? false, ...rest };
+  const { _id, _creationTime, rolePicked, secondaryRole, ...rest } = doc;
+  return {
+    id: _id as string,
+    rolePicked: rolePicked ?? false,
+    secondaryRole: secondaryRole ?? null,
+    ...rest,
+  };
 };
 
 const byMainThenName = (a: Doc<'characters'>, b: Doc<'characters'>) =>
@@ -46,6 +51,7 @@ export const insert = mutation({
     spec: v.string(),
     role,
     rolePicked: v.optional(v.boolean()),
+    secondaryRole: v.optional(v.union(role, v.null())),
     isMain: v.boolean(),
   },
   handler: async (ctx, args) => {
@@ -64,6 +70,7 @@ export const update = mutation({
       spec: v.optional(v.string()),
       role: v.optional(role),
       rolePicked: v.optional(v.boolean()),
+      secondaryRole: v.optional(v.union(role, v.null())),
       isMain: v.optional(v.boolean()),
     }),
   },

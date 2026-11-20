@@ -80,6 +80,7 @@ export interface NewCharacterInput {
   class: string;
   spec: string;
   role?: Role;
+  secondaryRole?: Role;
 }
 
 export interface SignupPorts {
@@ -276,10 +277,14 @@ function roleOptions(signup: Signup, character: Character | undefined, needed: C
     },
   ];
   for (const role of ROLES) {
+    const hints = [
+      character?.secondaryRole === role ? 'secondary role' : '',
+      neededHint(role, needed).slice(3),
+    ].filter(Boolean);
     options.push({
       label: titleCase(ROLE_WORDS[role]),
       value: role,
-      ...(neededHint(role, needed) ? { description: neededHint(role, needed).slice(3) } : {}),
+      ...(hints.length > 0 ? { description: hints.join(' · ') } : {}),
       ...(signup.rolePicked && signup.role === role ? { default: true } : {}),
     });
   }

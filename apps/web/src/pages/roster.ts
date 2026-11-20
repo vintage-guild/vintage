@@ -1,7 +1,12 @@
 import { css, FASTElement, html, observable, repeat, when } from '@lushly-dev/fast-element';
-import type { RosterListing, RosterProfession } from '@vintage/armory/contract';
+import {
+  ROSTER_ROLES,
+  type RosterListing,
+  type RosterProfession,
+  type RosterRole,
+} from '@vintage/armory/contract';
 import { getCommandClient } from '@vintage/ui-kit';
-import { CLASSES, type Role, roleFor, type WowClass } from '@vintage/wow-data';
+import type { WowClass } from '@vintage/wow-data';
 import { classIcon, professionIcon } from '../class-icons';
 import { currentSession } from '../session';
 import { pageStyles } from './page-styles';
@@ -47,43 +52,15 @@ const CLASS_ORDER: readonly { name: string; slug: WowClass }[] = [
   { name: 'Druid', slug: 'druid' },
 ];
 
-export type RosterRole = Role | 'unknown';
-
 const ROLE_META: Record<RosterRole, { label: string; token: string }> = {
   tank: { label: 'Tank', token: '--color-role-tank' },
   healer: { label: 'Healer', token: '--color-role-healer' },
   melee: { label: 'Melee', token: '--color-role-melee' },
   ranged: { label: 'Ranged', token: '--color-role-ranged' },
-  unknown: { label: 'Unassigned', token: '--color-signup-no-response' },
 };
 
-const ROLE_ORDER: readonly RosterRole[] = ['tank', 'healer', 'melee', 'ranged', 'unknown'];
-
-const PURE_CLASS_ROLE: Partial<Record<WowClass, Role>> = {
-  hunter: 'ranged',
-  mage: 'ranged',
-  warlock: 'ranged',
-  rogue: 'melee',
-};
-
-/** Blizzard's Classic talent tree names that differ from `@vintage/wow-data` spec keys. */
-const SPEC_ALIASES: Record<string, string> = {
-  'feral-combat': 'feral',
-  guardian: 'feral-tank',
-};
-
-/** Infer a roster entry's raid role from its class and active spec, or `'unknown'`. */
-export function rosterRole(e: Pick<RosterListing, 'className' | 'activeSpec'>): RosterRole {
-  const cls = e.className?.toLowerCase().replace(/[^a-z]/g, '') as WowClass | undefined;
-  if (!cls || !(cls in CLASSES)) return 'unknown';
-  if (e.activeSpec) {
-    const raw = e.activeSpec.trim().toLowerCase().replace(/\s+/g, '-');
-    const spec = SPEC_ALIASES[raw] ?? raw;
-    const role = roleFor(cls, spec);
-    if (role) return role;
-  }
-  return PURE_CLASS_ROLE[cls] ?? 'unknown';
-}
+const isRosterRole = (value: string): value is RosterRole =>
+  (ROSTER_ROLES as readonly string[]).includes(value);
 
 type StatKey = 'wowClass' | 'profession';
 type CompScope = 'raid' | 'pool';
@@ -111,6 +88,7 @@ interface RoleColumn {
   role: RosterRole;
   label: string;
   count: number;
+  secondaryCount: number;
   pct: number;
   share: number;
   color: string;
@@ -228,6 +206,106 @@ const profession = (minor: boolean) => html<RosterProfession, RosterListing>`
 const primary = profession(false);
 const secondary = profession(true);
 
+const roleEditor = html<RosterListing, Page>`
+  <div class="role-editor">
+    <label class="role-field">
+      <span>Main</span>
+      <span class="select-wrap compact">
+        <select
+          aria-label="Main raid role"
+          :value="${(_e, c) => c.parent.editRole}"
+          ?disabled="${(_e, c) => c.parent.savingRole}"
+          @change="${(_e, c) => {
+            c.parent.setEditRole((c.event.target as HTMLSelectElement).value);
+          }}"
+        >
+          ${when((e) => !e.characterId, html`<option value="">Not set</option>`)}
+          ${repeat(
+            () => ROSTER_ROLES,
+            html<
+              RosterRole,
+              Page
+            >`<option value="${(r) => r}" ?selected="${(r, ctx) => ctx.parent.editRole === r}">${(r) => ROLE_META[r].label}</option>`,
+          )}
+        </select>
+        ${chevron('select-icon')}
+      </span>
+    </label>
+    <label class="role-field">
+      <span>Secondary</span>
+      <span class="select-wrap compact">
+        <select
+          aria-label="Secondary raid role"
+          :value="${(_e, c) => c.parent.editSecondary}"
+          ?disabled="${(_e, c) => c.parent.savingRole || !c.parent.editRole}"
+          @change="${(_e, c) => {
+            c.parent.setEditSecondary((c.event.target as HTMLSelectElement).value);
+          }}"
+        >
+          <option value="">None</option>
+          ${repeat(
+            () => ROSTER_ROLES,
+            html<
+              RosterRole,
+              Page
+            >`<option value="${(r) => r}" ?selected="${(r, ctx) => ctx.parent.editSecondary === r}">${(r) => ROLE_META[r].label}</option>`,
+          )}
+        </select>
+        ${chevron('select-icon')}
+      </span>
+    </label>
+    <div class="role-actions">
+      <button
+        type="button"
+        class="role-save"
+        ?disabled="${(_e, c) => c.parent.savingRole}"
+        @click="${(e, c) => c.parent.saveRole(e)}"
+      >${(_e, c) => (c.parent.savingRole ? 'Saving…' : 'Save')}</button>
+      <button
+        type="button"
+        class="role-cancel"
+        ?disabled="${(_e, c) => c.parent.savingRole}"
+        @click="${(_e, c) => c.parent.cancelRoleEdit()}"
+      >Cancel</button>
+    </div>
+    ${when(
+      (_e, c) => Boolean(c.parent.roleEditError),
+      html<
+        RosterListing,
+        Page
+      >`<small class="error" role="alert">${(_e, c) => c.parent.roleEditError}</small>`,
+    )}
+  </div>
+`;
+
+const roleView = html<RosterListing, Page>`
+  <div class="role-view">
+    <div class="role-tags">
+      ${when(
+        (e) => Boolean(e.preferredRole),
+        html<RosterListing>`<span class="role-pill">
+          <span class="role-dot" style="background: var(${(e) => ROLE_META[e.preferredRole!].token})" aria-hidden="true"></span>
+          <span>${(e) => ROLE_META[e.preferredRole!].label}</span>
+        </span>`,
+      )}
+      ${when((e) => !e.preferredRole, html`<small class="muted">Not set</small>`)}
+      ${when(
+        (e) => Boolean(e.secondaryRole),
+        html<RosterListing>`<small class="muted">Off: ${(e) => ROLE_META[e.secondaryRole!].label}</small>`,
+      )}
+    </div>
+    ${when(
+      (e, c) => c.parent.canEditRole(e),
+      html<RosterListing, Page>`<button
+        type="button"
+        class="role-edit-btn"
+        aria-label="${(e) => `Edit raid role for ${inGameName(e)}`}"
+        @click="${(e, c) => c.parent.startRoleEdit(e)}"
+      >${(e) => (e.preferredRole ? 'Edit' : 'Set')}</button>`,
+    )}
+  </div>
+`;
+
 const row = html<RosterListing, Page>`
   <tr data-status="${(e) => e.status}">
     <td data-label="Character"><div class="who">
@@ -269,6 +347,10 @@ const row = html<RosterListing, Page>`
       )}
     </td>
     <td class="num" data-label="Level">${(e) => e.level}</td>
+    <td data-label="Role">
+      ${when((e, c) => c.parent.editingSlug === e.slug, roleEditor)}
+      ${when((e, c) => c.parent.editingSlug !== e.slug, roleView)}
+    </td>
     <td data-label="Spec">
       ${when(
         (e) => e.status === 'found',
@@ -310,6 +392,7 @@ const rosterTable = (rows: (x: Page) => RosterListing[], label: string) => html<
           <th scope="col" aria-sort="${ariaSort('name')}">${sortButton('name', 'Character')}</th>
           <th scope="col" data-label="Discord">Discord</th>
           <th scope="col" class="num" aria-sort="${ariaSort('level')}">${sortButton('level', 'Level')}</th>
+          <th scope="col">Role</th>
           <th scope="col">Spec</th>
           <th scope="col">Professions</th>
           <th scope="col" aria-sort="${ariaSort('rank')}">${sortButton('rank', 'Rank')}</th>
@@ -345,6 +428,10 @@ const compDrawer = html<Page>`
             <span class="mini-role-label">${(r) => r.label}</span>
           </span>`,
         )}
+        ${when(
+          (x) => x.compUnsetCount > 0,
+          html<Page>`<span class="mini-role mini-unset">${(x) => x.compUnsetCount} unset</span>`,
+        )}
       </span>
       <span class="comp-toggle-action">
         <span>${(x) => (x.compOpen ? 'Hide charts' : 'Show charts')}</span>
@@ -378,7 +465,7 @@ const compDrawer = html<Page>`
             </div>
           </div>
           ${when(
-            (x) => x.compPool.length > 0,
+            (x) => x.compAssignedCount > 0,
             html<Page>`
               <div class="share-bar" role="img" aria-label="${(x) => x.roleShareLabel}">
                 ${repeat(
@@ -439,7 +526,7 @@ const compDrawer = html<Page>`
             <div class="chart-card">
               <div class="chart-head">
                 <h3 class="card-title">Raiders by role</h3>
-                <span class="chart-hint">Derived from active spec</span>
+                <span class="chart-hint">${(x) => x.roleChartHint}</span>
               </div>
               <div class="vchart role-chart ${(x) => (x.role ? 'has-pick' : '')}">
                 <div class="y-axis" aria-hidden="true">
@@ -456,8 +543,8 @@ const compDrawer = html<Page>`
                         type="button"
                         class="col-btn ${(r) => (r.count === 0 ? 'zero' : '')}"
                         aria-pressed="${(r, ctx) => String(ctx.parent.role === r.role)}"
-                        aria-label="${(r) => `${r.label}: ${r.count} (${Math.round(r.share)}%)${r.detail ? ` — ${r.detail}` : ''}`}"
-                        title="${(r) => `${r.label}: ${r.count} (${Math.round(r.share)}%)${r.detail ? ` — ${r.detail}` : ''}`}"
+                        aria-label="${(r) => `${r.label}: ${r.count}${r.count > 0 ? ` (${Math.round(r.share)}%)` : ''}${r.secondaryCount > 0 ? `, +${r.secondaryCount} flex` : ''}${r.detail ? ` — ${r.detail}` : ''}`}"
+                        title="${(r) => `${r.label}: ${r.count}${r.count > 0 ? ` (${Math.round(r.share)}%)` : ''}${r.secondaryCount > 0 ? ` · +${r.secondaryCount} secondary` : ''}${r.detail ? ` — ${r.detail}` : ''}`}"
                         @click="${(r, ctx) => ctx.parent.pickRole(r.role)}"
                       >
                         <span class="col-slot">
@@ -468,9 +555,15 @@ const compDrawer = html<Page>`
                             <span class="col-val">${(r) => r.count}<small class="col-pct">${(r) => (r.count > 0 ? ` ${Math.round(r.share)}%` : '')}</small></span>
                           </span>
                         </span>
-                        <span class="col-x">
-                          <span class="role-dot" style="background: ${(r) => r.color}" aria-hidden="true"></span>
-                          <span class="col-label">${(r) => r.label}</span>
+                        <span class="col-x role-col-x">
+                          <span class="role-x-main">
+                            <span class="role-dot" style="background: ${(r) => r.color}" aria-hidden="true"></span>
+                            <span class="col-label">${(r) => r.label}</span>
+                          </span>
+                          ${when(
+                            (r) => r.secondaryCount > 0,
+                            html<RoleColumn>`<span class="role-flex">+${(r) => r.secondaryCount} flex</span>`,
+                          )}
                         </span>
                       </button>`,
                     )}
@@ -594,8 +687,8 @@ const template = html<Page>`
                   class="active-filter"
                   @click="${(x) => x.clearRole()}"
                 >
-                  <span class="role-dot" style="background: var(${(x) => ROLE_META[x.role || 'unknown'].token})" aria-hidden="true"></span>
-                  <span>Role: ${(x) => ROLE_META[x.role || 'unknown'].label}</span>
+                  <span class="role-dot" style="background: var(${(x) => ROLE_META[x.role || 'tank'].token})" aria-hidden="true"></span>
+                  <span>Role: ${(x) => ROLE_META[x.role || 'tank'].label}</span>
                   <span aria-hidden="true">×</span>
                   <span class="visually-hidden"> (clear role filter)</span>
                 </button>`,
@@ -742,7 +835,8 @@ const styles = css`
     gap: 0.35rem;
   }
 
-  .mini-role-label {
+  .mini-role-label,
+  .mini-unset {
     color: var(--color-text-secondary);
   }
 
@@ -1062,9 +1156,20 @@ const styles = css`
     max-inline-size: 100%;
   }
 
-  .role-chart .col-x {
-    flex-direction: row;
+  .role-col-x {
+    gap: 0.1rem;
+  }
+
+  .role-x-main {
+    display: inline-flex;
+    align-items: center;
     gap: 0.35rem;
+  }
+
+  .role-flex {
+    font-family: var(--font-family-mono);
+    font-size: 0.68rem;
+    color: var(--color-text-secondary);
   }
 
   .col-icon {
@@ -1104,7 +1209,10 @@ const styles = css`
   .comp-toggle:focus-visible,
   .scope-btn:focus-visible,
   .col-btn:focus-visible,
-  .active-filter:focus-visible {
+  .active-filter:focus-visible,
+  .role-edit-btn:focus-visible,
+  .role-save:focus-visible,
+  .role-cancel:focus-visible {
     outline: var(--border-width-thin) solid var(--color-focus-ring);
     outline-offset: var(--border-width-thin);
   }
@@ -1231,7 +1339,8 @@ const styles = css`
   }
 
   .controls input,
-  .controls select {
+  .controls select,
+  .role-editor select {
     box-sizing: border-box;
     min-inline-size: 11rem;
     max-inline-size: 100%;
@@ -1252,14 +1361,16 @@ const styles = css`
     min-inline-size: 15rem;
   }
 
-  .controls select {
+  .controls select,
+  .role-editor select {
     inline-size: 100%;
     appearance: none;
     padding-inline-end: 2.25rem;
     cursor: pointer;
   }
 
-  .controls select option {
+  .controls select option,
+  .role-editor select option {
     background: var(--color-surface-raised);
     color: var(--color-text-primary);
   }
@@ -1271,18 +1382,31 @@ const styles = css`
     color: var(--color-text-secondary);
   }
 
+  .select-wrap.compact select {
+    min-inline-size: 7.5rem;
+    padding: 0.25rem 1.85rem 0.25rem 0.5rem;
+    font-size: var(--font-size-xs);
+  }
+
+  .select-wrap.compact .select-icon {
+    inset-inline-end: 0.5rem;
+  }
+
   .controls input:hover,
-  .controls select:hover {
+  .controls select:hover,
+  .role-editor select:hover {
     border-color: var(--color-text-secondary);
   }
 
   .select-wrap:hover .select-icon,
-  .controls select:focus-visible + .select-icon {
+  .controls select:focus-visible + .select-icon,
+  .role-editor select:focus-visible + .select-icon {
     color: var(--color-text-primary);
   }
 
   .controls input:focus-visible,
   .controls select:focus-visible,
+  .role-editor select:focus-visible,
   .sort:focus-visible {
     outline: var(--border-width-thin) solid var(--color-focus-ring);
     outline-offset: var(--border-width-thin);
@@ -1313,6 +1437,97 @@ const styles = css`
     font-size: var(--font-size-sm);
     line-height: var(--font-leading-normal);
     color: var(--color-text-secondary);
+  }
+
+  /* Inline raid role display & compact editor in the Role column. */
+  .role-view {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.45rem;
+    min-inline-size: 6.5rem;
+  }
+
+  .role-tags {
+    display: grid;
+    gap: 0.1rem;
+  }
+
+  .role-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-weight: var(--font-weight-medium);
+    white-space: nowrap;
+  }
+
+  .role-edit-btn {
+    padding: 0.12rem 0.45rem;
+    border: var(--border-width-thin) solid var(--color-border-default);
+    border-radius: 0.25rem;
+    background: none;
+    color: var(--color-text-secondary);
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xs);
+    cursor: pointer;
+    opacity: 0.65;
+  }
+
+  tr:hover .role-edit-btn,
+  .role-edit-btn:hover,
+  .role-edit-btn:focus-visible {
+    opacity: 1;
+    border-color: var(--color-border-strong);
+    color: var(--color-text-primary);
+  }
+
+  .role-editor {
+    display: grid;
+    gap: 0.35rem;
+    min-inline-size: 9.5rem;
+  }
+
+  .role-field {
+    display: grid;
+    gap: 0.15rem;
+    font-family: var(--font-family-mono);
+    font-size: 0.68rem;
+    letter-spacing: var(--font-tracking-wider);
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+  }
+
+  .role-actions {
+    display: flex;
+    gap: 0.35rem;
+  }
+
+  .role-save,
+  .role-cancel {
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.25rem;
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xs);
+    cursor: pointer;
+  }
+
+  .role-save {
+    border: var(--border-width-thin) solid transparent;
+    background: var(--button-primary-bg);
+    color: var(--button-primary-text);
+    font-weight: var(--font-weight-bold);
+  }
+
+  .role-cancel {
+    border: var(--border-width-thin) solid var(--color-border-strong);
+    background: var(--color-surface-sunken);
+    color: var(--color-text-secondary);
+  }
+
+  .role-save:disabled,
+  .role-cancel:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
   }
 
   .table-wrap {
@@ -1385,7 +1600,7 @@ const styles = css`
     display: flex;
     align-items: center;
     gap: var(--space-sm);
-    min-inline-size: 13rem;
+    min-inline-size: 12rem;
   }
 
   .portrait {
@@ -1566,6 +1781,10 @@ const styles = css`
       padding-block: 0;
     }
 
+    .role-edit-btn {
+      opacity: 1;
+    }
+
     thead {
       position: absolute;
       inline-size: 1px;
@@ -1604,6 +1823,7 @@ const styles = css`
     }
 
     td[data-label='Discord'],
+    td[data-label='Role'],
     td[data-label='Spec'],
     td[data-label='Professions'] {
       grid-column: 1 / -1;
@@ -1654,6 +1874,12 @@ export class Page extends FASTElement {
   @observable compOpen = false;
   /** Whether the composition charts count core raiders only or include flex & recruits. */
   @observable compScope: CompScope = 'raid';
+  /** Inline role editor state: slug of the row being edited, or '' when closed. */
+  @observable editingSlug = '';
+  @observable editRole: RosterRole | '' = '';
+  @observable editSecondary: RosterRole | '' = '';
+  @observable savingRole = false;
+  @observable roleEditError = '';
 
   connectedCallback(): void {
     super.connectedCallback();
@@ -1667,6 +1893,76 @@ export class Page extends FASTElement {
 
   discordName(e: RosterListing): string | null {
     return e.memberId ? (this.members[e.memberId] ?? null) : null;
+  }
+
+  /** Officers can edit any character's role; signed-in members can edit their own linked one. */
+  canEditRole(e: RosterListing): boolean {
+    const session = currentSession();
+    if (!session) return false;
+    if (session.tier === 'officer') return true;
+    return Boolean(e.characterId && e.memberId && e.memberId === session.memberId);
+  }
+
+  startRoleEdit(e: RosterListing): void {
+    this.editingSlug = e.slug;
+    this.editRole = e.preferredRole ?? (e.characterId ? 'melee' : '');
+    this.editSecondary = e.secondaryRole ?? '';
+    this.roleEditError = '';
+  }
+
+  cancelRoleEdit(): void {
+    this.editingSlug = '';
+    this.roleEditError = '';
+  }
+
+  setEditRole(value: string): void {
+    this.editRole = isRosterRole(value) ? value : '';
+    if (!this.editRole || this.editSecondary === this.editRole) this.editSecondary = '';
+  }
+
+  setEditSecondary(value: string): void {
+    const next = isRosterRole(value) ? value : '';
+    this.editSecondary = next && next !== this.editRole ? next : '';
+  }
+
+  async saveRole(entry: RosterListing): Promise<void> {
+    if (this.savingRole) return;
+    const preferredRole: RosterRole | null = this.editRole || null;
+    const secondaryRole: RosterRole | null =
+      preferredRole && this.editSecondary && this.editSecondary !== preferredRole
+        ? this.editSecondary
+        : null;
+    this.savingRole = true;
+    this.roleEditError = '';
+    try {
+      const client = getCommandClient();
+      const result = entry.characterId
+        ? preferredRole
+          ? await client.run('character-update', {
+              characterId: entry.characterId,
+              role: preferredRole,
+              secondaryRole,
+            })
+          : {
+              success: false as const,
+              error: { code: 'VALIDATION_ERROR', message: 'Pick a main role.' },
+            }
+        : await client.run('armory-guild-roster-role-set', {
+            slug: entry.slug,
+            preferredRole,
+            secondaryRole,
+          });
+      if (!result.success) {
+        this.roleEditError = result.error?.message ?? 'Could not save role.';
+        return;
+      }
+      this.entries = this.entries.map((row) =>
+        row.slug === entry.slug ? { ...row, preferredRole, secondaryRole } : row,
+      );
+      this.editingSlug = '';
+    } finally {
+      this.savingRole = false;
+    }
   }
 
   async load(): Promise<void> {
@@ -1731,6 +2027,23 @@ export class Page extends FASTElement {
     return this.compScope === 'raid' ? this.raidPool : this.fullRaidPool;
   }
 
+  /** Raiders in `compPool` who have a declared raid role (never guessed from armory spec). */
+  get compAssignedCount(): number {
+    return this.compPool.filter((e) => e.preferredRole !== null).length;
+  }
+
+  /** Raiders in `compPool` who have not declared a raid role yet. */
+  get compUnsetCount(): number {
+    return this.compPool.length - this.compAssignedCount;
+  }
+
+  get roleChartHint(): string {
+    if (this.compUnsetCount > 0) {
+      return `${this.compUnsetCount} not set yet`;
+    }
+    return 'Declared main roles';
+  }
+
   get classChartScale(): ChartScale {
     const counts = new Map<string, number>();
     for (const e of this.compPool) {
@@ -1782,45 +2095,51 @@ export class Page extends FASTElement {
   get roleChartScale(): ChartScale {
     const counts = new Map<RosterRole, number>();
     for (const e of this.compPool) {
-      const r = rosterRole(e);
-      counts.set(r, (counts.get(r) ?? 0) + 1);
+      if (!e.preferredRole) continue;
+      counts.set(e.preferredRole, (counts.get(e.preferredRole) ?? 0) + 1);
     }
     return chartScale(Math.max(0, ...counts.values()));
   }
 
   get compRoleColumns(): RoleColumn[] {
-    const byRole = new Map<RosterRole, RosterListing[]>();
+    const byMain = new Map<RosterRole, RosterListing[]>();
+    const bySecondary = new Map<RosterRole, RosterListing[]>();
     for (const e of this.compPool) {
-      const r = rosterRole(e);
-      const list = byRole.get(r) ?? [];
-      list.push(e);
-      byRole.set(r, list);
+      if (e.preferredRole) {
+        const list = byMain.get(e.preferredRole) ?? [];
+        list.push(e);
+        byMain.set(e.preferredRole, list);
+      }
+      if (e.secondaryRole) {
+        const list = bySecondary.get(e.secondaryRole) ?? [];
+        list.push(e);
+        bySecondary.set(e.secondaryRole, list);
+      }
     }
     const max = this.roleChartScale.max;
-    const total = this.compPool.length;
-    const roles = ROLE_ORDER.filter(
-      (r) => r !== 'unknown' || (byRole.get('unknown')?.length ?? 0) > 0,
-    );
-    return roles.map((role) => {
-      const members = byRole.get(role) ?? [];
-      const count = members.length;
+    const assigned = this.compAssignedCount;
+    return ROSTER_ROLES.map((role) => {
+      const mainMembers = byMain.get(role) ?? [];
+      const flexMembers = bySecondary.get(role) ?? [];
+      const count = mainMembers.length;
       const meta = ROLE_META[role];
+      const mainDetail = formatBreakdown(mainMembers.map((m) => m.className ?? 'Unknown'));
+      const flexDetail = formatBreakdown(flexMembers.map((m) => m.className ?? 'Unknown'));
+      const detail = [
+        mainDetail ? `Main: ${mainDetail}` : '',
+        flexDetail ? `Flex: ${flexDetail}` : '',
+      ]
+        .filter(Boolean)
+        .join(' · ');
       return {
         role,
         label: meta.label,
         count,
+        secondaryCount: flexMembers.length,
         pct: (count / max) * 100,
-        share: total > 0 ? (count / total) * 100 : 0,
+        share: assigned > 0 ? (count / assigned) * 100 : 0,
         color: `var(${meta.token})`,
-        detail: formatBreakdown(
-          members.map((m) =>
-            m.className
-              ? m.activeSpec
-                ? `${m.activeSpec} ${m.className}`
-                : m.className
-              : 'Unknown',
-          ),
-        ),
+        detail,
       };
     });
   }
@@ -1829,11 +2148,12 @@ export class Page extends FASTElement {
     const total = this.compPool.length;
     if (total === 0) return 'No raiders yet';
     const at60 = this.compPool.filter((e) => e.level >= 60).length;
-    const melee = this.compPool.filter((e) => rosterRole(e) === 'melee').length;
-    const ranged = this.compPool.filter((e) => rosterRole(e) === 'ranged').length;
+    const melee = this.compPool.filter((e) => e.preferredRole === 'melee').length;
+    const ranged = this.compPool.filter((e) => e.preferredRole === 'ranged').length;
     const dps = melee + ranged;
     const parts = [`${at60} at lv 60`];
     if (dps > 0) parts.push(`${dps} DPS (${melee} melee · ${ranged} ranged)`);
+    if (this.compUnsetCount > 0) parts.push(`${this.compUnsetCount} role unset`);
     return parts.join(' · ');
   }
 
@@ -1841,7 +2161,7 @@ export class Page extends FASTElement {
     const parts = this.compRoleColumns
       .filter((r) => r.count > 0)
       .map((r) => `${r.label} ${r.count} (${Math.round(r.share)}%)`);
-    return `Role share: ${parts.join(', ')}`;
+    return `Declared role share: ${parts.join(', ')}`;
   }
 
   get ranks(): number[] {
@@ -1896,7 +2216,7 @@ export class Page extends FASTElement {
         (!this.wowClass || e.className === this.wowClass) &&
         (!this.profession ||
           e.professions.some((p) => p.name === this.profession && p.level >= CRAFT_MIN)) &&
-        (!this.role || rosterRole(e) === this.role) &&
+        (!this.role || e.preferredRole === this.role) &&
         (!q || `${e.name} ${e.surname} ${this.discordName(e) ?? ''}`.toLowerCase().includes(q)),
     );
     const byName = (a: RosterListing, b: RosterListing) => a.name.localeCompare(b.name);

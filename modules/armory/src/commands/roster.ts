@@ -23,7 +23,10 @@ export const armoryGuildRoster = command({
   handler: async (_input, { guildId, deps, caller }) => {
     const byRank = (a: RosterListing, b: RosterListing) =>
       a.guildRank - b.guildRank || a.name.localeCompare(b.name);
-    const entries = await deps.armoryRoster.listEntries(guildId);
+    // Recipes are hundreds per character; armory-recipe-search reads them instead.
+    const entries = (await deps.armoryRoster.listEntries(guildId)).map(
+      ({ recipes: _recipes, ...entry }) => entry,
+    );
     // Which Discord member plays which character is the guild's to know, like member-list.
     if (!tierAllows(caller.tier, 'recruit')) {
       return success(entries.map((e) => ({ ...e, memberId: null })).sort(byRank));
@@ -89,6 +92,12 @@ const professionSchema = z.object({
   maxLevel: z.number().int().min(0).nullable(),
 });
 
+const recipeSchema = z.object({
+  id: z.number().int(),
+  name: text(120),
+  profession: text(48),
+});
+
 const enrichedSchema = z.object({
   slug: text(96),
   result: z.discriminatedUnion('status', [
@@ -98,6 +107,7 @@ const enrichedSchema = z.object({
       raceName: nullableText(48),
       activeSpec: nullableText(48),
       professions: z.array(professionSchema).max(16),
+      recipes: z.array(recipeSchema).max(1500).default([]),
       avatarUrl: url(500),
       profileUrl: url(300),
     }),
@@ -148,6 +158,7 @@ export const armoryGuildRosterRecord = command({
           raceName: null,
           activeSpec: null,
           professions: [],
+          recipes: [],
           avatarUrl: null,
           profileUrl: null,
           error: null,
@@ -178,6 +189,7 @@ export const armoryGuildRosterRecord = command({
               raceName: result.raceName,
               activeSpec: result.activeSpec,
               professions: result.professions,
+              recipes: result.recipes,
               avatarUrl: result.avatarUrl,
               profileUrl: result.profileUrl,
               error: null,

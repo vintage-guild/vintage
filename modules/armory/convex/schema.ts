@@ -67,6 +67,12 @@ export const rosterProfession = v.object({
   maxLevel: nullableNumber,
 });
 
+export const rosterRecipe = v.object({
+  id: v.number(),
+  name: v.string(),
+  profession: v.string(),
+});
+
 /** Every field but the entry's id, guild, and blizzardId: what an update may change. */
 export const rosterEntryPatchFields = {
   name: v.string(),
@@ -79,6 +85,8 @@ export const rosterEntryPatchFields = {
   raceName: nullableString,
   activeSpec: nullableString,
   professions: v.array(rosterProfession),
+  /** Optional: rows written before recipes were kept have none until their next enrichment. */
+  recipes: v.optional(v.array(rosterRecipe)),
   avatarUrl: nullableString,
   profileUrl: nullableString,
   error: nullableString,

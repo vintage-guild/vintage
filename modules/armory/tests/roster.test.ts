@@ -80,6 +80,7 @@ describe('armory-guild-roster-record', () => {
             raceName: 'Human',
             activeSpec: 'Retribution',
             professions: [],
+            recipes: [],
             avatarUrl: null,
             profileUrl:
               'https://worldofwarcraft.blizzard.com/en-us/forever/us/armory/character/judgement-judy',
@@ -118,6 +119,7 @@ describe('armory-guild-roster-record', () => {
             raceName: 'Human',
             activeSpec: 'Retribution',
             professions: [{ name: 'Blacksmithing', level: 150, maxLevel: 150 }],
+            recipes: [{ id: 1993, name: 'Green Iron Bracers', profession: 'Blacksmithing' }],
             avatarUrl: 'https://render.worldofwarcraft.com/a.jpg',
             profileUrl:
               'https://worldofwarcraft.blizzard.com/en-us/forever/us/armory/character/judgement-judy',
@@ -285,7 +287,17 @@ describe('fetchRosterEntry', () => {
       primaries: [
         {
           profession: { id: 164, name: 'Blacksmithing' },
-          tiers: [{ skill_points: 150, max_skill_points: 150 }],
+          tiers: [
+            {
+              skill_points: 150,
+              max_skill_points: 150,
+              known_recipes: [
+                { id: 1993, name: 'Green Iron Bracers' },
+                { id: 1993, name: 'Green Iron Bracers' },
+                { id: 9999 },
+              ],
+            },
+          ],
         },
       ],
       secondaries: [{ profession: { id: 185, name: 'Cooking' }, skill_points: 10, tiers: [] }],
@@ -303,6 +315,8 @@ describe('fetchRosterEntry', () => {
         { name: 'Blacksmithing', level: 150, maxLevel: 150 },
         { name: 'Cooking', level: 10, maxLevel: null },
       ],
+      // Each recipe once, named ones only.
+      recipes: [{ id: 1993, name: 'Green Iron Bracers', profession: 'Blacksmithing' }],
       avatarUrl: 'https://render.example/avatar.jpg',
       profileUrl:
         'https://worldofwarcraft.blizzard.com/en-us/forever/us/armory/character/judgement-judy',

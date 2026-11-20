@@ -11,7 +11,7 @@ import {
   type ForeverRegion,
   type GuildRoster,
 } from '@vintage/forever-api';
-import type { RosterFetchResult, RosterMember, RosterProfession } from '../contract';
+import type { RosterFetchResult, RosterMember, RosterProfession, RosterRecipe } from '../contract';
 import { MAX_ERROR, toActiveSpec, toAvatar } from './fetch';
 
 export type RosterClient = Pick<
@@ -40,6 +40,22 @@ export const toRosterMembers = (roster: GuildRoster): RosterMember[] =>
  * Primary and secondary professions with spent and max skill points, named ones only. Forever
  * keeps the points in the profession's one tier; a top-level value wins if Blizzard adds one.
  */
+export const toRecipes = (p: CharacterProfessions | null): RosterRecipe[] => {
+  const seen = new Map<number, RosterRecipe>();
+  for (const entry of [...(p?.primaries ?? []), ...(p?.secondaries ?? [])]) {
+    const profession = entry.profession?.name;
+    if (!profession) continue;
+    for (const tier of entry.tiers) {
+      for (const recipe of tier.known_recipes) {
+        if (recipe.name && !seen.has(recipe.id)) {
+          seen.set(recipe.id, { id: recipe.id, name: recipe.name, profession });
+        }
+      }
+    }
+  }
+  return [...seen.values()];
+};
+
 export const toProfessions = (p: CharacterProfessions | null): RosterProfession[] => {
   const out: RosterProfession[] = [];
   for (const entry of [...(p?.primaries ?? []), ...(p?.secondaries ?? [])]) {
@@ -85,6 +101,7 @@ export async function fetchRosterEntry(
     raceName: profile.race?.name ?? null,
     activeSpec: profile.active_spec?.name ?? toActiveSpec(specs),
     professions: toProfessions(professions),
+    recipes: toRecipes(professions),
     avatarUrl: toAvatar(media),
     profileUrl: armoryProfileUrl(region, name, surname),
   };

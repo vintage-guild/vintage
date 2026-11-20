@@ -16,8 +16,8 @@ const patchValidator = v.object(
 );
 
 const toEntry = (doc: Doc<'rosterEntries'>) => {
-  const { _id, _creationTime, ...rest } = doc;
-  return { id: _id as string, ...rest };
+  const { _id, _creationTime, recipes, ...rest } = doc;
+  return { id: _id as string, ...rest, recipes: recipes ?? [] };
 };
 
 export const list = query({

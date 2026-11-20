@@ -179,6 +179,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           }>;
           profileUrl: string | null;
           raceName: string | null;
+          recipes?: Array<{ id: number; name: string; profession: string }>;
           slug: string;
           status: "pending" | "found" | "error";
           surname: string;
@@ -222,6 +223,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             }>;
             profileUrl?: string | null;
             raceName?: string | null;
+            recipes?: Array<{ id: number; name: string; profession: string }>;
             slug?: string;
             status?: "pending" | "found" | "error";
             surname?: string;

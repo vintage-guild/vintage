@@ -76,12 +76,14 @@ export type CharacterSpecializations = z.infer<typeof characterSpecializationsSc
 /**
  * `/profile/wow/character/{name}-{surname}/professions`. Forever answers Retail's shape
  * (confirmed live 2026-11-19): each profession's skill points sit in `tiers[]`, one tier per
- * profession, whose `max_skill_points` is the current cap (75, 150, 225, 300). `known_recipes` is
- * dropped. The top-level skill points are kept in case Blizzard flattens it.
+ * profession, whose `max_skill_points` is the current cap (75, 150, 225, 300), and whose
+ * `known_recipes` lists every recipe the character knows (id and name). The top-level skill points
+ * are kept in case Blizzard flattens it.
  */
 const professionTier = z.object({
   skill_points: z.number().optional(),
   max_skill_points: z.number().optional(),
+  known_recipes: z.array(named).default([]),
 });
 const professionEntry = z.object({
   profession: named.optional(),

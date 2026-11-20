@@ -109,6 +109,14 @@ export interface RosterProfession {
   maxLevel: number | null;
 }
 
+/** A recipe a roster character knows, from its profession's `known_recipes`. */
+export interface RosterRecipe {
+  /** Blizzard's recipe id. */
+  id: number;
+  name: string;
+  profession: string;
+}
+
 /** A character in the guild's in-game roster, enriched from the armory in the background. */
 export interface RosterEntry {
   id: string;
@@ -127,6 +135,8 @@ export interface RosterEntry {
   raceName: string | null;
   activeSpec: string | null;
   professions: RosterProfession[];
+  /** Every recipe it knows; read through `armory-recipe-search`, not the roster listing. */
+  recipes: RosterRecipe[];
   avatarUrl: string | null;
   /** The character's public armory page. */
   profileUrl: string | null;
@@ -141,9 +151,32 @@ export interface RosterEntry {
  * the member who linked it to the armory, else the one whose registered character has its full
  * name. Null when no member claims it. A claim, like a link: never proof of ownership.
  */
-export interface RosterListing extends RosterEntry {
+export interface RosterListing extends Omit<RosterEntry, 'recipes'> {
   memberId: string | null;
 }
+
+/** A roster character who can craft a recipe, with its skill in that profession. */
+export interface RecipeCrafter {
+  name: string;
+  surname: string;
+  slug: string;
+  level: number;
+  className: string | null;
+  profileUrl: string | null;
+  skill: number;
+  maxSkill: number | null;
+}
+
+/** One recipe `armory-recipe-search` found, with everyone on the roster who knows it. */
+export interface RecipeMatch {
+  id: number;
+  name: string;
+  profession: string;
+  crafters: RecipeCrafter[];
+}
+
+/** Recipes one search answers at most; a longer list means the query is too broad. */
+export const RECIPE_SEARCH_LIMIT = 50;
 
 /** What one roster character's enrichment found, as `armory-guild-roster-record` takes it. */
 export type RosterFetchResult =
@@ -153,6 +186,7 @@ export type RosterFetchResult =
       raceName: string | null;
       activeSpec: string | null;
       professions: RosterProfession[];
+      recipes: RosterRecipe[];
       avatarUrl: string | null;
       profileUrl: string | null;
     }

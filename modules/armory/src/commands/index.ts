@@ -1,5 +1,6 @@
 import { armoryLink, armoryRefresh, armoryUnlink } from './link';
 import { armoryGet, armoryList } from './read';
+import { armoryRecipeSearch } from './recipes';
 import { armoryGuildRoster, armoryGuildRosterRecord, armoryGuildRosterSync } from './roster';
 import { armoryRecord, armorySweep } from './system';
 
@@ -27,4 +28,5 @@ export const armoryCommands = [
   armoryGuildRoster,
   armoryGuildRosterSync,
   armoryGuildRosterRecord,
+  armoryRecipeSearch,
 ] as const;

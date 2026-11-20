@@ -180,7 +180,14 @@ describe('armory-recipe-search with the catalog', () => {
       query: 'helm',
     });
     expect(recipes).toEqual([
-      { id: helm.id, name: helm.name, profession: 'Blacksmithing', itemId: null, crafters: [] },
+      {
+        id: helm.id,
+        name: helm.name,
+        profession: 'Blacksmithing',
+        itemId: null,
+        quality: null,
+        crafters: [],
+      },
     ]);
   });
 });
@@ -292,7 +299,7 @@ describe('recipe details', () => {
     reagents: [{ name: 'Thorium Bar', quantity: 80 }],
   };
 
-  it('records details for the system, answers them to anyone, and links the item', async () => {
+  it('records details for the system, answers them to anyone, and lists the item and its quality', async () => {
     await recordCatalog();
     expect(
       await ok('armory-recipe-detail-record', { details: [lionheart, { recipeId: 7 }] }, system),
@@ -309,7 +316,15 @@ describe('recipe details', () => {
     const page = await ok<ProfessionDetail>('armory-profession-get', {
       profession: 'Blacksmithing',
     });
-    expect(page.categories[1]?.recipes[0]).toMatchObject({ name: 'Lionheart Helm', itemId: 12640 });
+    expect(page.categories[1]?.recipes[0]).toMatchObject({
+      name: 'Lionheart Helm',
+      itemId: 12640,
+      quality: 'epic',
+    });
+    const found = await ok<{ recipes: RecipeMatch[] }>('armory-recipe-search', {
+      query: 'lionheart',
+    });
+    expect(found.recipes[0]).toMatchObject({ itemId: 12640, quality: 'epic' });
   });
 
   it('answers null for a recipe whose details have not synced', async () => {
@@ -328,10 +343,10 @@ describe('armory-character-recipes', () => {
         skill: 255,
         maxSkill: 300,
         known: [
-          { id: forever.id, name: forever.name, itemId: null },
-          { id: stone.id, name: stone.name, itemId: null },
+          { id: forever.id, name: forever.name, itemId: null, quality: null },
+          { id: stone.id, name: stone.name, itemId: null, quality: null },
         ],
-        missing: [{ id: helm.id, name: helm.name, itemId: null }],
+        missing: [{ id: helm.id, name: helm.name, itemId: null, quality: null }],
       },
     ]);
   });

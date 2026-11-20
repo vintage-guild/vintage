@@ -3,6 +3,7 @@ import type {
   ArmoryLink,
   ProfessionCatalog,
   RecipeDetail,
+  RecipeItem,
   RosterEntry,
   RosterRecipe,
   RosterRecipes,
@@ -85,8 +86,8 @@ export interface CatalogStore {
   listCatalog(guildId: string): Promise<ProfessionCatalog[]>;
   /** Inserts or replaces one profession's catalog. */
   putCatalog(catalog: Omit<ProfessionCatalog, 'id'>): Promise<void>;
-  /** Every recipe with details, and the item it makes: small, for links and the sync. */
-  listRecipeItems(guildId: string): Promise<{ recipeId: number; itemId: number | null }[]>;
+  /** Every recipe with details, the item it makes and its quality: small, for lists and the sync. */
+  listRecipeItems(guildId: string): Promise<({ recipeId: number } & RecipeItem)[]>;
   getRecipeDetail(guildId: string, recipeId: number): Promise<RecipeDetail | null>;
   /** Inserts or replaces each recipe's details. */
   putRecipeDetails(details: Omit<RecipeDetail, 'id'>[]): Promise<void>;

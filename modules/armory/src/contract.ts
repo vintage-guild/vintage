@@ -165,13 +165,20 @@ export interface RecipeCrafter {
   maxSkill: number | null;
 }
 
+/**
+ * The item a recipe makes, for a Wowhead link, and its quality (`uncommon`, `rare`, …), for the
+ * name's color. Both null until the recipe's details sync.
+ */
+export interface RecipeItem {
+  itemId: number | null;
+  quality: string | null;
+}
+
 /** One recipe `armory-recipe-search` found, with everyone on the roster who knows it. */
-export interface RecipeMatch {
+export interface RecipeMatch extends RecipeItem {
   id: number;
   name: string;
   profession: string;
-  /** The item it makes, for a Wowhead link; null until its details sync. */
-  itemId: number | null;
   crafters: RecipeCrafter[];
 }
 
@@ -261,11 +268,9 @@ export interface ProfessionSummary {
 }
 
 /** A recipe in a profession's catalog, with everyone on the roster who knows it. */
-export interface CatalogRecipe {
+export interface CatalogRecipe extends RecipeItem {
   id: number;
   name: string;
-  /** The item it makes, for a Wowhead link; null until its details sync. */
-  itemId: number | null;
   /** Best skill first; empty when nobody knows it. */
   crafters: RecipeCrafter[];
 }
@@ -308,10 +313,9 @@ export interface RecipeDetail {
 }
 
 /** A recipe on a character's list. */
-export interface RecipeRef {
+export interface RecipeRef extends RecipeItem {
   id: number;
   name: string;
-  itemId: number | null;
 }
 
 /** One roster character's crafting: each profession's known and missing catalog recipes. */

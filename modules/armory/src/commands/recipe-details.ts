@@ -97,13 +97,11 @@ export const armoryCharacterRecipes = command({
           profession: p.name,
           skill: p.level,
           maxSkill: p.maxLevel,
-          known: knownHere
-            .map((r) => ({ id: r.id, name: r.name, itemId: itemOf(r.id) }))
-            .sort(byName),
+          known: knownHere.map((r) => ({ id: r.id, name: r.name, ...itemOf(r.id) })).sort(byName),
           missing: (row?.categories ?? [])
             .flatMap((c) => c.recipes)
             .filter((r) => !knownIds.has(r.id) && !isSkillRank(r, p.name))
-            .map((r) => ({ id: r.id, name: r.name, itemId: itemOf(r.id) }))
+            .map((r) => ({ id: r.id, name: r.name, ...itemOf(r.id) }))
             .sort(byName),
         };
       })

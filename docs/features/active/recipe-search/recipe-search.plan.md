@@ -30,7 +30,8 @@ and the guild roster sync already fetches that endpoint.
 - **Recipe details** (2026-11-20): the same daily sync fetches `/data/wow/recipe/{id}` (the
   crafted item and reagents) and `/data/wow/item/{id}` (the item's display strings) for catalog
   recipes that have none yet, up to 2,500 a run, into `recipeDetails`. The first run took about 2
-  minutes for 2,484 recipes. `armory-recipe-get` answers one for the website's tooltip.
+  minutes for 2,484 recipes. `armory-recipe-get` answers one for the website's tooltip, and every
+  recipe list carries the item's quality, which colors the recipe's name.
 - **Where a recipe is learned** isn't in Blizzard's API (trainer, vendor, drop). Each recipe name
   links to its crafted item on Wowhead's Forever section (`wowhead.com/forever/item=<id>`; the
   ids match), or a Wowhead search when the item isn't synced. We link rather than scrape.

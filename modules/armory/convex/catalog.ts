@@ -35,7 +35,7 @@ export const put = mutation({
   },
 });
 
-/** Every recipe with details and the item it makes, without the rest of the row. */
+/** Every recipe with details: the item it makes and its quality, without the rest of the row. */
 export const listRecipeItems = query({
   args: { guildId: v.string() },
   handler: async (ctx, { guildId }) =>
@@ -44,7 +44,7 @@ export const listRecipeItems = query({
         .query('recipeDetails')
         .withIndex('by_guild_recipe', (q) => q.eq('guildId', guildId))
         .collect()
-    ).map((d) => ({ recipeId: d.recipeId, itemId: d.itemId })),
+    ).map((d) => ({ recipeId: d.recipeId, itemId: d.itemId, quality: d.quality })),
 });
 
 export const getRecipeDetail = query({

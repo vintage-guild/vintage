@@ -60,15 +60,34 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
     runs: {},
     buttons: [
       {
-        text: 'Press **Accept**, **Late**, **Tentative**, **Standby**, or **Decline** on an event’s card. Random signs you up with your main (or, with no main, the character you usually bring) and says why; **Switch character**, **Change spec** and **Role** in its reply change it for that event only, and **New character…** adds one and signs up with it. Late and Tentative ask for a note.',
+        text: 'Press **Accept**, **Late**, **Tentative**, **Standby**, or **Absent** on an event’s card. Random signs you up with your main (or, with no main, the character you usually bring) and says why; **Switch character**, **Change spec**, **Role**, and **Can also play** in its reply change it for that event only, and **New character…** adds one and signs up with it. Late picks 5, 15, or 30 minutes; Tentative asks for a reason.',
         label: 'sign up with the buttons on event cards',
         command: 'signup-set',
       },
     ],
     examples: [
       'Press **Accept** on the Onyxia card, then pick your healer.',
-      'Changed your mind? Press **Decline** on the same card.',
+      'Changed your mind? Press **Absent** on the same card.',
     ],
+  },
+  {
+    key: 'absences',
+    title: 'Absences',
+    summary: 'Mark yourself absent for a stretch of days or set weekly absent/late raid nights.',
+    group: 'absence',
+    runs: {
+      'absence add': 'absence-add',
+      'absence weekly': 'absence-weekly-set',
+      'absence list': 'absence-list',
+      'absence remove': 'absence-remove',
+    },
+    examples: [
+      '/random absence add from:2026-12-03 to:2026-12-07 reason:work trip',
+      '/random absence weekly',
+      '/random absence list',
+      '/random absence remove absence:abs-1',
+    ],
+    sitePath: '/profile',
   },
   {
     key: 'characters',

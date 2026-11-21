@@ -63,7 +63,7 @@ function playingWords(s: { spec: string; class: string }): string {
   return `${titleCase(s.spec)} ${titleCase(s.class)}`;
 }
 
-/** Snapshot every current signup for a raid into `AnnouncedMemberState` rows. */
+/** Snapshot every current signup and absence for a raid into `AnnouncedMemberState` rows. */
 export function snapshotForEvent(
   guildId: string,
   tick: TickEvent,
@@ -72,7 +72,7 @@ export function snapshotForEvent(
 ): AnnouncedMemberState[] {
   const { going } = finalRoster(tick, members);
   const seatedIds = new Set(going.map((s) => s.id));
-  return tick.signups.map((s) => ({
+  const signupRows: AnnouncedMemberState[] = tick.signups.map((s) => ({
     guildId,
     eventId: tick.event.id,
     memberId: s.memberId,
@@ -92,6 +92,31 @@ export function snapshotForEvent(
     absenceSummary: null,
     announcedAt: now,
   }));
+  const seen = new Set(signupRows.map((r) => r.memberId));
+  for (const a of tick.away ?? []) {
+    if (seen.has(a.memberId)) continue;
+    signupRows.push({
+      guildId,
+      eventId: tick.event.id,
+      memberId: a.memberId,
+      signupId: null,
+      characterName: a.displayName,
+      class: null,
+      spec: null,
+      role: null,
+      status: null,
+      lateMinutes: null,
+      note: a.reason,
+      seated: false,
+      group: null,
+      roster: null,
+      updatedAt: now,
+      updatedBy: null,
+      absenceSummary: a.summary,
+      announcedAt: now,
+    });
+  }
+  return signupRows;
 }
 
 export interface DropoutAlert {
@@ -178,6 +203,11 @@ function diffMemberChange(
   curr: AnnouncedMemberState,
   memberById: ReadonlyMap<string, TickMember>,
 ): string | null {
+  if (!curr.signupId && curr.absenceSummary) {
+    if (prev?.absenceSummary === curr.absenceSummary) return null;
+    const name = memberById.get(curr.memberId)?.displayName ?? curr.characterName ?? 'Someone';
+    return `**${name}** marked absent ${curr.absenceSummary}.`;
+  }
   if (!prev?.signupId) return formatNewSignup(curr, memberById.get(curr.memberId));
   if (prev.seated !== curr.seated && isLeaderAction(curr)) {
     const leader = memberDisplayName(memberById, curr.updatedBy);

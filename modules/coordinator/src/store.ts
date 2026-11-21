@@ -5,6 +5,7 @@ import type { GuildRank } from '@vintage/identity/contract';
 import type { Poll } from '@vintage/polls/contract';
 import type {
   EventKind,
+  LateMinutes,
   RaidAccess,
   RaidEvent,
   RaidRecord,
@@ -89,11 +90,31 @@ export interface TickMember {
   dmOptOut: boolean;
 }
 
+/** A member covered as away by an active absence for a guild raid (no signup on that raid). */
+export interface TickAway {
+  memberId: string;
+  displayName: string;
+  reason: string | null;
+  /** Human-readable dates/weekly summary, e.g. "Dec 3 to Dec 7" or "Wednesdays". */
+  summary: string;
+}
+
+/** A member whose weekly rule makes a guild raid a late night (no signup on that raid). */
+export interface TickUsuallyLate {
+  memberId: string;
+  displayName: string;
+  lateMinutes: LateMinutes;
+}
+
 export interface TickEvent {
   event: RaidEvent;
   /** The schedule's timings, or the raids defaults for one-off raids. */
   timings: ScheduleTimings;
   signups: Signup[];
+  /** Guild-raid members covered as away by an active absence (no signup yet). */
+  away?: TickAway[];
+  /** Guild-raid members whose weekly rule marks this night as late (no signup yet). */
+  usuallyLate?: TickUsuallyLate[];
 }
 
 /** A drop as the raid summary shows it; apps/api reads it from the loot module. */

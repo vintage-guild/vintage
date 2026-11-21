@@ -169,11 +169,15 @@ export function roleTargetsFrom(values: OptionValues, kind: EventKind): RoleTarg
   return { tank, healer, dps: dps ?? rest };
 }
 
-/** The kind, and roleTargets only when the member set some. */
+/** The kind, access (`open` when requested), and roleTargets only when the member set some. */
 function kindInput(values: OptionValues) {
   const kind = kindFrom(values);
   const roleTargets = roleTargetsFrom(values, kind);
-  return { kind, ...(roleTargets ? { roleTargets } : {}) };
+  return {
+    kind,
+    ...(values.open === true ? { access: 'open' as const } : {}),
+    ...(roleTargets ? { roleTargets } : {}),
+  };
 }
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;

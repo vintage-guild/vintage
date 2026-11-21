@@ -38,6 +38,7 @@ export type {
   CoordinatorPolls,
   CoordinatorRaids,
   CoordinatorStore,
+  TickAway,
   TickDrop,
   TickEvent,
   TickMember,
@@ -45,6 +46,7 @@ export type {
   TickRecorded,
   TickSource,
   TickState,
+  TickUsuallyLate,
 } from '../store';
 export { runTick, type TickReport } from '../tick';
 

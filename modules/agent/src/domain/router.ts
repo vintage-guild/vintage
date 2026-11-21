@@ -42,12 +42,12 @@ export function routeRequest(question: string, cacheKey: string): DecisionReques
           {
             value: 'guild-question',
             description:
-              'A question about the guild: raids, schedules, signups, the roster, polls, recruiting, characters, rules',
+              'A question about the guild: raids, schedules, signups, absences, the roster, polls, recruiting, characters, rules',
           },
           {
             value: 'own-change',
             description:
-              'Asks to change something of their own: their signup, characters, preferences, a vote',
+              'Asks to change something of their own: their signup, absences or weekly availability, characters, preferences, a vote',
           },
           {
             value: 'officer-action',

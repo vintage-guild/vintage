@@ -7,9 +7,10 @@
 // 3 seconds.
 import type { Interaction } from '@vintage/discord-kit';
 import type { Caller, CommandResult } from '@vintage/guild-kit';
-import type { Character } from '@vintage/identity/contract';
+import type { Character, Member } from '@vintage/identity/contract';
 import type { Signup, SignupGuess } from '@vintage/raids/contract';
 import { v } from 'convex/values';
+import { handleAbsenceAutocomplete, handleAbsenceInteraction } from '../src/discord-absences';
 import { handleAgentInteraction } from '../src/discord-agent';
 import { handleApplicationInteraction } from '../src/discord-applications';
 import { handleCharacterAutocomplete, handleCharacterInteraction } from '../src/discord-characters';
@@ -25,7 +26,7 @@ import { handlePollInteraction } from '../src/discord-polls';
 import { handleSignupInteraction } from '../src/discord-signups';
 import { internal } from './_generated/api';
 import { internalMutation, internalQuery } from './_generated/server';
-import { askAs, GUILD_ID, runCommandAs } from './commands';
+import { askAs, GUILD_ID, runCommandAs, runSystemCommand } from './commands';
 import { REFRESH_DELAY_MS } from './pollPosts';
 import {
   coordinatorScheduler,
@@ -81,6 +82,18 @@ export const interaction = internalMutation({
     if (character) return character;
 
     const raids = raidsStore(ctx);
+    const absence = await handleAbsenceInteraction(incoming, {
+      discordGuildId,
+      guildId: GUILD_ID,
+      memberByDiscordId,
+      absences: (memberId) => raids.listAbsences(GUILD_ID, { memberId, activeOnly: true }),
+      characters: (memberId) => people.listCharacters(GUILD_ID, { memberId }),
+      signup: (eventId, memberId) => raids.getSignupByMember(GUILD_ID, eventId, memberId),
+      run: (caller, name, input) => runCommandAs(ctx, caller, name, input),
+      afterChange: () => scheduleCoalescedTick(ctx, GUILD_ID),
+    });
+    if (absence) return absence;
+
     const leads = await handleLeadsInteraction(incoming, {
       discordGuildId,
       guildId: GUILD_ID,
@@ -127,6 +140,15 @@ export const interaction = internalMutation({
         runCommandAs(ctx, caller, 'signup-set', input) as Promise<CommandResult<Signup>>,
       characterAdd: (caller: Caller, input) =>
         runCommandAs(ctx, caller, 'character-add', input) as Promise<CommandResult<Character>>,
+      absences: (memberId) => raids.listAbsences(GUILD_ID, { memberId, activeOnly: true }),
+      rosterContext: async () => ({
+        members: await people.listMembers(GUILD_ID),
+        absences: await raids.listAbsences(GUILD_ID, { activeOnly: true }),
+      }),
+      syncMember: async (input) => {
+        const res = (await runSystemCommand(ctx, 'member-sync', input)) as CommandResult<Member>;
+        return res.success ? (res.data ?? null) : null;
+      },
       afterChange: () => coordinatorScheduler(ctx).runTickNow(GUILD_ID),
     });
     if (signup) return signup;
@@ -183,6 +205,12 @@ export const autocomplete = internalQuery({
     });
     if (character) return character;
     const raids = raidsStore(ctx);
+    const absence = await handleAbsenceAutocomplete(incoming, {
+      discordGuildId,
+      memberByDiscordId,
+      absences: (memberId) => raids.listAbsences(GUILD_ID, { memberId, activeOnly: true }),
+    });
+    if (absence) return absence;
     return handleEventAutocomplete(incoming, {
       discordGuildId,
       guildId: GUILD_ID,

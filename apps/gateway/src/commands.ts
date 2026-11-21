@@ -140,13 +140,18 @@ const EVENT_EXTRAS = [
       { name: 'Other', value: 'other' },
     ],
   },
-  ...(['tanks', 'healers', 'dps'] as const).map((name) => ({
+  ...(['tanks', 'healers', 'melee', 'ranged'] as const).map((name) => ({
     type: T.INTEGER,
     name,
-    description: `How many ${name === 'dps' ? 'DPS' : name} (default: the kind’s usual comp)`,
+    description: `How many ${name} (default: the kind’s usual comp)`,
     min_value: 0,
     max_value: 40,
   })),
+  {
+    type: T.BOOLEAN,
+    name: 'open',
+    description: 'Open to pugs (Friends and Members can sign up)',
+  },
   {
     type: T.NUMBER,
     name: 'hours',
@@ -348,6 +353,73 @@ const CHARACTER_GROUP = {
   ],
 };
 
+/**
+ * `/random absence …` (absences.plan.md §5): date-range absences and weekly absent/late nights.
+ */
+const ABSENCE_GROUP = {
+  type: T.SUB_COMMAND_GROUP,
+  name: 'absence',
+  description: 'Mark yourself absent for a stretch of days or set weekly nights',
+  options: [
+    GROUP_HELP,
+    {
+      type: T.SUB_COMMAND,
+      name: 'add',
+      description: 'Mark yourself absent for one or more days (leave out from for a form)',
+      options: [
+        {
+          type: T.STRING,
+          name: 'from',
+          description: 'First day out, YYYY-MM-DD (in the guild’s clock)',
+          max_length: 10,
+        },
+        {
+          type: T.STRING,
+          name: 'to',
+          description: 'Last day out, YYYY-MM-DD (default: same as from)',
+          max_length: 10,
+        },
+        {
+          type: T.STRING,
+          name: 'reason',
+          description: 'Optional reason (officers and raid leaders only)',
+          max_length: 200,
+        },
+        {
+          type: T.USER,
+          name: 'member',
+          description: 'Mark another guild member absent (raid leaders and officers)',
+        },
+      ],
+    },
+    {
+      type: T.SUB_COMMAND,
+      name: 'weekly',
+      description: 'Set weekly absent or late raid nights (opens a form)',
+    },
+    {
+      type: T.SUB_COMMAND,
+      name: 'list',
+      description: 'Show your active absences and weekly nights',
+    },
+    {
+      type: T.SUB_COMMAND,
+      name: 'remove',
+      description: 'Remove one of your active absences',
+      options: [
+        {
+          type: T.STRING,
+          name: 'absence',
+          description: 'The absence to remove',
+          required: true,
+          max_length: 100,
+          autocomplete: true,
+        },
+      ],
+    },
+  ],
+};
+
 /** `/random ask`: a question for the guild agent (#18); the answer arrives privately. */
 const ASK = {
   type: T.SUB_COMMAND,
@@ -427,6 +499,7 @@ const HELP = {
         { name: 'Events', value: 'events' },
         { name: 'Raid exports', value: 'exports' },
         { name: 'Signups', value: 'signups' },
+        { name: 'Absences', value: 'absences' },
         { name: 'Characters', value: 'characters' },
         { name: 'Polls', value: 'polls' },
         { name: 'Ask Random', value: 'ask' },
@@ -450,6 +523,7 @@ export const RANDOM_COMMAND = {
     POLL_GROUP,
     EVENT_GROUP,
     CHARACTER_GROUP,
+    ABSENCE_GROUP,
     ASK,
     APPLY,
     RECRUITING,
@@ -462,6 +536,7 @@ export const FORWARDED_GROUPS: ReadonlySet<string> = new Set([
   POLL_GROUP.name,
   EVENT_GROUP.name,
   CHARACTER_GROUP.name,
+  ABSENCE_GROUP.name,
   ASK.name,
   APPLY.name,
   RECRUITING.name,
@@ -469,11 +544,12 @@ export const FORWARDED_GROUPS: ReadonlySet<string> = new Set([
 
 /**
  * Groups whose autocomplete interactions the gateway forwards to Convex: `/random character`
- * (spec and name, #149) and `/random event check-export` (the raid).
+ * (spec and name, #149), `/random event check-export` (the raid), and `/random absence remove`.
  */
 export const AUTOCOMPLETED_GROUPS: ReadonlySet<string> = new Set([
   CHARACTER_GROUP.name,
   EVENT_GROUP.name,
+  ABSENCE_GROUP.name,
 ]);
 
 export const COMMANDS: readonly ApplicationCommand[] = [RANDOM_COMMAND];

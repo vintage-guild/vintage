@@ -125,12 +125,19 @@ function settled(actions: CoordinatorAction[], eventId: string): Set<string> {
   );
 }
 
-/** Expected members with no signup for the raid. */
+/** Expected members with no signup (and not covered as away by an absence) for the raid. */
 export function nonResponders(state: TickState, tick: TickEvent): TickMember[] {
   const answered = new Set(tick.signups.map((s) => s.memberId));
+  const away = new Set((tick.away ?? []).map((a) => a.memberId));
   const expected = new Set(state.config.expectedRanks);
   return state.members
-    .filter((m) => m.rank !== null && expected.has(m.rank) && !answered.has(m.memberId))
+    .filter(
+      (m) =>
+        m.rank !== null &&
+        expected.has(m.rank) &&
+        !answered.has(m.memberId) &&
+        !away.has(m.memberId),
+    )
     .sort((a, b) => a.displayName.localeCompare(b.displayName));
 }
 

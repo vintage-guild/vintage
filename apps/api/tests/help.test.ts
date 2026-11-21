@@ -169,7 +169,7 @@ describe('help pages', () => {
       for (const key of keys) {
         const page = renderHelp(key, ctx(tier, 'https://vintage.test'));
         expect(page.text.length, `${tier} ${key}`).toBeLessThanOrEqual(4096);
-        expect(page.text.split('\n').length, `${tier} ${key}`).toBeLessThanOrEqual(30);
+        expect(page.text.split('\n').length, `${tier} ${key}`).toBeLessThanOrEqual(36);
       }
     }
   });

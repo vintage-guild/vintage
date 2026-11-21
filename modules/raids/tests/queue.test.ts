@@ -66,7 +66,16 @@ describe('signup queue', () => {
 
   const answer = async (id: string, status: string, characterId = `char-${id}`) => {
     const result = await registry.execute(
-      { name: 'signup-set', input: { eventId: raid.id, characterId, status }, caller: as(id) },
+      {
+        name: 'signup-set',
+        input: {
+          eventId: raid.id,
+          characterId,
+          status,
+          ...(status === 'late' ? { lateMinutes: 15 } : {}),
+        },
+        caller: as(id),
+      },
       deps,
     );
     if (!result.success) throw new Error(JSON.stringify(result.error));

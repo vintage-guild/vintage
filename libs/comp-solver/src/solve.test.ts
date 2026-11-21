@@ -6,6 +6,7 @@ import {
   inputIssues,
   REQUIREMENTS,
   solveComp,
+  totalRoleTargets,
 } from './index';
 
 let clock = 0;
@@ -289,8 +290,34 @@ describe('solveComp', () => {
     for (const raidSize of [10, 20, 40] as const) {
       const template = defaultTemplate(raidSize);
       expect(compInputSchema.safeParse({ raidSize, template, signups: [] }).success).toBe(true);
-      const { tank, healer, dps } = template.targets;
-      expect(tank + healer + dps).toBe(raidSize);
+      expect(totalRoleTargets(template.targets)).toBe(raidSize);
     }
+  });
+
+  it('solves split melee and ranged targets separately', () => {
+    const result = solveComp({
+      raidSize: 5,
+      template: { targets: { tank: 1, healer: 1, melee: 1, ranged: 2 } },
+      signups: [
+        su('Tank', 'warrior', 'protection'),
+        su('Heal', 'priest', 'holy'),
+        su('Melee1', 'rogue', 'combat', { signedUpAt: 1 }),
+        su('Melee2', 'rogue', 'combat', { signedUpAt: 2 }),
+        su('Ranged1', 'mage', 'frost', { signedUpAt: 3 }),
+        su('Ranged2', 'warlock', 'affliction', { signedUpAt: 4 }),
+      ],
+    });
+    expect(result.selected.map((d) => d.signup.name)).toEqual([
+      'Tank',
+      'Heal',
+      'Melee1',
+      'Ranged1',
+      'Ranged2',
+    ]);
+    expect(result.bench.map((d) => ({ name: d.signup.name, reason: d.reason }))).toEqual([
+      { name: 'Melee2', reason: 'melee slots full (1/1)' },
+    ]);
+    expect(result.counts).toMatchObject({ tank: 1, healer: 1, dps: 3, melee: 1, ranged: 2 });
+    expect(result.gaps).toEqual([]);
   });
 });

@@ -21,12 +21,14 @@ import { type Caller, type CommandResult, tierAllows } from '@vintage/guild-kit'
 import { type WallClock, wallClock, zonedTime } from '@vintage/raids/commands';
 import {
   defaultRoleTargets,
+  dpsTargetOf,
   EVENT_KINDS,
   type EventKind,
   type ExportCheck,
   FALLBACK_RAID_TIME,
   FALLBACK_TIME_ZONE,
   type GuildClock,
+  hasSplitDpsTargets,
   kindNoun,
   type RaidEvent,
   type RoleTargets,
@@ -34,6 +36,7 @@ import {
   type Schedule,
   sizeLabel,
   targetsOf,
+  totalRoleTargets,
 } from '@vintage/raids/contract';
 import {
   commandOptions,
@@ -135,20 +138,34 @@ const kindFrom = (values: OptionValues): EventKind =>
   (EVENT_KINDS as readonly unknown[]).includes(values.kind) ? (values.kind as EventKind) : 'raid';
 
 /**
- * roleTargets when any of tanks, healers or dps was given. Tanks and healers left out come from
- * the kind's default; dps left out fills the rest, so `healers: 3` on a 10-player battleground
- * means 0/3/7. Undefined when none was given, so the command keeps the kind's default.
+ * roleTargets when any of tanks, healers, melee, ranged, or dps was given. Tanks and healers left
+ * out come from the kind's default; dps left out fills the rest, so `healers: 3` on a 10-player
+ * battleground means 0/3/7. Undefined when none was given, so the command keeps the kind's default.
  */
 export function roleTargetsFrom(values: OptionValues, kind: EventKind): RoleTargets | undefined {
   const given = (name: string) => (typeof values[name] === 'number' ? Number(values[name]) : null);
-  const [tanks, healers, dps] = [given('tanks'), given('healers'), given('dps')];
-  if (tanks === null && healers === null && dps === null) return undefined;
+  const [tanks, healers, melee, ranged, dps] = [
+    given('tanks'),
+    given('healers'),
+    given('melee'),
+    given('ranged'),
+    given('dps'),
+  ];
+  if (tanks === null && healers === null && melee === null && ranged === null && dps === null) {
+    return undefined;
+  }
   const size = typeof values.size === 'number' ? values.size : null;
   const base = defaultRoleTargets(kind, size);
   const tank = tanks ?? base.tank;
   const healer = healers ?? base.healer;
+  if (melee !== null || ranged !== null) {
+    const rest = size === null ? 0 : Math.max(0, size - tank - healer);
+    const m = melee ?? Math.max(0, rest - (ranged ?? 0));
+    const r = ranged ?? Math.max(0, rest - m);
+    return { tank, healer, melee: m, ranged: r };
+  }
   // An open event has no size to fill, so dps left out is just the default (0 for other).
-  const rest = size === null ? base.dps : Math.max(0, size - tank - healer);
+  const rest = size === null ? dpsTargetOf(base) : Math.max(0, size - tank - healer);
   return { tank, healer, dps: dps ?? rest };
 }
 
@@ -165,9 +182,17 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 export const whatText = (e: Pick<RaidEvent, 'instance' | 'kind' | 'size'>) =>
   [e.instance, sizeLabel(e.kind, e.size)].filter(Boolean).join(', ');
 
-/** "1 tank · 1 healer · 3 DPS", or a note that anyone fills any slot. */
+/** "1 tank · 1 healer · 3 DPS" (or split melee/ranged), or a note that anyone fills any slot. */
 export function rolesText(targets: RoleTargets): string {
-  if (targets.tank + targets.healer + targets.dps === 0) return 'any roles';
+  if (totalRoleTargets(targets) === 0) return 'any roles';
+  if (hasSplitDpsTargets(targets)) {
+    return [
+      plural(targets.tank, 'tank', 'tanks'),
+      plural(targets.healer, 'healer', 'healers'),
+      `${targets.melee} melee`,
+      `${targets.ranged} ranged`,
+    ].join(' · ');
+  }
   return [
     plural(targets.tank, 'tank', 'tanks'),
     plural(targets.healer, 'healer', 'healers'),

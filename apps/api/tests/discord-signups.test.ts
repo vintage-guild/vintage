@@ -250,9 +250,9 @@ describe('discord signups', () => {
   it('opens the New character form straight away for someone with no characters', async () => {
     const { p } = ports(null);
     p.characters = async () => [];
-    const res = await handleSignupInteraction(interaction('signup:raid1:late'), p);
-    expect(res).toMatchObject({ type: 9, data: { custom_id: 'signup-new:raid1:late' } });
-    // Late asks for its note in the same form; the picker always ends with New character….
+    const res = await handleSignupInteraction(interaction('signup:raid1:tentative'), p);
+    expect(res).toMatchObject({ type: 9, data: { custom_id: 'signup-new:raid1:tentative' } });
+    // Tentative asks for its note in the same form; the picker always ends with New character….
     expect(JSON.stringify(res)).toContain('"custom_id":"note"');
     p.characters = async () => [oak];
     const picker = JSON.stringify(
@@ -261,10 +261,25 @@ describe('discord signups', () => {
     expect(picker).toContain('"label":"New character…","value":"new"');
   });
 
+  it('asks how late with 5 / 15 / 30 min buttons instead of a reason form', async () => {
+    const { p, sets } = ports(guessOak);
+    const picker = await handleSignupInteraction(interaction('signup:raid1:late'), p);
+    const json = JSON.stringify(picker);
+    expect(json).toContain('Later than 30 minutes? Press Absent instead.');
+    expect(json).toContain('signup-late:raid1:oak:5');
+    expect(json).toContain('signup-late:raid1:oak:15');
+    expect(json).toContain('signup-late:raid1:oak:30');
+    const res = await handleSignupInteraction(interaction('signup-late:raid1:oak:15'), p);
+    expect(res).toMatchObject({ type: 7 });
+    expect(sets).toEqual([
+      { eventId: 'raid1', characterId: 'oak', status: 'late', lateMinutes: 15, spec: 'feral' },
+    ]);
+  });
+
   it('the New character form saves the character, then signs up with it in one step', async () => {
     const { p, sets, adds } = ports(null);
     const res = await handleSignupInteraction(
-      newCharacter('signup-new:raid1:late', {
+      newCharacter('signup-new:raid1:tentative', {
         name: 'Elm',
         class: 'warrior',
         spec: 'fury',
@@ -275,7 +290,7 @@ describe('discord signups', () => {
     );
     expect(adds).toEqual([{ name: 'Elm', class: 'warrior', spec: 'fury', role: 'tank' }]);
     expect(sets).toEqual([
-      { eventId: 'raid1', status: 'late', characterId: 'elm', note: 'after work' },
+      { eventId: 'raid1', status: 'tentative', characterId: 'elm', note: 'after work' },
     ]);
     expect(JSON.stringify(res)).toContain('your new character');
 
@@ -300,9 +315,9 @@ describe('discord signups', () => {
 
     // Already signed up: a form that asked for a note still saves it; one that didn't (from
     // Switch character) leaves the signup's note alone.
-    p.signup = async () => ({ status: 'late', characterId: 'gone', note: 'old' }) as Signup;
+    p.signup = async () => ({ status: 'tentative', characterId: 'gone', note: 'old' }) as Signup;
     await handleSignupInteraction(
-      newCharacter('signup-new:raid1:late', {
+      newCharacter('signup-new:raid1:tentative', {
         name: 'Fir',
         class: 'mage',
         spec: 'fire',
@@ -311,12 +326,12 @@ describe('discord signups', () => {
       p,
     );
     await handleSignupInteraction(
-      newCharacter('signup-new:raid1:late', { name: 'Yew', class: 'mage', spec: 'fire' }),
+      newCharacter('signup-new:raid1:tentative', { name: 'Yew', class: 'mage', spec: 'fire' }),
       p,
     );
     expect(sets.slice(2)).toEqual([
-      { eventId: 'raid1', status: 'late', characterId: 'elm', note: 'bus' },
-      { eventId: 'raid1', status: 'late', characterId: 'elm' },
+      { eventId: 'raid1', status: 'tentative', characterId: 'elm', note: 'bus' },
+      { eventId: 'raid1', status: 'tentative', characterId: 'elm' },
     ]);
   });
 

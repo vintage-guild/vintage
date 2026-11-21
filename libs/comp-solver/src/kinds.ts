@@ -13,6 +13,7 @@ import {
   RAID_SIZES,
   type RaidSize,
   type RoleTargets,
+  totalRoleTargets,
 } from './types';
 
 export const EVENT_KINDS = ['raid', 'dungeon', 'battleground', 'other'] as const;
@@ -135,8 +136,7 @@ export const targetsOf = (event: Sized): RoleTargets =>
   event.roleTargets ?? defaultRoleTargets(kindOf(event), event.size);
 
 /** Whether an event has any role target at all (an `other` event without targets has none). */
-export const hasRoleTargets = (targets: RoleTargets) =>
-  targets.tank + targets.healer + targets.dps > 0;
+export const hasRoleTargets = (targets: RoleTargets) => totalRoleTargets(targets) > 0;
 
 /**
  * The size to solve a comp with. An open event has no cap, so it plays everyone going (at least
@@ -144,8 +144,7 @@ export const hasRoleTargets = (targets: RoleTargets) =>
  */
 export function compSize(event: Sized, going: number): number {
   if (event.size !== null) return event.size;
-  const t = targetsOf(event);
-  return Math.max(t.tank + t.healer + t.dps, going);
+  return Math.max(totalRoleTargets(targetsOf(event)), going);
 }
 
 /**

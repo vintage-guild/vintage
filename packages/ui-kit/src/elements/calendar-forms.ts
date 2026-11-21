@@ -11,6 +11,7 @@ import {
 import {
   AKind,
   defaultRoleTargets,
+  dpsTargetOf,
   EVENT_KINDS,
   type EventKind,
   instanceOptional,
@@ -248,7 +249,7 @@ export abstract class KindedForm extends FASTElement {
     const targets = from?.roleTargets ?? defaultRoleTargets(this.kind, this.size);
     this.tanks = targets.tank;
     this.healers = targets.healer;
-    this.dps = targets.dps;
+    this.dps = dpsTargetOf(targets);
     this.countsTouched = !!from?.roleTargets;
     this.syncSelects();
   }
@@ -290,7 +291,7 @@ export abstract class KindedForm extends FASTElement {
     const targets = defaultRoleTargets(this.kind, this.size);
     this.tanks = targets.tank;
     this.healers = targets.healer;
-    this.dps = targets.dps;
+    this.dps = dpsTargetOf(targets);
   }
 
   /** "Instance", or a free-text "where or what" for `other`, where it's optional. */

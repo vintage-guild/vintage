@@ -25,6 +25,8 @@
 import { renderRosterReply } from '@vintage/coordinator/commands';
 import {
   actionRow,
+  ButtonStyle,
+  button,
   type Interaction,
   type InteractionResponse,
   InteractionType,
@@ -45,6 +47,8 @@ import {
   accessOf,
   type CompRole,
   compRole,
+  LATE_MINUTES,
+  type LateMinutes,
   type RaidEvent,
   rolesNeeded,
   type Signup,
@@ -62,17 +66,19 @@ import {
 import { failureText, playing, ROLE_WORDS, specName, titleCase } from './discord-common';
 
 const STATUSES: readonly SignupStatus[] = ['accepted', 'late', 'tentative', 'bench', 'declined'];
-/** Answers that open the reason form. */
-const ASKS_REASON: ReadonlySet<SignupStatus> = new Set(['late', 'tentative']);
+/** Answers that open the reason form (Late asks 5/15/30 min buttons instead). */
+const ASKS_REASON: ReadonlySet<SignupStatus> = new Set(['tentative']);
 
 export interface SignupInput {
   eventId: string;
   characterId: string;
   status: SignupStatus;
+  lateMinutes?: LateMinutes | null;
   note?: string | null;
   spec?: string;
   /** A role for this raid; null follows the spec again. */
   role?: Role | null;
+  alsoRoles?: Role[];
 }
 
 /** What character-add takes, from the New character form. */
@@ -111,6 +117,7 @@ export interface SignupPorts {
 type Parsed =
   | { kind: 'button'; eventId: string; status: SignupStatus }
   | { kind: 'pick'; eventId: string; status: SignupStatus; characterId: string }
+  | { kind: 'late'; eventId: string; characterId: string; lateMinutes: LateMinutes }
   | {
       kind: 'note';
       eventId: string;
@@ -158,34 +165,48 @@ function parseMenu(interaction: Interaction, parts: string[]): Parsed | null {
 
 const isRole = (s: string): s is Role => (ROLES as readonly string[]).includes(s);
 
+const isLateMinutes = (n: number): n is LateMinutes =>
+  (LATE_MINUTES as readonly number[]).includes(n);
+
+function parseLateButton(interaction: Interaction, parts: string[]): Parsed | null {
+  if (interaction.type !== InteractionType.MESSAGE_COMPONENT || parts.length !== 4) return null;
+  const [, eventId, characterId, rawMinutes] = parts;
+  const minutes = Number(rawMinutes);
+  if (!isToken(eventId) || !isToken(characterId) || !isLateMinutes(minutes)) return null;
+  return { kind: 'late', eventId, characterId, lateMinutes: minutes };
+}
+
+function parseModalSubmit(
+  interaction: Interaction,
+  parts: string[],
+  eventId: string,
+  status: SignupStatus,
+): Parsed | null {
+  if (interaction.type !== InteractionType.MODAL_SUBMIT) return null;
+  const [prefix, , , characterId] = parts;
+  if (prefix === 'signup-new' && parts.length === 3) return { kind: 'new', eventId, status };
+  if (prefix === 'signup-note' && parts.length === 4 && isToken(characterId)) {
+    const note = modalValues(interaction).note?.trim();
+    return { kind: 'note', eventId, status, characterId, note: note ? note : null };
+  }
+  return null;
+}
+
 /** The signup interaction this is, or null when it isn't one of ours. */
 export function parseSignupInteraction(interaction: Interaction): Parsed | null {
   const parts = (interaction.data?.custom_id ?? '').split(':');
-  const [prefix, eventId, status, characterId] = parts;
+  const [prefix, eventId, status] = parts;
   if (prefix && MENUS.has(prefix)) return parseMenu(interaction, parts);
-  const component = interaction.type === InteractionType.MESSAGE_COMPONENT;
-  const picked = interaction.data?.values?.[0];
+  if (prefix === 'signup-late') return parseLateButton(interaction, parts);
   if (!isToken(eventId) || !isStatus(status)) return null;
-  if (
-    prefix === 'signup-new' &&
-    parts.length === 3 &&
-    interaction.type === InteractionType.MODAL_SUBMIT
-  ) {
-    return { kind: 'new', eventId, status };
+  if (interaction.type === InteractionType.MODAL_SUBMIT) {
+    return parseModalSubmit(interaction, parts, eventId, status);
   }
-  if (prefix === 'signup' && parts.length === 3 && component)
-    return { kind: 'button', eventId, status };
-  if (prefix === 'signup-pick' && parts.length === 3 && component && isToken(picked)) {
+  if (interaction.type !== InteractionType.MESSAGE_COMPONENT || parts.length !== 3) return null;
+  if (prefix === 'signup') return { kind: 'button', eventId, status };
+  const picked = interaction.data?.values?.[0];
+  if (prefix === 'signup-pick' && isToken(picked)) {
     return { kind: 'pick', eventId, status, characterId: picked };
-  }
-  if (
-    prefix === 'signup-note' &&
-    interaction.type === InteractionType.MODAL_SUBMIT &&
-    isToken(characterId) &&
-    parts.length === 4
-  ) {
-    const note = modalValues(interaction).note?.trim();
-    return { kind: 'note', eventId, status, characterId, note: note ? note : null };
   }
   return null;
 }
@@ -292,17 +313,16 @@ function roleOptions(signup: Signup, character: Character | undefined, needed: C
   return options;
 }
 
-const noteField = (status: SignupStatus): NoteField =>
-  status === 'late'
-    ? { label: 'How late, and why? (optional)', placeholder: 'About 20 min, after work' }
-    : { label: 'What might stop you? (optional)', placeholder: 'Might have to work' };
+const noteField = (_status: SignupStatus): NoteField => ({
+  label: 'What might stop you? (optional)',
+  placeholder: 'Might have to work',
+});
 
 function reasonForm(eventId: string, status: SignupStatus, characterId: string, raid: string) {
-  const late = status === 'late';
   const field = noteField(status);
   return modal(
     `signup-note:${eventId}:${status}:${characterId}`,
-    (late ? `Late for ${raid}` : `Tentative for ${raid}`).slice(0, 45),
+    `Tentative for ${raid}`.slice(0, 45),
     textInput('note', field.label, {
       style: TextInputStyle.SHORT,
       required: false,
@@ -310,6 +330,24 @@ function reasonForm(eventId: string, status: SignupStatus, characterId: string, 
       placeholder: field.placeholder,
     }),
   );
+}
+
+/** Private 5 / 15 / 30 min buttons for Late (more than 30 min is absent). */
+function latePickerMessage(eventId: string, characterId: string, raid: string): MessageData {
+  return {
+    content: `How late will you be for ${raid}?\nLater than 30 minutes? Press Absent instead.`,
+    components: [
+      actionRow(
+        ...LATE_MINUTES.map((m) =>
+          button(`signup-late:${eventId}:${characterId}:${m}`, `${m} min`, ButtonStyle.SECONDARY),
+        ),
+      ),
+    ],
+  };
+}
+
+function latePicker(eventId: string, characterId: string, raid: string): InteractionResponse {
+  return reply(latePickerMessage(eventId, characterId, raid), { ephemeral: true });
 }
 
 /**
@@ -372,7 +410,11 @@ async function outcome(
   }
   const s = result.data!;
   const why = reason ? `: ${reason}` : '';
-  const head = `**${LABEL[s.status]}** for ${event.name} as **${s.characterName}** (${playing(s)})${why}.`;
+  const statusLabel =
+    s.status === 'late' && s.lateMinutes
+      ? `${LABEL[s.status]} (${s.lateMinutes}m)`
+      : LABEL[s.status];
+  const head = `**${statusLabel}** for ${event.name} as **${s.characterName}** (${playing(s)})${why}.`;
   const tail = s.queued
     ? "The raid is full, so you're in the queue; you'll be told if a spot opens."
     : 'The signup post updates in a few seconds.';
@@ -493,6 +535,9 @@ async function onButton(flow: Flow, status: SignupStatus): Promise<InteractionRe
     const needed = rolesShort(event, await ports.signups(event.id), member);
     return characterPicker(event.id, status, characters, needed);
   }
+  if (status === 'late') {
+    return latePicker(event.id, guessed.characterId, event.name);
+  }
   if (ASKS_REASON.has(status)) {
     return reasonForm(event.id, status, guessed.characterId, event.name);
   }
@@ -540,10 +585,51 @@ async function onNewCharacter(
     return ephemeral(`${why}\nPick **New character…** again to fix it.`);
   }
   const character = added.data!;
+  if (status === 'late') {
+    const existing = await flow.ports.signup(flow.event.id, flow.member.id);
+    if (existing?.status !== 'late' || existing.lateMinutes === null) {
+      return latePicker(flow.event.id, character.id, flow.event.name);
+    }
+  }
   // Only a form that asked for a note sets one; the Switch character form keeps the old note.
   return flow.run(
     { status, characterId: character.id, ...(note === undefined ? {} : { note }) },
     character.isMain ? 'your new character, now your main' : 'your new character',
+  );
+}
+
+async function onLate(
+  flow: Flow,
+  characterId: string,
+  lateMinutes: LateMinutes,
+): Promise<InteractionResponse> {
+  const guessed = await guess(flow.ports, flow.caller, flow.event.id);
+  const fromGuess = guessed?.characterId === characterId ? guessed : null;
+  return flow.run(
+    {
+      status: 'late',
+      characterId,
+      lateMinutes,
+      ...(fromGuess ? { spec: fromGuess.spec } : {}),
+    },
+    fromGuess?.reason ?? null,
+    replaceReply,
+  );
+}
+
+async function onNote(
+  flow: Flow,
+  status: SignupStatus,
+  characterId: string,
+  note: string | null,
+): Promise<InteractionResponse> {
+  // The form came from the guess when it carries the guessed character: play the guessed
+  // spec and say why again. (The id has no room for the spec within Discord's 100.)
+  const guessed = await guess(flow.ports, flow.caller, flow.event.id);
+  const fromGuess = guessed?.characterId === characterId ? guessed : null;
+  return flow.run(
+    { status, characterId, note, ...(fromGuess ? { spec: fromGuess.spec } : {}) },
+    fromGuess?.reason ?? null,
   );
 }
 
@@ -572,20 +658,16 @@ async function handleSignup(
   };
 
   switch (parsed.kind) {
-    case 'note': {
-      const { status, characterId, note } = parsed;
-      // The form came from the guess when it carries the guessed character: play the guessed
-      // spec and say why again. (The id has no room for the spec within Discord's 100.)
-      const guessed = await guess(ports, caller, event.id);
-      const fromGuess = guessed?.characterId === characterId ? guessed : null;
-      return flow.run(
-        { status, characterId, note, ...(fromGuess ? { spec: fromGuess.spec } : {}) },
-        fromGuess?.reason ?? null,
-      );
-    }
+    case 'late':
+      return onLate(flow, parsed.characterId, parsed.lateMinutes);
+    case 'note':
+      return onNote(flow, parsed.status, parsed.characterId, parsed.note);
     case 'pick':
       if (parsed.characterId === NEW_CHARACTER) {
         return newCharacterFormFor(event.id, parsed.status, event.name, true);
+      }
+      if (parsed.status === 'late') {
+        return replaceReply(latePickerMessage(event.id, parsed.characterId, event.name));
       }
       if (ASKS_REASON.has(parsed.status)) {
         return reasonForm(event.id, parsed.status, parsed.characterId, event.name);

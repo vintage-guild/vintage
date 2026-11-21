@@ -119,7 +119,9 @@ describe('signup-suggest and a spec for one raid', () => {
       class: c.class,
       spec: opts.spec ?? c.spec,
       role: c.role,
+      alsoRoles: c.alsoRoles,
       status: opts.status ?? 'accepted',
+      lateMinutes: null,
       note: null,
       signedUpAt: at,
       updatedAt: at,
@@ -340,19 +342,73 @@ describe('signup-suggest and a spec for one raid', () => {
       const set = (input: Record<string, unknown>) =>
         ok<Signup>('signup-set', { eventId: raid.id, ...input }, as('fen'));
       await set({ characterId: 'oak', status: 'accepted', spec: 'balance' });
-      expect(await set({ characterId: 'oak', status: 'late' })).toMatchObject({
+      expect(await set({ characterId: 'oak', status: 'late', lateMinutes: 15 })).toMatchObject({
         spec: 'balance',
         role: 'ranged',
         status: 'late',
+        lateMinutes: 15,
       });
       expect(await set({ characterId: 'elm', status: 'late' })).toMatchObject({
         spec: 'frost',
         role: 'ranged',
+        lateMinutes: 15,
       });
       expect(await set({ characterId: 'oak', status: 'late' })).toMatchObject({
         spec: 'feral-tank',
         role: 'tank',
+        lateMinutes: 15,
       });
+    });
+
+    it('requires lateMinutes (5, 15, or 30) for late signups and clears it for other statuses', async () => {
+      const raid = await event();
+      const missing = await run(
+        'signup-set',
+        { eventId: raid.id, characterId: 'oak', status: 'late' },
+        as('fen'),
+      );
+      expect(missing).toMatchObject({ success: false, error: { code: 'LATE_MINUTES_REQUIRED' } });
+      const late = await ok<Signup>(
+        'signup-set',
+        { eventId: raid.id, characterId: 'oak', status: 'late', lateMinutes: 30 },
+        as('fen'),
+      );
+      expect(late.lateMinutes).toBe(30);
+      const back = await ok<Signup>(
+        'signup-set',
+        { eventId: raid.id, characterId: 'oak', status: 'accepted' },
+        as('fen'),
+      );
+      expect(back.lateMinutes).toBeNull();
+    });
+
+    it('copies alsoRoles from the character, edits per raid, and validates against the class', async () => {
+      const raid = await event();
+      const first = await ok<Signup>(
+        'signup-set',
+        {
+          eventId: raid.id,
+          characterId: 'oak',
+          status: 'accepted',
+          alsoRoles: ['healer', 'melee'],
+        },
+        as('fen'),
+      );
+      expect(first.alsoRoles).toEqual(['healer', 'melee']);
+      // Invalid role for mage (elm can only play ranged) is refused.
+      const invalid = await run(
+        'signup-set',
+        { eventId: raid.id, characterId: 'elm', status: 'accepted', alsoRoles: ['tank'] },
+        as('fen'),
+      );
+      expect(invalid).toMatchObject({ success: false, error: { code: 'INVALID_ROLE' } });
+      // Switching to elm copies elm's alsoRoles (empty).
+      const switched = await ok<Signup>(
+        'signup-set',
+        { eventId: raid.id, characterId: 'elm', status: 'accepted' },
+        as('fen'),
+      );
+      expect(switched.alsoRoles).toEqual([]);
     });
 
     it('a spec change alone is a change: signup-changed goes out so the post refreshes', async () => {
@@ -391,8 +447,11 @@ describe('signup-suggest and a spec for one raid', () => {
       expect(
         await set(raid.id, { characterId: 'left', status: 'accepted', spec: 'fury' }),
       ).toMatchObject({ spec: 'fury', role: 'tank', rolePicked: true });
-      expect(await set(raid.id, { characterId: 'left', status: 'late' })).toMatchObject({
+      expect(
+        await set(raid.id, { characterId: 'left', status: 'late', lateMinutes: 15 }),
+      ).toMatchObject({
         status: 'late',
+        lateMinutes: 15,
         role: 'tank',
       });
       expect(await set(raid.id, { characterId: 'left', status: 'late', role: null })).toMatchObject(

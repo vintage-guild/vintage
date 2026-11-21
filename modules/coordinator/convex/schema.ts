@@ -57,7 +57,11 @@ export const raidNightFields = {
   // Any size from 1 to 40, checked per kind by raid-night-poll. Widened from 10/20/40.
   size: v.union(v.number(), v.null()),
   roleTargets: v.optional(
-    v.union(v.object({ tank: v.number(), healer: v.number(), dps: v.number() }), v.null()),
+    v.union(
+      v.object({ tank: v.number(), healer: v.number(), melee: v.number(), ranged: v.number() }),
+      v.object({ tank: v.number(), healer: v.number(), dps: v.number() }),
+      v.null(),
+    ),
   ),
   durationMinutes: v.number(),
   createdBy: v.string(),

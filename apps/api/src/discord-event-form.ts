@@ -56,8 +56,10 @@ import { raidsCommands, wallClock } from '@vintage/raids/commands';
 import {
   AKind,
   defaultRoleTargets,
+  dpsTargetOf,
   EVENT_KINDS,
   type EventKind,
+  hasSplitDpsTargets,
   instanceOptional,
   KIND_LABELS,
   KIND_SIZES,
@@ -68,6 +70,7 @@ import {
   sizeFits,
   sizeLabel,
   sizesText,
+  totalRoleTargets,
 } from '@vintage/raids/contract';
 import { z } from 'zod';
 import {
@@ -332,8 +335,13 @@ function targetsOfDraft(draft: Draft, size: number | null): RoleTargets {
   return roleTargetsFrom(countValues(draft, size), draft.kind) ?? usual;
 }
 
-const sameTargets = (a: RoleTargets, b: RoleTargets) =>
-  a.tank === b.tank && a.healer === b.healer && a.dps === b.dps;
+const sameTargets = (a: RoleTargets, b: RoleTargets) => {
+  if (a.tank !== b.tank || a.healer !== b.healer) return false;
+  if (hasSplitDpsTargets(a) && hasSplitDpsTargets(b)) {
+    return a.melee === b.melee && a.ranged === b.ranged;
+  }
+  return !hasSplitDpsTargets(a) && !hasSplitDpsTargets(b) && a.dps === b.dps;
+};
 
 /** Length in hours: "3", "2.5", "3h". Empty is the usual 3. */
 function minutesOf(draft: Draft): number | null {
@@ -397,7 +405,7 @@ function compProblems(draft: Draft, size: number | null, targets: RoleTargets) {
   if (COUNTS.some((c) => draft[c].trim() && !isWhole(draft[c].trim()))) {
     problems.push('Tank, healer, and DPS counts are whole numbers, 0 or more.');
   }
-  if (size !== null && !Number.isNaN(size) && targets.tank + targets.healer + targets.dps > size) {
+  if (size !== null && !Number.isNaN(size) && totalRoleTargets(targets) > size) {
     problems.push(`The counts add up to more than ${size} players.`);
   }
   return problems;
@@ -516,7 +524,7 @@ const HINT_STAGE_2 = 'Submit to preview, then Post event.';
 function shownCounts(draft: Draft): Record<Count, string> {
   const size = sizeOf(draft);
   const targets = targetsOfDraft(draft, Number.isInteger(size) ? size : null);
-  const shown = { tanks: targets.tank, healers: targets.healer, dps: targets.dps };
+  const shown = { tanks: targets.tank, healers: targets.healer, dps: dpsTargetOf(targets) };
   return Object.fromEntries(COUNTS.map((c) => [c, draft[c].trim() || String(shown[c])])) as Record<
     Count,
     string

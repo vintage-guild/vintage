@@ -1,4 +1,4 @@
-import { groupSizeSchema, type RoleTargets } from '@vintage/comp-solver';
+import { groupSizeSchema, type RoleTargets, totalRoleTargets } from '@vintage/comp-solver';
 import { type Caller, error, tierAllows } from '@vintage/guild-kit';
 import { z } from 'zod';
 import {
@@ -110,9 +110,9 @@ export function instanceForKind(kind: EventKind, instance: string) {
 
 /** A target total above the event size can never be met; an open event has no cap. */
 export function targetsTooBig(size: number | null, targets: RoleTargets | null) {
-  if (!targets || size === null || targets.tank + targets.healer + targets.dps <= size) return null;
+  if (!targets || size === null || totalRoleTargets(targets) <= size) return null;
   return error('ROLE_TARGETS_TOO_BIG', `Role targets add up to more than ${size}`, {
-    suggestion: 'Lower the tank, healer, or dps targets so they fit the size',
+    suggestion: 'Lower the role targets so they fit the size',
     retryable: false,
   });
 }

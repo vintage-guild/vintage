@@ -6,7 +6,17 @@ import type { RaidId } from '@vintage/progress/contract';
 import type { Role, WowClass } from '@vintage/wow-data';
 import type { EventKind } from './domain/kinds';
 
-export type { RaidSize, RoleTargets, SignupStatus } from '@vintage/comp-solver';
+export {
+  dpsTargetOf,
+  hasSplitDpsTargets,
+  type LegacyRoleTargets,
+  type RaidSize,
+  type RoleTargets,
+  type SignupStatus,
+  type SplitRoleTargets,
+  type TargetRole,
+  totalRoleTargets,
+} from '@vintage/comp-solver';
 export {
   absenceCovers,
   type CalendarDate,
@@ -166,7 +176,11 @@ export interface Signup {
    * Absent or false: the role follows the spec. Switching character clears it.
    */
   rolePicked?: boolean;
+  /** Other roles this character can play for this raid; copied from the character at signup time. */
+  alsoRoles: Role[];
   status: SignupStatus;
+  /** How many minutes late (5, 15, or 30) when status is `late`; null for other statuses or older rows. */
+  lateMinutes: LateMinutes | null;
   note: string | null;
   /** First answer, epoch ms; keeps their place in line when they change their answer. */
   signedUpAt: number;

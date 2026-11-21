@@ -16,11 +16,11 @@ const patchValidator = v.object(
 );
 
 const toEntry = (doc: Doc<'rosterEntries'>) => {
-  const { _id, _creationTime, preferredRole, secondaryRole, ...rest } = doc;
+  const { _id, _creationTime, preferredRole, secondaryRole, alsoRoles, ...rest } = doc;
   return {
     id: _id as string,
     preferredRole: preferredRole ?? null,
-    secondaryRole: secondaryRole ?? null,
+    alsoRoles: alsoRoles ?? (secondaryRole ? [secondaryRole] : []),
     ...rest,
   };
 };
@@ -67,7 +67,8 @@ export const update = mutation({
     const id = ctx.db.normalizeId('rosterEntries', entryId);
     const doc = id && (await ctx.db.get(id));
     if (!id || !doc || doc.guildId !== guildId) throw new Error(`No roster entry ${entryId}`);
-    await ctx.db.patch(id, patch);
+    // Setting the list retires the legacy single field.
+    await ctx.db.patch(id, patch.alsoRoles ? { ...patch, secondaryRole: undefined } : patch);
     return toEntry((await ctx.db.get(id))!);
   },
 });

@@ -55,10 +55,14 @@ Members, characters, and Discord roles → guild rank → permission tier (PLAN 
   `character-add`/`character-update`, stored with `rolePicked`; a Fury warrior who tanks). A
   guessed role follows a spec change, a picked one stays, `role: null` goes back to guessing,
   and a class change starts over. Rows from before #149 have no `rolePicked` and read as false.
-  Optional `secondaryRole` stores an off-spec / flex role (`null` when none, cleared if it matches
-  the main role or the class changes).
+  `alsoRoles` lists the other roles a character can play (`[]` when none): only roles its class
+  can play (`classRoles` in `@vintage/wow-data`; anything else is `INVALID_ROLE`), never its
+  main role, each once, in `ROLES` order. A class change clears it unless a new list comes with
+  it; a new main role leaves it. Rows written before it carry the single legacy `secondaryRole`
+  from #301, read as `alsoRoles` until the row's list is next written; drop that field once no
+  row has it.
 - `character-update` edits name (unique, normalized), class (with a spec of that class), spec,
-  role, secondaryRole, and main. Discord's `/random character`, the site's Characters page, and
+  role, alsoRoles (a full replacement), and main. Discord's `/random character`, the site's Characters page, and
   the Roster page's inline role editor all use it.
 - Members edit only their own characters; officers can edit anyone's.
 - Character names are unique per guild, stored capitalized.

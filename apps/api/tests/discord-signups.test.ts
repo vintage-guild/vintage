@@ -51,6 +51,7 @@ const oak: Character = {
   class: 'druid',
   spec: 'feral-tank',
   role: 'tank',
+  alsoRoles: [],
   isMain: true,
 };
 const guessOak: SignupGuess = {

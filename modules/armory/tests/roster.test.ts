@@ -442,23 +442,23 @@ describe('armory-guild-roster', () => {
         name: 'Linked Two',
         class: 'warrior',
         role: 'tank',
-        secondaryRole: 'melee',
+        alsoRoles: ['melee'],
       },
     ]);
 
     const denied = await run(
       'armory-guild-roster-role-set',
-      { slug: 'unlinked-one', preferredRole: 'healer', secondaryRole: 'ranged' },
+      { slug: 'unlinked-one', preferredRole: 'healer', alsoRoles: ['ranged'] },
       recruit,
     );
     expect(denied.success).toBe(false);
 
     const set = await ok<RosterEntry>(
       'armory-guild-roster-role-set',
-      { slug: 'unlinked-one', preferredRole: 'healer', secondaryRole: 'ranged' },
+      { slug: 'unlinked-one', preferredRole: 'healer', alsoRoles: ['ranged', 'healer', 'ranged'] },
       makeCaller('officer'),
     );
-    expect(set).toMatchObject({ preferredRole: 'healer', secondaryRole: 'ranged' });
+    expect(set).toMatchObject({ preferredRole: 'healer', alsoRoles: ['ranged'] });
 
     // Re-syncing from Blizzard preserves officer-assigned roles.
     await record(
@@ -481,20 +481,20 @@ describe('armory-guild-roster', () => {
         memberId: string | null;
         characterId: string | null;
         preferredRole: string | null;
-        secondaryRole: string | null;
+        alsoRoles: string[];
       }[]
     >('armory-guild-roster', {}, makeCaller('public'));
     expect(pub.find((e) => e.slug === 'linked-two')).toMatchObject({
       memberId: null,
       characterId: null,
       preferredRole: 'tank',
-      secondaryRole: 'melee',
+      alsoRoles: ['melee'],
     });
     expect(pub.find((e) => e.slug === 'unlinked-one')).toMatchObject({
       memberId: null,
       characterId: null,
       preferredRole: 'healer',
-      secondaryRole: 'ranged',
+      alsoRoles: ['ranged'],
     });
 
     const guild = await ok<{ slug: string; memberId: string | null; characterId: string | null }[]>(
@@ -512,7 +512,47 @@ describe('armory-guild-roster', () => {
       { slug: 'unlinked-one', preferredRole: null },
       makeCaller('officer'),
     );
-    expect(cleared).toMatchObject({ preferredRole: null, secondaryRole: null });
+    expect(cleared).toMatchObject({ preferredRole: null, alsoRoles: [] });
+  });
+
+  it('takes only roles the entry’s class can play once its class is known', async () => {
+    await record(
+      [member()],
+      [
+        {
+          slug: 'judgement-judy',
+          result: {
+            status: 'found',
+            className: 'Paladin',
+            raceName: 'Human',
+            activeSpec: 'Retribution',
+            professions: [],
+            recipes: [],
+            avatarUrl: null,
+            profileUrl: null,
+          },
+        },
+      ],
+    );
+    const ranged = await run(
+      'armory-guild-roster-role-set',
+      { slug: 'judgement-judy', preferredRole: 'melee', alsoRoles: ['ranged'] },
+      officer,
+    );
+    expect(code(ranged)).toBe('INVALID_ROLE');
+    const set = await ok<RosterEntry>(
+      'armory-guild-roster-role-set',
+      { slug: 'judgement-judy', preferredRole: 'melee', alsoRoles: ['tank', 'healer'] },
+      officer,
+    );
+    expect(set.alsoRoles).toEqual(['tank', 'healer']);
+    // A new main role leaves the list; an omitted list is otherwise kept.
+    const tank = await ok<RosterEntry>(
+      'armory-guild-roster-role-set',
+      { slug: 'judgement-judy', preferredRole: 'tank' },
+      officer,
+    );
+    expect(tank).toMatchObject({ preferredRole: 'tank', alsoRoles: ['healer'] });
   });
 });
 

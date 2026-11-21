@@ -316,14 +316,10 @@ const CHARACTER_GROUP = {
         },
         {
           type: T.STRING,
-          name: 'secondary-role',
-          description: 'Optional off-spec / flex raid role',
-          choices: [
-            { name: 'Tank', value: 'tank' },
-            { name: 'Healer', value: 'healer' },
-            { name: 'Melee DPS', value: 'melee' },
-            { name: 'Ranged DPS', value: 'ranged' },
-          ],
+          name: 'also',
+          description:
+            'Other roles it can play, e.g. "tank, melee" (only roles its class can play)',
+          max_length: 40,
         },
         {
           type: T.BOOLEAN,

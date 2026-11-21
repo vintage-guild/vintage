@@ -93,14 +93,18 @@ Every character in the Forever guild's in-game roster, independent of links
 - **`guildRank` is Blizzard's index** (0 = Guild Master); the API has no rank names, so the
   website names them (`RANK_NAMES` in apps/web's roster page).
 - `armory-guild-roster` is public (Blizzard's armory is) and answers entries sorted by rank, then
-  name, each with `preferredRole` and `secondaryRole` (from the matched registered character,
-  else officer-assigned on the roster entry, else null), plus `memberId` and `characterId`
+  name, each with `preferredRole` and `alsoRoles` (from the matched registered character,
+  else officer-assigned on the roster entry, else null and `[]`), plus `memberId` and `characterId`
   (the member/character who linked it, else the registered character matching its full
   "First Last" name, else null; below recruit both are always null: who plays what is the
   guild's to know, like `member-list`).
-- `armory-guild-roster-role-set` (officer) sets or clears `preferredRole` and `secondaryRole`
+- `armory-guild-roster-role-set` (officer) sets or clears `preferredRole` and `alsoRoles`
   directly on an unlinked roster entry (preserved across Blizzard syncs; clearing `preferredRole`
-  also clears `secondaryRole`). Linked characters keep their roles in `identity` (`character-update`).
+  also clears `alsoRoles`; an omitted `alsoRoles` keeps the list without the new main role).
+  `alsoRoles` takes only roles the entry's class can play (`INVALID_ROLE` otherwise), and any
+  role while the class is unknown (not yet enriched). Rows set before it carry the legacy
+  `secondaryRole`, read as `alsoRoles` until next set. Linked characters keep their roles in
+  `identity` (`character-update`).
 - `armory-recipe-search` is public too: recipes whose name contains the query (2+ letters, any
   case), optionally in one profession, from the catalog (below) plus any the roster knows that the
   catalog lacks, each with every roster character who knows it and their skill, best first, or

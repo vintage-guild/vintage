@@ -179,7 +179,7 @@ export function createFixtureHost(
             name: c.name,
             class: c.class,
             role: c.role,
-            secondaryRole: c.secondaryRole ?? null,
+            alsoRoles: c.alsoRoles,
           }
         );
       },
@@ -190,7 +190,7 @@ export function createFixtureHost(
           name: c.name,
           class: c.class,
           role: c.role,
-          secondaryRole: c.secondaryRole ?? null,
+          alsoRoles: c.alsoRoles,
         })),
     },
     // apps/api schedules a Convex action; here the fetch runs after a pause, off the command.

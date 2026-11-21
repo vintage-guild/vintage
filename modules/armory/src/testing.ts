@@ -75,7 +75,7 @@ export function createMemoryRosterStore(): RosterStore & {
       const entry: RosterEntry = {
         ...input,
         preferredRole: input.preferredRole ?? null,
-        secondaryRole: input.secondaryRole ?? null,
+        alsoRoles: input.alsoRoles ?? [],
         id: `roster_${++seq}`,
       };
       entries.set(entry.id, entry);

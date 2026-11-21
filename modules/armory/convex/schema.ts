@@ -99,7 +99,7 @@ export const rosterEntryPatchFields = {
   checkedAt: nullableNumber,
   // Officer-assigned roles for unlinked roster entries; optional so existing rows stay valid.
   preferredRole: v.optional(nullableRosterRole),
-  secondaryRole: v.optional(nullableRosterRole),
+  alsoRoles: v.optional(v.array(rosterRole)),
 };
 
 export const rosterEntryFields = {
@@ -139,7 +139,12 @@ export default defineSchema({
     .index('by_guild_name', ['guildId', 'name', 'surname'])
     .index('by_guild_character', ['guildId', 'characterId'])
     .index('by_guild_slug', ['guildId', 'slug']),
-  rosterEntries: defineTable(rosterEntryFields)
+  rosterEntries: defineTable({
+    ...rosterEntryFields,
+    // Legacy single officer-assigned off-role from #301, read as `alsoRoles` until the row's
+    // roles are next set. Drop once no row has it.
+    secondaryRole: v.optional(nullableRosterRole),
+  })
     .index('by_guild_slug', ['guildId', 'slug'])
     .index('by_guild_rank', ['guildId', 'guildRank']),
   /** One row per roster entry that knows recipes; read only by the recipe search. */

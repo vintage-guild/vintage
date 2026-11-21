@@ -13,6 +13,7 @@ import {
   CLASS_NAMES,
   CLASSES,
   characterNameSchema,
+  classRoles,
   normalizeCharacterName,
   ROLES,
   type Role,
@@ -32,7 +33,8 @@ export interface CharacterInput {
   class: WowClass;
   spec: string;
   role?: Role;
-  secondaryRole?: Role;
+  /** Other roles it can play, besides its main role; only roles its class can play. */
+  alsoRoles?: Role[];
   isMain: boolean;
 }
 
@@ -45,7 +47,8 @@ export interface EditableCharacter {
   role: string;
   /** True when the role was picked rather than guessed from the spec. */
   rolePicked?: boolean;
-  secondaryRole?: string | null;
+  /** Other roles it also plays, as saved. */
+  alsoRoles?: string[];
   isMain: boolean;
 }
 
@@ -56,7 +59,7 @@ export interface CharacterPatch {
   class?: WowClass;
   spec?: string;
   role?: Role | null;
-  secondaryRole?: Role | null;
+  alsoRoles?: Role[];
   isMain?: true;
 }
 
@@ -122,20 +125,21 @@ const template = html<VintageCharacterForm>`
       )}
     </violet-select>
 
-    <violet-select
-      label="Secondary role"
-      name="secondaryRole"
-      placeholder="None"
-      :value="${(x) => x.secondaryRolePick}"
-      supporting-text="Optional off-spec role you can flex to on raid nights"
-      @change="${(x, c) => x.setSecondaryRole(fieldValue(c.event))}"
-    >
-      <violet-option value="">None</violet-option>
-      ${repeat(
-        () => ROLES,
-        html<Role>`<violet-option value="${(r) => r}">${(r) => roleLabel(r)}</violet-option>`,
-      )}
-    </violet-select>
+    ${when(
+      (x) => x.alsoChoices.length > 0,
+      html<VintageCharacterForm>`<fieldset class="also-roles">
+        <legend>Other roles I can play</legend>
+        ${repeat(
+          (x) => x.alsoChoices,
+          html<Role, VintageCharacterForm>`<violet-checkbox
+            name="alsoRoles"
+            value="${(r) => r}"
+            :checked="${(r, c) => c.parent.alsoPicks.includes(r)}"
+            @change="${(r, c) => c.parent.toggleAlso(r, checkedOf(c.event))}"
+          >${(r) => roleLabel(r)}</violet-checkbox>`,
+        )}
+      </fieldset>`,
+    )}
 
     <violet-checkbox
       name="isMain"
@@ -206,6 +210,21 @@ const styles = css`
     font-family: var(--font-family-sans);
   }
 
+  .also-roles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-xs) var(--space-sm);
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .also-roles legend {
+    padding: 0;
+    margin-block-end: var(--space-xs);
+    font-size: var(--font-size-sm);
+  }
+
   .actions {
     display: flex;
     flex-wrap: wrap;
@@ -260,8 +279,8 @@ export class VintageCharacterForm extends FASTElement {
   @observable spec = '';
   /** A picked role, or '' to guess it from the spec. */
   @observable rolePick: Role | '' = GUESS;
-  /** Optional off-spec / flex role, or '' for none. */
-  @observable secondaryRolePick: Role | '' = '';
+  /** Other roles picked, in `ROLES` order; only those in `alsoChoices` are saved. */
+  @observable alsoPicks: Role[] = [];
   @observable isMain = false;
   @observable busy = false;
   @observable statusText = '';
@@ -280,8 +299,7 @@ export class VintageCharacterForm extends FASTElement {
     this.wowClass = isWowClass(next.class) ? next.class : '';
     this.spec = next.spec;
     this.rolePick = next.rolePicked && isRole(next.role) ? next.role : GUESS;
-    this.secondaryRolePick =
-      next.secondaryRole && isRole(next.secondaryRole) ? next.secondaryRole : '';
+    this.alsoPicks = (next.alsoRoles ?? []).filter(isRole);
     this.isMain = next.isMain;
     this.statusKind = 'idle';
     this.statusText = '';
@@ -310,6 +328,18 @@ export class VintageCharacterForm extends FASTElement {
     return this.guessedRole ? this.rolePick || this.guessedRole : '';
   }
 
+  /**
+   * The other roles the form offers: those the class can play besides the main role. Empty (no
+   * control) for a class with one role (mage, warlock, rogue, hunter) or before a spec.
+   */
+  @volatile
+  get alsoChoices(): Role[] {
+    const role = this.role;
+    if (!this.wowClass || !isRole(role)) return [];
+    const playable = classRoles(this.wowClass);
+    return playable.length < 2 ? [] : playable.filter((r) => r !== role);
+  }
+
   @volatile
   get nameError(): string {
     if (!this.nameTouched) return '';
@@ -323,16 +353,14 @@ export class VintageCharacterForm extends FASTElement {
   get input(): CharacterInput | null {
     const name = characterNameSchema.safeParse(this.name);
     if (!name.success || !this.wowClass || !this.role) return null;
-    const secondary =
-      this.secondaryRolePick && this.secondaryRolePick !== this.role
-        ? this.secondaryRolePick
-        : undefined;
+    const choices = this.alsoChoices;
+    const alsoRoles = this.alsoPicks.filter((r) => choices.includes(r));
     return {
       name: name.data,
       class: this.wowClass,
       spec: this.spec,
       ...(this.rolePick ? { role: this.rolePick } : {}),
-      ...(secondary ? { secondaryRole: secondary } : {}),
+      ...(alsoRoles.length > 0 ? { alsoRoles } : {}),
       isMain: this.isMain,
     };
   }
@@ -353,10 +381,11 @@ export class VintageCharacterForm extends FASTElement {
     const resend = !c.rolePicked || this.rolePick !== c.role || patch.class !== undefined;
     if (this.rolePick && resend) patch.role = this.rolePick;
     if (!this.rolePick && c.rolePicked) patch.role = null;
-    const beforeSecondary = c.secondaryRole ?? null;
-    const nextSecondary = input.secondaryRole ?? null;
-    if (nextSecondary !== beforeSecondary || (nextSecondary && patch.class !== undefined)) {
-      patch.secondaryRole = nextSecondary;
+    // A new class clears the list on the server, so a list still picked is sent again.
+    const before = (c.alsoRoles ?? []).join();
+    const next = input.alsoRoles ?? [];
+    if (next.join() !== before || (next.length > 0 && patch.class !== undefined)) {
+      patch.alsoRoles = next;
     }
     if (input.isMain && !c.isMain) patch.isMain = true;
     return Object.keys(patch).length > 1 ? patch : null;
@@ -392,8 +421,11 @@ export class VintageCharacterForm extends FASTElement {
     this.rolePick = isRole(value) ? value : GUESS;
   }
 
-  setSecondaryRole(value: string): void {
-    this.secondaryRolePick = isRole(value) ? value : '';
+  toggleAlso(role: Role, on: boolean): void {
+    const next = new Set(this.alsoPicks);
+    if (on) next.add(role);
+    else next.delete(role);
+    this.alsoPicks = ROLES.filter((r) => next.has(r));
   }
 
   setMain(value: boolean): void {
@@ -476,7 +508,7 @@ export class VintageCharacterForm extends FASTElement {
     this.wowClass = '';
     this.spec = '';
     this.rolePick = GUESS;
-    this.secondaryRolePick = '';
+    this.alsoPicks = [];
     this.isMain = false;
   }
 

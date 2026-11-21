@@ -4,12 +4,13 @@ import type { Doc } from './_generated/dataModel';
 import { mutation, query } from './_generated/server';
 import { role } from './schema';
 
+/** Rows from before `alsoRoles` read their single legacy `secondaryRole` as the list. */
 const toCharacter = (doc: Doc<'characters'>) => {
-  const { _id, _creationTime, rolePicked, secondaryRole, ...rest } = doc;
+  const { _id, _creationTime, rolePicked, secondaryRole, alsoRoles, ...rest } = doc;
   return {
     id: _id as string,
     rolePicked: rolePicked ?? false,
-    secondaryRole: secondaryRole ?? null,
+    alsoRoles: alsoRoles ?? (secondaryRole ? [secondaryRole] : []),
     ...rest,
   };
 };
@@ -51,7 +52,7 @@ export const insert = mutation({
     spec: v.string(),
     role,
     rolePicked: v.optional(v.boolean()),
-    secondaryRole: v.optional(v.union(role, v.null())),
+    alsoRoles: v.array(role),
     isMain: v.boolean(),
   },
   handler: async (ctx, args) => {
@@ -70,7 +71,7 @@ export const update = mutation({
       spec: v.optional(v.string()),
       role: v.optional(role),
       rolePicked: v.optional(v.boolean()),
-      secondaryRole: v.optional(v.union(role, v.null())),
+      alsoRoles: v.optional(v.array(role)),
       isMain: v.optional(v.boolean()),
     }),
   },
@@ -78,8 +79,10 @@ export const update = mutation({
     const id = ctx.db.normalizeId('characters', characterId);
     const doc = id ? await ctx.db.get(id) : null;
     if (!doc || doc.guildId !== guildId) throw new Error('character not found');
-    await ctx.db.patch(doc._id, patch);
-    return toCharacter({ ...doc, ...patch });
+    // Writing the list retires the legacy single field.
+    const write = patch.alsoRoles ? { ...patch, secondaryRole: undefined } : patch;
+    await ctx.db.patch(doc._id, write);
+    return toCharacter({ ...doc, ...write });
   },
 });
 

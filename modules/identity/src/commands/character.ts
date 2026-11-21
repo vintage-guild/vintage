@@ -1,7 +1,9 @@
 import { type Caller, error, success, tierAllows } from '@vintage/guild-kit';
 import {
   characterNameSchema,
+  classRoles,
   classSchema,
+  cleanAlsoRoles,
   normalizeCharacterName,
   type Role,
   roleFor,
@@ -24,6 +26,15 @@ const badSpec = (wowClass: string, spec: string) =>
     suggestion: 'Pick one of the specs for that class',
     retryable: false,
   });
+
+const cantPlay = (wowClass: WowClass, rejected: Role[]) =>
+  error('INVALID_ROLE', `A ${wowClass} can't play ${rejected.join(' or ')}`, {
+    suggestion: `alsoRoles takes the roles a ${wowClass} can play: ${classRoles(wowClass).join(', ')}`,
+    retryable: false,
+  });
+
+/** Other roles a character also plays: at most every role, cleaned by `cleanAlsoRoles`. */
+const alsoRolesSchema = z.array(roleSchema).max(8);
 
 const nameTaken = (name: string) =>
   error('CHARACTER_EXISTS', `${name} is already registered`, {
@@ -68,19 +79,28 @@ function playPatch(character: Character, input: PlayEdit): Partial<Character> | 
   return role ? { class: wowClass, spec, ...role } : null;
 }
 
-/** Secondary role patch: clears when matching the main role or when class changes. */
-function secondaryRolePatch(
+/**
+ * `alsoRoles` after an edit: the given list cleaned for the final class and role; otherwise
+ * cleared by a class change, or without the new main role. Roles the class can't play are
+ * answered in `rejected`.
+ */
+function alsoRolesPatch(
   character: Character,
   play: Partial<Character>,
-  secondaryRole: Role | null | undefined,
-): Partial<Character> {
-  const finalRole = play.role ?? character.role;
-  if (secondaryRole !== undefined) {
-    return { secondaryRole: secondaryRole && secondaryRole !== finalRole ? secondaryRole : null };
+  alsoRoles: Role[] | undefined,
+): { patch: Partial<Character> } | { rejected: Role[]; wowClass: WowClass } {
+  const wowClass = play.class ?? character.class;
+  const role = play.role ?? character.role;
+  if (alsoRoles !== undefined) {
+    const cleaned = cleanAlsoRoles(wowClass, role, alsoRoles);
+    if (cleaned.rejected.length > 0) return { rejected: cleaned.rejected, wowClass };
+    return { patch: { alsoRoles: cleaned.alsoRoles } };
   }
-  const classChanged = play.class !== undefined && play.class !== character.class;
-  if (classChanged || character.secondaryRole === finalRole) return { secondaryRole: null };
-  return {};
+  if (wowClass !== character.class) return { patch: { alsoRoles: [] } };
+  if (character.alsoRoles.includes(role)) {
+    return { patch: { alsoRoles: character.alsoRoles.filter((r) => r !== role) } };
+  }
+  return { patch: {} };
 }
 
 /** Make `character` the member's only main. */
@@ -100,8 +120,8 @@ export const characterAdd = command({
   name: 'character-add',
   description:
     'Register one of your characters (main or alt). role is optional: leave it out to guess ' +
-    'it from the spec, or pick one (a Fury warrior who tanks). secondaryRole is an optional ' +
-    'off-spec / flex role.',
+    'it from the spec, or pick one (a Fury warrior who tanks). alsoRoles lists other roles it can ' +
+    'play (only roles its class can play; the main role is left out).',
   tier: 'member',
   mutation: true,
   input: z.object({
@@ -109,15 +129,15 @@ export const characterAdd = command({
     class: classSchema,
     spec: z.string().min(1),
     role: roleSchema.optional(),
-    secondaryRole: roleSchema.nullable().optional(),
+    alsoRoles: alsoRolesSchema.default([]),
     isMain: z.boolean().default(false),
   }),
   handler: async (input, { caller, guildId, deps }) => {
     if (!caller.memberId) return notSignedIn();
     const role = roleOf(input.class, input.spec, input.role);
     if (!role) return badSpec(input.class, input.spec);
-    const secondaryRole =
-      input.secondaryRole && input.secondaryRole !== role.role ? input.secondaryRole : null;
+    const also = cleanAlsoRoles(input.class, role.role, input.alsoRoles);
+    if (also.rejected.length > 0) return cantPlay(input.class, also.rejected);
 
     const name = normalizeCharacterName(input.name);
     const all = await deps.identity.listCharacters(guildId);
@@ -136,7 +156,7 @@ export const characterAdd = command({
       class: input.class,
       spec: input.spec,
       ...role,
-      secondaryRole,
+      alsoRoles: also.alsoRoles,
       isMain,
     });
     return success(character, {
@@ -148,9 +168,10 @@ export const characterAdd = command({
 export const characterUpdate = command({
   name: 'character-update',
   description:
-    'Edit a character: name, class, spec, role, secondaryRole, or make it your main. role null ' +
+    'Edit a character: name, class, spec, role, alsoRoles, or make it your main. role null ' +
     'goes back to guessing it from the spec; a guessed role follows a spec change, a picked one ' +
-    'stays. secondaryRole null clears it. A new class needs a spec of that class.',
+    'stays. alsoRoles replaces the other roles it plays ([] clears them); a class change clears ' +
+    'them and a new main role leaves them. A new class needs a spec of that class.',
   tier: 'member',
   mutation: true,
   input: z.object({
@@ -159,7 +180,7 @@ export const characterUpdate = command({
     class: classSchema.optional(),
     spec: z.string().min(1).optional(),
     role: roleSchema.nullable().optional(),
-    secondaryRole: roleSchema.nullable().optional(),
+    alsoRoles: alsoRolesSchema.optional(),
     isMain: z.literal(true).optional(),
   }),
   handler: async (input, { caller, guildId, deps }) => {
@@ -169,10 +190,9 @@ export const characterUpdate = command({
 
     const play = playPatch(character, input);
     if (!play) return badSpec(input.class ?? character.class, input.spec ?? character.spec);
-    const patch: Partial<Character> = {
-      ...play,
-      ...secondaryRolePatch(character, play, input.secondaryRole),
-    };
+    const also = alsoRolesPatch(character, play, input.alsoRoles);
+    if ('rejected' in also) return cantPlay(also.wowClass, also.rejected);
+    const patch: Partial<Character> = { ...play, ...also.patch };
     const name = input.name === undefined ? character.name : normalizeCharacterName(input.name);
     if (name !== character.name) {
       const all = await deps.identity.listCharacters(guildId);

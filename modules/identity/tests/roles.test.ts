@@ -10,8 +10,8 @@ const ROLE_MAP = {
   'role-flex': 'flex-raider' as const,
 };
 
-describe('secondary roles and developer admin access', () => {
-  it('stores optional secondaryRole, clears duplicates of main role, and clears on class change', async () => {
+describe('other roles and developer admin access', () => {
+  it('stores alsoRoles the class can play, without the main role, cleared on class change', async () => {
     const registry = testRegistry<IdentityDeps>([...identityCommands]);
     const deps = createMemoryIdentityDeps({ ...ROLE_MAP });
     const asMember = makeCaller('raider', { memberId: 'm1' });
@@ -22,21 +22,35 @@ describe('secondary roles and developer admin access', () => {
       name: 'Bram',
       class: 'warrior',
       spec: 'protection',
-      secondaryRole: 'melee',
+      alsoRoles: ['melee', 'tank', 'melee'],
     });
-    expect(added).toMatchObject({ success: true, data: { role: 'tank', secondaryRole: 'melee' } });
+    expect(added).toMatchObject({ success: true, data: { role: 'tank', alsoRoles: ['melee'] } });
     const { id } = added.data as Character;
 
+    const plain = await run('character-add', { name: 'Kel', class: 'mage', spec: 'frost' });
+    expect(plain).toMatchObject({ success: true, data: { alsoRoles: [] } });
+
+    const cantHeal = await run('character-update', { characterId: id, alsoRoles: ['healer'] });
+    expect(cantHeal).toMatchObject({ success: false, error: { code: 'INVALID_ROLE' } });
+    const mageTank = await run('character-add', {
+      name: 'Nim',
+      class: 'mage',
+      spec: 'fire',
+      alsoRoles: ['tank'],
+    });
+    expect(mageTank).toMatchObject({ success: false, error: { code: 'INVALID_ROLE' } });
+
+    // A new main role leaves the list.
     const same = await run('character-update', { characterId: id, role: 'melee' });
-    expect(same).toMatchObject({ success: true, data: { role: 'melee', secondaryRole: null } });
+    expect(same).toMatchObject({ success: true, data: { role: 'melee', alsoRoles: [] } });
 
-    const flex = await run('character-update', { characterId: id, secondaryRole: 'tank' });
-    expect(flex).toMatchObject({ success: true, data: { role: 'melee', secondaryRole: 'tank' } });
+    const flex = await run('character-update', { characterId: id, alsoRoles: ['tank'] });
+    expect(flex).toMatchObject({ success: true, data: { role: 'melee', alsoRoles: ['tank'] } });
 
-    const cleared = await run('character-update', { characterId: id, secondaryRole: null });
-    expect(cleared).toMatchObject({ success: true, data: { secondaryRole: null } });
+    const cleared = await run('character-update', { characterId: id, alsoRoles: [] });
+    expect(cleared).toMatchObject({ success: true, data: { alsoRoles: [] } });
 
-    await run('character-update', { characterId: id, secondaryRole: 'tank' });
+    await run('character-update', { characterId: id, alsoRoles: ['tank'] });
     const reclassed = await run('character-update', {
       characterId: id,
       class: 'mage',
@@ -44,7 +58,7 @@ describe('secondary roles and developer admin access', () => {
     });
     expect(reclassed).toMatchObject({
       success: true,
-      data: { role: 'ranged', secondaryRole: null },
+      data: { role: 'ranged', alsoRoles: [] },
     });
   });
 

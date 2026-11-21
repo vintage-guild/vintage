@@ -15,6 +15,7 @@ import {
   handleCharacterAutocomplete,
   handleCharacterInteraction,
   newCharacterForm,
+  parseAlsoRoles,
 } from '../src/discord-characters';
 import { isAutocomplete } from '../src/gateway-auth';
 
@@ -44,6 +45,7 @@ const thorg: Character = {
   spec: 'fury',
   role: 'tank',
   rolePicked: true,
+  alsoRoles: [],
   isMain: true,
 };
 
@@ -87,6 +89,43 @@ const choices = (r: unknown) =>
   (r as { data: { choices: { name: string; value: string }[] } }).data.choices;
 
 describe('/random character', () => {
+  it('reads the also option as roles, ignored for a class with one role', () => {
+    expect(parseAlsoRoles('Tank, melee', 'warrior')).toEqual({ alsoRoles: ['tank', 'melee'] });
+    expect(parseAlsoRoles('healer ranged', 'druid')).toEqual({ alsoRoles: ['healer', 'ranged'] });
+    expect(parseAlsoRoles('tank dps', 'paladin')).toEqual({ unknown: ['dps'] });
+    expect(parseAlsoRoles('tank', 'mage')).toBeNull();
+    expect(parseAlsoRoles(undefined, 'warrior')).toBeNull();
+  });
+
+  it('passes also to character-add and refuses words that are not roles', async () => {
+    const calls: unknown[] = [];
+    const ports: CharacterPorts = {
+      discordGuildId: SERVER,
+      guildId: 'g',
+      memberByDiscordId: async () => member,
+      run: async (_caller, _name, input) => {
+        calls.push(input);
+        return { success: true, data: { ...thorg, alsoRoles: ['melee'] } };
+      },
+    };
+    const options = [
+      { name: 'name', value: 'Thorg Il' },
+      { name: 'class', value: 'warrior' },
+      { name: 'spec', value: 'protection' },
+    ];
+    await handleCharacterInteraction(
+      slash('add', [...options, { name: 'also', value: 'melee' }]),
+      ports,
+    );
+    expect(calls[0]).toMatchObject({ alsoRoles: ['melee'] });
+    const refused = await handleCharacterInteraction(
+      slash('add', [...options, { name: 'also', value: 'tonk' }]),
+      ports,
+    );
+    expect(JSON.stringify(refused)).toContain("isn't a role");
+    expect(calls).toHaveLength(1);
+  });
+
   it('the HTTP route sends autocomplete, and only autocomplete, to the query', () => {
     expect(isAutocomplete({ type: InteractionType.APPLICATION_COMMAND_AUTOCOMPLETE })).toBe(true);
     for (const other of [

@@ -8,6 +8,7 @@ import {
   systemCaller,
 } from '@vintage/guild-kit';
 import { type Infer, v } from 'convex/values';
+import { hasAdminAccess } from '../src/admin-access';
 import { onboardAfterSync } from '../src/onboarding';
 import { refuseMutationInRead } from '../src/read-only';
 import { commands, type VintageDeps } from '../src/registry';
@@ -171,20 +172,9 @@ const memberSyncInput = v.object({
   roleIds: v.array(v.string()),
 });
 
-/** Discord user ids granted officer tier for site development without showing Officer guild rank. */
-function adminDiscordIds(): Set<string> {
-  const raw = process.env.VINTAGE_ADMIN_DISCORD_IDS ?? '';
-  return new Set(
-    raw
-      .split(',')
-      .map((id) => id.trim())
-      .filter(Boolean),
-  );
-}
-
 /** member-sync, then onboarding if it promoted an accepted applicant (src/onboarding.ts). */
 async function runMemberSync(ctx: Ctx, input: Infer<typeof memberSyncInput>) {
-  const adminAccess = adminDiscordIds().has(input.discordId);
+  const adminAccess = hasAdminAccess(input, process.env);
   const result = await registry().execute(
     {
       name: 'member-sync',

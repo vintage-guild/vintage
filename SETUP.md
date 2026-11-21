@@ -103,8 +103,9 @@ server, and a **test server** for trying commands, buttons, and embeds without t
 half-built messages. Until the Vintage server is ready, the test server stands in for both.
 
 The role-sync cron does nothing until `DISCORD_BOT_TOKEN` and `DISCORD_GUILD_ID` are set in the
-Convex environment (`npx convex env set …` in `apps/api`). Optional `VINTAGE_ADMIN_DISCORD_IDS`
-(comma-separated Discord user ids in the Convex environment) grants `officer` tier to site
+Convex environment (`npx convex env set …` in `apps/api`). Optional `VINTAGE_ADMIN_ROLE_IDS`
+(comma-separated Discord role ids, e.g. a dev role) and `VINTAGE_ADMIN_DISCORD_IDS`
+(comma-separated Discord user ids) in the Convex environment grant `officer` tier to site
 developers while keeping their real Discord guild rank displayed on the site. See the
 `vintage-discord` skill for how the pieces fit.
 

@@ -40,7 +40,7 @@ export function previewClient(
   tiers: Record<string, Tier>,
 ): CommandClient {
   const have: Tier = tier === 'visitor' ? 'public' : tier;
-  const order = ['public', 'member', 'recruit', 'raider', 'leader', 'officer'];
+  const order = ['public', 'friend', 'member', 'recruit', 'raider', 'leader', 'officer'];
   const allowed = (name: string) => order.indexOf(have) >= order.indexOf(tiers[name] ?? 'officer');
   return {
     read<T>(name: string, input?: unknown): Promise<CommandResult<T>> {

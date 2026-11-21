@@ -170,7 +170,7 @@ describe('tools and calls on the real registry', () => {
     expect(names).not.toContain('guild-roles-set');
     expect(names).not.toContain('raid-cancel');
     for (const t of result.tools as { tier: string }[]) {
-      expect(['public', 'member', 'recruit', 'raider']).toContain(t.tier);
+      expect(['public', 'friend', 'member', 'recruit', 'raider']).toContain(t.tier);
     }
   });
 

@@ -138,6 +138,8 @@ export const coordinatorConfigSet = command({
   mutation: true,
   input: z.object({
     signupChannelId: snowflake.nullable().optional(),
+    openSignupChannelId: snowflake.nullable().optional(),
+    leadsChannelId: snowflake.nullable().optional(),
     opsChannelId: snowflake.nullable().optional(),
     expectedRanks: z.array(z.enum(GUILD_RANKS)).min(1).optional(),
     dmReminders: z.boolean().optional(),

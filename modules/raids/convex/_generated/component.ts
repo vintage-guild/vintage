@@ -81,6 +81,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "mutation",
         "internal",
         {
+          access?: "guild" | "open";
           configVersion: number;
           durationMinutes: number;
           guildId: string;
@@ -118,6 +119,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           eventId: string;
           guildId: string;
           patch: {
+            access?: "guild" | "open";
             configVersion?: number;
             durationMinutes?: number;
             instance?: string;
@@ -203,6 +205,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "mutation",
         "internal",
         {
+          access?: "guild" | "open";
           active: boolean;
           configVersion: number;
           durationMinutes: number;
@@ -222,6 +225,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           roleTargets: { dps: number; healer: number; tank: number } | null;
           size: number | null;
           timings: {
+            digestHours?: number;
             leadDays: number;
             lockHours: number;
             reminderHours: Array<number>;
@@ -243,6 +247,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         {
           guildId: string;
           patch: {
+            access?: "guild" | "open";
             active?: boolean;
             configVersion?: number;
             durationMinutes?: number;
@@ -261,6 +266,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             roleTargets?: { dps: number; healer: number; tank: number } | null;
             size?: number | null;
             timings?: {
+              digestHours?: number;
               leadDays: number;
               lockHours: number;
               reminderHours: Array<number>;

@@ -91,6 +91,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               | "member"
               | "friend"
             >;
+            leadsChannelId?: string | null;
+            openSignupChannelId?: string | null;
             opsChannelId: string | null;
             paused: boolean;
             serverEvents?: boolean;
@@ -109,6 +111,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "mutation",
         "internal",
         {
+          access?: "guild" | "open";
           createdAt: number;
           createdBy: string;
           detail: string | null;

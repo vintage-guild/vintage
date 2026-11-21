@@ -44,7 +44,13 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           createdBy: string;
           description: string | null;
           eligibleTier:
-            "public" | "member" | "recruit" | "raider" | "leader" | "officer";
+            | "public"
+            | "friend"
+            | "member"
+            | "recruit"
+            | "raider"
+            | "leader"
+            | "officer";
           guildId: string;
           maxChoices: number | null;
           method: "single" | "multi" | "ranked";
@@ -102,7 +108,13 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             createdBy?: string;
             description?: string | null;
             eligibleTier?:
-              "public" | "member" | "recruit" | "raider" | "leader" | "officer";
+              | "public"
+              | "friend"
+              | "member"
+              | "recruit"
+              | "raider"
+              | "leader"
+              | "officer";
             maxChoices?: number | null;
             method?: "single" | "multi" | "ranked";
             opensAt?: number | null;

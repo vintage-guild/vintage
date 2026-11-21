@@ -27,6 +27,7 @@ const raid = (id: string, overrides: Partial<RaidEvent> = {}): RaidEvent => ({
   name: 'MC nights',
   instance: 'Molten Core',
   kind: 'raid',
+  access: 'guild',
   size: 40,
   startsAt: START,
   durationMinutes: 180,

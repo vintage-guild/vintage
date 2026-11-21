@@ -126,6 +126,8 @@ export function tierWords(tier: Tier): string {
   switch (tier) {
     case 'public':
       return 'Anyone';
+    case 'friend':
+      return 'Friends and up';
     case 'member':
       return 'Members';
     case 'recruit':

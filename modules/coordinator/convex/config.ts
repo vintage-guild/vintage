@@ -6,7 +6,12 @@ import { configFields } from './schema';
 
 const toConfig = (doc: Doc<'config'>) => {
   const { _id, _creationTime, ...rest } = doc;
-  return { ...rest, weeklyAssessment: rest.weeklyAssessment ?? false };
+  return {
+    ...rest,
+    openSignupChannelId: rest.openSignupChannelId ?? null,
+    leadsChannelId: rest.leadsChannelId ?? null,
+    weeklyAssessment: rest.weeklyAssessment ?? false,
+  };
 };
 
 const { guildId: _g, updatedAt: _u, ...patchable } = configFields;

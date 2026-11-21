@@ -5,8 +5,15 @@ import { mutation, query } from './_generated/server';
 import { scheduleFields } from './schema';
 
 const toSchedule = (doc: Doc<'schedules'>) => {
-  const { _id, _creationTime, kind, notes, ...rest } = doc;
-  return { id: _id as string, ...rest, kind: kind ?? ('raid' as const), notes: notes ?? null };
+  const { _id, _creationTime, kind, access, notes, timings, ...rest } = doc;
+  return {
+    id: _id as string,
+    ...rest,
+    kind: kind ?? ('raid' as const),
+    access: access ?? ('guild' as const),
+    notes: notes ?? null,
+    timings: { ...timings, digestHours: timings.digestHours ?? 24 },
+  };
 };
 
 const { guildId: _guildId, ...patchable } = scheduleFields;

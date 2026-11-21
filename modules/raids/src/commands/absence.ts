@@ -244,10 +244,7 @@ function parseWeeklyNights(
 /** Resolve target memberId for an absence command, enforcing leader tier for others. */
 function resolveTargetMember(
   memberId: string | undefined,
-  caller: {
-    memberId?: string;
-    tier: 'public' | 'member' | 'recruit' | 'raider' | 'leader' | 'officer';
-  },
+  caller: { memberId?: string },
   leader: boolean,
 ): { targetMemberId: string } | { failure: ReturnType<typeof error> } {
   const targetMemberId = memberId ?? caller.memberId;

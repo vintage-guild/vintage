@@ -13,6 +13,8 @@ export const eventKind = v.union(
   v.literal('other'),
 );
 
+export const raidAccess = v.union(v.literal('guild'), v.literal('open'));
+
 export const weekday = v.union(
   v.literal('sun'),
   v.literal('mon'),
@@ -65,12 +67,16 @@ export const scheduleFields = {
   instance: v.string(),
   // Optional so rows written before kinds existed stay valid; read as 'raid'.
   kind: v.optional(eventKind),
+  // Optional so rows written before access existed stay valid; read as 'guild'.
+  access: v.optional(raidAccess),
   size: eventSize,
   recurrence: v.object({ weekdays: v.array(weekday), time: v.string(), timeZone: v.string() }),
   durationMinutes: v.number(),
   timings: v.object({
     leadDays: v.number(),
     reminderHours: v.array(v.number()),
+    // Optional so rows written before digestHours existed stay valid; read as 24.
+    digestHours: v.optional(v.number()),
     lockHours: v.number(),
   }),
   roleTargets,
@@ -87,6 +93,8 @@ export const eventFields = {
   instance: v.string(),
   // Optional so rows written before kinds existed stay valid; read as 'raid'.
   kind: v.optional(eventKind),
+  // Optional so rows written before access existed stay valid; read as 'guild'.
+  access: v.optional(raidAccess),
   size: eventSize,
   startsAt: v.number(),
   durationMinutes: v.number(),

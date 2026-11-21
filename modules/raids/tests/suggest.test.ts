@@ -89,6 +89,7 @@ describe('signup-suggest and a spec for one raid', () => {
       name: 'Raid night',
       instance: 'Molten Core',
       kind: 'raid',
+      access: 'guild',
       size: 40,
       startsAt: clock.now() + 2 * DAY,
       durationMinutes: 180,
@@ -282,7 +283,7 @@ describe('signup-suggest and a spec for one raid', () => {
       const raid = await event();
       expect(
         (await run('signup-suggest', { eventId: raid.id }, as('fen', 'member'))).error?.code,
-      ).toBe('COMMAND_NOT_FOUND');
+      ).toBe('FORBIDDEN');
       expect(
         (
           await run(

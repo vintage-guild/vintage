@@ -10,8 +10,28 @@ import { internal } from './_generated/api';
 import { internalAction, internalMutation, internalQuery } from './_generated/server';
 import { GUILD_ID, runSystemCommand } from './commands';
 import { decisionsFor } from './decisions';
-import { coordinatorStore, pollsStore, siteStore, tickSource } from './stores';
+import { coordinatorStore, pollsStore, raidsStore, siteStore, tickSource } from './stores';
 import { writeWording } from './wording';
+
+/** One-time migration (signup-improvements row 29): move saved schedules with `[72, 24]` to `[72, 30]`. */
+export const migrateReminderHours = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const store = raidsStore(ctx);
+    const schedules = await store.listSchedules(GUILD_ID);
+    let updated = 0;
+    for (const s of schedules) {
+      const hours = s.timings.reminderHours;
+      if (hours.length === 2 && hours[0] === 72 && hours[1] === 24) {
+        await store.updateSchedule(GUILD_ID, s.id, {
+          timings: { ...s.timings, reminderHours: [72, 30] },
+        });
+        updated += 1;
+      }
+    }
+    return { scanned: schedules.length, updated };
+  },
+});
 
 export const state = internalQuery({
   args: { guildId: v.string(), now: v.number() },
@@ -57,6 +77,7 @@ export const createForRaidNight = internalMutation({
         v.literal('battleground'),
         v.literal('other'),
       ),
+      access: v.optional(v.union(v.literal('guild'), v.literal('open'))),
       // raid-create checks the size against the kind.
       size: v.union(v.number(), v.null()),
       roleTargets: v.union(

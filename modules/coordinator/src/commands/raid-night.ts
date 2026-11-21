@@ -2,7 +2,15 @@
 // turn the winner into the raid. The poll itself is made by polls' poll-create, run as this leader.
 import { groupSizeSchema, roleTargetsSchema } from '@vintage/comp-solver';
 import { error, success, TIERS, type Tier, tierAllows } from '@vintage/guild-kit';
-import { AKind, aKind, EVENT_KINDS, kindRules, sizeFits, sizesText } from '@vintage/raids/contract';
+import {
+  AKind,
+  aKind,
+  EVENT_KINDS,
+  kindRules,
+  RAID_ACCESS,
+  sizeFits,
+  sizesText,
+} from '@vintage/raids/contract';
 import { z } from 'zod';
 import { RAID_NIGHT_TAG } from '../contract';
 import { candidateLines, startLabel } from '../domain/raid-night';
@@ -45,6 +53,7 @@ export const raidNightPoll = command({
       // Both optional only for kind `other`, as raid-create has them (kindRules).
       instance: z.string().trim().max(60).default(''),
       kind: z.enum(EVENT_KINDS).default('raid'),
+      access: z.enum(RAID_ACCESS).default('guild'),
       size: groupSizeSchema
         .nullable()
         .optional()
@@ -129,6 +138,7 @@ export const raidNightPoll = command({
       name: input.name,
       instance: input.instance,
       kind: input.kind,
+      access: input.access,
       size: input.size,
       roleTargets: input.roleTargets,
       durationMinutes: input.durationMinutes,

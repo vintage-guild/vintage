@@ -1,7 +1,7 @@
 import { roleTargetsSchema } from '@vintage/comp-solver';
-import { success } from '@vintage/guild-kit';
+import { error, success } from '@vintage/guild-kit';
 import { z } from 'zod';
-import { type RaidEvent, type Schedule, WEEKDAYS } from '../contract';
+import { accessOf, RAID_ACCESS, type RaidEvent, type Schedule, WEEKDAYS } from '../contract';
 import { isValidTime, isValidTimeZone, occurrences } from '../domain/recurrence';
 import { command } from '../store';
 import {
@@ -37,6 +37,7 @@ const scheduleFields = {
   // Empty and null only for kind `other` (kindRules on create, the merged check on update).
   instance: z.string().trim().max(60),
   kind: kindSchema,
+  access: z.enum(RAID_ACCESS),
   size: eventSizeSchema.nullable(),
   weekdays: weekdaysSchema,
   time: timeSchema,
@@ -48,12 +49,29 @@ const scheduleFields = {
     .max(8 * 60),
   leadDays: z.number().int().min(1).max(28),
   reminderHours: reminderHoursSchema,
+  digestHours: z
+    .number()
+    .int()
+    .min(0)
+    .max(14 * 24),
   lockHours: z.number().int().min(0).max(72),
   roleTargets: roleTargetsSchema.nullable(),
   lootMethodId: z.string().min(1).nullable(),
   /** Default notes: each raid copies them when it is created; edit one raid with raid-reschedule. */
   notes: notesSchema,
 };
+
+const digestBeforeLock = (digestHours: number, lockHours: number) =>
+  digestHours < lockHours
+    ? error(
+        'INVALID_TIMINGS',
+        `digestHours (${digestHours}) must be at least lockHours (${lockHours})`,
+        {
+          suggestion: 'Send the digest at or before signups lock',
+          retryable: false,
+        },
+      )
+    : null;
 
 export const scheduleCreate = command({
   name: 'schedule-create',
@@ -69,10 +87,12 @@ export const scheduleCreate = command({
       ...scheduleFields,
       instance: scheduleFields.instance.default(''),
       kind: scheduleFields.kind.default('raid'),
+      access: scheduleFields.access.default('guild'),
       size: scheduleFields.size.default(null),
       durationMinutes: scheduleFields.durationMinutes.default(180),
       leadDays: scheduleFields.leadDays.default(7),
-      reminderHours: scheduleFields.reminderHours.default([72, 24]),
+      reminderHours: scheduleFields.reminderHours.default([72, 30]),
+      digestHours: scheduleFields.digestHours.default(24),
       lockHours: scheduleFields.lockHours.default(2),
       roleTargets: scheduleFields.roleTargets.default(null),
       lootMethodId: scheduleFields.lootMethodId.default(null),
@@ -81,19 +101,23 @@ export const scheduleCreate = command({
     .superRefine(kindRules),
   handler: async (input, { guildId, deps }) => {
     const invalid =
-      sizeForKind(input.kind, input.size) ?? targetsTooBig(input.size, input.roleTargets);
+      sizeForKind(input.kind, input.size) ??
+      targetsTooBig(input.size, input.roleTargets) ??
+      digestBeforeLock(input.digestHours, input.lockHours);
     if (invalid) return invalid;
     const schedule = await deps.raids.insertSchedule({
       guildId,
       name: input.name,
       instance: input.instance,
       kind: input.kind,
+      access: input.access,
       size: input.size,
       recurrence: { weekdays: input.weekdays, time: input.time, timeZone: input.timeZone },
       durationMinutes: input.durationMinutes,
       timings: {
         leadDays: input.leadDays,
         reminderHours: [...input.reminderHours].sort((a, b) => b - a),
+        digestHours: input.digestHours,
         lockHours: input.lockHours,
       },
       roleTargets: input.roleTargets,
@@ -107,6 +131,37 @@ export const scheduleCreate = command({
     });
   },
 });
+
+function buildSchedulePatch(
+  current: Schedule,
+  input: Record<string, unknown> & {
+    weekdays?: Schedule['recurrence']['weekdays'];
+    time?: string;
+    timeZone?: string;
+    leadDays?: number;
+    reminderHours?: number[];
+    digestHours?: number;
+    lockHours?: number;
+  },
+): Partial<Schedule> {
+  const { weekdays, time, timeZone, leadDays, reminderHours, digestHours, lockHours, ...rest } =
+    input;
+  return {
+    ...Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined)),
+    recurrence: {
+      weekdays: weekdays ?? current.recurrence.weekdays,
+      time: time ?? current.recurrence.time,
+      timeZone: timeZone ?? current.recurrence.timeZone,
+    },
+    timings: {
+      leadDays: leadDays ?? current.timings.leadDays,
+      reminderHours: [...(reminderHours ?? current.timings.reminderHours)].sort((a, b) => b - a),
+      digestHours: digestHours ?? current.timings.digestHours,
+      lockHours: lockHours ?? current.timings.lockHours,
+    },
+    configVersion: current.configVersion + 1,
+  };
+}
 
 export const scheduleUpdate = command({
   name: 'schedule-update',
@@ -133,24 +188,14 @@ export const scheduleUpdate = command({
       targetsTooBig(
         size,
         input.roleTargets === undefined ? current.roleTargets : input.roleTargets,
+      ) ??
+      digestBeforeLock(
+        input.digestHours ?? current.timings.digestHours,
+        input.lockHours ?? current.timings.lockHours,
       );
     if (invalid) return invalid;
 
-    const { weekdays, time, timeZone, leadDays, reminderHours, lockHours, ...rest } = input;
-    const patch: Partial<Schedule> = {
-      ...Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined)),
-      recurrence: {
-        weekdays: weekdays ?? current.recurrence.weekdays,
-        time: time ?? current.recurrence.time,
-        timeZone: timeZone ?? current.recurrence.timeZone,
-      },
-      timings: {
-        leadDays: leadDays ?? current.timings.leadDays,
-        reminderHours: [...(reminderHours ?? current.timings.reminderHours)].sort((a, b) => b - a),
-        lockHours: lockHours ?? current.timings.lockHours,
-      },
-      configVersion: current.configVersion + 1,
-    };
+    const patch = buildSchedulePatch(current, input);
     const updated = await deps.raids.updateSchedule(guildId, scheduleId, patch);
     return success(updated, {
       reasoning: `${updated.name} is now version ${updated.configVersion}`,
@@ -203,6 +248,7 @@ export const scheduleMaterialize = command({
             name: schedule.name,
             instance: schedule.instance,
             kind: schedule.kind,
+            access: accessOf(schedule),
             size: schedule.size,
             startsAt,
             durationMinutes: schedule.durationMinutes,

@@ -28,6 +28,7 @@ const event: RaidEvent = {
   name: 'Barrow nights',
   instance: 'Barrow Deeps',
   kind: 'raid',
+  access: 'guild',
   size: 10,
   startsAt: START,
   durationMinutes: 180,

@@ -19,7 +19,7 @@ export const GUILD_RANKS = [
 ] as const;
 export type GuildRank = (typeof GUILD_RANKS)[number];
 
-/** The permission tier each rank grants. Friends are Discord-only, not guild members. */
+/** The permission tier each rank grants. Friends are Discord-only and can join open raids. */
 export const RANK_TIER: Record<GuildRank, Tier> = {
   officer: 'officer',
   'raid-leader': 'leader',
@@ -27,7 +27,7 @@ export const RANK_TIER: Record<GuildRank, Tier> = {
   'flex-raider': 'raider',
   recruit: 'recruit',
   member: 'member',
-  friend: 'public',
+  friend: 'friend',
 };
 
 export interface Member {

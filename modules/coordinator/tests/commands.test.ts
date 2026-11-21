@@ -21,6 +21,7 @@ describe('coordinator commands', () => {
     name: 'MC',
     instance: 'Molten Core',
     kind: 'raid',
+    access: 'guild',
     size: 40,
     startsAt: clock.now() + 50 * 3600 * 1000,
     durationMinutes: 180,

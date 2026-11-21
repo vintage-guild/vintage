@@ -40,8 +40,9 @@ Members, characters, and Discord roles → guild rank → permission tier (PLAN 
   non-member schedules one Discord read; the 30-second floor only covers known members.
 - Role sync (`apps/api/convex/roleSync.ts`, every 15 min) reads the whole `GuildDirectory` before
   planning. Never plan from a partial or empty directory: missing members are synced as gone.
-- Rank decides tier (`RANK_TIER` in the contract). Discord-only Friends and anyone without a
-  rank role are `public`; being in the Discord server alone grants nothing. Exception: `member-sync`
+- Rank decides tier (`RANK_TIER` in the contract). Discord-only Friends get the `friend` tier (can
+  add characters and sign up for open raids); anyone without a rank role is `public` (being in the
+  Discord server alone grants nothing). Exception: `member-sync`
   accepts a trusted `adminAccess` flag (from Convex's `VINTAGE_ADMIN_DISCORD_IDS` env var) that
   grants `officer` tier while keeping the member's real guild `rank`, so developers can use
   `/officers` without displaying as an Officer on the site.

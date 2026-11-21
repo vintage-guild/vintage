@@ -122,7 +122,7 @@ export const characterAdd = command({
     'Register one of your characters (main or alt). role is optional: leave it out to guess ' +
     'it from the spec, or pick one (a Fury warrior who tanks). alsoRoles lists other roles it can ' +
     'play (only roles its class can play; the main role is left out).',
-  tier: 'member',
+  tier: 'friend',
   mutation: true,
   input: z.object({
     name: characterNameSchema,
@@ -172,7 +172,7 @@ export const characterUpdate = command({
     'goes back to guessing it from the spec; a guessed role follows a spec change, a picked one ' +
     'stays. alsoRoles replaces the other roles it plays ([] clears them); a class change clears ' +
     'them and a new main role leaves them. A new class needs a spec of that class.',
-  tier: 'member',
+  tier: 'friend',
   mutation: true,
   input: z.object({
     characterId: z.string().min(1),
@@ -210,7 +210,7 @@ export const characterUpdate = command({
 export const characterRemove = command({
   name: 'character-remove',
   description: 'Remove a character. Shows a preview first; confirm to delete.',
-  tier: 'member',
+  tier: 'friend',
   destructive: true,
   input: z.object({ characterId: z.string().min(1) }),
   handler: async ({ characterId }, { caller, guildId, deps, dryRun }) => {
@@ -228,7 +228,7 @@ export const characterList = command({
   name: 'character-list',
   description:
     'Characters for a member (yours by default), or the whole guild for recruits and up.',
-  tier: 'member',
+  tier: 'friend',
   input: z.object({
     memberId: z.string().optional(),
     allGuild: z.boolean().default(false),

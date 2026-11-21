@@ -6,11 +6,12 @@ import { mutation, query } from './_generated/server';
 import { raidNightFields, raidNightOutcome } from './schema';
 
 const toRaidNight = (doc: Doc<'raidNights'>) => {
-  const { _id, _creationTime, kind, roleTargets, ...rest } = doc;
+  const { _id, _creationTime, kind, access, roleTargets, ...rest } = doc;
   return {
     id: _id as string,
     ...rest,
     kind: kind ?? ('raid' as const),
+    access: access ?? ('guild' as const),
     roleTargets: roleTargets ?? null,
   };
 };

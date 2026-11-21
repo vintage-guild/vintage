@@ -571,8 +571,8 @@ describe('JTBD: raid night', () => {
     );
     expect(log).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ rule: 'remind-24h', target: SIGNUP_CHANNEL, status: 'sent' }),
-        expect.objectContaining({ rule: 'dm-24h', target: g.bram.memberId, status: 'sent' }),
+        expect.objectContaining({ rule: 'remind-30h', target: SIGNUP_CHANNEL, status: 'sent' }),
+        expect.objectContaining({ rule: 'dm-30h', target: g.bram.memberId, status: 'sent' }),
         expect.objectContaining({ rule: 'remind-72h', status: 'skipped' }),
       ]),
     );
@@ -587,7 +587,7 @@ describe('JTBD: raid night', () => {
         status: 'accepted',
       }),
     ).toMatchObject({
-      error: { code: 'COMMAND_NOT_FOUND' },
+      error: { code: 'FORBIDDEN' },
     });
     const pipRaider = await g.host.discordMember(g.pip.discordId!, 'Pip', [ROLES.raider]);
     expect(pipRaider.tier).toBe('raider');
@@ -602,10 +602,9 @@ describe('JTBD: raid night', () => {
       status: 'accepted',
     });
     const friend = await g.host.discordMember('500000000000000099', 'Visitor', [ROLES.friend]);
-    expect(friend.tier).toBe('public');
-    expect(await g.host.run(friend, 'raid-list', {})).toMatchObject({
-      error: { code: 'COMMAND_NOT_FOUND' },
-    });
+    expect(friend.tier).toBe('friend');
+    // Friends see only open raids, never guild raids.
+    expect(await g.host.ok(friend, 'raid-list', {})).toEqual([]);
   });
 
   it('J11 · an officer pauses the coordinator and nothing goes out until they resume', async () => {
@@ -1086,9 +1085,9 @@ describe('JTBD: raid night', () => {
       note: 'after work',
     });
 
-    // Friends can't manage characters; someone Random doesn't know is told to wait for the sync.
+    // Friends can manage their own characters (for open raids); unranked/unknown accounts cannot.
     const friend = await g.host.discordMember('500000000000000098', 'Pal', [ROLES.friend]);
-    expect(content(await chars.slash(friend.discordId!, 'list'))).toMatch(/Member rank/);
+    expect(content(await chars.slash(friend.discordId!, 'list'))).toMatch(/No characters yet/);
     expect(content(await chars.slash('999', 'list'))).toMatch(/I don't know you yet/);
   });
 

@@ -97,6 +97,8 @@ describe('signup-suggest and a spec for one raid', () => {
       roleTargets: null,
       lootMethodId: null,
       notes: null,
+      rosterApprovedAt: null,
+      rosterApprovedBy: null,
       configVersion: 1,
       ...overrides,
     });
@@ -125,6 +127,7 @@ describe('signup-suggest and a spec for one raid', () => {
       note: null,
       signedUpAt: at,
       updatedAt: at,
+      updatedBy: null,
       roster: 'pending',
       group: null,
       queued: false,

@@ -29,18 +29,17 @@ export const compSuggest = command({
         class: s.class,
         spec: s.spec,
         role: s.role,
-        // Queued people only play if nobody ahead of them fits.
-        status: s.queued ? 'bench' : s.status,
-        priority: rank ? RANK_PRIORITY[rank] : 0,
+        status: s.roster === 'benched' ? 'bench' : s.status,
+        priority: s.roster === 'rostered' ? 100 : rank ? RANK_PRIORITY[rank] : 0,
         signedUpAt: s.signedUpAt,
       };
     });
     // The kind's targets, and raid buffs only for raids.
     const template = eventTemplate(event);
     // An open event plays everyone going: no cap, so nobody sits for size.
-    const going = compSignups.filter((s) => s.status !== 'declined').length;
+    const going = compSignups.filter((s) => s.status === 'accepted' || s.status === 'late').length;
     const raidSize = compSize(event, going);
-    const result = solveComp({ raidSize, template, signups: compSignups });
+    const result = solveComp({ raidSize, template, signups: compSignups, goingOnly: true });
     const of = event.size === null ? '' : `/${event.size}`;
     const reasoning = result.gaps.length
       ? result.gaps.map((g) => g.reason).join(' · ')

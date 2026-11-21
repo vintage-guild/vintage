@@ -8,8 +8,12 @@ import type { EventKind } from './domain/kinds';
 
 export {
   dpsTargetOf,
+  type GroupDraftResult,
+  type GroupMember,
+  groupDraft,
   hasSplitDpsTargets,
   type LegacyRoleTargets,
+  type PartyGroup,
   type RaidSize,
   type RoleTargets,
   type SignupStatus,
@@ -149,6 +153,10 @@ export interface RaidEvent {
    * notes existed read as null.
    */
   notes: string | null;
+  /** When a raid leader approved and posted the party roster (epoch ms); null before approval. */
+  rosterApprovedAt: number | null;
+  /** Member or discord id of the leader who approved the party roster; null before approval. */
+  rosterApprovedBy: string | null;
   configVersion: number;
 }
 
@@ -182,29 +190,32 @@ export interface Signup {
   /** How many minutes late (5, 15, or 30) when status is `late`; null for other statuses or older rows. */
   lateMinutes: LateMinutes | null;
   note: string | null;
-  /** First answer, epoch ms; keeps their place in line when they change their answer. */
+  /** First answer, epoch ms; kept as a record only (signups are comp-based, not first-come). */
   signedUpAt: number;
   updatedAt: number;
+  /** Member or discord id of whoever last changed this signup (the player or a raid leader). */
+  updatedBy: string | null;
   roster: RosterState;
   /** Raid group 1–8 when rostered, otherwise null. */
   group: number | null;
-  /** Going, but past the raid size: waiting in line for a spot (see domain/queue.ts). */
+  /** Legacy queue flag (kept for stored rows; new signups always write false). */
   queued: boolean;
-  /** When a spot opened and they moved from the queue into the raid; null if never. */
+  /** Legacy queue promotion timestamp (kept for stored rows; new signups always write null). */
   promotedAt: number | null;
 }
 
 /**
- * Comp priority by guild rank (PLAN §3.4): raiders and above get first dibs, then flex raiders,
- * then recruits. Shared so comp-suggest and the coordinator rank people the same way.
+ * Comp and Standby priority by guild rank (signup-improvements §3): raiders and above first,
+ * then recruits, then flex raiders, then members, then friends. `GUILD_RANKS` in identity is
+ * unchanged.
  */
 export const RANK_PRIORITY: Record<GuildRank, number> = {
-  officer: 3,
-  'raid-leader': 3,
-  raider: 3,
+  officer: 4,
+  'raid-leader': 4,
+  raider: 4,
+  recruit: 3,
   'flex-raider': 2,
-  recruit: 1,
-  member: 0,
+  member: 1,
   friend: 0,
 };
 
@@ -462,6 +473,7 @@ export const RAIDS_COMMANDS = [
   'signup-list',
   'roster-lock',
   'roster-unlock',
+  'roster-approve',
   'roster-bench',
   'roster-move',
   'roster-remove',
@@ -514,5 +526,11 @@ export interface RaidsEvents {
     memberId: string;
     kind: AbsenceKind;
     action: 'added' | 'weekly-set' | 'removed';
+  };
+  /** A raid leader approved and posted the party roster. */
+  'roster-approved': {
+    eventId: string;
+    approvedBy: string;
+    approvedAt: number;
   };
 }

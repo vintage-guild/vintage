@@ -29,6 +29,8 @@ describe('coordinator commands', () => {
     roleTargets: null,
     lootMethodId: null,
     notes: null,
+    rosterApprovedAt: null,
+    rosterApprovedBy: null,
     configVersion: 1,
   };
 
@@ -124,6 +126,7 @@ describe('coordinator commands', () => {
       note: null,
       signedUpAt: clock.now() - 3600 * 1000,
       updatedAt: clock.now() - 3600 * 1000,
+      updatedBy: null,
       roster: 'rostered',
       group: 1,
       queued: false,
@@ -183,6 +186,7 @@ describe('coordinator commands', () => {
       note: null,
       signedUpAt: clock.now() - (10 - n) * 3600 * 1000,
       updatedAt: clock.now(),
+      updatedBy: null,
       roster: 'benched',
       group: null,
       queued: false,

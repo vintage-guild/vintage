@@ -80,6 +80,8 @@ export const raidCreate = command({
       scheduleId: null,
       ...input,
       status: 'open',
+      rosterApprovedAt: null,
+      rosterApprovedBy: null,
       configVersion: 1,
     });
     return success(event, {

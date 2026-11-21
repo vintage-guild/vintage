@@ -169,33 +169,33 @@ describe('JTBD: raid night', () => {
     expect(digest?.message.content).toMatch(/Not answered \(3\): Bram, Cade, Rook/);
   });
 
-  it('J05 · a raider changes their answer and keeps their place in line', async () => {
+  it('J05 · a raider changes their answer and spec while keeping their signup record', async () => {
     const { wed } = await scheduleRaidNights(g);
-    const first = await answer(g, g.bram, 'bram', wed.id, 'tentative');
+    const first = await answer(g, g.cade, 'cade', wed.id, 'tentative');
     g.host.clock.advance(HOUR);
     await answer(g, g.aeryn, 'aeryn', wed.id, 'accepted');
     g.host.clock.advance(HOUR);
-    const changed = await answer(g, g.bram, 'bram', wed.id, 'accepted');
+    const changed = await answer(g, g.cade, 'cade', wed.id, 'accepted');
     expect(changed.id).toBe(first.id);
     expect(changed.signedUpAt).toBe(first.signedUpAt);
     const list = await g.host.ok<Signup[]>(g.dara, 'signup-list', { eventId: wed.id });
-    expect(list.map((s) => s.characterName)).toEqual(['Bramble', 'Aeryn']);
+    expect(list.map((s) => s.characterName)).toEqual(['Cadence', 'Aeryn']);
 
     // Playing another spec for the night, from the private reply's Change spec menu, keeps the
-    // place too; only the signup's spec and role change.
+    // signup record too; only the signup's spec and role change.
     const respecced = await g.host.discordUi.pick(
-      g.bram.discordId!,
+      g.cade.discordId!,
       `signup-spec:${wed.id}`,
-      'shadow',
+      'fire',
     );
     expect(respecced).toMatchObject({ type: 7 });
-    const shadow = await g.host.ok<Signup>(g.bram, 'signup-get', { eventId: wed.id });
-    expect(shadow).toMatchObject({ id: first.id, signedUpAt: first.signedUpAt, role: 'ranged' });
+    const fire = await g.host.ok<Signup>(g.cade, 'signup-get', { eventId: wed.id });
+    expect(fire).toMatchObject({ id: first.id, signedUpAt: first.signedUpAt, spec: 'fire' });
     expect(
       (await g.host.ok<Signup[]>(g.dara, 'signup-list', { eventId: wed.id })).map(
         (s) => s.characterName,
       ),
-    ).toEqual(['Bramble', 'Aeryn']);
+    ).toEqual(['Cadence', 'Aeryn']);
   });
 
   it('J06 ·a raid leader arranges groups and sees what the comp is missing', async () => {
@@ -628,11 +628,11 @@ describe('JTBD: raid night', () => {
     expect(g.host.sentTo(SIGNUP_CHANNEL)).toHaveLength(1);
   });
 
-  it('J12 · a raider who will be late says so, with a reason everyone can see', async () => {
+  it('J12 · a raider who will be late says so, with how late everyone can see', async () => {
     const { wed } = await scheduleRaidNights(g);
-    await g.host.ok(g.bram, 'signup-set', {
+    await g.host.ok(g.ana, 'signup-set', {
       eventId: wed.id,
-      characterId: g.chars.bram,
+      characterId: g.chars.ana,
       status: 'late',
       lateMinutes: 15,
       note: 'after work, ~20 min',
@@ -641,16 +641,16 @@ describe('JTBD: raid night', () => {
     const text = messageText(g.host.editsTo(SIGNUP_CHANNEL).at(-1)!.message);
     // Late still takes a spot: listed with the healers, marked late, reason underneath.
     expect(text).toMatch(
-      /Healers 1\/10\n<:square_priest:\d+> 1 Bramble \*holy\* <:status_late:\d+>/,
+      /Healers 1\/10\n<:square_paladin:\d+> 1 Anarra \*holy\* <:status_late:\d+>/,
     );
-    expect(text).toMatch(/Late: Bramble \(after work, ~20 min\)/);
+    expect(text).toMatch(/Late: Anarra \(after work, ~20 min\)/);
     g.host.clock.advance(WED - 24 * HOUR - g.host.clock.now());
     await g.host.tick();
     const digest = g.host.sentTo(OPS_CHANNEL).find((m) => m.message.content?.includes('confirmed'));
-    expect(digest?.message.content).toMatch(/Late \(1\): Bramble \(after work, ~20 min\)/);
+    expect(digest?.message.content).toMatch(/Late \(1\): Anarra \(after work, ~20 min\)/);
   });
 
-  it('J13 · when a raid is full, extra people queue and the first in line is told when a spot opens', async () => {
+  it('J13 · when a raid is full, comp-based seating decides and no one is auto-promoted', async () => {
     const raid = await g.host.ok<RaidEvent>(g.rook, 'raid-create', {
       name: 'ZG',
       instance: "Zul'Gurub",
@@ -680,14 +680,9 @@ describe('JTBD: raid night', () => {
     const eleventh = await g.host.ok<Signup | null>(people[10]!, 'signup-get', {
       eventId: raid.id,
     });
-    expect(eleventh?.queued).toBe(true);
+    expect(eleventh?.queued).toBe(false);
     await g.host.tick();
-    const post = messageText(g.host.sentTo(SIGNUP_CHANNEL)[0]!.message);
-    expect(post).toMatch(/\*\*10\*\* going/);
-    expect(post).toMatch(/\*\*1\*\* queued/);
-    expect(post).toMatch(/Queue 1\n1\. <:square_warrior:\d+> Raiderchark \*fury\*/);
-
-    // Someone ahead drops out: the queued raider is in and gets told, once.
+    // Someone drops out: no automatic queue promotion happens; seats are the leaders' call.
     const third = await g.host.ok<Signup>(people[2]!, 'signup-get', { eventId: raid.id });
     await g.host.ok(people[2]!, 'signup-set', {
       eventId: raid.id,
@@ -695,12 +690,10 @@ describe('JTBD: raid night', () => {
       status: 'declined',
     });
     await g.host.tick();
-    await g.host.tick();
     const notices = g.host
       .sentTo(SIGNUP_CHANNEL)
       .filter((m) => m.message.content?.includes('a spot opened up'));
-    expect(notices).toHaveLength(1);
-    expect(notices[0]!.message.allowed_mentions?.users).toEqual([people[10]!.discordId]);
+    expect(notices).toHaveLength(0);
   });
 
   it('J19 · on raid day, the site says when signups lock, what to bring, and where I am in line', async () => {
@@ -756,25 +749,22 @@ describe('JTBD: raid night', () => {
       'signup-list',
       { eventId: sm.id },
     );
-    const place = (memberId: string | undefined) =>
-      rows.find((s) => s.memberId === memberId)?.queuePosition;
-    expect(place(g.dara.memberId)).toBe(1);
-    expect(place(g.ana.memberId)).toBeNull();
+    expect(rows.every((s) => s.queuePosition === null)).toBe(true);
     const got = await g.host.ok<{ locksAt: number }>(g.dara, 'raid-get', { eventId: sm.id });
     expect(got.locksAt).toBe(WED - 2 * HOUR);
   });
 
-  it('J14 · stepping down to tentative gives up your place in line', async () => {
+  it('J14 · signedUpAt stays as a record when changing answers (no place in line)', async () => {
     const { wed } = await scheduleRaidNights(g);
     await answer(g, g.aeryn, 'aeryn', wed.id, 'accepted');
     g.host.clock.advance(HOUR);
-    await answer(g, g.bram, 'bram', wed.id, 'accepted');
+    await answer(g, g.cade, 'cade', wed.id, 'accepted');
     g.host.clock.advance(HOUR);
     await answer(g, g.aeryn, 'aeryn', wed.id, 'tentative');
     g.host.clock.advance(HOUR);
     await answer(g, g.aeryn, 'aeryn', wed.id, 'accepted');
     const list = await g.host.ok<Signup[]>(g.dara, 'signup-list', { eventId: wed.id });
-    expect(list.map((x) => x.characterName)).toEqual(['Bramble', 'Aeryn']);
+    expect(list.map((x) => x.characterName)).toEqual(['Aeryn', 'Cadence']);
   });
 
   it('J15 · a member answers straight from the Discord post, privately', async () => {
@@ -816,17 +806,17 @@ describe('JTBD: raid night', () => {
     expect(roster.data.embeds?.[0]?.title).toBe('Roster · Raid night');
     expect(JSON.stringify(roster.data)).toContain('Aeryn');
 
-    // Late opens 5 / 15 / 30 min buttons; one click signs them up with lateMinutes.
+    // Late opens 5 / 15 / 30 min buttons; Flex Raider (Bramble) on a guild raid lands on Standby
+    // while keeping lateMinutes so leads see how late before seating them.
     const lateAsk = await ui.click(g.bram.discordId!, `signup:${wed.id}:late`);
     expect(content(lateAsk)).toContain('Later than 30 minutes? Press Absent instead.');
     const late = await ui.click(g.bram.discordId!, `signup-late:${wed.id}:${g.chars.bram}:15`);
     expect(await g.host.ok<Signup>(g.bram, 'signup-get', { eventId: wed.id })).toMatchObject({
-      status: 'late',
+      status: 'bench',
       lateMinutes: 15,
     });
-    // The buttons came from the guess, so the reply still says why.
     expect(content(late)).toMatch(
-      /\*\*Late \(15m\)\*\* for Raid night as \*\*Bramble\*\* \(Holy Priest, healer\): your main\./,
+      /\*\*Bench\*\* for Raid night as \*\*Bramble\*\* \(Holy Priest, healer\): your main\./,
     );
 
     // Several characters and no main to guess (she removed it): a private picker asks which,
@@ -1500,12 +1490,10 @@ describe('JTBD: raid night', () => {
       await answer(g, who, key, sm.id, 'accepted');
     }
     const sixth = await g.host.ok<Signup | null>(g.rook, 'signup-get', { eventId: sm.id });
-    expect(sixth?.queued).toBe(true);
+    expect(sixth?.queued).toBe(false);
     await g.host.tick();
     const edited = messageText(g.host.editsTo(SIGNUP_CHANNEL).at(-1)!.message);
-    expect(edited).toMatch(/\*\*5\*\* going/);
-    expect(edited).toMatch(/\*\*1\*\* queued/);
-    expect(edited).toMatch(/Queue 1\n1\. .*Rookwood/);
+    expect(edited).toMatch(/\*\*6\*\* going/);
   });
 
   it('J32 · an open levelling group takes everyone who answers, with no cap and no queue', async () => {

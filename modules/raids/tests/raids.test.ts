@@ -650,9 +650,9 @@ describe('raids commands', () => {
   });
 
   describe('comp-suggest', () => {
-    it('picks by rank priority and reports gaps', async () => {
+    it('picks by rank priority, puts flex raiders on standby for guild raids, and reports gaps', async () => {
       const raid = await createRaid({ roleTargets: { tank: 1, healer: 1, dps: 1 }, size: 10 });
-      // Two healers: the raider (Cade) outranks the flex raider (Bramble) despite signing up later.
+      // Flex raider (Bramble) on a guild raid lands on Standby; raider (Cade) takes the healer slot.
       await ok(
         'signup-set',
         { eventId: raid.id, characterId: 'bramble', status: 'accepted' },
@@ -674,12 +674,44 @@ describe('raids commands', () => {
       expect(result.success).toBe(true);
       const data = result.data as {
         selected: { signup: { name: string }; code: string }[];
+        bench: { signup: { name: string }; code: string }[];
         gaps: { kind: string }[];
       };
       const codes = Object.fromEntries(data.selected.map((d) => [d.signup.name, d.code]));
-      // Targets are minimums: everyone fits a 10-person raid, but the healer slot goes to the raider.
-      expect(codes).toEqual({ Aeryn: 'role', Cade: 'role', Bramble: 'fill' });
+      expect(codes).toEqual({ Aeryn: 'role', Cade: 'role' });
+      expect(data.bench.map((d) => ({ name: d.signup.name, code: d.code }))).toEqual([
+        { name: 'Bramble', code: 'standby' },
+      ]);
       expect(data.gaps.some((g) => g.kind === 'role')).toBe(true); // no dps signed up
+    });
+
+    it('lets flex raiders sign up in full on open raids, and approves rosters via roster-approve', async () => {
+      const openRaid = await createRaid({ access: 'open', size: 10 });
+      const bramSignup = await ok<Signup>(
+        'signup-set',
+        { eventId: openRaid.id, characterId: 'bramble', status: 'accepted' },
+        as('bram'),
+      );
+      expect(bramSignup.status).toBe('accepted');
+
+      const approved = await ok<RaidEvent>('roster-approve', { eventId: openRaid.id }, leader);
+      expect(approved.rosterApprovedAt).not.toBeNull();
+      expect(approved.rosterApprovedBy).toBe('leader-1');
+
+      // New answers after approval land on Standby until a leader seats them.
+      const lateComer = await ok<Signup>(
+        'signup-set',
+        { eventId: openRaid.id, characterId: 'aeryn', status: 'accepted' },
+        as('aeryn'),
+      );
+      expect(lateComer.roster).toBe('benched');
+
+      // Moving them bumps updatedAt and records updatedBy.
+      clock.advance(HOUR);
+      const seated = await ok<Signup>('roster-move', { signupId: lateComer.id, group: 1 }, leader);
+      expect(seated.roster).toBe('rostered');
+      expect(seated.updatedBy).toBe('leader-1');
+      expect(seated.updatedAt).toBeGreaterThan(lateComer.updatedAt);
     });
 
     it('is hidden below raider tier', async () => {

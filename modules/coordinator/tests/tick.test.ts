@@ -52,6 +52,7 @@ const signup = (memberId: string, overrides: Partial<Signup> = {}): Signup => ({
   note: null,
   signedUpAt: START - 100 * HOUR,
   updatedAt: START - 100 * HOUR,
+  updatedBy: null,
   roster: 'pending',
   group: null,
   queued: false,
@@ -103,6 +104,8 @@ describe('runTick', () => {
       roleTargets: null,
       lootMethodId: null,
       notes: null,
+      rosterApprovedAt: null,
+      rosterApprovedBy: null,
       configVersion: 1,
     };
     signups = [signup('aeryn')];
@@ -490,15 +493,11 @@ describe('runTick', () => {
     expect(fake.requests).toHaveLength(1);
   });
 
-  it('tells someone promoted from the queue that they are in, once', async () => {
+  it('does not send queue auto-promotion notices (seats are the leaders call)', async () => {
     await tick(START - 100 * HOUR);
     signups = [signup('bram', { promotedAt: START - 99 * HOUR })];
     await tick(START - 99 * HOUR);
-    await tick(START - 98 * HOUR);
     const notices = discord.sent.filter((m) => m.message.content?.includes('a spot opened up'));
-    expect(notices).toHaveLength(1);
-    expect(notices[0]!.message.allowed_mentions?.users).toEqual([
-      member('bram', 'flex-raider').discordId,
-    ]);
+    expect(notices).toHaveLength(0);
   });
 });

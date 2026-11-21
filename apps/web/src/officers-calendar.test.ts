@@ -20,6 +20,8 @@ const event = (over: Partial<RaidEvent> = {}): RaidEvent => ({
   roleTargets: null,
   lootMethodId: null,
   notes: null,
+  rosterApprovedAt: null,
+  rosterApprovedBy: null,
   configVersion: 1,
   ...over,
 });

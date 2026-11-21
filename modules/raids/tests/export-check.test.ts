@@ -449,6 +449,7 @@ describe('expectedSignups', () => {
     note: null,
     signedUpAt: 0,
     updatedAt: 0,
+    updatedBy: null,
     roster: 'pending',
     group: null,
     queued: false,
@@ -460,7 +461,6 @@ describe('expectedSignups', () => {
     const ids = expectedSignups([
       signup('yes'),
       signup('late', { status: 'late' }),
-      signup('queued', { queued: true }),
       signup('benched', { roster: 'benched' }),
       signup('maybe', { status: 'tentative' }),
       signup('no', { status: 'declined' }),

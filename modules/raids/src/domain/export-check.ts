@@ -27,7 +27,7 @@ export function expectedSignups(signups: Signup[]): Signup[] {
   const rostered = signups.filter((s) => s.roster === 'rostered');
   if (rostered.length) return rostered;
   return signups.filter(
-    (s) => (s.status === 'accepted' || s.status === 'late') && !s.queued && s.roster !== 'benched',
+    (s) => (s.status === 'accepted' || s.status === 'late') && s.roster !== 'benched',
   );
 }
 

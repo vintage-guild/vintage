@@ -167,17 +167,9 @@ function planReminders(
   return out;
 }
 
-/** One notice per promotion: the rule names the signup and when it was promoted. */
-function planPromotions(state: TickState, tick: TickEvent, done: Set<string>): PlannedAction[] {
-  const channel = signupChannelFor(state.config, tick.event);
-  if (!channel) return [];
-  return tick.signups
-    .filter(
-      (s) => s.promotedAt !== null && !s.queued && (s.status === 'accepted' || s.status === 'late'),
-    )
-    .map((s) => ({ s, rule: `promoted-${s.id}-${s.promotedAt}` }))
-    .filter(({ rule }) => !done.has(`${rule}|${channel}`))
-    .map(({ s, rule }) => ({ kind: 'promote' as const, tick, rule, target: channel, signup: s }));
+/** Queue auto-promotion was retired in favor of comp-based seating and leader Standby picks. */
+function planPromotions(_state: TickState, _tick: TickEvent, _done: Set<string>): PlannedAction[] {
+  return [];
 }
 
 function planDigest(

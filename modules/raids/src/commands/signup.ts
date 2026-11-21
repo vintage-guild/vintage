@@ -5,9 +5,7 @@ import { classRoles, cleanAlsoRoles, type Role, roleFor, roleSchema } from '@vin
 import { z } from 'zod';
 import { accessOf, type LateMinutes, type RaidEvent, type Signup } from '../contract';
 import { guessCharacter, type PastSignup, roleForSpec, seriesWindow } from '../domain/guess';
-import { LOSES_PLACE, queuePositions } from '../domain/queue';
 import { command, type RaidsDeps } from '../store';
-import { syncQueue } from './queue';
 import { eventNotFound, isLeader, notSignedIn, raidClosed } from './shared';
 
 const characterNotFound = () =>
@@ -51,6 +49,9 @@ interface SignupWrite {
   role: Role;
   rolePicked: boolean;
   alsoRoles: Role[];
+  updatedBy: string | null;
+  /** True when the raid's party roster is already approved: new signups land on Standby. */
+  approved: boolean;
   existing: Signup | null;
 }
 
@@ -102,8 +103,8 @@ function resolveAlsoRoles(
 }
 
 /**
- * Insert the member's signup, or update it in place. They keep their place in line unless they
- * step down to tentative, bench, or declined, which puts them at the back.
+ * Insert the member's signup, or update it in place. `signedUpAt` is kept as a record only
+ * (seating is comp-based, not first-come). After roster approval, new answers land on Standby.
  */
 function writeSignup(deps: RaidsDeps, w: SignupWrite, at: number): Promise<Signup> {
   const snapshot = {
@@ -118,14 +119,13 @@ function writeSignup(deps: RaidsDeps, w: SignupWrite, at: number): Promise<Signu
   if (w.existing) {
     // Swapping characters or declining drops any roster spot; the leader re-places them.
     const keepRoster = w.existing.characterId === w.character.id && w.status !== 'declined';
-    const stepsDown = w.status !== w.existing.status && LOSES_PLACE.has(w.status);
     return deps.raids.updateSignup(w.guildId, w.existing.id, {
       ...snapshot,
       status: w.status,
       lateMinutes: w.lateMinutes,
-      ...(stepsDown ? { signedUpAt: at } : {}),
       ...(w.note === undefined ? {} : { note: w.note }),
       updatedAt: at,
+      updatedBy: w.updatedBy,
       ...(keepRoster ? {} : { roster: 'pending' as const, group: null }),
     });
   }
@@ -139,7 +139,8 @@ function writeSignup(deps: RaidsDeps, w: SignupWrite, at: number): Promise<Signu
     note: w.note ?? null,
     signedUpAt: at,
     updatedAt: at,
-    roster: 'pending',
+    updatedBy: w.updatedBy,
+    roster: w.approved && w.status !== 'declined' ? 'benched' : 'pending',
     group: null,
     queued: false,
     promotedAt: null,
@@ -211,6 +212,21 @@ async function loadEventForSignup(
   return { event, leader };
 }
 
+function signupReasoning(
+  characterName: string,
+  event: RaidEvent,
+  written: Signup,
+  flexStandbyOnly: boolean,
+): string {
+  if (flexStandbyOnly) {
+    return `You're on standby for ${event.name}. A raid leader will seat you if a spot opens.`;
+  }
+  if (written.roster === 'benched' && event.rosterApprovedAt !== null) {
+    return `${characterName}: on Standby for ${event.name} (roster is already approved)`;
+  }
+  return `${characterName}: ${written.status} for ${event.name}`;
+}
+
 export const signupSet = command({
   name: 'signup-set',
   description:
@@ -256,6 +272,17 @@ export const signupSet = command({
     const late = resolveLateMinutes(status, lateMinutes, existing);
     if ('missing' in late) return needsLateMinutes();
 
+    // Flex Raiders start on Standby for guild raids (signup-improvements §3): Accept, Late, or
+    // Tentative lands on Standby (preserving lateMinutes if they answered Late); Absent still clears.
+    const subject = await deps.members.getMember(guildId, character.memberId);
+    const flexStandbyOnly =
+      event.kind === 'raid' &&
+      accessOf(event) === 'guild' &&
+      subject?.rank === 'flex-raider' &&
+      status !== 'declined' &&
+      !leader;
+    const storedStatus: SignupStatus = flexStandbyOnly ? 'bench' : status;
+
     const play = playOf(character, existing, spec, role);
     const resolvedAlso = resolveAlsoRoles(character, existing, play.role, alsoRoles);
     if ('rejected' in resolvedAlso) return cantPlay(character, resolvedAlso.rejected);
@@ -266,11 +293,13 @@ export const signupSet = command({
         guildId,
         eventId,
         character,
-        status,
+        status: storedStatus,
         lateMinutes: late.lateMinutes,
         note,
         ...play,
         alsoRoles: resolvedAlso.alsoRoles,
+        updatedBy: caller.memberId ?? caller.discordId ?? null,
+        approved: event.rosterApprovedAt !== null,
         existing,
       },
       now(),
@@ -281,16 +310,12 @@ export const signupSet = command({
         memberId: character.memberId,
         characterId: character.id,
         from: existing?.status ?? null,
-        to: status,
+        to: storedStatus,
       });
     }
-    // After the change is recorded: a drop-out may promote someone from the queue.
-    await syncQueue(deps, guildId, event, now());
-    const signup = (await deps.raids.getSignup(guildId, written.id)) ?? written;
-    const reasoning = signup.queued
-      ? `${character.name}: ${status} for ${event.name}, queued (the raid is full)`
-      : `${character.name}: ${status} for ${event.name}`;
-    return success(signup, { reasoning });
+    return success(written, {
+      reasoning: signupReasoning(character.name, event, written, flexStandbyOnly),
+    });
   },
 });
 
@@ -393,12 +418,10 @@ export const signupList = command({
     const denied = accessRefusal(caller, event);
     if (denied) return denied;
     const all = await deps.raids.listSignups(guildId, eventId);
-    // Positions come from every signup, so a status filter doesn't renumber the line.
-    const positions = queuePositions(all, event.size);
     const signups = all
       .filter((s) => !statuses || statuses.includes(s.status))
       .sort((a, b) => statusRank(a) - statusRank(b) || a.signedUpAt - b.signedUpAt)
-      .map((s) => ({ ...s, queuePosition: positions.get(s.id) ?? null }));
+      .map((s) => ({ ...s, queuePosition: null }));
     return success(signups);
   },
 });

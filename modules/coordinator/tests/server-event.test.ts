@@ -35,6 +35,8 @@ const raid = (id: string, overrides: Partial<RaidEvent> = {}): RaidEvent => ({
   roleTargets: null,
   lootMethodId: null,
   notes: null,
+  rosterApprovedAt: null,
+  rosterApprovedBy: null,
   configVersion: 1,
   ...overrides,
 });

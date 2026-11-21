@@ -5,12 +5,14 @@ import { mutation, query } from './_generated/server';
 import { signupFields } from './schema';
 
 const toSignup = (doc: Doc<'signups'>) => {
-  const { _id, _creationTime, alsoRoles, lateMinutes, queued, promotedAt, ...rest } = doc;
+  const { _id, _creationTime, alsoRoles, lateMinutes, updatedBy, queued, promotedAt, ...rest } =
+    doc;
   return {
     id: _id as string,
     ...rest,
     alsoRoles: alsoRoles ?? [],
     lateMinutes: lateMinutes ?? null,
+    updatedBy: updatedBy ?? null,
     queued: queued ?? false,
     promotedAt: promotedAt ?? null,
   };

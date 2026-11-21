@@ -94,6 +94,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             | { healer: number; melee: number; ranged: number; tank: number }
             | { dps: number; healer: number; tank: number }
             | null;
+          rosterApprovedAt?: number | null;
+          rosterApprovedBy?: string | null;
           scheduleId: string | null;
           size: number | null;
           startsAt: number;
@@ -134,6 +136,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               | { healer: number; melee: number; ranged: number; tank: number }
               | { dps: number; healer: number; tank: number }
               | null;
+            rosterApprovedAt?: number | null;
+            rosterApprovedBy?: string | null;
             scheduleId?: string | null;
             size?: number | null;
             startsAt?: number;
@@ -328,6 +332,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           spec: string;
           status: "accepted" | "late" | "tentative" | "bench" | "declined";
           updatedAt: number;
+          updatedBy?: string | null;
         },
         any,
         Name
@@ -375,6 +380,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             spec?: string;
             status?: "accepted" | "late" | "tentative" | "bench" | "declined";
             updatedAt?: number;
+            updatedBy?: string | null;
           };
           signupId: string;
         },

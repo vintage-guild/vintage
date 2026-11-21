@@ -99,15 +99,22 @@ function roleNoun(role: TargetRole, n: number): string {
 function partition(
   signups: readonly CompSignup[],
   split: boolean,
+  goingOnly: boolean,
 ): {
   candidates: Candidate[];
+  standby: Candidate[];
   excluded: Exclusion[];
 } {
   const candidates: Candidate[] = [];
+  const standby: Candidate[] = [];
   const excluded: Exclusion[] = [];
   for (const signup of [...signups].sort(compareSignups)) {
     if (signup.status === 'declined') {
       excluded.push({ signup, code: 'declined', reason: 'declined' });
+      continue;
+    }
+    if (goingOnly && signup.status === 'tentative') {
+      excluded.push({ signup, code: 'tentative', reason: 'tentative' });
       continue;
     }
     const role = signup.role ?? roleFor(signup.class, signup.spec);
@@ -119,9 +126,14 @@ function partition(
       });
       continue;
     }
-    candidates.push({ signup, role, bucket: bucketOf(role, split) });
+    const candidate = { signup, role, bucket: bucketOf(role, split) };
+    if (goingOnly && signup.status === 'bench') {
+      standby.push(candidate);
+    } else {
+      candidates.push(candidate);
+    }
   }
-  return { candidates, excluded };
+  return { candidates, standby, excluded };
 }
 
 /** The roster as it's built: who's in, and how full each role is. */
@@ -289,13 +301,27 @@ export function solveComp(input: CompInput): CompResult {
   const requirements = input.template.requirements ?? [];
   const split = hasSplitDpsTargets(input.template.targets);
   const roster = new Roster(input.raidSize, input.template.targets);
-  const { candidates, excluded } = partition(input.signups, split);
+  const { candidates, standby, excluded } = partition(
+    input.signups,
+    split,
+    input.goingOnly ?? false,
+  );
 
   pickRequirements(roster, candidates, requirements);
   pickRoles(roster, candidates);
   pickFill(roster, candidates);
 
-  const bench = candidates.filter((c) => !roster.has(c)).map((c) => benchDecision(roster, c));
+  const bench: Decision<BenchCode>[] = [
+    ...candidates.filter((c) => !roster.has(c)).map((c) => benchDecision(roster, c)),
+    ...standby.map(
+      (c): Decision<BenchCode> => ({
+        signup: c.signup,
+        role: c.role,
+        code: 'standby',
+        reason: 'signed up as standby',
+      }),
+    ),
+  ];
   const selected = [...roster.picked.values()].sort(bySlot);
   const rGaps = roleGaps(roster);
   const roleMissing = rGaps.reduce((n, g) => n + g.missing, 0);

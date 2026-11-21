@@ -79,6 +79,7 @@ function setup(now = NOW) {
         class: 'mage',
         spec: 'frost',
         role: 'ranged',
+        alsoRoles: [],
         isMain: true,
       },
     ],

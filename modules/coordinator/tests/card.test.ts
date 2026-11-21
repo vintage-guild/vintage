@@ -73,7 +73,10 @@ function expectWithinLimits(message: MessageData) {
   for (const e of message.embeds ?? []) {
     const fields = e.fields ?? [];
     expect(fields.length).toBeLessThanOrEqual(EMBED_LIMITS.fields);
-    for (const f of fields) expect(f.value.length).toBeLessThanOrEqual(EMBED_LIMITS.fieldValue);
+    for (const f of fields) {
+      expect(f.value.trim().length).toBeGreaterThan(0);
+      expect(f.value.length).toBeLessThanOrEqual(EMBED_LIMITS.fieldValue);
+    }
     expect((e.title ?? '').length).toBeLessThanOrEqual(EMBED_LIMITS.title);
     const total =
       (e.title ?? '').length +
@@ -139,6 +142,17 @@ describe('raid cards', () => {
 
   it('the final roster stays inside the limits too', () => {
     expectWithinLimits(renderFinalRoster(fullRaid(), []));
+  });
+
+  it('the final roster sends no empty field when nobody is benched', () => {
+    const raid = fullRaid();
+    const few = raid.signups
+      .slice(0, 3)
+      .map((s) => ({ ...s, status: 'accepted' as const, queued: false }));
+    const message = renderFinalRoster({ ...raid, signups: few }, []);
+    expectWithinLimits(message);
+    const benched = (message.embeds![0] as Embed).fields!.find((f) => f.name === 'Benched');
+    expect(benched?.value).toBe('—');
   });
 
   it("quotes the raid's notes under the lock line, a block per paragraph, within the limits", () => {

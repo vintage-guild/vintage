@@ -490,7 +490,7 @@ For Bloodfen:
 
 ## Tasks
 
-- [ ] **Fix first** (discord-kit, coordinator): no empty field values; final roster test with
+- [x] **Fix first** (discord-kit, coordinator): no empty field values; final roster test with
   nobody benched.
 - [ ] **The card** (coordinator, scripts): §1 four-column layout, the outline Melee and Ranged
   icons, the `recruit` mark (emoji art and the site badge), tentative reasons on the Tentative

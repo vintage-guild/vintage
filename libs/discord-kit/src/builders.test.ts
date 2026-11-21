@@ -262,6 +262,17 @@ describe('embeds', () => {
     expect(e.fields).toHaveLength(EMBED_LIMITS.fields);
     expect('description' in e).toBe(false);
   });
+
+  it('replaces empty or blank field values with an em dash', () => {
+    const e = embed({
+      fields: [
+        { name: 'Empty', value: '' },
+        { name: 'Blank', value: '   ' },
+        { name: 'Filled', value: 'Aeryn' },
+      ],
+    });
+    expect(e.fields?.map((f) => f.value)).toEqual(['—', '—', 'Aeryn']);
+  });
 });
 
 describe('components', () => {

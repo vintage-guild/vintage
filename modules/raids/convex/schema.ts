@@ -161,6 +161,30 @@ export const attendanceFields = {
   stoodBy: v.optional(v.boolean()),
 };
 
+export const absenceKind = v.union(v.literal('dates'), v.literal('weekly'));
+
+export const lateMinutes = v.union(v.literal(5), v.literal(15), v.literal(30));
+
+export const weeklyNight = v.object({
+  day: weekday,
+  type: v.union(v.literal('away'), v.literal('late')),
+  lateMinutes: v.union(lateMinutes, v.null()),
+});
+
+export const absenceFields = {
+  guildId: v.string(),
+  memberId: v.string(),
+  kind: absenceKind,
+  from: v.union(v.string(), v.null()),
+  to: v.union(v.string(), v.null()),
+  nights: v.union(v.array(weeklyNight), v.null()),
+  timeZone: v.string(),
+  reason: v.union(v.string(), v.null()),
+  createdBy: v.string(),
+  createdAt: v.number(),
+  endedAt: v.union(v.number(), v.null()),
+};
+
 // Every table carries guildId and is read through a guild-scoped index.
 export default defineSchema({
   schedules: defineTable(scheduleFields).index('by_guild', ['guildId']),
@@ -175,4 +199,7 @@ export default defineSchema({
   // The export a raid was recorded from (raid-export-record): one per raid.
   raidRecords: defineTable(recordFields).index('by_guild_event', ['guildId', 'eventId']),
   attendance: defineTable(attendanceFields).index('by_guild_event', ['guildId', 'eventId']),
+  absences: defineTable(absenceFields)
+    .index('by_guild', ['guildId'])
+    .index('by_guild_member', ['guildId', 'memberId']),
 });

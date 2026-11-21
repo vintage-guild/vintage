@@ -3,6 +3,7 @@ import type { Character, Member } from '@vintage/identity/contract';
 import type { LootDropInput } from '@vintage/loot/contract';
 import type { KillRecorded, RaidId } from '@vintage/progress/contract';
 import type {
+  Absence,
   RaidAttendance,
   RaidAttendanceInput,
   RaidEvent,
@@ -61,6 +62,16 @@ export interface RaidsStore {
   listAttendance(guildId: string, eventId: string): Promise<RaidAttendance[]>;
   /** Records an export for a raid, replacing any earlier record and its attendance. */
   putRecord(record: Omit<RaidRecord, 'id'>, attendance: RaidAttendanceInput[]): Promise<RaidRecord>;
+
+  /** Absences for the guild or one member; `activeOnly` (default true) filters `endedAt === null`. */
+  listAbsences(
+    guildId: string,
+    filter?: { memberId?: string; activeOnly?: boolean },
+  ): Promise<Absence[]>;
+  getAbsence(guildId: string, absenceId: string): Promise<Absence | null>;
+  insertAbsence(absence: Omit<Absence, 'id'>): Promise<Absence>;
+  /** Soft-close an absence by setting `endedAt`. */
+  endAbsence(guildId: string, absenceId: string, endedAt: number): Promise<Absence>;
 }
 
 /**

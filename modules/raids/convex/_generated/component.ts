@@ -23,6 +23,52 @@ import type { FunctionReference } from "convex/server";
  */
 export type ComponentApi<Name extends string | undefined = string | undefined> =
   {
+    absences: {
+      end: FunctionReference<
+        "mutation",
+        "internal",
+        { absenceId: string; endedAt: number; guildId: string },
+        any,
+        Name
+      >;
+      get: FunctionReference<
+        "query",
+        "internal",
+        { absenceId: string; guildId: string },
+        any,
+        Name
+      >;
+      insert: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          createdAt: number;
+          createdBy: string;
+          endedAt: number | null;
+          from: string | null;
+          guildId: string;
+          kind: "dates" | "weekly";
+          memberId: string;
+          nights: Array<{
+            day: "sun" | "mon" | "tue" | "wed" | "thu" | "fri" | "sat";
+            lateMinutes: 5 | 15 | 30 | null;
+            type: "away" | "late";
+          }> | null;
+          reason: string | null;
+          timeZone: string;
+          to: string | null;
+        },
+        any,
+        Name
+      >;
+      list: FunctionReference<
+        "query",
+        "internal",
+        { activeOnly?: boolean; guildId: string; memberId?: string },
+        any,
+        Name
+      >;
+    };
     raidEvents: {
       get: FunctionReference<
         "query",

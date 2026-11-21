@@ -24,9 +24,13 @@ import {
   EVENT_KINDS,
   type EventKind,
   type ExportCheck,
+  FALLBACK_RAID_TIME,
+  FALLBACK_TIME_ZONE,
+  type GuildClock,
   kindNoun,
   type RaidEvent,
   type RoleTargets,
+  resolveGuildClock,
   type Schedule,
   sizeLabel,
   targetsOf,
@@ -42,8 +46,7 @@ import {
 } from './discord-common';
 
 export const EVENT_GROUP = 'event';
-/** The guild's clock when no schedule names one; raid-night-poll uses the same default. */
-export const FALLBACK_TIME_ZONE = 'America/New_York';
+export { FALLBACK_RAID_TIME, FALLBACK_TIME_ZONE, type GuildClock };
 export const DEFAULT_RAID_HOURS = 3;
 export const DEFAULT_VOTE_HOURS = 24;
 
@@ -114,30 +117,15 @@ export async function guildTimeZone(ports: EventPorts, caller: Caller): Promise<
   return (await guildClock(ports, caller)).zone;
 }
 
-export interface GuildClock {
-  /** IANA zone, e.g. `America/New_York`. */
-  zone: string;
-  /** The guild's usual start time, `HH:MM` (24h). */
-  time: string;
-}
-
 /**
- * The guild's clock and usual raid time, from the same schedule `guildTimeZone` reads: the first
+ * The guild's clock and usual raid time, resolved by raids' `resolveGuildClock`: the first
  * active schedule, else the first one, else the fallbacks (New York, 20:00).
  */
 export async function guildClock(ports: EventPorts, caller: Caller): Promise<GuildClock> {
   const result = await ports.run(caller, 'schedule-list', { includeInactive: true });
   const schedules = result.success ? ((result.data as Schedule[] | undefined) ?? []) : [];
-  const schedule = schedules.find((s) => s.active) ?? schedules[0];
-  const time = schedule?.recurrence.time ?? '';
-  return {
-    zone: schedule?.recurrence.timeZone ?? FALLBACK_TIME_ZONE,
-    time: /^([01]\d|2[0-3]):[0-5]\d$/.test(time) ? time : FALLBACK_RAID_TIME,
-  };
+  return resolveGuildClock(schedules);
 }
-
-/** The start time the New event form picks when no schedule has one. */
-export const FALLBACK_RAID_TIME = '20:00';
 
 const durationMinutes = (values: OptionValues) =>
   Math.round((typeof values.hours === 'number' ? values.hours : DEFAULT_RAID_HOURS) * 60);

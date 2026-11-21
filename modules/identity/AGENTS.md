@@ -42,10 +42,10 @@ Members, characters, and Discord roles → guild rank → permission tier (PLAN 
   planning. Never plan from a partial or empty directory: missing members are synced as gone.
 - Rank decides tier (`RANK_TIER` in the contract). Discord-only Friends get the `friend` tier (can
   add characters and sign up for open raids); anyone without a rank role is `public` (being in the
-  Discord server alone grants nothing). Exception: `member-sync`
-  accepts a trusted `adminAccess` flag (from Convex's `VINTAGE_ADMIN_DISCORD_IDS` env var) that
-  grants `officer` tier while keeping the member's real guild `rank`, so developers can use
-  `/officers` without displaying as an Officer on the site.
+  Discord server alone grants nothing). Exception: `member-sync` accepts a trusted `adminAccess`
+  flag (from Convex's `VINTAGE_ADMIN_ROLE_IDS` or `VINTAGE_ADMIN_DISCORD_IDS` env vars) that grants
+  `officer` tier while keeping the member's real guild `rank`, so developers can use `/officers`
+  without displaying as an Officer on the site.
 - Rank and tier are separate on purpose: Raider and Flex Raider share the `raider` tier, but the
   coordinator gives Raiders priority.
 - A member's first character becomes their main; setting a new main clears the old one. The main

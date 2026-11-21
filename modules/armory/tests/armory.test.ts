@@ -337,6 +337,16 @@ describe('armory-refresh', () => {
     expect(deps.fetches).toHaveLength(2);
   });
 
+  it('says when, in words a member reads on the website', async () => {
+    await link();
+    clock.advance(ARMORY_REFRESH_COOLDOWN_MS - 60_000);
+    const soon = await run('armory-refresh', { characterId: 'c-judy' }, alice);
+    expect(soon.error).toMatchObject({
+      message: 'Judgement was looked up on the armory 9 minutes ago',
+      suggestion: 'Try again in 1 minute',
+    });
+  });
+
   it('needs a link and your own character', async () => {
     expect(code(await run('armory-refresh', { characterId: 'c-judy' }, alice))).toBe(
       'ARMORY_NOT_LINKED',

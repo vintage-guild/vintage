@@ -42,7 +42,12 @@ export interface ArmoryCardEntry {
   error: string | null;
   requestedAt: number;
   checkedAt: number | null;
+  /** When the link was last saved. Later than `requestedAt`: saved within the cooldown, no fetch yet. */
+  linkedAt?: number;
 }
+
+/** `armory-refresh`'s cooldown (`ARMORY_REFRESH_COOLDOWN_MS` in `@vintage/armory`, above ui-kit). */
+const REFRESH_COOLDOWN_MS = 10 * 60_000;
 
 const QUALITIES = new Set(['poor', 'common', 'uncommon', 'rare', 'epic', 'legendary']);
 
@@ -171,7 +176,7 @@ const template = html<VintageArmoryCard>`
     ${when(
       (x) => x.state !== 'unlinked',
       html<VintageArmoryCard>`<div class="controls" part="controls">
-        <button type="button" class="btn" ?disabled="${(x) => x.busy || x.state === 'pending'}" @click="${(x) => x.refresh()}">Refresh</button>
+        <button type="button" class="btn" ?disabled="${(x) => x.busy || (x.state === 'pending' && !x.waiting)}" @click="${(x) => x.refresh()}">Refresh</button>
         <button type="button" class="btn danger" ?disabled="${(x) => x.busy}" @click="${(x) => x.unlink()}">Unlink</button>
       </div>`,
     )}
@@ -465,6 +470,16 @@ export class VintageArmoryCard extends FASTElement {
   @observable statusText = '';
   @observable statusKind: 'idle' | 'error' | 'success' = 'idle';
 
+  /**
+   * FAST's change callback for `entry`. A success line ("Looking up …", "Asked the armory again")
+   * describes a fetch in flight, so it goes once the page brings an entry whose fetch has landed.
+   * Errors stay until the next action.
+   */
+  entryChanged(_prev: ArmoryCardEntry | null, next: ArmoryCardEntry | null): void {
+    const landed = next !== null && next.checkedAt !== null && next.checkedAt >= next.requestedAt;
+    if (landed && this.statusKind === 'success') this.say('idle', '');
+  }
+
   get state(): CardState {
     return this.entry ? this.entry.status : 'unlinked';
   }
@@ -472,6 +487,15 @@ export class VintageArmoryCard extends FASTElement {
   /** The registered name has no last name, so linking needs one typed. */
   get needsSurname(): boolean {
     return !!this.character && registeredLast(this.character.name) === null;
+  }
+
+  /**
+   * Relinked (a corrected surname) within `armory-refresh`'s cooldown: the server saved it but
+   * started no fetch, so nothing is in flight. The hourly sweep or a Refresh looks it up.
+   */
+  get waiting(): boolean {
+    const e = this.entry;
+    return !!e && e.status === 'pending' && (e.linkedAt ?? 0) > e.requestedAt;
   }
 
   get showLinkForm(): boolean {
@@ -499,6 +523,12 @@ export class VintageArmoryCard extends FASTElement {
       return this.needsSurname
         ? 'Not linked. Give its surname to show its level, item level, and gear here.'
         : 'Not linked. Find it on the armory to show its level, item level, and gear here.';
+    }
+    if (this.waiting) {
+      const left = Math.ceil((e.requestedAt + REFRESH_COOLDOWN_MS - this.now) / 60_000);
+      const retry =
+        left > 0 ? `press Refresh in ${left} minute${left === 1 ? '' : 's'}` : 'press Refresh';
+      return `Saved as ${e.name} ${e.surname}. The last lookup was under 10 minutes ago, so this one runs within the hour, or ${retry}.`;
     }
     const asked = e.checkedAt === null || e.requestedAt > e.checkedAt;
     if (e.status === 'pending' || (asked && e.status !== 'found')) {
@@ -535,7 +565,7 @@ export class VintageArmoryCard extends FASTElement {
     const input = this.needsSurname
       ? { characterId: character.id, surname: typed }
       : { characterId: character.id };
-    return this.run('armory-link', input, `Looking up ${character.name} on the armory`);
+    return this.run('armory-link', input, `Linked ${character.name}`);
   }
 
   @command('vintage.armory-refresh', {

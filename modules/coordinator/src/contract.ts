@@ -1,7 +1,15 @@
 // Public surface of the coordinator module. Other modules import only this file.
 
 import type { GuildRank } from '@vintage/identity/contract';
-import type { EventKind, RaidAccess, RoleTargets } from '@vintage/raids/contract';
+import type {
+  EventKind,
+  LateMinutes,
+  RaidAccess,
+  RoleTargets,
+  RosterState,
+  SignupStatus,
+} from '@vintage/raids/contract';
+import type { Role } from '@vintage/wow-data';
 
 /** Guild-wide coordinator settings. Timings live on each raids schedule (PLAN §6.2). */
 export interface CoordinatorConfig {
@@ -133,6 +141,31 @@ export interface RaidNight {
   raidEventId: string | null;
   /** Why it ended the way it did, in words, once resolved. */
   detail: string | null;
+}
+
+/**
+ * Last announced state for one member on one raid, seeded at T-24h digest and updated after each
+ * `#leads` change post (signup-improvements §4, row 9).
+ */
+export interface AnnouncedMemberState {
+  guildId: string;
+  eventId: string;
+  memberId: string;
+  signupId: string | null;
+  characterName: string | null;
+  class: string | null;
+  spec: string | null;
+  role: Role | null;
+  status: SignupStatus | null;
+  lateMinutes: LateMinutes | null;
+  note: string | null;
+  seated: boolean;
+  group: number | null;
+  roster: RosterState | null;
+  updatedAt: number;
+  updatedBy: string | null;
+  absenceSummary: string | null;
+  announcedAt: number;
 }
 
 /** Events the coordinator emits on the core event bus (PLAN §4.3). None yet. */

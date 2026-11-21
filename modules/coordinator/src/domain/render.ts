@@ -45,7 +45,12 @@ export function compFor(
       class: s.class,
       spec: s.spec,
       role: s.role,
-      status: s.roster === 'benched' ? ('bench' as const) : s.status,
+      status:
+        s.roster === 'benched'
+          ? ('bench' as const)
+          : s.roster === 'rostered' && s.status !== 'declined'
+            ? ('accepted' as const)
+            : s.status,
       priority: s.roster === 'rostered' ? 100 : r ? RANK_PRIORITY[r] : 0,
       signedUpAt: s.signedUpAt,
     };
@@ -188,16 +193,25 @@ export function renderDigest(
 }
 
 /**
- * Who's in: the leader's roster when they set one (rostered signups), otherwise the comp
- * solver's pick from the signups.
+ * Who's in and who's on Standby, using `compFor` (`goingOnly: true`): leader-rostered players get
+ * top priority (100), leader-benched and Standby players stay on Standby, and `pending` going
+ * signups fill remaining seats by comp and rank.
  */
 export function finalRoster(
   tick: TickEvent,
   members: TickMember[],
 ): { going: Signup[]; bench: Signup[] } {
-  const rostered = tick.signups.filter((s) => s.roster === 'rostered');
-  if (rostered.length) {
-    return { going: rostered, bench: tick.signups.filter((s) => s.roster === 'benched') };
+  const rostered = tick.signups.filter((s) => s.roster === 'rostered' && s.status !== 'declined');
+  const pendingGoing = tick.signups.some((s) => s.roster === 'pending' && GOING.has(s.status));
+  // When a leader has explicitly rostered everyone (no unplaced going signups left), keep every
+  // leader-rostered seat even if it exceeds event.size, and put Standby/benched on bench.
+  if (rostered.length && !pendingGoing) {
+    return {
+      going: rostered,
+      bench: tick.signups.filter(
+        (s) => s.roster === 'benched' || (s.roster === 'pending' && s.status === 'bench'),
+      ),
+    };
   }
   const comp = compFor(tick, members);
   const byId = new Map(tick.signups.map((s) => [s.id, s]));

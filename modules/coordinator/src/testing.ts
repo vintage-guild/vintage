@@ -9,6 +9,7 @@ import {
 } from '@vintage/discord-kit';
 import type { Poll } from '@vintage/polls/contract';
 import {
+  type AnnouncedMemberState,
   type CoordinatorAction,
   type CoordinatorConfig,
   defaultConfig,
@@ -29,16 +30,19 @@ export function createMemoryCoordinatorStore(): CoordinatorStore & {
   configs: Map<string, CoordinatorConfig>;
   actions: Map<string, CoordinatorAction>;
   raidNights: Map<string, RaidNight>;
+  announcedState: Map<string, AnnouncedMemberState>;
 } {
   const configs = new Map<string, CoordinatorConfig>();
   const actions = new Map<string, CoordinatorAction>();
   const raidNights = new Map<string, RaidNight>();
+  const announcedState = new Map<string, AnnouncedMemberState>();
   let seq = 0;
 
   return {
     configs,
     actions,
     raidNights,
+    announcedState,
     async getConfig(guildId) {
       return configs.get(guildId) ?? defaultConfig(guildId);
     },
@@ -122,6 +126,17 @@ export function createMemoryCoordinatorStore(): CoordinatorStore & {
       const next = { ...current, ...patch };
       raidNights.set(raidNightId, next);
       return next;
+    },
+    async listAnnouncedState(guildId, eventIds) {
+      const ids = new Set(eventIds);
+      return [...announcedState.values()].filter(
+        (r) => r.guildId === guildId && ids.has(r.eventId),
+      );
+    },
+    async upsertAnnouncedState(rows) {
+      for (const row of rows) {
+        announcedState.set(`${row.guildId}|${row.eventId}|${row.memberId}`, row);
+      }
     },
   };
 }
@@ -275,6 +290,9 @@ export function createStateSource(
         guildId,
         config: await store.getConfig(guildId),
         actions: await store.listActions(guildId, { eventIds }),
+        ...(store.listAnnouncedState
+          ? { announced: await store.listAnnouncedState(guildId, eventIds) }
+          : {}),
       };
     },
   };

@@ -15,6 +15,7 @@ import type {
 import type { ClassNeed } from '@vintage/site/contract';
 import type {
   ActionStatus,
+  AnnouncedMemberState,
   CoordinatorAction,
   CoordinatorConfig,
   RaidNight,
@@ -73,6 +74,10 @@ export interface CoordinatorStore {
     raidNightId: string,
     patch: Partial<Pick<RaidNight, 'outcome' | 'raidEventId' | 'detail'>>,
   ): Promise<RaidNight>;
+
+  /** Last announced member state for `#leads` change-feed diffing (optional on legacy stores). */
+  listAnnouncedState?(guildId: string, eventIds: string[]): Promise<AnnouncedMemberState[]>;
+  upsertAnnouncedState?(rows: AnnouncedMemberState[]): Promise<void>;
 }
 
 /** A guild member as the coordinator sees them. */
@@ -131,6 +136,11 @@ export interface TickState {
    * summary posts. Absent means none (sources that predate the summary).
    */
   recorded?: TickRecorded[];
+  /**
+   * Last announced per-member state for upcoming raids, for `#leads` post-digest change alerts.
+   * Absent on legacy sources; empty array means no rows seeded yet.
+   */
+  announced?: AnnouncedMemberState[];
 }
 
 /** Reads raids, identity, and the coordinator's log. apps/api adapts this over the stores. */

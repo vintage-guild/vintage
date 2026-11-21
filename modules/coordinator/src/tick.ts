@@ -22,6 +22,7 @@ import {
   renderPartyPost,
   renderSignupPost,
 } from './domain/card';
+import { renderChangeBatch, renderDropoutAlert, snapshotForEvent } from './domain/changes';
 import { triageNotes } from './domain/notes';
 import { type PlannedAction, planTick } from './domain/plan';
 import {
@@ -167,7 +168,21 @@ async function perform(
       }
     case 'digest': {
       const labels = await triageNotes(ports.decisions, state.guildId, digestNotes(tick));
-      return send(renderDigest(tick, state.members, action.waiting, labels));
+      const sent = await send(renderDigest(tick, state.members, action.waiting, labels));
+      await ports.store.upsertAnnouncedState?.(
+        snapshotForEvent(state.guildId, tick, state.members, now),
+      );
+      return sent;
+    }
+    case 'dropout': {
+      const sent = await send(renderDropoutAlert(tick, action.dropout, state.members));
+      await ports.store.upsertAnnouncedState?.([action.dropout.nextState]);
+      return sent;
+    }
+    case 'change-feed': {
+      const sent = await send(renderChangeBatch(tick, action.lines));
+      await ports.store.upsertAnnouncedState?.(action.changedRows);
+      return sent;
     }
     case 'party-draft': {
       const message = renderPartyDraft(tick, state.members);

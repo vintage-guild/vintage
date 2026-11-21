@@ -20,13 +20,20 @@ import {
   handleEventInteraction,
 } from '../src/discord-events';
 import { handleHelpInteraction } from '../src/discord-help';
+import { handleLeadsInteraction } from '../src/discord-leads';
 import { handlePollInteraction } from '../src/discord-polls';
 import { handleSignupInteraction } from '../src/discord-signups';
 import { internal } from './_generated/api';
 import { internalMutation, internalQuery } from './_generated/server';
 import { askAs, GUILD_ID, runCommandAs } from './commands';
 import { REFRESH_DELAY_MS } from './pollPosts';
-import { coordinatorScheduler, identityStore, raidsStore } from './stores';
+import {
+  coordinatorScheduler,
+  coordinatorStore,
+  identityStore,
+  raidsStore,
+  scheduleCoalescedTick,
+} from './stores';
 
 export const interaction = internalMutation({
   args: { interaction: v.any() },
@@ -74,6 +81,34 @@ export const interaction = internalMutation({
     if (character) return character;
 
     const raids = raidsStore(ctx);
+    const leads = await handleLeadsInteraction(incoming, {
+      discordGuildId,
+      guildId: GUILD_ID,
+      memberByDiscordId,
+      memberById: (memberId) => people.getMember(GUILD_ID, memberId),
+      event: (eventId) => raids.getEvent(GUILD_ID, eventId),
+      signups: (eventId) => raids.listSignups(GUILD_ID, eventId),
+      config: () => coordinatorStore(ctx).getConfig(GUILD_ID),
+      run: (caller, name, input) => runCommandAs(ctx, caller, name, input),
+      clearGroups: async (eventId) => {
+        const list = await raids.listSignups(GUILD_ID, eventId);
+        for (const s of list) {
+          if (s.group !== null) {
+            await raids.updateSignup(GUILD_ID, s.id, { group: null });
+          }
+        }
+      },
+      postMention: async (channelId, content, mentionUserId) => {
+        await ctx.scheduler.runAfter(0, internal.coordinator.postChannelMessage, {
+          channelId,
+          content,
+          mentionUserId,
+        });
+      },
+      afterChange: () => scheduleCoalescedTick(ctx, GUILD_ID),
+    });
+    if (leads) return leads;
+
     const signup = await handleSignupInteraction(incoming, {
       discordGuildId,
       guildId: GUILD_ID,

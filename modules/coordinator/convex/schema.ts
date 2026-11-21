@@ -92,4 +92,43 @@ export default defineSchema({
     .index('by_guild_claimed', ['guildId', 'claimedAt']),
   /** Raid-night polls (#64): the raid to create when its poll picks a time. */
   raidNights: defineTable(raidNightFields).index('by_guild_outcome', ['guildId', 'outcome']),
+  /**
+   * Last announced signup/absence state per member per raid, seeded at T-24h digest and updated
+   * after each `#leads` change post (signup-improvements §4, row 9).
+   */
+  announcedState: defineTable({
+    guildId: v.string(),
+    eventId: v.string(),
+    memberId: v.string(),
+    signupId: v.union(v.string(), v.null()),
+    characterName: v.union(v.string(), v.null()),
+    class: v.union(v.string(), v.null()),
+    spec: v.union(v.string(), v.null()),
+    role: v.union(
+      v.literal('tank'),
+      v.literal('healer'),
+      v.literal('melee'),
+      v.literal('ranged'),
+      v.null(),
+    ),
+    status: v.union(
+      v.literal('accepted'),
+      v.literal('late'),
+      v.literal('tentative'),
+      v.literal('bench'),
+      v.literal('declined'),
+      v.null(),
+    ),
+    lateMinutes: v.union(v.literal(5), v.literal(15), v.literal(30), v.null()),
+    note: v.union(v.string(), v.null()),
+    seated: v.boolean(),
+    group: v.union(v.number(), v.null()),
+    roster: v.union(v.literal('pending'), v.literal('rostered'), v.literal('benched'), v.null()),
+    updatedAt: v.number(),
+    updatedBy: v.union(v.string(), v.null()),
+    absenceSummary: v.union(v.string(), v.null()),
+    announcedAt: v.number(),
+  })
+    .index('by_guild_event', ['guildId', 'eventId'])
+    .index('by_key', ['guildId', 'eventId', 'memberId']),
 });

@@ -96,6 +96,13 @@ export function createTickSource(stores: {
       const eventIds = [...events, ...cancelled, ...recorded.map((r) => r.tick.event)].map(
         (e) => e.id,
       );
+      const liveEventIds = events.map((e) => e.id);
+      const [actions, announced] = await Promise.all([
+        eventIds.length ? coordinator.listActions(guildId, { eventIds }) : Promise.resolve([]),
+        liveEventIds.length && coordinator.listAnnouncedState
+          ? coordinator.listAnnouncedState(guildId, liveEventIds)
+          : Promise.resolve([]),
+      ]);
       return {
         guildId,
         config,
@@ -104,7 +111,8 @@ export function createTickSource(stores: {
         cancelled: cancelled.map((event) => ({ event, timings: DEFAULT_TIMINGS, signups: [] })),
         recorded,
         members,
-        actions: eventIds.length ? await coordinator.listActions(guildId, { eventIds }) : [],
+        actions,
+        announced,
       };
     },
   };

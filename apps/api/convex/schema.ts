@@ -12,4 +12,9 @@ export default defineSchema({
     emittedAt: v.number(),
     processedAt: v.optional(v.number()),
   }).index('by_unprocessed', ['processedAt', 'emittedAt']),
+  /** Coalesced immediate coordinator tick window per guild (signup-improvements row 9). */
+  tickSchedules: defineTable({
+    guildId: v.string(),
+    scheduledFor: v.number(),
+  }).index('by_guild', ['guildId']),
 });

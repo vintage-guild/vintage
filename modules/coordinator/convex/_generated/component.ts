@@ -68,6 +68,44 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         Name
       >;
     };
+    announcedState: {
+      listByEvents: FunctionReference<
+        "query",
+        "internal",
+        { eventIds: Array<string>; guildId: string },
+        any,
+        Name
+      >;
+      upsertMany: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          rows: Array<{
+            absenceSummary: string | null;
+            announcedAt: number;
+            characterName: string | null;
+            class: string | null;
+            eventId: string;
+            group: number | null;
+            guildId: string;
+            lateMinutes: 5 | 15 | 30 | null;
+            memberId: string;
+            note: string | null;
+            role: "tank" | "healer" | "melee" | "ranged" | null;
+            roster: "pending" | "rostered" | "benched" | null;
+            seated: boolean;
+            signupId: string | null;
+            spec: string | null;
+            status:
+              "accepted" | "late" | "tentative" | "bench" | "declined" | null;
+            updatedAt: number;
+            updatedBy: string | null;
+          }>;
+        },
+        any,
+        Name
+      >;
+    };
     config: {
       get: FunctionReference<
         "query",

@@ -25,8 +25,26 @@ import {
   pollsDeps,
   progressDeps,
   raidsDeps,
+  scheduleCoalescedTick,
   siteDeps,
 } from './stores';
+
+/** Mutations that affect raid cards, party drafts, or `#leads` change alerts (coalesced ~12s). */
+const TICK_TRIGGERS = new Set([
+  'signup-set',
+  'roster-move',
+  'roster-bench',
+  'roster-remove',
+  'roster-approve',
+  'roster-lock',
+  'roster-unlock',
+  'raid-create',
+  'raid-update',
+  'raid-cancel',
+  'absence-add',
+  'absence-weekly-set',
+  'absence-remove',
+]);
 
 /** Single-guild deployment for now; every record still carries guildId (PLAN §3.11). */
 export const GUILD_ID = process.env.VINTAGE_GUILD_ID ?? 'vintage';
@@ -94,7 +112,11 @@ const requestArgsValidator = v.object(requestArgs);
 
 async function runAs(ctx: Ctx, caller: Caller, { name, input, confirmToken }: RunArgs) {
   const request = confirmToken ? { name, input, caller, confirmToken } : { name, input, caller };
-  return toConvex(await registry().execute(request, deps(ctx)));
+  const result = await registry().execute(request, deps(ctx));
+  if (result.success && TICK_TRIGGERS.has(name) && 'runMutation' in ctx) {
+    await scheduleCoalescedTick(ctx, caller.guildId);
+  }
+  return toConvex(result);
 }
 
 /** Any command, including mutations and the dryRun → confirm flow. */

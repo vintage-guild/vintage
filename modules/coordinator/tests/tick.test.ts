@@ -351,7 +351,7 @@ describe('runTick', () => {
     expect(digest).toBeDefined();
   });
 
-  it('shows role counters, late people with their reason, and the queue', async () => {
+  it('shows 4 role columns with spec icons, late minutes, inline tentative reasons, and standby', async () => {
     signups = [
       signup('aeryn'),
       signup('bram', {
@@ -359,35 +359,58 @@ describe('runTick', () => {
         spec: 'holy',
         role: 'healer',
         status: 'late',
-        note: 'after work',
+        lateMinutes: 15,
       }),
       signup('cade', { status: 'tentative', note: 'maybe' }),
-      signup('pip', { class: 'mage', spec: 'frost', role: 'ranged', queued: true }),
+      signup('pip', { class: 'mage', spec: 'frost', role: 'ranged', status: 'bench' }),
     ];
     await tick(START - 100 * HOUR);
     const message = discord.sent[0]!.message;
     const text = messageText(message);
-    // Who's in per role against the 10-person targets; Pip is queued, so not counted.
-    // Each column header carries its role's outline icon.
-    expect(text).toMatch(/<:head_tank:\d+> Tanks 1\/2\n<:square_warrior:\d+> 1 Aeryn \*prot\*/);
+    expect(text).toMatch(/<:head_tank:\d+> Tanks 1\/2\n<:spec_warrior_protection:\d+> Aeryn/);
     expect(text).toMatch(
-      /<:head_healer:\d+> Healers 1\/3\n<:square_priest:\d+> 2 Bram \*holy\* <:status_late:\d+>/,
+      /<:head_healer:\d+> Healers 1\/3\n<:spec_priest_holy:\d+> Bram <:status_late:\d+> 15m/,
     );
-    expect(text).toMatch(/<:head_dps:\d+> DPS 0\/5\n—/);
-    // Counts are spaced with em spaces, since Discord collapses repeated spaces.
+    expect(text).toMatch(/Melee 0\n—/);
+    expect(text).toMatch(/Ranged 0\n—/);
     const em = String.fromCharCode(0x2003);
     expect(text).toContain(`**1** going${em}<:status_late:`);
     expect(text).toContain(`**1** late${em}<:status_tentative:`);
-    // The lock and size sit on their own line, as subtext.
     expect(text).toMatch(
       /\n-# <:info_open:\d+> Signups open · lock \d+h before · 10-person raid\n/,
     );
-    expect(text).toMatch(/<:status_queued:\d+> \*\*1\*\* queued/);
-    expect(text).toMatch(/Queue 1\n1\. <:square_mage:\d+> Pip \*frost\*/);
-    expect(text).toMatch(/\*\*Tentative\*\* <:square_warrior:\d+> Cade \*prot\*/);
-    expect(text).toMatch(/Late: Bram \(after work\) · Tentative: Cade \(maybe\)/);
-    // Everyone fits on the card, so there's no Roster button.
-    expect(buttonLabels(message)).toEqual(['Accept', 'Late', 'Tentative', 'Standby', 'Decline']);
+    expect(text).toMatch(/\*\*Standby\*\* <:spec_mage_frost:\d+> Pip/);
+    expect(text).toMatch(/\*\*Tentative\*\* <:spec_warrior_protection:\d+> Cade \(maybe\)/);
+    expect(buttonLabels(message)).toEqual(['Accept', 'Late', 'Tentative', 'Standby', 'Absent']);
+  });
+
+  it('posts T-24h party draft to leads, posts parties on approval, and promotes in place at lock', async () => {
+    await tick(START - 100 * HOUR);
+    await tick(START - 24 * HOUR);
+    const draft = discord.sent.find(
+      (s) => s.to === OPS && s.message.embeds?.[0]?.title?.startsWith('Party draft'),
+    );
+    expect(draft).toBeDefined();
+    // Leader approves the roster: party post goes to SIGNUPS.
+    event = { ...event, rosterApprovedAt: START - 20 * HOUR, rosterApprovedBy: 'rook' };
+    await tick(START - 20 * HOUR);
+    const partyPost = discord.sent.find(
+      (s) => s.to === SIGNUPS && s.message.embeds?.[0]?.title?.startsWith('Parties ·'),
+    );
+    expect(partyPost).toBeDefined();
+    // At lock (T-2h), the approved party post is edited in place into Final roster (no separate post).
+    await tick(START - 2 * HOUR);
+    const lockEdit = discord.sent.find(
+      (s) =>
+        s.kind === 'edit' &&
+        s.messageId === partyPost!.messageId &&
+        s.message.embeds?.[0]?.title?.startsWith('Final roster ·'),
+    );
+    expect(lockEdit).toBeDefined();
+    const separateFinals = discord.sent.filter(
+      (s) => s.kind === 'post' && s.message.embeds?.[0]?.title?.startsWith('Final roster ·'),
+    );
+    expect(separateFinals).toHaveLength(0);
   });
 
   it('reposts a card deleted in Discord and removes the old message on repost', async () => {

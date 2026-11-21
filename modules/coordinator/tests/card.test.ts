@@ -3,9 +3,11 @@ import { DEFAULT_TIMINGS, type RaidEvent, type Signup } from '@vintage/raids/con
 import type { WowClass } from '@vintage/wow-data';
 import { describe, expect, it } from 'vitest';
 import {
-  COLUMN_CAP,
   emoji,
+  fitLines,
   renderFinalRoster,
+  renderPartyDraft,
+  renderPartyPost,
   renderRosterReply,
   renderSignupPost,
 } from '../src/domain/card';
@@ -74,7 +76,7 @@ function fullRaid(): TickEvent {
   return { event, timings: DEFAULT_TIMINGS, signups };
 }
 
-/** Discord's embed limits: 25 fields, 1024 per field value, 256 per title, 6000 in total. */
+/** Discord's embed limits: 25 fields, 1024 per field value, 256 per title, 6000 in total, no split emoji. */
 function expectWithinLimits(message: MessageData) {
   for (const e of message.embeds ?? []) {
     const fields = e.fields ?? [];
@@ -82,6 +84,8 @@ function expectWithinLimits(message: MessageData) {
     for (const f of fields) {
       expect(f.value.trim().length).toBeGreaterThan(0);
       expect(f.value.length).toBeLessThanOrEqual(EMBED_LIMITS.fieldValue);
+      // Never slice mid-emoji token like "<:spec_warrior_prot"
+      expect(f.value).not.toMatch(/<:[^>]*$/);
     }
     expect((e.title ?? '').length).toBeLessThanOrEqual(EMBED_LIMITS.title);
     const total =
@@ -94,47 +98,80 @@ function expectWithinLimits(message: MessageData) {
 }
 
 describe('raid cards', () => {
-  it('a full 40-person card stays inside Discord limits and keeps its height', () => {
-    const message = renderSignupPost(fullRaid(), []);
+  it('a 40-person card with long names, late/recruit marks, and tentative reasons stays within Discord limits', () => {
+    const base = fullRaid();
+    // Worst-case long first+last names, late minutes, tentative reasons on everyone tentative.
+    const statusFor = (i: number): Signup['status'] => {
+      if (i >= 46) return 'tentative';
+      if (i >= 40) return 'bench';
+      return i % 5 === 0 ? 'late' : 'accepted';
+    };
+    const signups = base.signups.map((s, i) => {
+      const status = statusFor(i);
+      return {
+        ...s,
+        characterName: `Thalassian Longsurname${String(i).padStart(2, '0')}`,
+        status,
+        lateMinutes: status === 'late' ? (15 as const) : null,
+        note: status === 'tentative' ? 'might be stuck in traffic after work' : null,
+      };
+    });
+    const members = signups.map((s, i) => ({
+      memberId: s.memberId,
+      discordId: `200000000000000${String(i).padStart(3, '0')}`,
+      displayName: s.characterName,
+      rank: (i % 4 === 0 ? 'recruit' : 'raider') as 'recruit' | 'raider',
+      dmOptOut: false,
+    }));
+    const message = renderSignupPost({ ...base, signups }, members, {
+      siteUrl: 'https://vintage.guild',
+    });
     expectWithinLimits(message);
-    const [tanks, healers, dps] = (message.embeds![0] as Embed).fields!;
-    // Three columns, each capped, so the card height doesn't grow with the raid.
-    for (const column of [tanks, healers, dps]) {
-      expect(column!.inline).toBe(true);
-      expect(column!.value.split('\n').length).toBeLessThanOrEqual(COLUMN_CAP + 1);
-    }
-    expect(dps!.value).toMatch(/\+\d+ more…$/);
-    expect(buttonLabels(message)).toEqual([
-      'Accept',
-      'Late',
-      'Tentative',
-      'Standby',
-      'Decline',
-      'Roster',
-    ]);
+    const fields = (message.embeds![0] as Embed).fields!;
+    // 2x2 role columns + 2 inline spacers = 6 inline fields.
+    expect(fields.slice(0, 6).every((f) => f.inline === true)).toBe(true);
+    expect(fields[0]!.name).toContain('Tanks');
+    expect(fields[1]!.name).toContain('Healers');
+    expect(fields[3]!.name).toContain('Melee');
+    expect(fields[4]!.name).toContain('Ranged');
+    // No footer (Tentative reasons are inline).
+    expect((message.embeds![0] as Embed).footer).toBeUndefined();
+    expect(buttonLabels(message)).toContain('Absent');
+    expect(buttonLabels(message)).toContain('Raid page');
   });
 
-  it('offers Roster only when the card leaves someone out', () => {
+  it('fitLines packs whole lines within the budget and never splits tokens', () => {
+    const lines = Array.from(
+      { length: 30 },
+      (_, i) => `<:spec_mage_frost:1564133153134739537> LongName${i}`,
+    );
+    const fitted = fitLines(lines, 200);
+    expect(fitted.text.length).toBeLessThanOrEqual(200);
+    expect(fitted.hidden).toBeGreaterThan(0);
+    expect(fitted.text).toMatch(/\+\d+ more…$/);
+    expect(fitted.text).not.toMatch(/<:[^>]*$/);
+  });
+
+  it('offers Roster only when the card leaves someone out or someone is absent', () => {
     const raid = fullRaid();
     const hasRoster = (signups: typeof raid.signups) =>
       buttonLabels(renderSignupPost({ ...raid, signups }, [])).includes('Roster');
-    // The full raid's DPS column runs past the cap.
-    expect(hasRoster(raid.signups)).toBe(true);
     // A handful going, all shown: no Roster.
     const few = raid.signups
       .slice(0, 3)
       .map((s) => ({ ...s, status: 'accepted' as const, queued: false }));
     expect(hasRoster(few)).toBe(false);
-    // One declined: the card counts them but doesn't name them.
+    // One absent: the card counts them but doesn't name them, so Roster shows.
     expect(hasRoster([...few, { ...few[0]!, id: 'd1', status: 'declined' as const }])).toBe(true);
-    // More tentative than the card lists; exactly the cap still fits.
-    const maybes = Array.from({ length: 11 }, (_, i) => ({
+    // Overflowing tentative list triggers Roster.
+    const manyTentative = Array.from({ length: 30 }, (_, i) => ({
       ...few[0]!,
       id: `t${i}`,
+      characterName: `VeryLongTentativeName${i}`,
       status: 'tentative' as const,
+      note: 'might have to work late tonight',
     }));
-    expect(hasRoster([...few, ...maybes])).toBe(true);
-    expect(hasRoster([...few, ...maybes.slice(0, 10)])).toBe(false);
+    expect(hasRoster([...few, ...manyTentative])).toBe(true);
   });
 
   it('the Roster reply lists everyone and stays inside the limits', () => {
@@ -146,19 +183,26 @@ describe('raid cards', () => {
     }
   });
 
-  it('the final roster stays inside the limits too', () => {
-    expectWithinLimits(renderFinalRoster(fullRaid(), []));
-  });
-
-  it('the final roster sends no empty field when nobody is benched', () => {
+  it('the final roster stays inside the limits and sends no empty Standby field', () => {
     const raid = fullRaid();
+    expectWithinLimits(renderFinalRoster(raid, []));
     const few = raid.signups
       .slice(0, 3)
       .map((s) => ({ ...s, status: 'accepted' as const, queued: false }));
     const message = renderFinalRoster({ ...raid, signups: few }, []);
     expectWithinLimits(message);
-    const benched = (message.embeds![0] as Embed).fields!.find((f) => f.name === 'Benched');
-    expect(benched?.value).toBe('—');
+    const standby = (message.embeds![0] as Embed).fields!.find((f) => f.name === 'Standby');
+    expect(standby?.value).toBe('—');
+  });
+
+  it('renders party draft and approved party post within Discord limits', () => {
+    const raid = fullRaid();
+    const draft = renderPartyDraft(raid, [], { siteUrl: 'https://vintage.guild' });
+    expectWithinLimits(draft);
+    expect(buttonLabels(draft)).toEqual(['Approve and post', 'Redraft', 'Edit in the quarters']);
+    const partyPost = renderPartyPost(raid, [], { locked: true });
+    expectWithinLimits(partyPost);
+    expect((partyPost.embeds![0] as Embed).title).toContain('Final roster');
   });
 
   it("quotes the raid's notes under the lock line, a block per paragraph, within the limits", () => {
@@ -231,11 +275,11 @@ describe('event kinds on the card', () => {
     const card = message.embeds![0] as Embed;
     expect(card.title).toBe('Dungeon · Cathedral run · Scarlet Monastery');
     expect(card.description).toContain('5-person dungeon');
-    expect(card.fields!.slice(0, 3).map((f) => plain(f.name))).toEqual([
-      'Tanks 1/1',
-      'Healers 0/1',
-      'DPS 0/3',
-    ]);
+    expect(
+      [card.fields![0]!, card.fields![1]!, card.fields![3]!, card.fields![4]!].map((f) =>
+        plain(f.name),
+      ),
+    ).toEqual(['Tanks 1/1', 'Healers 0/1', 'Melee 0', 'Ranged 0']);
     const text = messageText(message);
     expect(text).toContain('**Missing** 1 healer · 3 dps');
     expect(text).not.toMatch(/MotW|Fort\b/);

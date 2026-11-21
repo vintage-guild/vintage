@@ -121,7 +121,7 @@ describe('JTBD: raid night', () => {
       'Late',
       'Tentative',
       'Standby',
-      'Decline',
+      'Absent',
     ]);
     // Running again posts nothing new.
     await g.host.tick();
@@ -135,7 +135,7 @@ describe('JTBD: raid night', () => {
     const edit = g.host.editsTo(SIGNUP_CHANNEL).at(-1)!;
     const text = messageText(edit.message);
     expect(text).toMatch(/\*\*1\*\* going/);
-    expect(text).toMatch(/Tanks 1\/4\n<:square_warrior:\d+> 1 Aeryn \*prot\*/);
+    expect(text).toMatch(/Tanks 1\/4\n<:spec_warrior_protection:\d+> Aeryn/);
     expect(text).toMatch(/Healers 0\/10\n—/);
   });
 
@@ -639,11 +639,8 @@ describe('JTBD: raid night', () => {
     });
     await g.host.tick();
     const text = messageText(g.host.editsTo(SIGNUP_CHANNEL).at(-1)!.message);
-    // Late still takes a spot: listed with the healers, marked late, reason underneath.
-    expect(text).toMatch(
-      /Healers 1\/10\n<:square_paladin:\d+> 1 Anarra \*holy\* <:status_late:\d+>/,
-    );
-    expect(text).toMatch(/Late: Anarra \(after work, ~20 min\)/);
+    // Late still takes a spot: listed with the healers, marked late with minutes.
+    expect(text).toMatch(/Healers 1\/10\n<:spec_paladin_holy:\d+> Anarra <:status_late:\d+> 15m/);
     g.host.clock.advance(WED - 24 * HOUR - g.host.clock.now());
     await g.host.tick();
     const digest = g.host.sentTo(OPS_CHANNEL).find((m) => m.message.content?.includes('confirmed'));
@@ -1473,7 +1470,8 @@ describe('JTBD: raid night', () => {
     expect(text).toContain('5-person dungeon');
     expect(text).toMatch(/Tanks 1\/1/);
     expect(text).toMatch(/Healers 0\/1/);
-    expect(text).toMatch(/DPS 0\/3/);
+    expect(text).toMatch(/Melee 0/);
+    expect(text).toMatch(/Ranged 0/);
     expect(text).toContain('**Missing** 1 healer · 3 dps');
     expect(text).not.toMatch(/MotW|Fort|Mark of the Wild|Fortitude|Arcane Intellect/);
 

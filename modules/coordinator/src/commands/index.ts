@@ -21,12 +21,24 @@ import { command } from '../store';
 import { raidNightPoll } from './raid-night';
 
 export { renderRosterReply } from '../domain/card';
+export {
+  type DropoutAlert,
+  diffEventChanges,
+  type EventChangeDiff,
+  renderChangeBatch,
+  renderDropoutAlert,
+  type SeatCandidate,
+  seatCandidatesFor,
+  snapshotForEvent,
+} from '../domain/changes';
+export { leadsChannelFor, signupChannelFor } from '../domain/plan';
 export type {
   CoordinatorDeps,
   CoordinatorDiscord,
   CoordinatorPolls,
   CoordinatorRaids,
   CoordinatorStore,
+  TickAway,
   TickDrop,
   TickEvent,
   TickMember,
@@ -34,6 +46,7 @@ export type {
   TickRecorded,
   TickSource,
   TickState,
+  TickUsuallyLate,
 } from '../store';
 export { runTick, type TickReport } from '../tick';
 

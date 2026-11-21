@@ -455,6 +455,12 @@ export function coordinatorStore(ctx: Ctx): CoordinatorStore {
       writable(ctx).runMutation(coordinator.raidNights.insert, raidNight),
     updateRaidNight: (guildId, raidNightId, patch) =>
       writable(ctx).runMutation(coordinator.raidNights.update, { guildId, raidNightId, patch }),
+    listAnnouncedState: (guildId, eventIds) =>
+      ctx.runQuery(coordinator.announcedState.listByEvents, { guildId, eventIds }),
+    upsertAnnouncedState: async (rows) => {
+      if (rows.length === 0) return;
+      await writable(ctx).runMutation(coordinator.announcedState.upsertMany, { rows });
+    },
   };
 }
 
@@ -480,6 +486,30 @@ export type RunCommand = (
   name: string,
   input: unknown,
 ) => Promise<CommandResult<unknown>>;
+
+/** Coalesce immediate ticks over ~12 seconds so batch moves on the site arrive as one `#leads` post. */
+export const TICK_COALESCE_MS = 12_000;
+
+export async function scheduleCoalescedTick(
+  ctx: Ctx,
+  guildId: string,
+  delayMs = TICK_COALESCE_MS,
+): Promise<void> {
+  const m = writable(ctx);
+  const now = Date.now();
+  const existing = await m.db
+    .query('tickSchedules')
+    .withIndex('by_guild', (q) => q.eq('guildId', guildId))
+    .first();
+  if (existing && existing.scheduledFor > now) return;
+  const scheduledFor = now + delayMs;
+  if (existing) {
+    await m.db.patch(existing._id, { scheduledFor });
+  } else {
+    await m.db.insert('tickSchedules', { guildId, scheduledFor });
+  }
+  await m.scheduler.runAfter(delayMs, tickNow, {});
+}
 
 /** Starts a coordinator tick outside the current transaction. */
 export function coordinatorScheduler(ctx: Ctx): CoordinatorDeps['scheduler'] {

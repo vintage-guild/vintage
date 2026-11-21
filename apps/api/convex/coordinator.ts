@@ -165,6 +165,31 @@ export const setRenderHash = internalMutation({
     coordinatorStore(ctx).setRenderHash(guildId, actionId, renderHash),
 });
 
+export const upsertAnnouncedState = internalMutation({
+  args: { rows: v.array(v.any()) },
+  handler: async (ctx, { rows }) => {
+    await coordinatorStore(ctx).upsertAnnouncedState?.(rows);
+  },
+});
+
+/** Post a single Discord message to a channel (e.g. one-time mention when `[Seat X]` seats someone). */
+export const postChannelMessage = internalAction({
+  args: {
+    channelId: v.string(),
+    content: v.string(),
+    mentionUserId: v.optional(v.string()),
+  },
+  handler: async (_ctx, { channelId, content, mentionUserId }) => {
+    const token = process.env.DISCORD_BOT_TOKEN;
+    if (!token) return;
+    const rest = createDiscordRest({ token });
+    await rest.createMessage(channelId, {
+      content,
+      allowed_mentions: mentionUserId ? { users: [mentionUserId] } : { parse: [] },
+    });
+  },
+});
+
 /** Server events go to the Discord server DISCORD_GUILD_ID names; without it they fail clearly. */
 function discordPorts(token: string, discordGuildId: string | undefined): CoordinatorDiscord {
   const rest = createDiscordRest({ token });
@@ -240,6 +265,10 @@ export const tick = internalAction({
               outcome: patch.outcome,
               detail: patch.detail ?? '',
             });
+          },
+          upsertAnnouncedState: async (rows) => {
+            if (rows.length === 0) return;
+            await ctx.runMutation(internal.coordinator.upsertAnnouncedState, { rows });
           },
         },
         polls: {

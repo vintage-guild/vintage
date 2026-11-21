@@ -17,8 +17,10 @@
 //                  what dropped, to the signup channel; edited when a different export replaces
 //                  it (not logged, like refresh)
 import { accessOf, kindOf, type RaidEvent, type Signup } from '@vintage/raids/contract';
-import type { CoordinatorAction, CoordinatorConfig } from '../contract';
+import type { AnnouncedMemberState, CoordinatorAction, CoordinatorConfig } from '../contract';
 import type { TickEvent, TickMember, TickRecorded, TickState } from '../store';
+import { type DropoutAlert, diffEventChanges } from './changes';
+import { hashJson } from './render';
 import { MAX_SERVER_EVENTS } from './server-event';
 
 const HOUR = 60 * 60 * 1000;
@@ -53,6 +55,21 @@ export type PlannedAction =
       post: CoordinatorAction;
     }
   | { kind: 'digest'; tick: TickEvent; rule: 'digest'; target: string; waiting: TickMember[] }
+  | {
+      kind: 'dropout';
+      tick: TickEvent;
+      rule: string;
+      target: string;
+      dropout: DropoutAlert;
+    }
+  | {
+      kind: 'change-feed';
+      tick: TickEvent;
+      rule: string;
+      target: string;
+      lines: string[];
+      changedRows: AnnouncedMemberState[];
+    }
   | { kind: 'party-draft'; tick: TickEvent; rule: 'party-draft'; target: string }
   | { kind: 'party-draft-update'; tick: TickEvent; draft: CoordinatorAction }
   | { kind: 'party-post'; tick: TickEvent; rule: 'party-post'; target: string }
@@ -108,12 +125,19 @@ function settled(actions: CoordinatorAction[], eventId: string): Set<string> {
   );
 }
 
-/** Expected members with no signup for the raid. */
+/** Expected members with no signup (and not covered as away by an absence) for the raid. */
 export function nonResponders(state: TickState, tick: TickEvent): TickMember[] {
   const answered = new Set(tick.signups.map((s) => s.memberId));
+  const away = new Set((tick.away ?? []).map((a) => a.memberId));
   const expected = new Set(state.config.expectedRanks);
   return state.members
-    .filter((m) => m.rank !== null && expected.has(m.rank) && !answered.has(m.memberId))
+    .filter(
+      (m) =>
+        m.rank !== null &&
+        expected.has(m.rank) &&
+        !answered.has(m.memberId) &&
+        !away.has(m.memberId),
+    )
     .sort((a, b) => a.displayName.localeCompare(b.displayName));
 }
 
@@ -195,6 +219,49 @@ function planDigest(
   return [
     { kind: 'digest', tick, rule: 'digest', target: leads, waiting: nonResponders(state, tick) },
   ];
+}
+
+function planChanges(
+  state: TickState,
+  tick: TickEvent,
+  done: Set<string>,
+  now: number,
+): PlannedAction[] {
+  // Change feed runs only for raids, after the T-24h digest has posted (signup-improvements §4).
+  if (kindOf(tick.event) !== 'raid' || state.announced === undefined) return [];
+  const leads = leadsChannelFor(state.config);
+  if (!leads || !sentAction(state, tick.event.id, 'digest')) return [];
+  const previous = state.announced.filter((r) => r.eventId === tick.event.id);
+  const diff = diffEventChanges(state.guildId, tick, state.members, previous, now);
+  const out: PlannedAction[] = [];
+  const dropoutMembers = new Set<string>();
+  for (const dropout of diff.dropouts) {
+    dropoutMembers.add(dropout.memberId);
+    const key = hashJson({
+      m: dropout.memberId,
+      r: dropout.role,
+      s: dropout.nextState.status,
+      u: dropout.nextState.updatedAt,
+    });
+    const rule = `dropout-${dropout.memberId}-${key}`;
+    if (!done.has(`${rule}|${leads}`)) {
+      out.push({ kind: 'dropout', tick, rule, target: leads, dropout });
+    }
+  }
+  if (diff.lines.length > 0) {
+    const rule = `changes-${hashJson(diff.lines)}`;
+    if (!done.has(`${rule}|${leads}`)) {
+      out.push({
+        kind: 'change-feed',
+        tick,
+        rule,
+        target: leads,
+        lines: diff.lines,
+        changedRows: diff.changedRows.filter((r) => !dropoutMembers.has(r.memberId)),
+      });
+    }
+  }
+  return out;
 }
 
 function planPartyDraft(
@@ -388,6 +455,7 @@ function planEvent(
     ...planPromotions(state, tick, done),
     ...planReminders(state, tick, done, now, post),
     ...planDigest(state, tick, done, now),
+    ...planChanges(state, tick, done, now),
     ...planParties(state, tick, done, now, partyDraftHash, partyPostHash),
     ...planLock(state, tick, done, now),
   );

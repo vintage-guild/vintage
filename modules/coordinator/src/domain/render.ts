@@ -45,7 +45,12 @@ export function compFor(
       class: s.class,
       spec: s.spec,
       role: s.role,
-      status: s.roster === 'benched' ? ('bench' as const) : s.status,
+      status:
+        s.roster === 'benched'
+          ? ('bench' as const)
+          : s.roster === 'rostered' && s.status !== 'declined'
+            ? ('accepted' as const)
+            : s.status,
       priority: s.roster === 'rostered' ? 100 : r ? RANK_PRIORITY[r] : 0,
       signedUpAt: s.signedUpAt,
     };
@@ -138,6 +143,54 @@ export function digestNotes(tick: TickEvent): NoteInput[] {
  * offers to swap characters or roles get their own line; every other note reads as before. Without
  * labels (no key, paused, failed, unsure) the digest is exactly the old one.
  */
+const FLEX_VERB: Record<string, string> = {
+  tank: 'tank',
+  healer: 'heal',
+  melee: 'melee',
+  ranged: 'ranged',
+};
+
+function flexGapHints(comp: CompResult, signups: readonly Signup[]): string[] {
+  const hints: string[] = [];
+  const gapRoles = new Set<Signup['role']>();
+  for (const g of comp.gaps) {
+    if (g.kind !== 'role' || g.role === 'dps') continue;
+    gapRoles.add(g.role);
+  }
+  for (const role of gapRoles) {
+    const names = signups
+      .filter((s) => s.status !== 'declined' && s.role !== role && s.alsoRoles.includes(role))
+      .map((s) => s.characterName)
+      .sort((a, b) => a.localeCompare(b));
+    if (names.length) hints.push(`Can also ${FLEX_VERB[role] ?? role}: ${names.join(', ')}.`);
+  }
+  return hints;
+}
+
+function digestGapLine(comp: CompResult, signups: readonly Signup[]): string {
+  const base = gapLine(comp);
+  if (!comp.gaps.length) return base;
+  const hints = flexGapHints(comp, signups);
+  return hints.length ? `${base}. ${hints.join(' ')}` : base;
+}
+
+function formatWaitingLine(tick: TickEvent, waiting: TickMember[]): string {
+  if (!waiting.length) return 'Everyone expected has answered.';
+  const lateByMember = new Map((tick.usuallyLate ?? []).map((u) => [u.memberId, u.lateMinutes]));
+  const names = waiting.map((m) => {
+    const mins = lateByMember.get(m.memberId);
+    return mins ? `${m.displayName} (usually ${mins}m late)` : m.displayName;
+  });
+  return `Not answered (${waiting.length}): ${names.join(', ')}`;
+}
+
+function formatAbsentLine(tick: TickEvent): string | null {
+  const away = tick.away ?? [];
+  if (!away.length) return null;
+  const names = away.map((a) => (a.reason ? `${a.displayName} (${a.reason})` : a.displayName));
+  return `Absent (${away.length}): ${names.join(', ')}`;
+}
+
 export function renderDigest(
   tick: TickEvent,
   members: TickMember[],
@@ -145,9 +198,8 @@ export function renderDigest(
   labels: Map<string, NoteLabel> | null = null,
 ): MessageData {
   const comp = compFor(tick, members);
-  const waitingLine = waiting.length
-    ? `Not answered (${waiting.length}): ${waiting.map((m) => m.displayName).join(', ')}`
-    : 'Everyone expected has answered.';
+  const waitingLine = formatWaitingLine(tick, waiting);
+  const absentLine = formatAbsentLine(tick);
   const label = (s: Signup) => labels?.get(s.id);
   const flagged = tick.signups.filter((s) => s.note && label(s)?.needsOfficer);
   const swaps = tick.signups.filter(
@@ -161,9 +213,11 @@ export function renderDigest(
   const withReasons = (status: Signup['status'], title: string) => {
     const people = tick.signups.filter((s) => s.status === status);
     if (!people.length) return null;
-    const names = people.map((s) =>
-      s.note && !lifted.has(s.id) ? `${s.characterName} (${s.note})` : s.characterName,
-    );
+    const names = people.map((s) => {
+      const mins = status === 'late' && s.lateMinutes ? ` ${s.lateMinutes}m` : '';
+      const note = s.note && !lifted.has(s.id) ? ` (${s.note})` : '';
+      return `${s.characterName}${mins}${note}`;
+    });
     return `${title} (${people.length}): ${names.join(', ')}`;
   };
   const queued = tick.signups.filter((s) => s.queued).length;
@@ -172,13 +226,14 @@ export function renderDigest(
       `**${eventTitle(tick.event)}** ${when(tick.event.startsAt)}`,
       `${countOf(comp.counts.confirmed, tick.event)} confirmed · ${roleCounters(tick.signups)}` +
         `${queued ? ` · ${queued} queued` : ''}`,
-      gapLine(comp),
+      digestGapLine(comp, tick.signups),
       listed('**Needs an officer**', flagged),
       listed('Offers to swap', swaps),
       withReasons('late', 'Late'),
       withReasons('tentative', 'Tentative'),
       withReasons('bench', 'Bench'),
       waitingLine,
+      absentLine,
     ]
       .filter((line): line is string => line !== null)
       .join('\n')
@@ -188,16 +243,25 @@ export function renderDigest(
 }
 
 /**
- * Who's in: the leader's roster when they set one (rostered signups), otherwise the comp
- * solver's pick from the signups.
+ * Who's in and who's on Standby, using `compFor` (`goingOnly: true`): leader-rostered players get
+ * top priority (100), leader-benched and Standby players stay on Standby, and `pending` going
+ * signups fill remaining seats by comp and rank.
  */
 export function finalRoster(
   tick: TickEvent,
   members: TickMember[],
 ): { going: Signup[]; bench: Signup[] } {
-  const rostered = tick.signups.filter((s) => s.roster === 'rostered');
-  if (rostered.length) {
-    return { going: rostered, bench: tick.signups.filter((s) => s.roster === 'benched') };
+  const rostered = tick.signups.filter((s) => s.roster === 'rostered' && s.status !== 'declined');
+  const pendingGoing = tick.signups.some((s) => s.roster === 'pending' && GOING.has(s.status));
+  // When a leader has explicitly rostered everyone (no unplaced going signups left), keep every
+  // leader-rostered seat even if it exceeds event.size, and put Standby/benched on bench.
+  if (rostered.length && !pendingGoing) {
+    return {
+      going: rostered,
+      bench: tick.signups.filter(
+        (s) => s.roster === 'benched' || (s.roster === 'pending' && s.status === 'bench'),
+      ),
+    };
   }
   const comp = compFor(tick, members);
   const byId = new Map(tick.signups.map((s) => [s.id, s]));

@@ -644,7 +644,7 @@ describe('JTBD: raid night', () => {
     g.host.clock.advance(WED - 24 * HOUR - g.host.clock.now());
     await g.host.tick();
     const digest = g.host.sentTo(OPS_CHANNEL).find((m) => m.message.content?.includes('confirmed'));
-    expect(digest?.message.content).toMatch(/Late \(1\): Anarra \(after work, ~20 min\)/);
+    expect(digest?.message.content).toMatch(/Late \(1\): Anarra 15m \(after work, ~20 min\)/);
   });
 
   it('J13 · when a raid is full, comp-based seating decides and no one is auto-promoted', async () => {
@@ -783,6 +783,7 @@ describe('JTBD: raid night', () => {
       `signup-char:${wed.id}`,
       `signup-spec:${wed.id}`,
       `signup-role:${wed.id}`,
+      `signup-also:${wed.id}`,
     ]);
     expect(menus(accepted)[0]!.options.map((o) => o.label)).toEqual(['Aeryn', 'New character…']);
     expect(menus(accepted)[1]!.options.map((o) => `${o.label}: ${o.description}`)).toEqual([
@@ -813,7 +814,7 @@ describe('JTBD: raid night', () => {
       lateMinutes: 15,
     });
     expect(content(late)).toMatch(
-      /\*\*Bench\*\* for Raid night as \*\*Bramble\*\* \(Holy Priest, healer\): your main\./,
+      /\*\*Standby\*\* for Raid night as \*\*Bramble\*\* \(Holy Priest, healer\): your main\./,
     );
 
     // Several characters and no main to guess (she removed it): a private picker asks which,
@@ -837,13 +838,16 @@ describe('JTBD: raid night', () => {
       `signup-char:${wed.id}`,
       `signup-spec:${wed.id}`,
       `signup-role:${wed.id}`,
+      `signup-also:${wed.id}`,
     ]);
     // Next time, their signed-up character is used without asking.
     const again = await ui.click(g.dara.discordId!, `signup:${wed.id}:bench`);
-    expect(content(again)).toMatch(/\*\*Bench\*\* for Raid night as \*\*Daraheal\*\*/);
+    expect(content(again)).toMatch(/\*\*Standby\*\* for Raid night as \*\*Daraheal\*\*/);
     expect(content(again)).toMatch(/your signup for this raid/);
-    // Declining needs no menus.
-    expect(menus(await ui.click(g.dara.discordId!, `signup:${wed.id}:declined`))).toEqual([]);
+    // Marking absent offers only "Absent more days" (no character/spec/role menus, J57).
+    expect(
+      menus(await ui.click(g.dara.discordId!, `signup:${wed.id}:declined`)).map((m) => m.custom_id),
+    ).toEqual(['absence-more-days']);
 
     // A menu click for someone with no signup, or a malformed id, is handled safely.
     expect(content(await ui.pick(g.cade.discordId!, `signup-spec:${wed.id}`, 'fire'))).toMatch(

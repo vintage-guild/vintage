@@ -44,18 +44,21 @@ import {
 import { type Caller, type CommandResult, tierAllows } from '@vintage/guild-kit';
 import type { Character, Member } from '@vintage/identity/contract';
 import {
+  type Absence,
   accessOf,
   type CompRole,
   compRole,
+  kindOf,
   LATE_MINUTES,
   type LateMinutes,
   type RaidEvent,
+  resolveAbsenceCoverage,
   rolesNeeded,
   type Signup,
   type SignupGuess,
   type SignupStatus,
 } from '@vintage/raids/contract';
-import { CLASSES, ROLES, type Role, roleFor } from '@vintage/wow-data';
+import { CLASSES, classRoles, ROLES, type Role, roleFor } from '@vintage/wow-data';
 import {
   GUESS_ROLE,
   NEW_CHARACTER,
@@ -110,6 +113,17 @@ export interface SignupPorts {
   signupSet(caller: Caller, input: SignupInput): Promise<CommandResult<Signup>>;
   /** Runs `character-add` through the registry as this caller (the New character form). */
   characterAdd(caller: Caller, input: NewCharacterInput): Promise<CommandResult<Character>>;
+  /** Active absences for one member (for weekly late nights on Accept/Late). */
+  absences?(memberId: string): Promise<Absence[]>;
+  /** All guild members + active absences (for Roster reply rank marks & Absent section). */
+  rosterContext?(): Promise<{ members: Member[]; absences: Absence[] }>;
+  /** On-the-spot member sync when a new Friend clicks a signup button (J70). */
+  syncMember?(input: {
+    discordId: string;
+    displayName: string;
+    inServer: boolean;
+    roleIds: string[];
+  }): Promise<Member | null>;
   /** A signup changed: refresh the post soon (starts a coordinator tick). */
   afterChange(): Promise<void>;
 }
@@ -128,9 +142,11 @@ type Parsed =
   | { kind: 'switch'; eventId: string; characterId: string }
   | { kind: 'spec'; eventId: string; spec: string }
   | { kind: 'role'; eventId: string; role: Role | null }
+  | { kind: 'also'; eventId: string; alsoRoles: Role[] }
+  | { kind: 'ontime'; eventId: string }
   | { kind: 'new'; eventId: string; status: SignupStatus };
 
-const MENUS = new Set(['signup-char', 'signup-spec', 'signup-role']);
+const MENUS = new Set(['signup-char', 'signup-spec', 'signup-role', 'signup-also']);
 
 const isStatus = (s: string | undefined): s is SignupStatus =>
   !!s && (STATUSES as readonly string[]).includes(s);
@@ -151,9 +167,14 @@ export function parseRosterInteraction(interaction: Interaction): string | null 
  */
 function parseMenu(interaction: Interaction, parts: string[]): Parsed | null {
   const [prefix, eventId] = parts;
-  const picked = interaction.data?.values?.[0];
-  if (parts.length !== 2 || !isToken(eventId) || !isToken(picked)) return null;
+  if (parts.length !== 2 || !isToken(eventId)) return null;
   if (interaction.type !== InteractionType.MESSAGE_COMPONENT) return null;
+  if (prefix === 'signup-also') {
+    const values = (interaction.data?.values ?? []).filter(isRole);
+    return { kind: 'also', eventId, alsoRoles: values };
+  }
+  const picked = interaction.data?.values?.[0];
+  if (!isToken(picked)) return null;
   if (prefix === 'signup-char') return { kind: 'switch', eventId, characterId: picked };
   if (prefix === 'signup-spec') return { kind: 'spec', eventId, spec: picked };
   if (prefix === 'signup-role') {
@@ -192,11 +213,21 @@ function parseModalSubmit(
   return null;
 }
 
+function parseOnTimeButton(interaction: Interaction, parts: string[]): Parsed | null {
+  const [, eventId] = parts;
+  return interaction.type === InteractionType.MESSAGE_COMPONENT &&
+    parts.length === 2 &&
+    isToken(eventId)
+    ? { kind: 'ontime', eventId }
+    : null;
+}
+
 /** The signup interaction this is, or null when it isn't one of ours. */
 export function parseSignupInteraction(interaction: Interaction): Parsed | null {
   const parts = (interaction.data?.custom_id ?? '').split(':');
   const [prefix, eventId, status] = parts;
   if (prefix && MENUS.has(prefix)) return parseMenu(interaction, parts);
+  if (prefix === 'signup-ontime') return parseOnTimeButton(interaction, parts);
   if (prefix === 'signup-late') return parseLateButton(interaction, parts);
   if (!isToken(eventId) || !isStatus(status)) return null;
   if (interaction.type === InteractionType.MODAL_SUBMIT) {
@@ -223,8 +254,8 @@ const LABEL: Record<SignupStatus, string> = {
   accepted: 'Accepted',
   late: 'Late',
   tentative: 'Tentative',
-  bench: 'Bench',
-  declined: 'Declined',
+  bench: 'Standby',
+  declined: 'Absent',
 };
 
 const NEEDED_WORDS: Record<CompRole, string> = {
@@ -333,21 +364,35 @@ function reasonForm(eventId: string, status: SignupStatus, characterId: string, 
 }
 
 /** Private 5 / 15 / 30 min buttons for Late (more than 30 min is absent). */
-function latePickerMessage(eventId: string, characterId: string, raid: string): MessageData {
+function latePickerMessage(
+  eventId: string,
+  characterId: string,
+  raid: string,
+  usualMinutes: LateMinutes | null = null,
+): MessageData {
   return {
     content: `How late will you be for ${raid}?\nLater than 30 minutes? Press Absent instead.`,
     components: [
       actionRow(
         ...LATE_MINUTES.map((m) =>
-          button(`signup-late:${eventId}:${characterId}:${m}`, `${m} min`, ButtonStyle.SECONDARY),
+          button(
+            `signup-late:${eventId}:${characterId}:${m}`,
+            m === usualMinutes ? `${m} min (usual)` : `${m} min`,
+            m === usualMinutes ? ButtonStyle.PRIMARY : ButtonStyle.SECONDARY,
+          ),
         ),
       ),
     ],
   };
 }
 
-function latePicker(eventId: string, characterId: string, raid: string): InteractionResponse {
-  return reply(latePickerMessage(eventId, characterId, raid), { ephemeral: true });
+function latePicker(
+  eventId: string,
+  characterId: string,
+  raid: string,
+  usualMinutes: LateMinutes | null = null,
+): InteractionResponse {
+  return reply(latePickerMessage(eventId, characterId, raid, usualMinutes), { ephemeral: true });
 }
 
 /**
@@ -389,9 +434,32 @@ function characterPicker(
   );
 }
 
+/** Standby explanation for the private reply (signup-improvements row 38). */
+function standbyTail(s: Signup, member: Member, event: RaidEvent): string | null {
+  if (s.status !== 'bench' && s.roster !== 'benched') return null;
+  if (kindOf(event) === 'raid' && accessOf(event) === 'guild' && member.rank === 'flex-raider') {
+    return "You're on Standby because Flex Raiders start on Standby for guild raids; leaders seat you where the comp needs you.";
+  }
+  if (event.rosterApprovedAt !== null) {
+    return "You're on Standby because parties are already approved; leaders will seat you if a spot opens.";
+  }
+  return "You're on Standby; leaders will seat you if a spot opens.";
+}
+
+function alsoRoleOptions(signup: Signup): SelectOption[] {
+  const otherRoles = classRoles(signup.class).filter((r) => r !== signup.role);
+  const current = signup.alsoRoles ?? [];
+  return otherRoles.map((role) => ({
+    label: titleCase(ROLE_WORDS[role]),
+    value: role,
+    ...(current.includes(role) ? { default: true } : {}),
+  }));
+}
+
 /**
  * The private reply after signup-set: what was used and why, with Switch character (which also
- * offers New character…), Change spec and Role menus. A decline gets none.
+ * offers New character…), Change spec, Role, and Can also play menus (<= 5 rows). An Absent
+ * reply gets an "Absent more days" button instead.
  */
 async function outcome(
   ports: SignupPorts,
@@ -399,6 +467,7 @@ async function outcome(
   event: RaidEvent,
   result: CommandResult<Signup>,
   reason: string | null,
+  options: { fromWeeklyLate?: boolean } = {},
 ): Promise<MessageData> {
   if (!result.success) {
     const error = result.error!;
@@ -414,12 +483,19 @@ async function outcome(
     s.status === 'late' && s.lateMinutes
       ? `${LABEL[s.status]} (${s.lateMinutes}m)`
       : LABEL[s.status];
-  const head = `**${statusLabel}** for ${event.name} as **${s.characterName}** (${playing(s)})${why}.`;
-  const tail = s.queued
-    ? "The raid is full, so you're in the queue; you'll be told if a spot opens."
-    : 'The signup post updates in a few seconds.';
+  const head = options.fromWeeklyLate
+    ? `**Late** for ${event.name} as **${s.characterName}**, ${s.lateMinutes} minutes, like most weeks.`
+    : `**${statusLabel}** for ${event.name} as **${s.characterName}** (${playing(s)})${why}.`;
+  const tail = standbyTail(s, member, event) ?? 'The signup post updates in a few seconds.';
   const content = `${head}\n${tail}`;
-  if (s.status === 'declined') return { content, components: [] };
+  if (s.status === 'declined') {
+    return {
+      content,
+      components: [
+        actionRow(button('absence-more-days', 'Absent more days', ButtonStyle.SECONDARY)),
+      ],
+    };
+  }
 
   const [characters, signups] = await Promise.all([
     ports.characters(member.id),
@@ -459,6 +535,23 @@ async function outcome(
       ),
     ),
   );
+  const alsoOpts = alsoRoleOptions(s);
+  if (alsoOpts.length > 0 && components.length < 4) {
+    components.push(
+      actionRow(
+        stringSelect(`signup-also:${event.id}`, alsoOpts, {
+          placeholder: 'Can also play',
+          min_values: 0,
+          max_values: alsoOpts.length,
+        }),
+      ),
+    );
+  }
+  if (options.fromWeeklyLate && components.length < 5) {
+    components.push(
+      actionRow(button(`signup-ontime:${event.id}`, 'On time this week', ButtonStyle.SUCCESS)),
+    );
+  }
   return { content, components };
 }
 
@@ -470,10 +563,11 @@ async function answer(
   input: Omit<SignupInput, 'eventId'>,
   reason: string | null,
   respond: (message: MessageData) => InteractionResponse,
+  options: { fromWeeklyLate?: boolean } = {},
 ) {
   const result = await ports.signupSet(caller, { eventId: event.id, ...input });
   if (result.success) await ports.afterChange();
-  return respond(await outcome(ports, member, event, result, reason));
+  return respond(await outcome(ports, member, event, result, reason, options));
 }
 
 const replyPrivately = (message: MessageData) => reply(message, { ephemeral: true });
@@ -496,7 +590,16 @@ async function whoIsClicking(
     return { refusal: ephemeral('Random only takes signups in the Vintage guild server.') };
   }
   const user = interactionUser(interaction);
-  const member = user ? await ports.memberByDiscordId(user.id) : null;
+  let member = user ? await ports.memberByDiscordId(user.id) : null;
+  // On-the-spot sync when a newly granted Friend/member clicks a signup button (J70).
+  if (!member && user && ports.syncMember && interaction.member) {
+    member = await ports.syncMember({
+      discordId: user.id,
+      displayName: interaction.member.nick ?? user.global_name ?? user.username,
+      inServer: true,
+      roleIds: interaction.member.roles ?? [],
+    });
+  }
   if (!member) {
     return {
       refusal: ephemeral(
@@ -509,6 +612,18 @@ async function whoIsClicking(
   return { member };
 }
 
+/** Weekly late minutes covering this guild raid for this member, or null. */
+async function weeklyLateFor(
+  ports: SignupPorts,
+  member: Member,
+  event: RaidEvent,
+): Promise<LateMinutes | null> {
+  if (accessOf(event) !== 'guild' || !ports.absences) return null;
+  const list = await ports.absences(member.id);
+  const { coverage } = resolveAbsenceCoverage(list, event.startsAt);
+  return coverage && coverage !== 'away' ? coverage.lateMinutes : null;
+}
+
 /** One click's context: who, which raid, and how to answer through signup-set. */
 interface Flow {
   ports: SignupPorts;
@@ -519,6 +634,7 @@ interface Flow {
     input: Omit<SignupInput, 'eventId'>,
     reason: string | null,
     respond?: (message: MessageData) => InteractionResponse,
+    options?: { fromWeeklyLate?: boolean },
   ): Promise<InteractionResponse>;
 }
 
@@ -536,21 +652,38 @@ async function onButton(flow: Flow, status: SignupStatus): Promise<InteractionRe
     return characterPicker(event.id, status, characters, needed);
   }
   if (status === 'late') {
-    return latePicker(event.id, guessed.characterId, event.name);
+    const usual = await weeklyLateFor(ports, member, event);
+    return latePicker(event.id, guessed.characterId, event.name, usual);
   }
   if (ASKS_REASON.has(status)) {
     return reasonForm(event.id, status, guessed.characterId, event.name);
+  }
+  if (status === 'accepted') {
+    const usual = await weeklyLateFor(ports, member, event);
+    if (usual !== null) {
+      return flow.run(
+        {
+          status: 'late',
+          lateMinutes: usual,
+          characterId: guessed.characterId,
+          spec: guessed.spec,
+        },
+        guessed.reason,
+        replyPrivately,
+        { fromWeeklyLate: true },
+      );
+    }
   }
   return flow.run({ status, characterId: guessed.characterId, spec: guessed.spec }, guessed.reason);
 }
 
 /**
- * Switch character, Change spec or Role on the reply: the same answer, changed for this raid.
- * New character… in Switch character opens the form, keeping the answer (and the note) as is.
+ * Switch character, Change spec, Role, or Can also play on the reply: the same answer, changed
+ * for this raid. New character… in Switch character opens the form, keeping the answer as is.
  */
 async function onMenu(
   flow: Flow,
-  parsed: Extract<Parsed, { kind: 'switch' | 'spec' | 'role' }>,
+  parsed: Extract<Parsed, { kind: 'switch' | 'spec' | 'role' | 'also' }>,
 ): Promise<InteractionResponse> {
   const existing = await flow.ports.signup(flow.event.id, flow.member.id);
   if (!existing) {
@@ -565,8 +698,22 @@ async function onMenu(
       ? { status: existing.status, characterId: parsed.characterId }
       : parsed.kind === 'spec'
         ? { ...same, spec: parsed.spec }
-        : { ...same, role: parsed.role };
+        : parsed.kind === 'also'
+          ? { ...same, alsoRoles: parsed.alsoRoles }
+          : { ...same, role: parsed.role };
   return flow.run(input, null, replaceReply);
+}
+
+async function onTimeThisWeek(flow: Flow): Promise<InteractionResponse> {
+  const existing = await flow.ports.signup(flow.event.id, flow.member.id);
+  if (!existing) {
+    return replaceReply({ content: 'Answer the raid first.', components: [] });
+  }
+  return flow.run(
+    { status: 'accepted', lateMinutes: null, characterId: existing.characterId },
+    null,
+    replaceReply,
+  );
 }
 
 /**
@@ -653,13 +800,15 @@ async function handleSignup(
     caller,
     member,
     event,
-    run: (input, reason, respond = replyPrivately) =>
-      answer(ports, caller, member, event, input, reason, respond),
+    run: (input, reason, respond = replyPrivately, options) =>
+      answer(ports, caller, member, event, input, reason, respond, options),
   };
 
   switch (parsed.kind) {
     case 'late':
       return onLate(flow, parsed.characterId, parsed.lateMinutes);
+    case 'ontime':
+      return onTimeThisWeek(flow);
     case 'note':
       return onNote(flow, parsed.status, parsed.characterId, parsed.note);
     case 'pick':
@@ -667,7 +816,8 @@ async function handleSignup(
         return newCharacterFormFor(event.id, parsed.status, event.name, true);
       }
       if (parsed.status === 'late') {
-        return replaceReply(latePickerMessage(event.id, parsed.characterId, event.name));
+        const usual = await weeklyLateFor(ports, member, event);
+        return replaceReply(latePickerMessage(event.id, parsed.characterId, event.name, usual));
       }
       if (ASKS_REASON.has(parsed.status)) {
         return reasonForm(event.id, parsed.status, parsed.characterId, event.name);
@@ -680,12 +830,38 @@ async function handleSignup(
     case 'switch':
     case 'spec':
     case 'role':
+    case 'also':
       return onMenu(flow, parsed);
     case 'new':
       return onNewCharacter(flow, interaction, parsed.status);
     case 'button':
       return onButton(flow, parsed.status);
   }
+}
+
+async function rosterReplyFor(ports: SignupPorts, event: RaidEvent): Promise<InteractionResponse> {
+  const signups = await ports.signups(event.id);
+  if (!ports.rosterContext) return reply(renderRosterReply(event, signups), { ephemeral: true });
+  const { members, absences } = await ports.rosterContext();
+  const tickMembers = members.map((m) => ({
+    memberId: m.id,
+    discordId: m.discordId,
+    displayName: m.displayName,
+    rank: m.rank,
+    dmOptOut: m.prefs.dmOptOut,
+  }));
+  const answered = new Set(signups.map((s) => s.memberId));
+  const away: { displayName: string }[] = [];
+  if (accessOf(event) === 'guild') {
+    for (const m of members) {
+      if (answered.has(m.id)) continue;
+      const mine = absences.filter((a) => a.memberId === m.id);
+      if (resolveAbsenceCoverage(mine, event.startsAt).coverage === 'away') {
+        away.push({ displayName: m.displayName });
+      }
+    }
+  }
+  return reply(renderRosterReply(event, signups, tickMembers, away), { ephemeral: true });
 }
 
 export async function handleSignupInteraction(
@@ -703,8 +879,6 @@ export async function handleSignupInteraction(
   if (!event) return ephemeral('That raid no longer exists.');
   const who = await whoIsClicking(interaction, ports, event);
   if ('refusal' in who) return who.refusal;
-  if (roster) {
-    return reply(renderRosterReply(event, await ports.signups(event.id)), { ephemeral: true });
-  }
+  if (roster) return rosterReplyFor(ports, event);
   return handleSignup(interaction, parsed!, who.member, event, ports);
 }

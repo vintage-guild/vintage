@@ -9,6 +9,7 @@
  */
 
 import type * as actions from "../actions.js";
+import type * as announcedState from "../announcedState.js";
 import type * as config from "../config.js";
 import type * as raidNights from "../raidNights.js";
 
@@ -21,6 +22,7 @@ import { anyApi, componentsGeneric } from "convex/server";
 
 const fullApi: ApiFromModules<{
   actions: typeof actions;
+  announcedState: typeof announcedState;
   config: typeof config;
   raidNights: typeof raidNights;
 }> = anyApi as any;

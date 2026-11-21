@@ -38,7 +38,7 @@ import {
   targetsOf,
 } from '@vintage/raids/contract';
 import type { Role } from '@vintage/wow-data';
-import type { TickEvent, TickMember } from '../store';
+import type { TickAway, TickEvent, TickMember } from '../store';
 import { EMOJI_IDS } from './emoji-ids';
 import { cardTitle, countOf, eventTitle, sizeWords } from './kind-words';
 import { compFor, finalRoster } from './render';
@@ -189,14 +189,14 @@ function missing(event: RaidEvent, gaps: CompGap[]): string {
 }
 
 /** "<icon> **12** going  <icon> **2** late  …  <icon> **1** absent". */
-function statusLine(signups: Signup[]): string {
+function statusLine(signups: Signup[], awayCount = 0): string {
   const n = (pred: (s: Signup) => boolean) => signups.filter(pred).length;
   const parts = [
     [emoji('status_going'), n((s) => s.status === 'accepted' && s.roster !== 'benched'), 'going'],
     [emoji('status_late'), n((s) => s.status === 'late' && s.roster !== 'benched'), 'late'],
     [emoji('status_tentative'), n((s) => s.status === 'tentative'), 'tentative'],
     [emoji('status_standby'), n((s) => s.status === 'bench' || s.roster === 'benched'), 'standby'],
-    [emoji('status_out'), n((s) => s.status === 'declined'), 'absent'],
+    [emoji('status_out'), n((s) => s.status === 'declined') + awayCount, 'absent'],
   ] as const;
   return parts.map(([icon, count, label]) => `${icon} **${count}** ${label}`.trim()).join(GAP);
 }
@@ -331,7 +331,8 @@ export function renderSignupPost(
   }
   fields.push({ name: BLANK, value: buildMissingValue(tick, members) });
 
-  const showRoster = hidden > 0 || signups.some((s) => s.status === 'declined');
+  const awayCount = tick.away?.length ?? 0;
+  const showRoster = hidden > 0 || awayCount > 0 || signups.some((s) => s.status === 'declined');
   const row2 = [
     ...(options.siteUrl
       ? [linkButton(`${options.siteUrl.replace(/\/$/, '')}/raids/${event.id}`, 'Raid page')]
@@ -348,7 +349,7 @@ export function renderSignupPost(
           `-# ${lock} · ${sizeWords(event)}`,
           ...notesLines(event),
           '',
-          statusLine(signups),
+          statusLine(signups, awayCount),
           BLANK,
         ].join('\n'),
         color: locked
@@ -402,7 +403,7 @@ export function cardHidesSomeone(tick: TickEvent, members: TickMember[] = []): b
   ) {
     return true;
   }
-  return tick.signups.some((s) => s.status === 'declined');
+  return (tick.away?.length ?? 0) > 0 || tick.signups.some((s) => s.status === 'declined');
 }
 
 /** Lines split into embed fields of at most 1024 characters, the first one titled. */
@@ -428,6 +429,7 @@ export function renderRosterReply(
   event: RaidEvent,
   signups: Signup[],
   members: TickMember[] = [],
+  away: readonly Pick<TickAway, 'displayName'>[] = [],
 ): MessageData {
   const ranks = rankMap(members);
   const going = signups.filter(inRaid);
@@ -447,6 +449,15 @@ export function renderRosterReply(
           false,
         )
       : [];
+  const declinedLines = signups
+    .filter((s) => s.status === 'declined')
+    .sort(byClassThenName)
+    .map((s) => line(s, ranks));
+  // Absence reasons stay officer-only; the Roster reply shows names only (absences.plan.md §4).
+  const awayLines = [...away]
+    .sort((a, b) => a.displayName.localeCompare(b.displayName))
+    .map((a) => a.displayName);
+  const absentLines = [...declinedLines, ...awayLines];
   fields.push(
     ...group(
       'Standby',
@@ -459,13 +470,15 @@ export function renderRosterReply(
       signups.filter((s) => s.status === 'tentative').sort(byClassThenName),
       true,
     ),
-    ...group('Absent', signups.filter((s) => s.status === 'declined').sort(byClassThenName)),
+    ...(absentLines.length
+      ? chunkFields(`Absent (${absentLines.length})`, absentLines, false)
+      : []),
   );
   return {
     embeds: [
       embed({
         title: `Roster · ${eventTitle(event)}`,
-        description: `${emoji('info_calendar')} ${when(event.startsAt)}\n\n${statusLine(signups)}\n${BLANK}`,
+        description: `${emoji('info_calendar')} ${when(event.startsAt)}\n\n${statusLine(signups, away.length)}\n${BLANK}`,
         fields: fields.slice(0, 25),
       }),
     ],

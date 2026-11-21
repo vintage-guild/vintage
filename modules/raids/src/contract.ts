@@ -8,6 +8,21 @@ import type { EventKind } from './domain/kinds';
 
 export type { RaidSize, RoleTargets, SignupStatus } from '@vintage/comp-solver';
 export {
+  absenceCovers,
+  type CalendarDate,
+  excusedAtLock,
+  localDateOf,
+  parseCalendarDate,
+  resolveAbsenceCoverage,
+  weekdayOf,
+} from './domain/absence';
+export {
+  FALLBACK_RAID_TIME,
+  FALLBACK_TIME_ZONE,
+  type GuildClock,
+  resolveGuildClock,
+} from './domain/clock';
+export {
   type CompRole,
   compRole,
   rolesNeeded,
@@ -355,6 +370,53 @@ export interface LedgerKill extends ExportKill {
   detail: string | null;
 }
 
+export const ABSENCE_KINDS = ['dates', 'weekly'] as const;
+export type AbsenceKind = (typeof ABSENCE_KINDS)[number];
+
+/** Allowed minutes late for a late signup or weekly late night; later than 30 is absent. */
+export const LATE_MINUTES = [5, 15, 30] as const;
+export type LateMinutes = (typeof LATE_MINUTES)[number];
+
+export const ABSENCE_REASON_MAX = 200;
+export const ABSENCE_OPEN_MAX = 10;
+export const ABSENCE_MAX_DAYS = 60;
+export const ABSENCE_MAX_AHEAD_DAYS = 180;
+
+export interface WeeklyNight {
+  day: Weekday;
+  type: 'away' | 'late';
+  /** Late minutes for `late` nights; null for `away`. */
+  lateMinutes: LateMinutes | null;
+}
+
+/**
+ * A member's advance absence (date range) or weekly availability rule (absences.plan.md §1).
+ * Removed or replaced rows set `endedAt` instead of being hard-deleted, preserving history
+ * for excused attendance checks.
+ */
+export interface Absence {
+  id: string;
+  guildId: string;
+  memberId: string;
+  kind: AbsenceKind;
+  /** dates: guild-clock calendar days, inclusive, `YYYY-MM-DD`. null for weekly. */
+  from: string | null;
+  to: string | null;
+  /** weekly: one entry per weekday the rule covers. null for dates. */
+  nights: WeeklyNight[] | null;
+  /** The guild clock when it was added; coverage reads the raid's start in this zone. */
+  timeZone: string;
+  /** At most ABSENCE_REASON_MAX (200) characters; null for none. Officer/leader-only on reads of others. */
+  reason: string | null;
+  /** Who added it: the member, or a leader adding it for them. */
+  createdBy: string;
+  createdAt: number;
+  /** When it was removed or replaced; null while active. */
+  endedAt: number | null;
+}
+
+export type AbsenceCoverage = 'away' | { type: 'late'; lateMinutes: LateMinutes } | null;
+
 export const RAIDS_COMMANDS = [
   'schedule-create',
   'schedule-update',
@@ -379,6 +441,10 @@ export const RAIDS_COMMANDS = [
   'raid-export-check',
   'raid-export-record',
   'attendance-list',
+  'absence-add',
+  'absence-weekly-set',
+  'absence-remove',
+  'absence-list',
 ] as const;
 export type RaidsCommandName = (typeof RAIDS_COMMANDS)[number];
 
@@ -413,5 +479,12 @@ export interface RaidsEvents {
     drops: number;
     /** A different export was recorded for this raid before. */
     replaced: boolean;
+  };
+  /** An advance absence or weekly rule was added, replaced, or ended. */
+  'absence-changed': {
+    absenceId: string;
+    memberId: string;
+    kind: AbsenceKind;
+    action: 'added' | 'weekly-set' | 'removed';
   };
 }

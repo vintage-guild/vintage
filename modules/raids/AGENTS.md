@@ -10,12 +10,14 @@ directly. Maturity: **core**.
 |---|---|
 | `src/contract.ts` | Public types (`Schedule`, `RaidEvent`, `Signup`), command names, events. The only import other modules may use |
 | `src/domain/recurrence.ts` | Pure: a weekly recurrence in an IANA zone → start times (DST-safe) |
+| `src/domain/clock.ts` | Pure: `resolveGuildClock` (first active schedule's zone and start time, else first schedule's, else New York / 20:00) |
+| `src/domain/absence.ts` | Pure: `absenceCovers`, `resolveAbsenceCoverage` (`away` beats `late`), `excusedAtLock`, calendar date validation |
 | `src/domain/export-check.ts` | Pure: an addon export (`@vintage/bridge-format` `raid-export`) matched to a raid's signups by name, with or without the realm |
 | `src/domain/export-record.ts` | Pure: the attendance, drops, kills (matched to progress bosses), and boss tally `raid-export-record` stores from a checked export |
 | `src/store.ts` | `RaidsStore` port, `RaidsMembers` (what raids reads from identity), `RaidsEventSink`, `RaidsLoot` (where recorded drops go: the loot module), `RaidsProgress` (where kills go: progress's `kill-record`), `RaidsDeps`, `command` |
-| `src/commands/` | `schedule-*`, `raid-*`, `signup-*`, `roster-*`, `comp-suggest`, `raid-export-check` (read-only: an addon export matched to its raid), `raid-export-record` and `attendance-list` (#29) |
+| `src/commands/` | `schedule-*`, `raid-*`, `signup-*`, `roster-*`, `comp-suggest`, `raid-export-check` (read-only: an addon export matched to its raid), `raid-export-record`, `attendance-list` (#29), and `absence-*` |
 | `src/testing.ts` | Memory store, members, and a recording event sink, same behavior as the component |
-| `convex/` | The `raids` Convex component: `schedules`, `raidEvents`, `signups`, `raidRecords`, `attendance` tables |
+| `convex/` | The `raids` Convex component: `schedules`, `raidEvents`, `signups`, `raidRecords`, `attendance`, `absences` tables |
 
 ## Rules
 

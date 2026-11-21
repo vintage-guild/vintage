@@ -184,6 +184,13 @@ export function raidsStore(ctx: Ctx): RaidsStore {
       ctx.runQuery(raids.records.attendance, { guildId, eventId }),
     putRecord: (record, attendance) =>
       writable(ctx).runMutation(raids.records.put, { record, attendance }),
+
+    listAbsences: (guildId, filter = {}) =>
+      ctx.runQuery(raids.absences.list, { guildId, ...filter }),
+    getAbsence: (guildId, absenceId) => ctx.runQuery(raids.absences.get, { guildId, absenceId }),
+    insertAbsence: (absence) => writable(ctx).runMutation(raids.absences.insert, absence),
+    endAbsence: (guildId, absenceId, endedAt) =>
+      writable(ctx).runMutation(raids.absences.end, { guildId, absenceId, endedAt }),
   };
 }
 

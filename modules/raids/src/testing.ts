@@ -3,6 +3,7 @@ import type { Character, Member } from '@vintage/identity/contract';
 import type { LootDropInput } from '@vintage/loot/contract';
 import { RAIDS_OPEN_AT } from '@vintage/progress/contract';
 import type {
+  Absence,
   RaidAttendance,
   RaidEvent,
   RaidRecord,
@@ -26,12 +27,14 @@ export function createMemoryRaidsStore(): RaidsStore & {
   signups: Map<string, Signup>;
   records: Map<string, RaidRecord>;
   attendance: Map<string, RaidAttendance>;
+  absences: Map<string, Absence>;
 } {
   const schedules = new Map<string, Schedule>();
   const events = new Map<string, RaidEvent>();
   const signups = new Map<string, Signup>();
   const records = new Map<string, RaidRecord>();
   const attendance = new Map<string, RaidAttendance>();
+  const absences = new Map<string, Absence>();
   let seq = 0;
   const id = (prefix: string) => `${prefix}_${++seq}`;
   const inGuild = <T extends { guildId: string }>(value: T | undefined, guildId: string) =>
@@ -47,6 +50,7 @@ export function createMemoryRaidsStore(): RaidsStore & {
     signups,
     records,
     attendance,
+    absences,
     async listSchedules(guildId, filter = {}) {
       return [...schedules.values()]
         .filter(
@@ -158,6 +162,29 @@ export function createMemoryRaidsStore(): RaidsStore & {
       const record = { ...input, id: id('record') };
       records.set(record.id, record);
       return record;
+    },
+
+    async listAbsences(guildId, filter = {}) {
+      const activeOnly = filter.activeOnly ?? true;
+      return [...absences.values()].filter(
+        (a) =>
+          a.guildId === guildId &&
+          (filter.memberId === undefined || a.memberId === filter.memberId) &&
+          (!activeOnly || a.endedAt === null),
+      );
+    },
+    async getAbsence(guildId, absenceId) {
+      return inGuild(absences.get(absenceId), guildId);
+    },
+    async insertAbsence(input) {
+      const absence = { ...input, id: id('absence') };
+      absences.set(absence.id, absence);
+      return absence;
+    },
+    async endAbsence(guildId, absenceId, endedAt) {
+      const updated = { ...must(inGuild(absences.get(absenceId), guildId), 'absence'), endedAt };
+      absences.set(absenceId, updated);
+      return updated;
     },
   };
 }

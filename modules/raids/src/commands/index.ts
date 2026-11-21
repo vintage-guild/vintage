@@ -1,3 +1,4 @@
+import { absenceAdd, absenceList, absenceRemove, absenceWeeklySet } from './absence';
 import { compSuggest } from './comp';
 import { attendanceList, raidExportCheck, raidExportRecord } from './export';
 import { raidCancel, raidComplete, raidCreate, raidGet, raidList, raidReschedule } from './raid';
@@ -39,4 +40,8 @@ export const raidsCommands = [
   raidExportCheck,
   raidExportRecord,
   attendanceList,
+  absenceAdd,
+  absenceWeeklySet,
+  absenceRemove,
+  absenceList,
 ] as const;

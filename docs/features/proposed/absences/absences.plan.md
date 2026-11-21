@@ -308,7 +308,7 @@ None open.
 
 ## Tasks
 
-- [ ] **Model and commands** (raids): `absences` table with `endedAt` and `by_guild_member` and
+- [x] **Model and commands** (raids): `absences` table with `endedAt` and `by_guild_member` and
   `by_guild` indexes, `domain/absence.ts` (`absenceCovers`, active only, away beating late),
   `domain/clock.ts` (the guild clock as a shared resolver, used by apps/api and apps/web), the
   four commands with soft-close on remove and replace, the memory store, `absence-changed`, and

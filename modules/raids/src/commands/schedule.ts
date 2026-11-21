@@ -256,6 +256,8 @@ export const scheduleMaterialize = command({
             roleTargets: schedule.roleTargets,
             lootMethodId: schedule.lootMethodId,
             notes: schedule.notes,
+            rosterApprovedAt: null,
+            rosterApprovedBy: null,
             configVersion: schedule.configVersion,
           }),
         );

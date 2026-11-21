@@ -27,6 +27,8 @@ const event: RaidEvent = {
   roleTargets: null,
   lootMethodId: null,
   notes: null,
+  rosterApprovedAt: null,
+  rosterApprovedBy: null,
   configVersion: 1,
 };
 
@@ -62,6 +64,7 @@ function fullRaid(): TickEvent {
       note: status === 'tentative' ? 'might have to work late tonight' : null,
       signedUpAt: i,
       updatedAt: i,
+      updatedBy: null,
       roster: 'pending',
       group: null,
       queued: i >= 40 && i < 45,
@@ -206,6 +209,7 @@ describe('event kinds on the card', () => {
     note: null,
     signedUpAt: i,
     updatedAt: i,
+    updatedBy: null,
     roster: 'pending',
     group: null,
     queued: false,

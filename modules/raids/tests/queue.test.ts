@@ -104,46 +104,38 @@ describe('signup queue', () => {
     raid = created.data as RaidEvent;
   });
 
-  it('queues the 11th person to accept a 10-person raid', async () => {
+  it('never queues or auto-promotes signups past the raid size (seating is comp-based)', async () => {
     for (const id of PEOPLE.slice(0, 10)) await answer(id, 'accepted');
     const eleventh = await answer('p11', 'accepted');
-    expect(eleventh.data).toMatchObject({ queued: true, promotedAt: null });
-    expect(eleventh.reasoning).toMatch(/queued/);
+    expect(eleventh.data).toMatchObject({ queued: false, promotedAt: null });
     expect(PEOPLE.slice(0, 10).every((id) => !signupOf(id).queued)).toBe(true);
-  });
 
-  it('promotes the first in line when someone ahead drops out, and says so', async () => {
-    for (const id of PEOPLE) await answer(id, 'accepted');
     await answer('p3', 'declined');
-    expect(signupOf('p11')).toMatchObject({ queued: false, promotedAt: expect.any(Number) });
-    expect(deps.events.emitted.at(-1)).toEqual({
-      guildId: G,
-      type: 'signup-promoted',
-      payload: { eventId: raid.id, memberId: 'p11', characterId: 'char-p11' },
-    });
+    expect(signupOf('p11')).toMatchObject({ queued: false, promotedAt: null });
+    expect(deps.events.emitted.filter((e) => e.type === 'signup-promoted')).toHaveLength(0);
   });
 
-  it('promotes when a leader removes someone from the raid', async () => {
+  it('roster-remove never auto-promotes anyone', async () => {
     for (const id of PEOPLE) await answer(id, 'accepted');
     await previewAndConfirm(
       registry,
       { name: 'roster-remove', input: { signupId: signupOf('p1').id }, caller: leader },
       deps,
     );
-    expect(signupOf('p11').queued).toBe(false);
+    expect(signupOf('p11')).toMatchObject({ queued: false, promotedAt: null });
+    expect(deps.events.emitted.filter((e) => e.type === 'signup-promoted')).toHaveLength(0);
   });
 
-  it('a step down to tentative sends you to the back of the line', async () => {
+  it('keeps signedUpAt as a record when changing answers (no place in line to lose)', async () => {
     await answer('p1', 'accepted');
     await answer('p2', 'accepted');
     const firstTime = signupOf('p1').signedUpAt;
     await answer('p1', 'tentative');
     await answer('p1', 'accepted');
-    expect(signupOf('p1').signedUpAt).toBeGreaterThan(signupOf('p2').signedUpAt);
-    expect(signupOf('p1').signedUpAt).not.toBe(firstTime);
+    expect(signupOf('p1').signedUpAt).toBe(firstTime);
   });
 
-  it('switching character or between accepted and late keeps your place', async () => {
+  it('switching character or between accepted and late keeps signedUpAt', async () => {
     await answer('p1', 'accepted');
     const place = signupOf('p1').signedUpAt;
     await answer('p1', 'late');
@@ -155,31 +147,14 @@ describe('signup queue', () => {
     });
   });
 
-  it('signup-list gives each queued signup its place in line, whatever the filter', async () => {
+  it('signup-list returns queuePosition: null for all signups', async () => {
     for (const id of PEOPLE.slice(0, 10)) await answer(id, 'accepted');
     await answer('p11', 'late');
-    const list = async (statuses?: string[]) => {
-      const result = await registry.execute(
-        {
-          name: 'signup-list',
-          input: { eventId: raid.id, ...(statuses ? { statuses } : {}) },
-          caller: as('p1'),
-        },
-        deps,
-      );
-      return result.data as (Signup & { queuePosition: number | null })[];
-    };
-    const all = await list();
-    expect(all.find((s) => s.memberId === 'p11')?.queuePosition).toBe(1);
-    expect(all.filter((s) => s.queuePosition !== null)).toHaveLength(1);
-    // Only the late answers: the one queued signup keeps its place, not "in" by itself.
-    expect(await list(['late'])).toMatchObject([{ memberId: 'p11', queuePosition: 1 }]);
-  });
-
-  it('a queued person who steps down is not promoted', async () => {
-    for (const id of PEOPLE) await answer(id, 'accepted');
-    await answer('p11', 'tentative');
-    await answer('p3', 'declined');
-    expect(signupOf('p11')).toMatchObject({ queued: false, promotedAt: null });
+    const result = await registry.execute(
+      { name: 'signup-list', input: { eventId: raid.id }, caller: as('p1') },
+      deps,
+    );
+    const all = result.data as (Signup & { queuePosition: number | null })[];
+    expect(all.every((s) => s.queuePosition === null)).toBe(true);
   });
 });

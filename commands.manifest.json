@@ -3638,8 +3638,28 @@
       }
     },
     {
+      "name": "roster-approve",
+      "description": "Approve and post the drafted party groups for a raid. After approval, only leaders change seats and new signups land on Standby.",
+      "tier": "leader",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "eventId"
+        ]
+      }
+    },
+    {
       "name": "roster-bench",
-      "description": "Bench a signed-up character for this raid (they keep their signup).",
+      "description": "Move a signed-up character to Standby for this raid (they keep their signup).",
       "tier": "leader",
       "mutation": true,
       "destructive": false,

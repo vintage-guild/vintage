@@ -103,6 +103,9 @@ export const eventFields = {
   roleTargets,
   lootMethodId: v.union(v.string(), v.null()),
   notes,
+  // Optional so rows written before party approval existed stay valid; read as null.
+  rosterApprovedAt: v.optional(v.union(v.number(), v.null())),
+  rosterApprovedBy: v.optional(v.union(v.string(), v.null())),
   configVersion: v.number(),
 };
 
@@ -125,6 +128,8 @@ export const signupFields = {
   note: v.union(v.string(), v.null()),
   signedUpAt: v.number(),
   updatedAt: v.number(),
+  // Optional so rows written before updatedBy existed stay valid; read as null.
+  updatedBy: v.optional(v.union(v.string(), v.null())),
   roster: rosterState,
   group: v.union(v.number(), v.null()),
   // Optional so rows written before the queue existed stay valid; read as false / null.

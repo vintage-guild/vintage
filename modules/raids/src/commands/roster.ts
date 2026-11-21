@@ -2,7 +2,6 @@ import { error, success } from '@vintage/guild-kit';
 import { z } from 'zod';
 import { kindNoun, MAX_EVENT_SIZE, type RaidEvent, type Signup } from '../contract';
 import { command, type RaidsDeps } from '../store';
-import { syncQueue } from './queue';
 import { eventNotFound, isLive, raidClosed, signupNotFound } from './shared';
 
 const GROUP_SIZE = 5;
@@ -62,13 +61,43 @@ export const rosterUnlock = command({
   handler: setStatus('open'),
 });
 
+export const rosterApprove = command({
+  name: 'roster-approve',
+  description:
+    'Approve and post the drafted party groups for a raid. After approval, only leaders change ' +
+    'seats and new signups land on Standby.',
+  tier: 'leader',
+  mutation: true,
+  input: z.object({ eventId: z.string().min(1) }),
+  handler: async ({ eventId }, { caller, guildId, deps, now }) => {
+    const event = await deps.raids.getEvent(guildId, eventId);
+    if (!event) return eventNotFound();
+    if (!isLive(event)) return raidClosed(event);
+    if (event.rosterApprovedAt !== null) {
+      return success(event, { reasoning: `${event.name} roster is already approved` });
+    }
+    const actor = caller.memberId ?? caller.discordId ?? 'system';
+    const at = now();
+    const updated = await deps.raids.updateEvent(guildId, eventId, {
+      rosterApprovedAt: at,
+      rosterApprovedBy: actor,
+    });
+    await deps.events.emit(guildId, 'roster-approved', {
+      eventId: event.id,
+      approvedBy: actor,
+      approvedAt: at,
+    });
+    return success(updated, { reasoning: `${event.name} roster approved` });
+  },
+});
+
 export const rosterBench = command({
   name: 'roster-bench',
-  description: 'Bench a signed-up character for this raid (they keep their signup).',
+  description: 'Move a signed-up character to Standby for this raid (they keep their signup).',
   tier: 'leader',
   mutation: true,
   input: z.object({ signupId: z.string().min(1) }),
-  handler: async ({ signupId }, { guildId, deps }) => {
+  handler: async ({ signupId }, { caller, guildId, deps, now }) => {
     const found = await liveSignup(deps, guildId, signupId);
     if (found.failure) return found.failure;
     const { signup } = found;
@@ -76,8 +105,10 @@ export const rosterBench = command({
     const updated = await deps.raids.updateSignup(guildId, signupId, {
       roster: 'benched',
       group: null,
+      updatedAt: now(),
+      updatedBy: caller.memberId ?? caller.discordId ?? null,
     });
-    return success(updated, { reasoning: `${signup.characterName} benched` });
+    return success(updated, { reasoning: `${signup.characterName} moved to Standby` });
   },
 });
 
@@ -90,7 +121,7 @@ export const rosterMove = command({
   tier: 'leader',
   mutation: true,
   input: z.object({ signupId: z.string().min(1), group: z.number().int().min(1).max(8) }),
-  handler: async ({ signupId, group }, { guildId, deps }) => {
+  handler: async ({ signupId, group }, { caller, guildId, deps, now }) => {
     const found = await liveSignup(deps, guildId, signupId);
     if (found.failure) return found.failure;
     const { signup, event } = found;
@@ -117,6 +148,8 @@ export const rosterMove = command({
     const updated = await deps.raids.updateSignup(guildId, signupId, {
       roster: 'rostered',
       group,
+      updatedAt: now(),
+      updatedBy: caller.memberId ?? caller.discordId ?? null,
     });
     return success(updated, { reasoning: `${signup.characterName} → group ${group}` });
   },
@@ -129,7 +162,7 @@ export const rosterRemove = command({
   tier: 'leader',
   destructive: true,
   input: z.object({ signupId: z.string().min(1) }),
-  handler: async ({ signupId }, { guildId, deps, dryRun, now }) => {
+  handler: async ({ signupId }, { guildId, deps, dryRun }) => {
     const found = await liveSignup(deps, guildId, signupId);
     if (found.failure) return found.failure;
     const { signup, event } = found;
@@ -147,7 +180,6 @@ export const rosterRemove = command({
       from: signup.status,
       to: null,
     });
-    await syncQueue(deps, guildId, event, now());
     return success({ removed: signup });
   },
 });

@@ -18,8 +18,8 @@ const mention = (m: TickMember) => `<@${m.discordId}>`;
 
 const GOING = new Set(['accepted', 'late']);
 
-/** Going and inside the raid size (not waiting in the queue). */
-const inRaid = (s: Signup) => GOING.has(s.status) && !s.queued;
+/** Going and not explicitly placed on Standby by a leader. */
+const inRaid = (s: Signup) => GOING.has(s.status) && s.roster !== 'benched';
 
 type CompRoleName = 'tank' | 'healer' | 'dps';
 
@@ -30,28 +30,36 @@ export function roleCounters(signups: Signup[]): string {
   return `Tanks ${n('tank')} · Healers ${n('healer')} · DPS ${n('dps')}`;
 }
 
-/** The comp for a raid's signups, ranked like comp-suggest. */
-export function compFor(tick: TickEvent, members: TickMember[]): CompResult {
+/** The comp for a raid's signups, ranked like comp-suggest (going-only by default). */
+export function compFor(
+  tick: TickEvent,
+  members: TickMember[],
+  { goingOnly = true }: { goingOnly?: boolean } = {},
+): CompResult {
   const rank = new Map(members.map((m) => [m.memberId, m.rank]));
+  const compSignups = tick.signups.map((s) => {
+    const r = rank.get(s.memberId);
+    return {
+      id: s.id,
+      name: s.characterName,
+      class: s.class,
+      spec: s.spec,
+      role: s.role,
+      status: s.roster === 'benched' ? ('bench' as const) : s.status,
+      priority: s.roster === 'rostered' ? 100 : r ? RANK_PRIORITY[r] : 0,
+      signedUpAt: s.signedUpAt,
+    };
+  });
+  const goingCount = compSignups.filter((s) =>
+    goingOnly ? GOING.has(s.status) : s.status !== 'declined',
+  ).length;
   return solveComp({
     // An open event (no size) plays everyone going; nobody sits for size.
-    raidSize: compSize(tick.event, tick.signups.filter((s) => s.status !== 'declined').length),
+    raidSize: compSize(tick.event, goingCount),
     // The kind's targets, and raid buffs only for raids.
     template: eventTemplate(tick.event),
-    signups: tick.signups.map((s) => {
-      const r = rank.get(s.memberId);
-      return {
-        id: s.id,
-        name: s.characterName,
-        class: s.class,
-        spec: s.spec,
-        role: s.role,
-        // Queued people only play if nobody ahead of them fits.
-        status: s.queued ? 'bench' : s.status,
-        priority: r ? RANK_PRIORITY[r] : 0,
-        signedUpAt: s.signedUpAt,
-      };
-    }),
+    signups: compSignups,
+    goingOnly,
   });
 }
 
@@ -201,12 +209,12 @@ export function finalRoster(
 }
 
 /**
- * Why a bench signup sits out: they answered Standby, they wait in the queue, or the leader (or
- * the comp, for size) benched them.
+ * Why a bench signup sits out: they answered Standby (or were put on Standby by rank), or the
+ * leader / comp benched them. Keeps v1 bridge-format names (`standby` | `benched`).
  */
 export function benchReason(s: Signup): BenchReason {
   if (s.status === 'bench') return 'standby';
-  return s.queued && s.roster !== 'benched' ? 'queued' : 'benched';
+  return 'benched';
 }
 
 /**

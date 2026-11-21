@@ -22,6 +22,8 @@ const event: RaidEvent = {
   roleTargets: null,
   lootMethodId: null,
   notes: null,
+  rosterApprovedAt: null,
+  rosterApprovedBy: null,
   configVersion: 1,
 };
 
@@ -44,6 +46,7 @@ function signup(cls: WowClass, spec: string, role: Signup['role'], patch: Partia
     note: null,
     signedUpAt: NOW - (100 - n) * 60_000,
     updatedAt: NOW,
+    updatedBy: null,
     roster: 'pending',
     group: null,
     queued: false,
@@ -53,11 +56,11 @@ function signup(cls: WowClass, spec: string, role: Signup['role'], patch: Partia
 }
 
 describe('benchReason', () => {
-  it('reads a Standby answer as standby, the queue as queued, and anything else as benched', () => {
+  it('reads a Standby answer as standby and anything else as benched', () => {
     const s = signup('mage', 'frost', 'ranged');
     expect(benchReason({ ...s, status: 'bench' })).toBe('standby');
     expect(benchReason({ ...s, status: 'bench', roster: 'benched' })).toBe('standby');
-    expect(benchReason({ ...s, queued: true })).toBe('queued');
+    expect(benchReason({ ...s, queued: true })).toBe('benched');
     expect(benchReason({ ...s, queued: true, roster: 'benched' })).toBe('benched');
     expect(benchReason({ ...s, roster: 'benched' })).toBe('benched');
     expect(benchReason({ ...s, status: 'tentative' })).toBe('benched');
@@ -73,7 +76,7 @@ describe('buildImportString', () => {
       signup('priest', 'holy', 'healer'),
       signup('druid', 'restoration', 'healer'),
       ...Array.from({ length: 5 }, () => signup('mage', 'frost', 'ranged')),
-      signup('rogue', 'combat', 'melee', { queued: true }),
+      signup('rogue', 'combat', 'melee'),
       signup('warlock', 'affliction', 'ranged', { status: 'bench' }),
     ];
     const tick: TickEvent = { event, timings: DEFAULT_TIMINGS, signups };
@@ -82,10 +85,10 @@ describe('buildImportString', () => {
     expect(encoded.ok).toBe(true);
     const decoded = decodeRaidImport(encoded.ok ? encoded.value : '');
     if (!decoded.ok) throw new Error(decoded.error.message);
-    const queued = signups.at(-2)!;
+    const overflow = signups.at(-2)!;
     const standby = signups.at(-1)!;
     expect(decoded.value.bench).toEqual([
-      expect.objectContaining({ characterId: queued.characterId, reason: 'queued' }),
+      expect.objectContaining({ characterId: overflow.characterId, reason: 'benched' }),
       expect.objectContaining({
         characterId: standby.characterId,
         name: standby.characterName,

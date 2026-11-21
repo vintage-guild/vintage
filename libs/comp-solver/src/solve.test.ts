@@ -3,6 +3,7 @@ import {
   type CompSignup,
   compInputSchema,
   defaultTemplate,
+  groupDraft,
   inputIssues,
   REQUIREMENTS,
   solveComp,
@@ -319,5 +320,45 @@ describe('solveComp', () => {
     ]);
     expect(result.counts).toMatchObject({ tank: 1, healer: 1, dps: 3, melee: 1, ranged: 2 });
     expect(result.gaps).toEqual([]);
+  });
+
+  it('goingOnly never seats tentative or bench signups', () => {
+    const result = solveComp({
+      raidSize: 5,
+      template: { targets: { tank: 1, healer: 1, dps: 3 } },
+      goingOnly: true,
+      signups: [
+        su('Tank', 'warrior', 'protection'),
+        su('MaybeHeal', 'priest', 'holy', { status: 'tentative' }),
+        su('StandbyDps', 'mage', 'frost', { status: 'bench' }),
+      ],
+    });
+    expect(result.selected.map((d) => d.signup.name)).toEqual(['Tank']);
+    expect(result.bench.map((d) => ({ name: d.signup.name, code: d.code }))).toEqual([
+      { name: 'StandbyDps', code: 'standby' },
+    ]);
+    expect(result.excluded.map((e) => ({ name: e.signup.name, code: e.code }))).toEqual([
+      { name: 'MaybeHeal', code: 'tentative' },
+    ]);
+  });
+
+  it('groupDraft places 1 tank and 1 healer per group and preserves leader-set groups', () => {
+    const draft = groupDraft(
+      [
+        { id: 't1', role: 'tank', group: null },
+        { id: 't2', role: 'tank', group: 2 },
+        { id: 'h1', role: 'healer', group: null },
+        { id: 'h2', role: 'healer', group: null },
+        { id: 'm1', role: 'melee', group: null },
+        { id: 'r1', role: 'ranged', group: 2 },
+      ],
+      { raidSize: 10 },
+    );
+    expect(draft.assignments.get('t2')).toBe(2);
+    expect(draft.assignments.get('r1')).toBe(2);
+    expect(draft.assignments.get('t1')).toBe(1);
+    expect(draft.assignments.get('h1')).toBe(1);
+    expect(draft.assignments.get('h2')).toBe(2);
+    expect(draft.groups.map((g) => g.group)).toEqual([1, 2]);
   });
 });

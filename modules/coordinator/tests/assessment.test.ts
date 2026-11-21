@@ -28,6 +28,8 @@ const event = (id: string, startsAt: number): RaidEvent => ({
   roleTargets: null,
   lootMethodId: null,
   notes: null,
+  rosterApprovedAt: null,
+  rosterApprovedBy: null,
   configVersion: 1,
 });
 
@@ -47,6 +49,7 @@ const signup = (memberId: string, role: Signup['role'], cls: Signup['class']): S
   note: null,
   signedUpAt: 0,
   updatedAt: 0,
+  updatedBy: null,
   roster: 'pending',
   group: null,
   queued: false,

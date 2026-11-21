@@ -117,6 +117,8 @@ export const compInputSchema = z
     raidSize: groupSizeSchema,
     template: compTemplateSchema,
     signups: z.array(compSignupSchema),
+    /** When true, only accepted/late signups can be seated; bench stays benched, tentative is excluded. */
+    goingOnly: z.boolean().optional(),
   })
   .superRefine((input, ctx) => {
     for (const issue of inputIssues(input)) ctx.addIssue({ code: 'custom', message: issue });
@@ -141,9 +143,9 @@ export function inputIssues(input: CompInput): string[] {
 /** Why a signup was selected. */
 export type SelectionCode = 'requirement' | 'role' | 'fill';
 /** Why an eligible signup sits on the bench. */
-export type BenchCode = 'role-full' | 'raid-full';
+export type BenchCode = 'role-full' | 'raid-full' | 'standby';
 /** Why a signup was not considered at all. */
-export type ExcludedCode = 'declined' | 'unknown-role';
+export type ExcludedCode = 'declined' | 'unknown-role' | 'tentative';
 
 export interface Decision<Code extends string> {
   signup: CompSignup;

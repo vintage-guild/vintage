@@ -2,7 +2,14 @@ import { absenceAdd, absenceList, absenceRemove, absenceWeeklySet } from './abse
 import { compSuggest } from './comp';
 import { attendanceList, raidExportCheck, raidExportRecord } from './export';
 import { raidCancel, raidComplete, raidCreate, raidGet, raidList, raidReschedule } from './raid';
-import { rosterBench, rosterLock, rosterMove, rosterRemove, rosterUnlock } from './roster';
+import {
+  rosterApprove,
+  rosterBench,
+  rosterLock,
+  rosterMove,
+  rosterRemove,
+  rosterUnlock,
+} from './roster';
 import { scheduleCreate, scheduleList, scheduleMaterialize, scheduleUpdate } from './schedule';
 import { signupGet, signupList, signupSet, signupSuggest } from './signup';
 
@@ -33,6 +40,7 @@ export const raidsCommands = [
   signupList,
   rosterLock,
   rosterUnlock,
+  rosterApprove,
   rosterBench,
   rosterMove,
   rosterRemove,

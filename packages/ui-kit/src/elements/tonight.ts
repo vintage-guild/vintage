@@ -24,6 +24,8 @@ export interface TonightRaid {
   /** Null for an open event (kind `other` with no cap). */
   size: number | null;
   status: string;
+  /** Epoch ms when drafted parties were approved, or null while unapproved. */
+  rosterApprovedAt?: number | null;
 }
 
 /** One signup as the Tonight view shows it: the slice of `signup-list`. */
@@ -115,7 +117,7 @@ const playing = (s: TonightSignup) => s.status !== 'declined';
 
 const rosterLabel = (s: TonightSignup) =>
   s.roster === 'benched'
-    ? 'benched'
+    ? 'Standby'
     : s.group !== null
       ? `group ${s.group}`
       : s.queued
@@ -135,6 +137,20 @@ const template = html<VintageTonight>`
       </div>
       <div class="actions" part="actions">
         <span class="pill ${(x) => (x.locked ? 'locked' : 'open')}">${(x) => (x.locked ? 'locked' : 'signups open')}</span>
+        ${when(
+          (x) => x.raid?.rosterApprovedAt != null,
+          html`<span class="pill open">parties approved</span>`,
+        )}
+        ${when(
+          (x) => x.raid && x.raid.rosterApprovedAt == null,
+          html<VintageTonight>`
+            <button
+              class="btn"
+              ?disabled="${(x) => !x.canAct}"
+              @click="${(x) => x.approveRoster()}"
+            >Approve and post</button>
+          `,
+        )}
         <button
           class="btn primary"
           ?disabled="${(x) => !x.canAct}"
@@ -900,6 +916,19 @@ export class VintageTonight extends FASTElement {
     const size = this.raid ? (this.raid.size ?? 40) : 5;
     const groups = Math.max(1, Math.ceil(size / 5));
     return Array.from({ length: groups }, (_, i) => i + 1);
+  }
+
+  @command('vintage.roster-approve', {
+    label: 'Approve and post',
+    description: 'Approve drafted party groups and post them to the signup channel.',
+    category: 'Officers',
+  })
+  async approveRoster(): Promise<ElementResult<unknown>> {
+    return this.change(
+      'roster-approve',
+      { eventId: this.raid?.id },
+      'Parties approved; posting to the signup channel',
+    );
   }
 
   @command('vintage.roster-lock', {

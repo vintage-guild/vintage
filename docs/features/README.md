@@ -24,5 +24,5 @@ when they affect every contributor, in the Decisions table in [AGENTS.md](../../
 | The addon for everyone (raid sync, officers' quarters, wishlist picks) | active | [addon-for-members](active/addon-for-members/addon-for-members.plan.md) |
 | Guild roster: a public roster page fed by the Forever armory | active | [guild-roster](active/guild-roster/guild-roster.plan.md) |
 | Recipe search: who in the guild can craft what | active | [recipe-search](active/recipe-search/recipe-search.plan.md) |
-| Absences: absent by date range, weekly nights, and late nights | proposed | [absences](proposed/absences/absences.plan.md) |
-| Signup improvements: card layout, Standby, late minutes, change alerts, other roles | proposed | [signup-improvements](proposed/signup-improvements/signup-improvements.plan.md) |
+| Absences: absent by date range, weekly nights, and late nights | active | [absences](active/absences/absences.plan.md) |
+| Signup improvements: card layout, Standby, late minutes, change alerts, other roles | active | [signup-improvements](active/signup-improvements/signup-improvements.plan.md) |

@@ -492,29 +492,29 @@ For Bloodfen:
 
 - [x] **Fix first** (discord-kit, coordinator): no empty field values; final roster test with
   nobody benched.
-- [ ] **The card** (coordinator, scripts): §1 four-column layout, the outline Melee and Ranged
+- [x] **The card** (coordinator, scripts): §1 four-column layout, the outline Melee and Ranged
   icons, the `recruit` mark (emoji art and the site badge), tentative reasons on the Tentative
   line (no Notes field or footer), Missing with the going-only comp mode and its subtext, Raid
   page always on the second row, columns capped by character budget, the 40-person limits test
   with long names.
-- [ ] **Parties and the final roster** (comp-solver, coordinator, raids, apps/api, web):
+- [x] **Parties and the final roster** (comp-solver, coordinator, raids, apps/api, web):
   `groupDraft` with the placeholder rule (a tank and a healer per group, the rest by role; real
   rules are Later), the live T-24h leads draft with Approve and post, Redraft and the quarters
   link, Approve and post on the roster desk, `rosterApprovedAt` and `rosterApprovedBy`, the
   party post and its edits, the party post turning into the final roster at lock, raids only.
-- [ ] **Role targets** (raids, coordinator, comp-solver, apps/api, web): `roleTargets` with melee
+- [x] **Role targets** (raids, coordinator, comp-solver, apps/api, web): `roleTargets` with melee
   and ranged in schedules, raid events and raid nights, a union schema while migrating, the sum
   check, the event form and quarters fields, targets as suggestions.
-- [ ] **How late** (raids, apps/api, coordinator, web, scripts): `lateMinutes`, the 5, 15 and
+- [x] **How late** (raids, apps/api, coordinator, web, scripts): `lateMinutes`, the 5, 15 and
   30 minute buttons in place of the late reason form, Flex Raiders keeping their minutes on
   Standby, the three emoji, digest wording.
-- [ ] **Standby and seats** (raids, comp-solver, coordinator, apps/api, web, libs): the seating
+- [x] **Standby and seats** (raids, comp-solver, coordinator, apps/api, web, libs): the seating
   model (row 10) with comp-based seating and no place in line, `RANK_PRIORITY`, no more
   `queued` (including `raid-export-check`'s `expectedSignups` and `bridge-format`'s
   `benchReason`), the private "why" on Standby, Standby wording, seat mentions, lock-time
   Standby mentions, quarters Seat control, other kinds' overflow. J05, J13 and J14 in
   `raid-night.md` change with it.
-- [ ] **Guild and open raids, and the friend tier** (guild-kit, identity, raids, coordinator,
+- [x] **Guild and open raids, and the friend tier** (guild-kit, identity, raids, coordinator,
   apps/api, web): the `friend` tier, `access` on schedules, raids and raid nights, Open to pugs
   in the event form and quarters, the open-raid channel and routing of every raid post, no
   reminders for open raids, who can sign up and who sees what by `access`, Friends adding
@@ -522,12 +522,12 @@ For Bloodfen:
 - [x] **Reminder timing** (raids, coordinator): `digestHours` (optional, at least `lockHours`),
   the last reminder and DM at T-30h, `DEFAULT_TIMINGS` and the one-time schedule migration, J03
   and J04 in `raid-night.md`.
-- [ ] **Leads channel and change alerts** (coordinator, raids, apps/api, web):
+- [x] **Leads channel and change alerts** (coordinator, raids, apps/api, web):
   `leadsChannelId`, routing, the `announcedState` table, `Signup.updatedBy` and the
   `roster-move` and `roster-bench` bumps, the change feed from T-24h with group moves left out,
   coalesced immediate ticks from site answers, absence commands and quarters moves, the dropout
   post with Seat buttons (§4). Human step: create the channel.
-- [ ] **Other roles** (identity, raids, apps/api, web): `alsoRoles` on characters and signups,
+- [x] **Other roles** (identity, raids, apps/api, web): `alsoRoles` on characters and signups,
   migrating #301's `secondaryRole`, the Can also play menu and site control, the leads'
   suggestions.
-- [ ] **Jobs** J58–J70 in `raid-night.md` and the scenario test.
+- [x] **Jobs** J58–J70 in `raid-night.md` and the scenario test.

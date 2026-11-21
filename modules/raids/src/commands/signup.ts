@@ -1,9 +1,9 @@
 import { SIGNUP_STATUSES, type SignupStatus, signupStatusSchema } from '@vintage/comp-solver';
-import { error, success } from '@vintage/guild-kit';
+import { type Caller, error, success, tierAllows } from '@vintage/guild-kit';
 import type { Character } from '@vintage/identity/contract';
 import { type Role, roleFor, roleSchema } from '@vintage/wow-data';
 import { z } from 'zod';
-import type { RaidEvent, Signup } from '../contract';
+import { accessOf, type RaidEvent, type Signup } from '../contract';
 import { guessCharacter, type PastSignup, roleForSpec, seriesWindow } from '../domain/guess';
 import { LOSES_PLACE, queuePositions } from '../domain/queue';
 import { command, type RaidsDeps } from '../store';
@@ -114,17 +114,30 @@ function closedTo(event: RaidEvent, leader: boolean, now: number) {
   return null;
 }
 
+/** Gate guild raids to `recruit`+ while open raids allow `friend`+ (signup-improvements row 23). */
+function accessRefusal(caller: Caller, event: RaidEvent) {
+  if (accessOf(event) === 'open') return null;
+  if (tierAllows(caller.tier, 'recruit')) return null;
+  // Friends don't see guild raids at all; Members see them but can't sign up.
+  if (!tierAllows(caller.tier, 'member')) return eventNotFound();
+  return error('FORBIDDEN', 'Signing up for a guild raid needs the Recruit rank or higher', {
+    suggestion: 'Ask an officer if your Discord rank seems wrong, or join an open raid',
+    retryable: false,
+  });
+}
+
 export const signupSet = command({
   name: 'signup-set',
   description:
     'Sign up for a raid with one of your characters, or change your answer (accepted, late, ' +
-    'tentative, bench, declined). One signup per member per raid. Raid leaders may sign up ' +
+    'tentative, bench, declined). One signup per member per raid. Guild raids require the Recruit ' +
+    'tier; open raids allow Friends and Members too. Raid leaders may sign up ' +
     "anyone's character and may change locked raids. spec plays the character as another of " +
     "its class's specs for this raid only (the role follows); the saved character doesn't " +
     'change. role plays it as tank, healer, melee or ranged for this raid (null follows the ' +
     'spec again); a picked role stays when the spec changes. Switching character clears both; ' +
     'changing your answer keeps them.',
-  tier: 'recruit',
+  tier: 'friend',
   mutation: true,
   input: z.object({
     eventId: z.string().min(1),
@@ -143,6 +156,8 @@ export const signupSet = command({
     if (!caller.memberId && !isLeader(caller)) return notSignedIn();
     const event = await deps.raids.getEvent(guildId, eventId);
     if (!event) return eventNotFound();
+    const denied = accessRefusal(caller, event);
+    if (denied) return denied;
     const leader = isLeader(caller);
     const closed = closedTo(event, leader, now());
     if (closed) return closed;
@@ -214,13 +229,15 @@ export const signupSuggest = command({
     'short reason: this raid’s signup, else your main, else (no main) the one you brought ' +
     'most to your last 5 raids from the same schedule (one-offs: the same instance), else ' +
     'your only character. Null when there is no good guess; pick with character-list then.',
-  tier: 'recruit',
+  tier: 'friend',
   input: z.object({ eventId: z.string().min(1) }),
   handler: async ({ eventId }, { caller, guildId, deps }) => {
     const memberId = caller.memberId;
     if (!memberId) return notSignedIn();
     const event = await deps.raids.getEvent(guildId, eventId);
     if (!event) return eventNotFound();
+    const denied = accessRefusal(caller, event);
+    if (denied) return denied;
     const characters = await deps.members.listCharacters(guildId, memberId);
     const existing = await deps.raids.getSignupByMember(guildId, eventId, memberId);
 
@@ -246,7 +263,7 @@ export const signupSuggest = command({
 export const signupGet = command({
   name: 'signup-get',
   description: "Your signup for a raid. Raid leaders may look up anyone's with memberId.",
-  tier: 'recruit',
+  tier: 'friend',
   input: z.object({ eventId: z.string().min(1), memberId: z.string().min(1).optional() }),
   handler: async ({ eventId, memberId }, { caller, guildId, deps }) => {
     const who = memberId ?? caller.memberId;
@@ -259,6 +276,8 @@ export const signupGet = command({
     }
     const event = await deps.raids.getEvent(guildId, eventId);
     if (!event) return eventNotFound();
+    const denied = accessRefusal(caller, event);
+    if (denied) return denied;
     return success(await deps.raids.getSignupByMember(guildId, eventId, who));
   },
 });
@@ -268,14 +287,16 @@ export const signupList = command({
   description:
     'Everyone signed up for a raid, best answer first (accepted before tentative). A queued ' +
     'signup carries its place in line (queuePosition, 1 is next); everyone else has null.',
-  tier: 'recruit',
+  tier: 'friend',
   input: z.object({
     eventId: z.string().min(1),
     statuses: z.array(signupStatusSchema).min(1).optional(),
   }),
-  handler: async ({ eventId, statuses }, { guildId, deps }) => {
+  handler: async ({ eventId, statuses }, { caller, guildId, deps }) => {
     const event = await deps.raids.getEvent(guildId, eventId);
     if (!event) return eventNotFound();
+    const denied = accessRefusal(caller, event);
+    if (denied) return denied;
     const all = await deps.raids.listSignups(guildId, eventId);
     // Positions come from every signup, so a status filter doesn't renumber the line.
     const positions = queuePositions(all, event.size);

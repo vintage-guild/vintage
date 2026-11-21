@@ -16,12 +16,27 @@
 //   raid-summary   once an officer records the addon's export: how the bosses went, who came, and
 //                  what dropped, to the signup channel; edited when a different export replaces
 //                  it (not logged, like refresh)
-import type { Signup } from '@vintage/raids/contract';
-import type { CoordinatorAction } from '../contract';
+import { accessOf, type RaidEvent, type Signup } from '@vintage/raids/contract';
+import type { CoordinatorAction, CoordinatorConfig } from '../contract';
 import type { TickEvent, TickMember, TickRecorded, TickState } from '../store';
 import { MAX_SERVER_EVENTS } from './server-event';
 
 const HOUR = 60 * 60 * 1000;
+
+/** Channel for a raid's signup post, party post, final roster, mentions, and summary. */
+export function signupChannelFor(
+  config: CoordinatorConfig,
+  event: Pick<RaidEvent, 'access'>,
+): string | null {
+  return accessOf(event) === 'open'
+    ? (config.openSignupChannelId ?? config.signupChannelId)
+    : config.signupChannelId;
+}
+
+/** Channel for raid-lead messages (digest, party draft, change alerts, import string). */
+export function leadsChannelFor(config: CoordinatorConfig): string | null {
+  return config.leadsChannelId ?? config.opsChannelId;
+}
 
 export type PlannedAction =
   | { kind: 'post'; tick: TickEvent; rule: 'post'; target: string }
@@ -103,7 +118,10 @@ function planReminders(
   now: number,
   post: CoordinatorAction,
 ): PlannedAction[] {
-  const channel = state.config.signupChannelId!;
+  // Open raids expect nobody and send no reminders or DMs (signup-improvements row 26).
+  if (accessOf(tick.event) === 'open') return [];
+  const channel = signupChannelFor(state.config, tick.event);
+  if (!channel) return [];
   const { startsAt } = tick.event;
   const lockAt = startsAt - tick.timings.lockHours * HOUR;
   if (now >= lockAt) return [];
@@ -151,7 +169,8 @@ function planReminders(
 
 /** One notice per promotion: the rule names the signup and when it was promoted. */
 function planPromotions(state: TickState, tick: TickEvent, done: Set<string>): PlannedAction[] {
-  const channel = state.config.signupChannelId!;
+  const channel = signupChannelFor(state.config, tick.event);
+  if (!channel) return [];
   return tick.signups
     .filter(
       (s) => s.promotedAt !== null && !s.queued && (s.status === 'accepted' || s.status === 'late'),
@@ -167,11 +186,12 @@ function planDigest(
   done: Set<string>,
   now: number,
 ): PlannedAction[] {
-  const ops = state.config.opsChannelId;
-  const dueAt = tick.event.startsAt - lastReminderHours(tick) * HOUR;
-  if (!ops || now < dueAt || done.has(`digest|${ops}`)) return [];
+  const leads = leadsChannelFor(state.config);
+  const digestHours = tick.timings.digestHours ?? 24;
+  const dueAt = tick.event.startsAt - digestHours * HOUR;
+  if (!leads || now < dueAt || done.has(`digest|${leads}`)) return [];
   return [
-    { kind: 'digest', tick, rule: 'digest', target: ops, waiting: nonResponders(state, tick) },
+    { kind: 'digest', tick, rule: 'digest', target: leads, waiting: nonResponders(state, tick) },
   ];
 }
 
@@ -186,13 +206,13 @@ function planLock(
   const out: PlannedAction[] = [];
   if (!done.has(`lock|${event.id}`))
     out.push({ kind: 'lock', tick, rule: 'lock', target: event.id });
-  const channel = state.config.signupChannelId!;
-  if (!done.has(`final-roster|${channel}`)) {
+  const channel = signupChannelFor(state.config, event);
+  if (channel && !done.has(`final-roster|${channel}`)) {
     out.push({ kind: 'final-roster', tick, rule: 'final-roster', target: channel });
   }
-  const ops = state.config.opsChannelId;
-  if (ops && !done.has(`import-string|${ops}`)) {
-    out.push({ kind: 'import-string', tick, rule: 'import-string', target: ops });
+  const leads = leadsChannelFor(state.config);
+  if (leads && !done.has(`import-string|${leads}`)) {
+    out.push({ kind: 'import-string', tick, rule: 'import-string', target: leads });
   }
   return out;
 }
@@ -249,12 +269,13 @@ function planServerEvents(
 /** A summary per recorded raid, posted once and edited when what it would show changes. */
 function planSummaries(
   state: TickState,
-  channel: string,
   summaryHash: (recorded: TickRecorded) => string,
 ): PlannedAction[] {
   const out: PlannedAction[] = [];
   for (const recorded of state.recorded ?? []) {
     const { tick } = recorded;
+    const channel = signupChannelFor(state.config, tick.event);
+    if (!channel) continue;
     const summary = sentAction(state, tick.event.id, 'raid-summary');
     if (!summary) {
       out.push({ kind: 'summary', tick, rule: 'raid-summary', target: channel, recorded });
@@ -262,6 +283,36 @@ function planSummaries(
       out.push({ kind: 'summary-update', tick, summary, recorded });
     }
   }
+  return out;
+}
+
+function planEvent(
+  state: TickState,
+  tick: TickEvent,
+  now: number,
+  renderHash: (tick: TickEvent) => string,
+): PlannedAction[] {
+  if (
+    now >= tick.event.startsAt ||
+    (tick.event.status !== 'open' && tick.event.status !== 'locked')
+  ) {
+    return [];
+  }
+  const channel = signupChannelFor(state.config, tick.event);
+  if (!channel) return [];
+  const post = sentAction(state, tick.event.id, 'post');
+  if (!post) {
+    return [{ kind: 'post', tick, rule: 'post', target: channel }]; // reminders reference the post; they wait for the next tick
+  }
+  const done = settled(state.actions, tick.event.id);
+  const out: PlannedAction[] = [];
+  if (post.renderHash !== renderHash(tick)) out.push({ kind: 'refresh', tick, post });
+  out.push(
+    ...planPromotions(state, tick, done),
+    ...planReminders(state, tick, done, now, post),
+    ...planDigest(state, tick, done, now),
+    ...planLock(state, tick, done, now),
+  );
   return out;
 }
 
@@ -275,33 +326,14 @@ export function planTick(
   /** Hash of the summary a recorded raid should have; needed only when `recorded` has raids. */
   summaryHash?: (recorded: TickRecorded) => string,
 ): PlannedAction[] {
-  const channel = state.config.signupChannelId;
-  if (state.config.paused || !channel) return [];
+  if (state.config.paused || !state.config.signupChannelId) return [];
   const out: PlannedAction[] = [];
   for (const tick of state.events) {
-    if (
-      now >= tick.event.startsAt ||
-      (tick.event.status !== 'open' && tick.event.status !== 'locked')
-    ) {
-      continue;
-    }
-    const done = settled(state.actions, tick.event.id);
-    const post = sentAction(state, tick.event.id, 'post');
-    if (!post) {
-      out.push({ kind: 'post', tick, rule: 'post', target: channel });
-      continue; // reminders reference the post; they wait for the next tick
-    }
-    if (post.renderHash !== renderHash(tick)) out.push({ kind: 'refresh', tick, post });
-    out.push(
-      ...planPromotions(state, tick, done),
-      ...planReminders(state, tick, done, now, post),
-      ...planDigest(state, tick, done, now),
-      ...planLock(state, tick, done, now),
-    );
+    out.push(...planEvent(state, tick, now, renderHash));
   }
   if (state.config.serverEvents && serverEventHash) {
     out.push(...planServerEvents(state, now, serverEventHash));
   }
-  if (summaryHash) out.push(...planSummaries(state, channel, summaryHash));
+  if (summaryHash) out.push(...planSummaries(state, summaryHash));
   return out;
 }

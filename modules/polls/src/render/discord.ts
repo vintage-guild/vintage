@@ -73,6 +73,7 @@ export function publicTally(poll: Pick<Poll, 'status' | 'resultsVisible'>): bool
 
 const AUDIENCE: Record<Tier, string> = {
   public: 'Everyone',
+  friend: 'Friends and up',
   member: 'Members and up',
   recruit: 'Recruits and up',
   raider: 'Raiders and up',

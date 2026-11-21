@@ -11,10 +11,11 @@ const schedule = (over: Partial<Schedule> = {}): Schedule => ({
   name: 'Raid night',
   instance: "Onyxia's Lair",
   kind: 'raid',
+  access: 'guild',
   size: 40,
   recurrence: { weekdays: ['wed', 'thu'], time: '20:00', timeZone: 'America/New_York' },
   durationMinutes: 180,
-  timings: { leadDays: 7, reminderHours: [72, 24], lockHours: 2 },
+  timings: { leadDays: 7, reminderHours: [72, 24], digestHours: 24, lockHours: 2 },
   roleTargets: null,
   lootMethodId: null,
   notes: null,
@@ -68,7 +69,7 @@ describe('describeTimings', () => {
     const quick = schedule({
       id: 's2',
       name: 'Sunday Onyxia',
-      timings: { leadDays: 3, reminderHours: [24], lockHours: 1 },
+      timings: { leadDays: 3, reminderHours: [24], digestHours: 24, lockHours: 1 },
     });
     expect(describeTimings([schedule(), quick])).toBe(
       'For Raid night, signups post 7 days ahead and lock 2 hours before the pull; anyone who hasn’t answered is reminded at 72h and 24h. ' +

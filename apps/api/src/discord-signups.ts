@@ -42,6 +42,7 @@ import {
 import { type Caller, type CommandResult, tierAllows } from '@vintage/guild-kit';
 import type { Character, Member } from '@vintage/identity/contract';
 import {
+  accessOf,
   type CompRole,
   compRole,
   type RaidEvent,
@@ -191,8 +192,8 @@ export function parseSignupInteraction(interaction: Interaction): Parsed | null 
 
 const ephemeral = (content: string) => reply(content, { ephemeral: true });
 
-const NEEDS_MEMBER_FOR_CHARACTERS =
-  'Adding a character needs the Member rank or higher in this server. Ask an officer if that seems wrong.';
+const NEEDS_FRIEND_FOR_CHARACTERS =
+  'Adding a character needs the Friend rank or higher in this server. Ask an officer if that seems wrong.';
 
 const NEEDS_RECRUIT =
   'Signing up needs the Recruit rank or higher in this server. Ask an officer if that seems wrong.';
@@ -447,6 +448,7 @@ async function guess(ports: SignupPorts, caller: Caller, eventId: string) {
 async function whoIsClicking(
   interaction: Interaction,
   ports: SignupPorts,
+  event: RaidEvent,
 ): Promise<{ member: Member } | { refusal: InteractionResponse }> {
   if (!ports.discordGuildId || interaction.guild_id !== ports.discordGuildId) {
     return { refusal: ephemeral('Random only takes signups in the Vintage guild server.') };
@@ -460,7 +462,8 @@ async function whoIsClicking(
       ),
     };
   }
-  if (!tierAllows(member.tier, 'recruit')) return { refusal: ephemeral(NEEDS_RECRUIT) };
+  const required = accessOf(event) === 'open' ? 'friend' : 'recruit';
+  if (!tierAllows(member.tier, required)) return { refusal: ephemeral(NEEDS_RECRUIT) };
   return { member };
 }
 
@@ -533,7 +536,7 @@ async function onNewCharacter(
   const { input, note } = readNewCharacter(interaction);
   const added = await flow.ports.characterAdd(flow.caller, input);
   if (!added.success) {
-    const why = failureText(added, NEEDS_MEMBER_FOR_CHARACTERS, 'That character isn’t valid.');
+    const why = failureText(added, NEEDS_FRIEND_FOR_CHARACTERS, 'That character isn’t valid.');
     return ephemeral(`${why}\nPick **New character…** again to fix it.`);
   }
   const character = added.data!;
@@ -611,10 +614,13 @@ export async function handleSignupInteraction(
   const parsed = roster ? null : parseSignupInteraction(interaction);
   const eventId = roster ?? parsed?.eventId;
   if (!eventId) return null;
-  const who = await whoIsClicking(interaction, ports);
-  if ('refusal' in who) return who.refusal;
+  if (!ports.discordGuildId || interaction.guild_id !== ports.discordGuildId) {
+    return ephemeral('Random only takes signups in the Vintage guild server.');
+  }
   const event = await ports.event(eventId);
   if (!event) return ephemeral('That raid no longer exists.');
+  const who = await whoIsClicking(interaction, ports, event);
+  if ('refusal' in who) return who.refusal;
   if (roster) {
     return reply(renderRosterReply(event, await ports.signups(event.id)), { ephemeral: true });
   }

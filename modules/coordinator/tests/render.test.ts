@@ -14,6 +14,7 @@ const event: RaidEvent = {
   name: 'Onyxia',
   instance: "Onyxia's Lair",
   kind: 'raid',
+  access: 'guild',
   size: 10,
   startsAt: NOW + 50 * 3600 * 1000,
   durationMinutes: 120,

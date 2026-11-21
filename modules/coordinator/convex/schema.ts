@@ -21,6 +21,10 @@ export const actionStatus = v.union(
 export const configFields = {
   guildId: v.string(),
   signupChannelId: v.union(v.string(), v.null()),
+  /** Optional: rows saved before open raids existed read as null. */
+  openSignupChannelId: v.optional(v.union(v.string(), v.null())),
+  /** Optional: rows saved before leads channel existed read as null. */
+  leadsChannelId: v.optional(v.union(v.string(), v.null())),
   opsChannelId: v.union(v.string(), v.null()),
   expectedRanks: v.array(guildRank),
   dmReminders: v.boolean(),
@@ -48,6 +52,8 @@ export const raidNightFields = {
   kind: v.optional(
     v.union(v.literal('raid'), v.literal('dungeon'), v.literal('battleground'), v.literal('other')),
   ),
+  // Optional so nights from before access existed stay valid; read as 'guild'.
+  access: v.optional(v.union(v.literal('guild'), v.literal('open'))),
   // Any size from 1 to 40, checked per kind by raid-night-poll. Widened from 10/20/40.
   size: v.union(v.number(), v.null()),
   roleTargets: v.optional(

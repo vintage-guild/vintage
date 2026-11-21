@@ -78,6 +78,8 @@ export function refusedNote(
   what: string,
 ): string {
   if (result.success) return '';
-  if (result.error?.code === 'COMMAND_NOT_FOUND') return rankNote;
+  if (result.error?.code === 'COMMAND_NOT_FOUND' || result.error?.code === 'FORBIDDEN') {
+    return rankNote;
+  }
   return `Couldn’t read ${what}: ${result.error?.message ?? 'no answer'}.`;
 }

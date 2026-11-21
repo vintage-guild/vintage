@@ -64,12 +64,21 @@ export interface Recurrence {
   timeZone: string;
 }
 
+export const RAID_ACCESS = ['guild', 'open'] as const;
+/** `guild` is the guild's own nights (Recruit+, Flex Standby-only, reminders); `open` welcomes pugs/Friends. */
+export type RaidAccess = (typeof RAID_ACCESS)[number];
+
+/** Access of a stored schedule or raid; older rows without `access` read as `guild`. */
+export const accessOf = (row: { access?: RaidAccess | null }): RaidAccess => row.access ?? 'guild';
+
 /** Coordinator timings (PLAN §6.2). Per schedule, so each raid night can differ. */
 export interface ScheduleTimings {
   /** How many days ahead events are created and posted. */
   leadDays: number;
-  /** Reminder offsets before start, in hours (e.g. 72 and 24). */
+  /** Reminder offsets before start, in hours (e.g. 72 and 30). */
   reminderHours: number[];
+  /** Officer/leads digest and party draft offset before start, in hours (default 24). */
+  digestHours: number;
   /** Signups lock this many hours before start. */
   lockHours: number;
 }
@@ -82,6 +91,8 @@ export interface Schedule {
   instance: string;
   /** What kind of event; rows from before kinds existed read as `raid`. */
   kind: EventKind;
+  /** Guild raid or open (pugs welcome); rows from before access existed read as `guild`. */
+  access: RaidAccess;
   /** Players; allowed sizes depend on the kind (`sizeFits`). Null: an open `other` event. */
   size: number | null;
   recurrence: Recurrence;
@@ -112,6 +123,8 @@ export interface RaidEvent {
   instance: string;
   /** What kind of event; rows from before kinds existed read as `raid`. */
   kind: EventKind;
+  /** Guild raid or open (pugs welcome); rows from before access existed read as `guild`. */
+  access: RaidAccess;
   /** Players; allowed sizes depend on the kind (`sizeFits`). Null: an open `other` event. */
   size: number | null;
   /** Epoch ms. */
@@ -184,7 +197,8 @@ export const RANK_PRIORITY: Record<GuildRank, number> = {
 /** Coordinator timings for one-off raids that have no schedule. */
 export const DEFAULT_TIMINGS: ScheduleTimings = {
   leadDays: 7,
-  reminderHours: [72, 24],
+  reminderHours: [72, 30],
+  digestHours: 24,
   lockHours: 2,
 };
 

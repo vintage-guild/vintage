@@ -107,11 +107,17 @@ describe('raids commands', () => {
       const schedule = await ok<Schedule>('schedule-create', tueThu, leader);
       expect(schedule).toMatchObject({
         active: true,
+        access: 'guild',
         configVersion: 1,
         durationMinutes: 180,
-        timings: { leadDays: 7, reminderHours: [72, 24], lockHours: 2 },
+        timings: { leadDays: 7, reminderHours: [72, 30], digestHours: 24, lockHours: 2 },
         roleTargets: null,
       });
+    });
+
+    it('rejects digestHours smaller than lockHours', async () => {
+      const res = await run('schedule-create', { ...tueThu, digestHours: 1, lockHours: 2 }, leader);
+      expect(res.error?.code).toBe('INVALID_TIMINGS');
     });
 
     it('is leader-only and validates time, zone, and targets', async () => {

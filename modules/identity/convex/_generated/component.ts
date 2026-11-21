@@ -136,7 +136,13 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           roleIds: Array<string>;
           syncedAt: number;
           tier:
-            "public" | "member" | "recruit" | "raider" | "leader" | "officer";
+            | "public"
+            | "friend"
+            | "member"
+            | "recruit"
+            | "raider"
+            | "leader"
+            | "officer";
         },
         any,
         Name

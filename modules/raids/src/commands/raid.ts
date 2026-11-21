@@ -1,7 +1,14 @@
 import { roleTargetsSchema, type SignupStatus } from '@vintage/comp-solver';
 import { error, success, tierAllows } from '@vintage/guild-kit';
 import { z } from 'zod';
-import { RAID_STATUSES, type Schedule, type Signup, sizeLabel } from '../contract';
+import {
+  accessOf,
+  RAID_ACCESS,
+  RAID_STATUSES,
+  type Schedule,
+  type Signup,
+  sizeLabel,
+} from '../contract';
 import { locksAt, timingsFor } from '../domain/timings';
 import { command } from '../store';
 import {
@@ -49,6 +56,7 @@ export const raidCreate = command({
       name: z.string().trim().min(1).max(60),
       instance: optionalInstanceSchema,
       kind: kindSchema.default('raid'),
+      access: z.enum(RAID_ACCESS).default('guild'),
       size: optionalSizeSchema,
       startsAt: instantSchema,
       durationMinutes: z
@@ -180,15 +188,17 @@ export const raidGet = command({
   name: 'raid-get',
   description:
     'One raid with signup counts, when signups lock, and your own signup. Recruits and up see ' +
-    'the full signup list.',
-  tier: 'member',
+    'the full signup list; Friends see open raids only.',
+  tier: 'friend',
   input: z.object({ eventId: z.string().min(1) }),
   handler: async ({ eventId }, { caller, guildId, deps }) => {
     const event = await deps.raids.getEvent(guildId, eventId);
     if (!event) return eventNotFound();
+    const open = accessOf(event) === 'open';
+    if (!open && !tierAllows(caller.tier, 'member')) return eventNotFound();
     const signups = await deps.raids.listSignups(guildId, eventId);
     const mine = signups.find((s) => s.memberId === caller.memberId) ?? null;
-    const canSeeList = tierAllows(caller.tier, 'recruit');
+    const canSeeList = open || tierAllows(caller.tier, 'recruit');
     const schedule = event.scheduleId
       ? await deps.raids.getSchedule(guildId, event.scheduleId)
       : null;
@@ -206,8 +216,8 @@ export const raidList = command({
   name: 'raid-list',
   description:
     'Raids in a time window, soonest first, with signup counts, your own answer, and when ' +
-    'signups lock. Defaults to open and locked raids in the next 14 days.',
-  tier: 'member',
+    'signups lock. Defaults to open and locked raids in the next 14 days. Friends see open raids only.',
+  tier: 'friend',
   input: z.object({
     from: instantSchema.optional(),
     to: instantSchema.optional(),
@@ -216,12 +226,15 @@ export const raidList = command({
   }),
   handler: async ({ from, to, statuses, scheduleId }, { caller, guildId, deps, now }) => {
     const start = from ?? now();
-    const events = await deps.raids.listEvents(guildId, {
+    const allEvents = await deps.raids.listEvents(guildId, {
       from: start,
       to: to ?? start + 14 * DAY_MS,
       statuses,
       ...(scheduleId ? { scheduleId } : {}),
     });
+    const events = tierAllows(caller.tier, 'member')
+      ? allEvents
+      : allEvents.filter((e) => accessOf(e) === 'open');
     // Each schedule once, however many of its raids are in the window.
     const schedules = new Map<string, Promise<Schedule | null>>();
     const scheduleOf = (id: string | null) => {

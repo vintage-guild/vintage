@@ -20,6 +20,7 @@ const event = (id: string, startsAt: number): RaidEvent => ({
   name: 'Molten Core',
   instance: 'Molten Core',
   kind: 'raid',
+  access: 'guild',
   size: 10,
   startsAt,
   durationMinutes: 180,

@@ -7,7 +7,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 // Keep in step with packages/guild-kit/src/tiers.ts.
-const TIERS = ['public', 'member', 'recruit', 'raider', 'leader', 'officer'];
+const TIERS = ['public', 'friend', 'member', 'recruit', 'raider', 'leader', 'officer'];
 
 /** How one command that still exists breaks its callers, if it does. */
 function breaksOf(old, now) {

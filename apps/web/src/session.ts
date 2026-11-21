@@ -31,7 +31,7 @@ export const PREVIEW_TIERS = {
 } as const satisfies Record<string, GuildRank | null>;
 export type PreviewTier = keyof typeof PREVIEW_TIERS;
 
-const TIER_ORDER = ['public', 'member', 'recruit', 'raider', 'leader', 'officer'];
+const TIER_ORDER = ['public', 'friend', 'member', 'recruit', 'raider', 'leader', 'officer'];
 const rankOf = (tier: string) => TIER_ORDER.indexOf(tier === 'visitor' ? 'public' : tier);
 
 let preview: PreviewTier | null = null;

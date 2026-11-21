@@ -1657,7 +1657,7 @@
     {
       "name": "character-add",
       "description": "Register one of your characters (main or alt). role is optional: leave it out to guess it from the spec, or pick one (a Fury warrior who tanks). alsoRoles lists other roles it can play (only roles its class can play; the main role is left out).",
-      "tier": "member",
+      "tier": "friend",
       "mutation": true,
       "destructive": false,
       "input": {
@@ -1724,7 +1724,7 @@
     {
       "name": "character-list",
       "description": "Characters for a member (yours by default), or the whole guild for recruits and up.",
-      "tier": "member",
+      "tier": "friend",
       "mutation": false,
       "destructive": false,
       "input": {
@@ -1744,7 +1744,7 @@
     {
       "name": "character-remove",
       "description": "Remove a character. Shows a preview first; confirm to delete.",
-      "tier": "member",
+      "tier": "friend",
       "mutation": true,
       "destructive": true,
       "input": {
@@ -1764,7 +1764,7 @@
     {
       "name": "character-update",
       "description": "Edit a character: name, class, spec, role, alsoRoles, or make it your main. role null goes back to guessing it from the spec; a guessed role follows a spec change, a picked one stays. alsoRoles replaces the other roles it plays ([] clears them); a class change clears them and a new main role leaves them. A new class needs a spec of that class.",
-      "tier": "member",
+      "tier": "friend",
       "mutation": true,
       "destructive": false,
       "input": {
@@ -1867,6 +1867,28 @@
         "type": "object",
         "properties": {
           "signupChannelId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{17,20}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "openSignupChannelId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{17,20}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "leadsChannelId": {
             "anyOf": [
               {
                 "type": "string",
@@ -2605,6 +2627,7 @@
             "type": "string",
             "enum": [
               "public",
+              "friend",
               "member",
               "recruit",
               "raider",
@@ -3023,6 +3046,14 @@
               "other"
             ]
           },
+          "access": {
+            "default": "guild",
+            "type": "string",
+            "enum": [
+              "guild",
+              "open"
+            ]
+          },
           "size": {
             "anyOf": [
               {
@@ -3170,8 +3201,8 @@
     },
     {
       "name": "raid-get",
-      "description": "One raid with signup counts, when signups lock, and your own signup. Recruits and up see the full signup list.",
-      "tier": "member",
+      "description": "One raid with signup counts, when signups lock, and your own signup. Recruits and up see the full signup list; Friends see open raids only.",
+      "tier": "friend",
       "mutation": false,
       "destructive": false,
       "input": {
@@ -3190,8 +3221,8 @@
     },
     {
       "name": "raid-list",
-      "description": "Raids in a time window, soonest first, with signup counts, your own answer, and when signups lock. Defaults to open and locked raids in the next 14 days.",
-      "tier": "member",
+      "description": "Raids in a time window, soonest first, with signup counts, your own answer, and when signups lock. Defaults to open and locked raids in the next 14 days. Friends see open raids only.",
+      "tier": "friend",
       "mutation": false,
       "destructive": false,
       "input": {
@@ -3278,6 +3309,14 @@
               "dungeon",
               "battleground",
               "other"
+            ]
+          },
+          "access": {
+            "default": "guild",
+            "type": "string",
+            "enum": [
+              "guild",
+              "open"
             ]
           },
           "size": {
@@ -3378,6 +3417,7 @@
             "type": "string",
             "enum": [
               "public",
+              "friend",
               "member",
               "recruit",
               "raider",
@@ -4490,6 +4530,14 @@
               "other"
             ]
           },
+          "access": {
+            "default": "guild",
+            "type": "string",
+            "enum": [
+              "guild",
+              "open"
+            ]
+          },
           "size": {
             "default": null,
             "anyOf": [
@@ -4540,7 +4588,7 @@
           "reminderHours": {
             "default": [
               72,
-              24
+              30
             ],
             "maxItems": 5,
             "type": "array",
@@ -4549,6 +4597,12 @@
               "minimum": 1,
               "maximum": 336
             }
+          },
+          "digestHours": {
+            "default": 24,
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 336
           },
           "lockHours": {
             "default": 2,
@@ -4687,6 +4741,13 @@
               "other"
             ]
           },
+          "access": {
+            "type": "string",
+            "enum": [
+              "guild",
+              "open"
+            ]
+          },
           "size": {
             "anyOf": [
               {
@@ -4739,6 +4800,11 @@
               "minimum": 1,
               "maximum": 336
             }
+          },
+          "digestHours": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 336
           },
           "lockHours": {
             "type": "integer",
@@ -4811,7 +4877,7 @@
     {
       "name": "signup-get",
       "description": "Your signup for a raid. Raid leaders may look up anyone's with memberId.",
-      "tier": "recruit",
+      "tier": "friend",
       "mutation": false,
       "destructive": false,
       "input": {
@@ -4835,7 +4901,7 @@
     {
       "name": "signup-list",
       "description": "Everyone signed up for a raid, best answer first (accepted before tentative). A queued signup carries its place in line (queuePosition, 1 is next); everyone else has null.",
-      "tier": "recruit",
+      "tier": "friend",
       "mutation": false,
       "destructive": false,
       "input": {
@@ -4868,8 +4934,8 @@
     },
     {
       "name": "signup-set",
-      "description": "Sign up for a raid with one of your characters, or change your answer (accepted, late, tentative, bench, declined). One signup per member per raid. Raid leaders may sign up anyone's character and may change locked raids. spec plays the character as another of its class's specs for this raid only (the role follows); the saved character doesn't change. role plays it as tank, healer, melee or ranged for this raid (null follows the spec again); a picked role stays when the spec changes. Switching character clears both; changing your answer keeps them.",
-      "tier": "recruit",
+      "description": "Sign up for a raid with one of your characters, or change your answer (accepted, late, tentative, bench, declined). One signup per member per raid. Guild raids require the Recruit tier; open raids allow Friends and Members too. Raid leaders may sign up anyone's character and may change locked raids. spec plays the character as another of its class's specs for this raid only (the role follows); the saved character doesn't change. role plays it as tank, healer, melee or ranged for this raid (null follows the spec again); a picked role stays when the spec changes. Switching character clears both; changing your answer keeps them.",
+      "tier": "friend",
       "mutation": true,
       "destructive": false,
       "input": {
@@ -4937,7 +5003,7 @@
     {
       "name": "signup-suggest",
       "description": "Which of your characters you are likely bringing to a raid, with the spec, role and a short reason: this raid’s signup, else your main, else (no main) the one you brought most to your last 5 raids from the same schedule (one-offs: the same instance), else your only character. Null when there is no good guess; pick with character-list then.",
-      "tier": "recruit",
+      "tier": "friend",
       "mutation": false,
       "destructive": false,
       "input": {

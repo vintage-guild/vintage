@@ -5,6 +5,7 @@ import type { GuildRank } from '@vintage/identity/contract';
 import type { Poll } from '@vintage/polls/contract';
 import type {
   EventKind,
+  RaidAccess,
   RaidEvent,
   RaidRecord,
   RoleTargets,
@@ -190,6 +191,7 @@ export interface CoordinatorRaids {
       name: string;
       instance: string;
       kind: EventKind;
+      access?: RaidAccess;
       size: number | null;
       roleTargets: RoleTargets | null;
       startsAt: number;

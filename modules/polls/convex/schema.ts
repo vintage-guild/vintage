@@ -5,6 +5,7 @@ import { v } from 'convex/values';
 
 export const tier = v.union(
   v.literal('public'),
+  v.literal('friend'),
   v.literal('member'),
   v.literal('recruit'),
   v.literal('raider'),

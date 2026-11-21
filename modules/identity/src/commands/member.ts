@@ -1,4 +1,4 @@
-import { error, success } from '@vintage/guild-kit';
+import { error, success, tierAllows } from '@vintage/guild-kit';
 import { z } from 'zod';
 import { GUILD_RANKS } from '../contract';
 import { resolveRank, tierForRank } from '../domain/rank';
@@ -39,7 +39,7 @@ export const memberList = command({
     ]);
     const mains = new Map(characters.filter((c) => c.isMain).map((c) => [c.memberId, c]));
     const rows = members
-      .filter((m) => m.tier !== 'public' && (!rank || m.rank === rank))
+      .filter((m) => tierAllows(m.tier, 'member') && (!rank || m.rank === rank))
       .sort((a, b) => a.displayName.localeCompare(b.displayName))
       .map((m) => ({
         id: m.id,

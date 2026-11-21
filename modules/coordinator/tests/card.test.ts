@@ -19,6 +19,7 @@ const event: RaidEvent = {
   name: 'Raid night',
   instance: 'Molten Core',
   kind: 'raid',
+  access: 'guild',
   size: 40,
   startsAt: Date.UTC(2026, 9, 29, 0),
   durationMinutes: 180,

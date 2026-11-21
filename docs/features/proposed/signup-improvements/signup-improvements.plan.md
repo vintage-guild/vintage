@@ -519,7 +519,7 @@ For Bloodfen:
   in the event form and quarters, the open-raid channel and routing of every raid post, no
   reminders for open raids, who can sign up and who sees what by `access`, Friends adding
   characters, the on-the-spot sync for new Friends. Human step: create the open-raid channel.
-- [ ] **Reminder timing** (raids, coordinator): `digestHours` (optional, at least `lockHours`),
+- [x] **Reminder timing** (raids, coordinator): `digestHours` (optional, at least `lockHours`),
   the last reminder and DM at T-30h, `DEFAULT_TIMINGS` and the one-time schedule migration, J03
   and J04 in `raid-night.md`.
 - [ ] **Leads channel and change alerts** (coordinator, raids, apps/api, web):

@@ -46,8 +46,8 @@ describe('resolveRank / tierForRank', () => {
     expect(tierForRank('member')).toBe('member');
   });
 
-  it('treats Discord-only friends and unranked accounts as public', () => {
-    expect(tierForRank('friend')).toBe('public');
+  it('maps Discord-only friends to friend tier and unranked accounts to public', () => {
+    expect(tierForRank('friend')).toBe('friend');
     expect(tierForRank(null)).toBe('public');
   });
 });
@@ -86,13 +86,13 @@ describe('identity commands', () => {
     });
   });
 
-  it('member-sync makes Discord-only friends and unranked accounts public', async () => {
+  it('member-sync gives Discord-only friends the friend tier and unranked accounts public', async () => {
     const friend = await run(
       'member-sync',
       { discordId: 'd-pal', displayName: 'Pal', inServer: true, roleIds: ['role-friend'] },
       system,
     );
-    expect(friend).toMatchObject({ data: { member: { rank: 'friend', tier: 'public' } } });
+    expect(friend).toMatchObject({ data: { member: { rank: 'friend', tier: 'friend' } } });
 
     const unranked = await run(
       'member-sync',

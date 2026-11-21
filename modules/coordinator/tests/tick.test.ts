@@ -93,6 +93,7 @@ describe('runTick', () => {
       name: 'MC nights',
       instance: 'Molten Core',
       kind: 'raid',
+      access: 'guild',
       size: 10,
       startsAt: START,
       durationMinutes: 180,
@@ -221,7 +222,7 @@ describe('runTick', () => {
     await tick(START - 20 * HOUR); // both 72h and 24h are due
     const s = await statuses();
     expect(s[`remind-72h|${SIGNUPS}`]).toBe('skipped');
-    expect(s[`remind-24h|${SIGNUPS}`]).toBe('sent');
+    expect(s[`remind-30h|${SIGNUPS}`]).toBe('sent');
     expect(discord.sent.filter((m) => m.message.content?.includes('Still waiting'))).toHaveLength(
       1,
     );
@@ -319,9 +320,30 @@ describe('runTick', () => {
         message: 'Cannot send messages to this user',
       });
     };
-    await tick(START - 24 * HOUR);
+    await tick(START - 30 * HOUR);
     discord.dm = original;
-    expect((await statuses())[`dm-24h|bram`]).toBe('skipped');
+    expect((await statuses())[`dm-30h|bram`]).toBe('skipped');
+  });
+
+  it('routes open raids to openSignupChannelId with no reminders, and routes digests to leadsChannelId at digestHours', async () => {
+    const OPEN_CH = '100000000000000099';
+    const LEADS_CH = '100000000000000088';
+    await store.setConfig(G, { openSignupChannelId: OPEN_CH, leadsChannelId: LEADS_CH }, 0);
+    event = { ...event, access: 'open' };
+
+    await tick(START - 100 * HOUR); // post goes to openSignupChannelId
+    expect(discord.sent[0]?.to).toBe(OPEN_CH);
+
+    await tick(START - 72 * HOUR); // no reminder for open raids
+    await tick(START - 30 * HOUR); // no reminder or DM for open raids
+    expect(discord.sent.filter((s) => s.kind === 'dm')).toEqual([]);
+    expect(discord.sent.filter((s) => s.message.content?.includes('Still waiting'))).toEqual([]);
+
+    await tick(START - 24 * HOUR); // digest goes to leadsChannelId at digestHours (24h)
+    const digest = discord.sent.find(
+      (s) => s.to === LEADS_CH && s.message.content?.includes('confirmed'),
+    );
+    expect(digest).toBeDefined();
   });
 
   it('shows role counters, late people with their reason, and the queue', async () => {

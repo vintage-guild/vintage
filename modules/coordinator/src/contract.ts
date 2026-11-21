@@ -1,14 +1,18 @@
 // Public surface of the coordinator module. Other modules import only this file.
 
 import type { GuildRank } from '@vintage/identity/contract';
-import type { EventKind, RoleTargets } from '@vintage/raids/contract';
+import type { EventKind, RaidAccess, RoleTargets } from '@vintage/raids/contract';
 
 /** Guild-wide coordinator settings. Timings live on each raids schedule (PLAN §6.2). */
 export interface CoordinatorConfig {
   guildId: string;
-  /** Where signup posts, reminders, and final rosters go (e.g. #raid-signups). */
+  /** Where guild-raid signup posts, reminders, and final rosters go (e.g. #raid-signups). */
   signupChannelId: string | null;
-  /** Officer channel for digests, addon strings, and failures (e.g. #vintage-ops). */
+  /** Where open-raid (pug) signup posts go; falls back to signupChannelId when null. */
+  openSignupChannelId: string | null;
+  /** Raid-leader and officer channel for digests, party drafts, change alerts, and import strings; falls back to opsChannelId. */
+  leadsChannelId: string | null;
+  /** Officer channel for errors, admin notices, and weekly assessment (e.g. #vintage-ops). */
   opsChannelId: string | null;
   /** Ranks expected to answer every raid; the non-responders among them get reminded. */
   expectedRanks: GuildRank[];
@@ -37,6 +41,8 @@ export function defaultConfig(guildId: string): CoordinatorConfig {
   return {
     guildId,
     signupChannelId: null,
+    openSignupChannelId: null,
+    leadsChannelId: null,
     opsChannelId: null,
     expectedRanks: [...DEFAULT_EXPECTED_RANKS],
     dmReminders: true,
@@ -113,6 +119,8 @@ export interface RaidNight {
   instance: string;
   /** The kind of event the winner becomes; nights from before kinds existed are raids. */
   kind: EventKind;
+  /** Guild raid or open (pugs welcome); nights from before access existed are guild. */
+  access: RaidAccess;
   /** Null: an open `other` event (no cap, no queue). */
   size: number | null;
   /** Carried to the event; null means the kind's default. */

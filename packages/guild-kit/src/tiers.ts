@@ -2,14 +2,23 @@
  * Permission tiers, lowest to highest (PLAN §3.4). A member's tier comes from their guild rank
  * (Discord role); a command declares the minimum tier it needs.
  *
- * - public:  not in the guild (Discord-only Friends, unranked accounts, signed-out visitors)
+ * - public:  signed-out visitors, unranked accounts, people who left the server
+ * - friend:  Discord-only Friends: can add characters and sign up for open raids
  * - member:  guild member who doesn't raid
  * - recruit: raider under evaluation
  * - raider:  core and flex raiders
  * - leader:  raid leaders: roster, comp, scheduling; no loot policy or site admin
  * - officer: guild vision, admin, loot policy, recruitment
  */
-export const TIERS = ['public', 'member', 'recruit', 'raider', 'leader', 'officer'] as const;
+export const TIERS = [
+  'public',
+  'friend',
+  'member',
+  'recruit',
+  'raider',
+  'leader',
+  'officer',
+] as const;
 export type Tier = (typeof TIERS)[number];
 
 export function tierRank(tier: Tier): number {

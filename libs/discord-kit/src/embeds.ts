@@ -57,7 +57,7 @@ export function embed(input: Embed): Embed {
     fields: input.fields?.slice(0, EMBED_LIMITS.fields).map((f) => ({
       ...f,
       name: truncate(f.name, EMBED_LIMITS.fieldName),
-      value: truncate(f.value, EMBED_LIMITS.fieldValue),
+      value: f.value.trim() ? truncate(f.value, EMBED_LIMITS.fieldValue) : '—',
     })),
   };
   return Object.fromEntries(Object.entries(out).filter(([, v]) => v !== undefined)) as Embed;

@@ -376,7 +376,10 @@ export function renderFinalRoster(tick: TickEvent, members: TickMember[]): Messa
       inline: true,
     };
   });
-  fields.push({ name: 'Benched', value: value([bench.map((s) => line(s)).join(' · ')]) });
+  fields.push({
+    name: 'Benched',
+    value: value(bench.length ? [bench.map((s) => line(s)).join(' · ')] : []),
+  });
   return {
     embeds: [
       embed({

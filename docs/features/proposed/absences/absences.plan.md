@@ -1,6 +1,7 @@
 # Absences: marking yourself absent before the raid is posted
 
-**Status:** proposed (2026-11-20). Nothing built. **Owner modules:** raids (absences),
+**Status:** proposed (2026-11-20). Nothing built. TJ's product calls and Bloodfen's technical
+calls are settled (PR #302 review, 2026-11-20). **Owner modules:** raids (absences),
 coordinator (reminders, digest, card), apps/api (Discord), web (profile, home, quarters).
 Research: [oxm.md](../../../research/oxm.md) idea 2.
 
@@ -73,6 +74,8 @@ interface Absence {
   /** Who added it: the member, or a leader adding it for them. */
   createdBy: string;
   createdAt: number;
+  /** When it was removed or replaced; null while active. Absences are never hard-deleted. */
+  endedAt: number | null;
 }
 
 interface WeeklyNight {
@@ -93,9 +96,16 @@ raid that moves
 date it starts on. Storing the zone on the absence keeps the answer fixed if the guild's
 schedules change zone later.
 
-A member has any number of date absences (at most `ABSENCE_OPEN_MAX`, 10, that end today or
-later) and at most **one weekly rule**, which can mix away and late nights. Setting the weekly
-rule replaces it; no nights clears it. Late is weekly only: a one-off late night is the Late
+**Only active absences cover raids** (`endedAt === null`). Removing an absence, or replacing a
+weekly rule, sets `endedAt` instead of deleting the row, so the history stays for excused
+attendance (row 12) and those checks stay pure (Bloodfen, 2026-11-20).
+
+**When several cover one raid, away wins** (Bloodfen, 2026-11-20): a date absence or a weekly
+absent night beats a weekly late night on the same raid.
+
+A member has any number of date absences (at most `ABSENCE_OPEN_MAX`, 10, active and ending
+today or later) and at most **one active weekly rule**, which can mix away and late nights.
+Setting the weekly rule ends the old one and starts a new one; no nights ends it. Late is weekly only: a one-off late night is the Late
 button on that raid's post, which is up a week ahead.
 
 ### 2. Commands (raids)
@@ -116,13 +126,14 @@ button on that raid's post, which is up a week ahead.
   night with no `lateMinutes`), `DUPLICATE_NIGHT` (the same weekday twice).
 - **Reasons are for officers.** Every read that carries another member's absence leaves
   `reason` out unless the caller is a leader. Members always see their own.
-- None are destructive. Removing an absence is undone by adding it again, and nothing else
-  changes when one goes.
+- None are destructive. Removing an absence ends it (`endedAt`); adding it again undoes that,
+  and nothing else changes when one ends.
 - Events: `absence-changed` on add, weekly-set and remove. Nothing subscribes yet; the
   coordinator reads absences on each tick, as it reads signups.
 - The guild clock moves from apps/api into raids (`domain/clock.ts`: the first active
-  schedule's zone, else the first schedule's, else New York). Commands need it to read "today"
-  and stamp `timeZone`. apps/api's `guildClock` then calls it instead of holding its own copy.
+  schedule's zone, else the first schedule's, else New York) as a shared pure resolver that
+  apps/api and apps/web both call (Bloodfen, 2026-11-20). Commands need it to read "today" and
+  stamp `timeZone`.
 
 ### 3. Absent by default, overridden by answering
 
@@ -217,7 +228,8 @@ Copy (UI copy mode; one plain sentence each):
 ### 6. The site
 
 - **Profile, Raid settings:** an **Absences** calendar. Pick a start and end date on it, add a
-  reason, and save. Days already marked are shaded, with each absence listed under the calendar
+  reason, and save. One click on a single day makes a one-day absence, for a single night out
+  before that raid is posted (TJ, 2026-11-20). Days already marked are shaded, with each absence listed under the calendar
   with Remove. Then **Weekly nights**: a row per weekday with On time, Late (5, 15 or 30
   minutes) or Absent, and a Save button. No intro text.
 - **Home, Your next raid:** when an absence covers it and they haven't answered, the card shows
@@ -271,10 +283,10 @@ technical calls. Rows marked "TJ, 2026-11-20" are decided; the rest are proposed
 
 | # | Decision | Why | Owner |
 |---|---|---|---|
-| 1 | Absences live in raids, not identity prefs | They're about raid nights and read alongside signups and schedules. Prefs stay for settings that apply to every raid | Bloodfen |
+| 1 | Absences live in raids, not identity prefs | They're about raid nights and read alongside signups and schedules. Prefs stay for settings that apply to every raid | Bloodfen, 2026-11-20 |
 | 2 | Absences never create, change or block signups. A covered raid shows the member as Absent until they answer, and answering overrides it for that raid | One source of truth per raid (the signup). OXM's deleting and blocking needed three FAQ answers to explain | TJ, 2026-11-20 |
-| 3 | Coverage is computed from the raid's start, never stored per raid | Moved and newly posted raids are right without a sync step | Bloodfen |
-| 4 | Store the time zone on each absence, and move the guild clock into raids | Dates and weekdays mean the guild's days; if the guild's schedules change zone, old absences keep meaning the days they were set for | Bloodfen |
+| 3 | Coverage is computed from the raid's start, never stored per raid | Moved and newly posted raids are right without a sync step | Bloodfen, 2026-11-20 |
+| 4 | Store the time zone on each absence, and move the guild clock into raids as a shared resolver for apps/api and apps/web | Dates and weekdays mean the guild's days; if the guild's schedules change zone, old absences keep meaning the days they were set for | Bloodfen, 2026-11-20 |
 | 5 | One weekly rule per member, replaced as a whole | A set of weekdays is one setting. Several rules would need ordering and merging | TJ |
 | 6 | No skip-one-week action for weekly rules | Signing up already does that, and it says more than a skip would | TJ |
 | 7 | Covered members count in the card's absent number, names only in Roster's Absent section | Keeps the card's size and Discord limits as they are | TJ |
@@ -286,16 +298,21 @@ technical calls. Rows marked "TJ, 2026-11-20" are decided; the rest are proposed
 | 13 | Recruits can add absences, the same tier as signing up | They aren't pinged today (`expectedRanks`), but officers still want to know when they're out | TJ, 2026-11-20 |
 | 14 | Date ranges are picked on a calendar on the site; one night out is the post's Absent button (today's Decline), not an absence | Matches how raiders think about it: a stretch of days, or just tonight | TJ, 2026-11-20 |
 | 15 | Members read "Absent" everywhere: the post's button and count, Roster, digest, `/random absence` | One word for being out, whether it's one night or a week | TJ, 2026-11-20 |
+| 16 | Absences are soft-closed with `endedAt`, never deleted; only active ones cover raids | Keeps the proof that excused attendance (row 12) needs | Bloodfen, 2026-11-20 |
+| 17 | When absences overlap on one raid, away beats a weekly late night | One clear answer per raid | Bloodfen, 2026-11-20 |
+| 18 | The site calendar takes a one-click single day | A single night weeks ahead, before its raid is posted | TJ, 2026-11-20 |
 
 ## Open questions
 
-For Bloodfen: rows 1, 3 and 4, especially moving the guild clock from apps/api into raids.
+None open.
 
 ## Tasks
 
-- [ ] **Model and commands** (raids): `absences` table with `by_guild_member` and `by_guild`
-  indexes, `domain/absence.ts` (`absenceCovers`), `domain/clock.ts` (guild clock moved from
-  apps/api), the four commands, the memory store, `absence-changed`, and the manifest.
+- [ ] **Model and commands** (raids): `absences` table with `endedAt` and `by_guild_member` and
+  `by_guild` indexes, `domain/absence.ts` (`absenceCovers`, active only, away beating late),
+  `domain/clock.ts` (the guild clock as a shared resolver, used by apps/api and apps/web), the
+  four commands with soft-close on remove and replace, the memory store, `absence-changed`, and
+  the manifest.
 - [ ] **The bot stops chasing** (apps/api tick source, coordinator): `away` and `usuallyLate` on
   `TickEvent`, `nonResponders`, the digest lines, the card's absent count, the Roster reply's
   Absent section.

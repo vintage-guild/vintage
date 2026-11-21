@@ -14,6 +14,7 @@ import {
   sizesText,
 } from './kinds';
 import { solveComp } from './solve';
+import { totalRoleTargets } from './types';
 
 describe('event kinds', () => {
   it('allows each kind its own sizes', () => {
@@ -37,7 +38,7 @@ describe('event kinds', () => {
       const sizes = kind === 'other' ? [1, 7, 40] : KIND_SIZES[kind];
       for (const size of sizes) {
         const t = defaultRoleTargets(kind, size);
-        expect(t.tank + t.healer + t.dps, `${kind} ${size}`).toBeLessThanOrEqual(size);
+        expect(totalRoleTargets(t), `${kind} ${size}`).toBeLessThanOrEqual(size);
       }
     }
   });

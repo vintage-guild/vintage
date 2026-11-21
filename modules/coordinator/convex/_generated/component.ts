@@ -123,7 +123,10 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           outcome: "pending" | "created" | "unresolved" | "cancelled";
           pollId: string;
           raidEventId: string | null;
-          roleTargets?: { dps: number; healer: number; tank: number } | null;
+          roleTargets?:
+            | { healer: number; melee: number; ranged: number; tank: number }
+            | { dps: number; healer: number; tank: number }
+            | null;
           size: number | null;
         },
         any,

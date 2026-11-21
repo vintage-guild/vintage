@@ -4,14 +4,20 @@ import { describe, expect, it } from 'vitest';
 import {
   COMP_ROLES,
   type CompInput,
+  type CompRole,
   type CompSignup,
   compareSignups,
   compRoleOf,
+  dpsTargetOf,
   RAID_SIZES,
   REQUIREMENTS,
+  type RoleTargets,
   SIGNUP_STATUSES,
   solveComp,
 } from './index';
+
+const targetFor = (targets: RoleTargets, role: CompRole) =>
+  role === 'dps' ? dpsTargetOf(targets) : targets[role];
 
 const signupArb = (id: number): fc.Arbitrary<CompSignup> =>
   fc
@@ -81,8 +87,8 @@ describe('solveComp properties', () => {
       fc.property(inputArb, (input) => {
         const result = solveComp(input);
         const { targets } = input.template;
-        const short = COMP_ROLES.filter((r) => result.counts[r] < targets[r]);
-        const over = COMP_ROLES.filter((r) => result.counts[r] > targets[r]);
+        const short = COMP_ROLES.filter((r) => result.counts[r] < targetFor(targets, r));
+        const over = COMP_ROLES.filter((r) => result.counts[r] > targetFor(targets, r));
         if (over.length === 0) return;
         const benchedShort = result.bench.filter((d) => short.includes(compRoleOf(d.role)));
         expect(benchedShort).toEqual([]);
@@ -98,7 +104,7 @@ describe('solveComp properties', () => {
           const targeted = result.selected.filter(
             (d) => d.code !== 'fill' && compRoleOf(d.role) === role,
           );
-          expect(targeted.length).toBeLessThanOrEqual(input.template.targets[role]);
+          expect(targeted.length).toBeLessThanOrEqual(targetFor(input.template.targets, role));
         }
       }),
     );
@@ -130,7 +136,7 @@ describe('solveComp properties', () => {
       fc.property(inputArb, (input) => {
         const result = solveComp(input);
         for (const role of COMP_ROLES) {
-          if (result.counts[role] < input.template.targets[role]) {
+          if (result.counts[role] < targetFor(input.template.targets, role)) {
             expect(result.bench.filter((d) => compRoleOf(d.role) === role)).toEqual([]);
           }
         }

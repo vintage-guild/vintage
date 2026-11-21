@@ -22,9 +22,13 @@ export const SIGNUP_STATUSES = ['accepted', 'late', 'tentative', 'bench', 'decli
 export type SignupStatus = (typeof SIGNUP_STATUSES)[number];
 export const signupStatusSchema = z.enum(SIGNUP_STATUSES);
 
-/** The template buckets: melee and ranged both count as dps. */
+/** The legacy template buckets: melee and ranged both count as dps. */
 export const COMP_ROLES = ['tank', 'healer', 'dps'] as const;
 export type CompRole = (typeof COMP_ROLES)[number];
+
+/** Any role a template target or gap can name: tank, healer, combined dps, or split melee/ranged. */
+export const TARGET_ROLES = ['tank', 'healer', 'dps', 'melee', 'ranged'] as const;
+export type TargetRole = (typeof TARGET_ROLES)[number];
 
 export function compRoleOf(role: Role): CompRole {
   return role === 'melee' || role === 'ranged' ? 'dps' : role;
@@ -68,12 +72,38 @@ export const requirementSchema = z.object({
 });
 export type Requirement = z.infer<typeof requirementSchema>;
 
-export const roleTargetsSchema = z.object({
+export const legacyRoleTargetsSchema = z.object({
   tank: z.number().int().min(0),
   healer: z.number().int().min(0),
   dps: z.number().int().min(0),
 });
+export type LegacyRoleTargets = z.infer<typeof legacyRoleTargetsSchema>;
+
+export const splitRoleTargetsSchema = z.object({
+  tank: z.number().int().min(0),
+  healer: z.number().int().min(0),
+  melee: z.number().int().min(0),
+  ranged: z.number().int().min(0),
+});
+export type SplitRoleTargets = z.infer<typeof splitRoleTargetsSchema>;
+
+export const roleTargetsSchema = z.union([splitRoleTargetsSchema, legacyRoleTargetsSchema]);
 export type RoleTargets = z.infer<typeof roleTargetsSchema>;
+
+/** True when the targets split DPS into separate melee and ranged counts. */
+export function hasSplitDpsTargets(targets: RoleTargets): targets is SplitRoleTargets {
+  return 'melee' in targets && 'ranged' in targets;
+}
+
+/** Total DPS target, whether stored as split melee + ranged or legacy combined dps. */
+export function dpsTargetOf(targets: RoleTargets): number {
+  return hasSplitDpsTargets(targets) ? targets.melee + targets.ranged : targets.dps;
+}
+
+/** Sum of all role targets. */
+export function totalRoleTargets(targets: RoleTargets): number {
+  return targets.tank + targets.healer + dpsTargetOf(targets);
+}
 
 export const compTemplateSchema = z.object({
   targets: roleTargetsSchema,
@@ -96,9 +126,9 @@ export type CompInput = z.input<typeof compInputSchema>;
 /** Problems that make an input unsolvable. Empty when the input is fine. */
 export function inputIssues(input: CompInput): string[] {
   const issues: string[] = [];
-  const { tank, healer, dps } = input.template.targets;
-  if (tank + healer + dps > input.raidSize) {
-    issues.push(`role targets (${tank + healer + dps}) exceed the raid size (${input.raidSize})`);
+  const total = totalRoleTargets(input.template.targets);
+  if (total > input.raidSize) {
+    issues.push(`role targets (${total}) exceed the raid size (${input.raidSize})`);
   }
   const seen = new Set<string>();
   for (const s of input.signups) {
@@ -131,7 +161,14 @@ export interface Exclusion {
 }
 
 export type CompGap =
-  | { kind: 'role'; role: CompRole; target: number; have: number; missing: number; reason: string }
+  | {
+      kind: 'role';
+      role: TargetRole;
+      target: number;
+      have: number;
+      missing: number;
+      reason: string;
+    }
   | {
       kind: 'requirement';
       id: string;

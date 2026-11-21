@@ -90,7 +90,10 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           lootMethodId: string | null;
           name: string;
           notes?: string | null;
-          roleTargets: { dps: number; healer: number; tank: number } | null;
+          roleTargets:
+            | { healer: number; melee: number; ranged: number; tank: number }
+            | { dps: number; healer: number; tank: number }
+            | null;
           scheduleId: string | null;
           size: number | null;
           startsAt: number;
@@ -127,7 +130,10 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             lootMethodId?: string | null;
             name?: string;
             notes?: string | null;
-            roleTargets?: { dps: number; healer: number; tank: number } | null;
+            roleTargets?:
+              | { healer: number; melee: number; ranged: number; tank: number }
+              | { dps: number; healer: number; tank: number }
+              | null;
             scheduleId?: string | null;
             size?: number | null;
             startsAt?: number;
@@ -222,7 +228,10 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
               "sun" | "mon" | "tue" | "wed" | "thu" | "fri" | "sat"
             >;
           };
-          roleTargets: { dps: number; healer: number; tank: number } | null;
+          roleTargets:
+            | { healer: number; melee: number; ranged: number; tank: number }
+            | { dps: number; healer: number; tank: number }
+            | null;
           size: number | null;
           timings: {
             digestHours?: number;
@@ -263,7 +272,10 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
                 "sun" | "mon" | "tue" | "wed" | "thu" | "fri" | "sat"
               >;
             };
-            roleTargets?: { dps: number; healer: number; tank: number } | null;
+            roleTargets?:
+              | { healer: number; melee: number; ranged: number; tank: number }
+              | { dps: number; healer: number; tank: number }
+              | null;
             size?: number | null;
             timings?: {
               digestHours?: number;
@@ -297,12 +309,14 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "mutation",
         "internal",
         {
+          alsoRoles?: Array<"tank" | "healer" | "melee" | "ranged">;
           characterId: string;
           characterName: string;
           class: string;
           eventId: string;
           group: number | null;
           guildId: string;
+          lateMinutes?: 5 | 15 | 30 | null;
           memberId: string;
           note: string | null;
           promotedAt?: number | null;
@@ -345,10 +359,12 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         {
           guildId: string;
           patch: {
+            alsoRoles?: Array<"tank" | "healer" | "melee" | "ranged">;
             characterId?: string;
             characterName?: string;
             class?: string;
             group?: number | null;
+            lateMinutes?: 5 | 15 | 30 | null;
             note?: string | null;
             promotedAt?: number | null;
             queued?: boolean;

@@ -634,6 +634,7 @@ describe('JTBD: raid night', () => {
       eventId: wed.id,
       characterId: g.chars.bram,
       status: 'late',
+      lateMinutes: 15,
       note: 'after work, ~20 min',
     });
     await g.host.tick();
@@ -815,24 +816,17 @@ describe('JTBD: raid night', () => {
     expect(roster.data.embeds?.[0]?.title).toBe('Roster · Raid night');
     expect(JSON.stringify(roster.data)).toContain('Aeryn');
 
-    // Late opens a reason form; the reason lands on the signup.
-    const form = await ui.click(g.bram.discordId!, `signup:${wed.id}:late`);
-    expect(form).toMatchObject({
-      type: 9,
-      data: { custom_id: `signup-note:${wed.id}:late:${g.chars.bram}` },
-    });
-    const late = await ui.submit(
-      g.bram.discordId!,
-      `signup-note:${wed.id}:late:${g.chars.bram}`,
-      'after work',
-    );
+    // Late opens 5 / 15 / 30 min buttons; one click signs them up with lateMinutes.
+    const lateAsk = await ui.click(g.bram.discordId!, `signup:${wed.id}:late`);
+    expect(content(lateAsk)).toContain('Later than 30 minutes? Press Absent instead.');
+    const late = await ui.click(g.bram.discordId!, `signup-late:${wed.id}:${g.chars.bram}:15`);
     expect(await g.host.ok<Signup>(g.bram, 'signup-get', { eventId: wed.id })).toMatchObject({
       status: 'late',
-      note: 'after work',
+      lateMinutes: 15,
     });
-    // The form came from the guess, so the reply still says why.
+    // The buttons came from the guess, so the reply still says why.
     expect(content(late)).toMatch(
-      /\*\*Late\*\* for Raid night as \*\*Bramble\*\* \(Holy Priest, healer\): your main\./,
+      /\*\*Late \(15m\)\*\* for Raid night as \*\*Bramble\*\* \(Holy Priest, healer\): your main\./,
     );
 
     // Several characters and no main to guess (she removed it): a private picker asks which,
@@ -946,12 +940,13 @@ describe('JTBD: raid night', () => {
     const saved = await g.host.ok<{ id: string; spec: string }[]>(g.aeryn, 'character-list', {});
     expect(saved.find((c) => c.id === bark)?.spec).toBe('feral-tank');
     // Going late keeps the spec; switching back to her warrior clears it.
-    expect(await ui.click(g.aeryn.discordId!, `signup:${thu.id}:late`)).toMatchObject({
-      data: { custom_id: `signup-note:${thu.id}:late:${bark}` },
-    });
-    await ui.submit(g.aeryn.discordId!, `signup-note:${thu.id}:late:${bark}`, 'ten min');
+    expect(content(await ui.click(g.aeryn.discordId!, `signup:${thu.id}:late`))).toContain(
+      'Later than 30 minutes? Press Absent instead.',
+    );
+    await ui.click(g.aeryn.discordId!, `signup-late:${thu.id}:${bark}:15`);
     expect(await g.host.ok<Signup>(g.aeryn, 'signup-get', { eventId: thu.id })).toMatchObject({
       status: 'late',
+      lateMinutes: 15,
       spec: 'feral',
     });
     await ui.pick(g.aeryn.discordId!, `signup-char:${thu.id}`, g.chars.aeryn!);
@@ -1069,11 +1064,14 @@ describe('JTBD: raid night', () => {
     expect(content(wrong)).toMatch(/"holy" is not a mage spec.*\n.*New character…/s);
     expect(await g.host.ok<unknown[]>(g.dara, 'character-list', {})).toHaveLength(2);
 
-    // Someone with no characters goes straight to the form; Late asks for its note there too.
+    // Someone with no characters goes straight to the form; Tentative asks for its note there too.
     const newcomer = await g.host.discordMember('500000000000000099', 'Newt', [ROLES.raider]);
-    const straight = await ui.click(newcomer.discordId!, `signup:${wed.id}:late`);
-    expect(straight).toMatchObject({ type: 9, data: { custom_id: `signup-new:${wed.id}:late` } });
-    await ui.submitNewCharacter(newcomer.discordId!, `signup-new:${wed.id}:late`, {
+    const straight = await ui.click(newcomer.discordId!, `signup:${wed.id}:tentative`);
+    expect(straight).toMatchObject({
+      type: 9,
+      data: { custom_id: `signup-new:${wed.id}:tentative` },
+    });
+    await ui.submitNewCharacter(newcomer.discordId!, `signup-new:${wed.id}:tentative`, {
       name: 'Newt',
       class: 'priest',
       spec: 'holy',
@@ -1081,7 +1079,7 @@ describe('JTBD: raid night', () => {
     });
     expect(await g.host.ok<Signup>(newcomer, 'signup-get', { eventId: wed.id })).toMatchObject({
       characterName: 'Newt',
-      status: 'late',
+      status: 'tentative',
       note: 'after work',
     });
 

@@ -1,6 +1,6 @@
 // raid-night-poll (#64): offer a few start times for a raid, let members vote, and let the tick
 // turn the winner into the raid. The poll itself is made by polls' poll-create, run as this leader.
-import { groupSizeSchema, roleTargetsSchema } from '@vintage/comp-solver';
+import { groupSizeSchema, roleTargetsSchema, totalRoleTargets } from '@vintage/comp-solver';
 import { error, success, TIERS, type Tier, tierAllows } from '@vintage/guild-kit';
 import {
   AKind,
@@ -86,13 +86,9 @@ export const raidNightPoll = command({
       });
     }
     const targets = input.roleTargets;
-    if (
-      targets &&
-      input.size !== null &&
-      targets.tank + targets.healer + targets.dps > input.size
-    ) {
+    if (targets && input.size !== null && totalRoleTargets(targets) > input.size) {
       return error('ROLE_TARGETS_TOO_BIG', `Role targets add up to more than ${input.size}`, {
-        suggestion: 'Lower the tank, healer, or dps targets so they fit the size',
+        suggestion: 'Lower the role targets so they fit the size',
         retryable: false,
       });
     }

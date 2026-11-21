@@ -2,7 +2,7 @@
 // columns), our own outline status icons, and class-colored squares, all as the app's own emoji.
 // Columns cap at a few names so a 40-person card keeps its height; the Roster button shows the full
 // list privately. Pure: data in, MessageData out. Ideas from docs/research/raid-helper.md.
-import { type CompGap, compRoleOf } from '@vintage/comp-solver';
+import { type CompGap, compRoleOf, dpsTargetOf } from '@vintage/comp-solver';
 import { discordColor } from '@vintage/design-tokens';
 import {
   actionRow,
@@ -191,8 +191,9 @@ export function renderSignupPost(tick: TickEvent, members: TickMember[]): Messag
   const fields: EmbedField[] = hasRoleTargets(targets)
     ? ROLES.map(([role, label]) => {
         const inRole = going.filter((s) => compRoleOf(s.role) === role);
+        const target = role === 'dps' ? dpsTargetOf(targets) : targets[role];
         return {
-          name: header(role, label, `${inRole.length}/${targets[role]}`),
+          name: header(role, label, `${inRole.length}/${target}`),
           value: value(capped(inRole.map((s) => line(s, place.get(s.id))))),
           inline: true,
         };

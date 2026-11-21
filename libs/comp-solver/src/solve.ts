@@ -5,23 +5,41 @@ import {
   type CompGap,
   type CompInput,
   type CompResult,
-  type CompRole,
   type CompSignup,
   compRoleOf,
   type Decision,
   type Exclusion,
+  hasSplitDpsTargets,
   inputIssues,
   type Provider,
   type Requirement,
   type RoleTargets,
   type SelectionCode,
   type SignupStatus,
+  type TargetRole,
 } from './types';
 
 interface Candidate {
   signup: CompSignup;
   role: Role;
-  bucket: CompRole;
+  bucket: TargetRole;
+}
+
+const SPLIT_ROLES: readonly TargetRole[] = ['tank', 'healer', 'melee', 'ranged'];
+
+function targetBuckets(targets: RoleTargets): readonly TargetRole[] {
+  return hasSplitDpsTargets(targets) ? SPLIT_ROLES : COMP_ROLES;
+}
+
+function targetFor(targets: RoleTargets, bucket: TargetRole): number {
+  if (hasSplitDpsTargets(targets)) {
+    return bucket === 'dps' ? targets.melee + targets.ranged : targets[bucket];
+  }
+  return bucket === 'melee' || bucket === 'ranged' ? targets.dps : targets[bucket];
+}
+
+function bucketOf(role: Role, split: boolean): TargetRole {
+  return split ? role : compRoleOf(role);
 }
 
 const STATUS_ORDER: Record<SignupStatus, number> = {
@@ -65,18 +83,23 @@ function plural(n: number, one: string, many: string): string {
   return n === 1 ? one : many;
 }
 
-const ROLE_NOUN: Record<CompRole, [string, string]> = {
+const ROLE_NOUN: Record<TargetRole, [string, string]> = {
   tank: ['tank', 'tanks'],
   healer: ['healer', 'healers'],
   dps: ['dps', 'dps'],
+  melee: ['melee', 'melee'],
+  ranged: ['ranged', 'ranged'],
 };
 
-function roleNoun(role: CompRole, n: number): string {
+function roleNoun(role: TargetRole, n: number): string {
   const [one, many] = ROLE_NOUN[role];
   return plural(n, one, many);
 }
 
-function partition(signups: readonly CompSignup[]): {
+function partition(
+  signups: readonly CompSignup[],
+  split: boolean,
+): {
   candidates: Candidate[];
   excluded: Exclusion[];
 } {
@@ -96,7 +119,7 @@ function partition(signups: readonly CompSignup[]): {
       });
       continue;
     }
-    candidates.push({ signup, role, bucket: compRoleOf(role) });
+    candidates.push({ signup, role, bucket: bucketOf(role, split) });
   }
   return { candidates, excluded };
 }
@@ -104,27 +127,40 @@ function partition(signups: readonly CompSignup[]): {
 /** The roster as it's built: who's in, and how full each role is. */
 class Roster {
   readonly picked = new Map<string, Decision<SelectionCode>>();
-  readonly counts: Record<CompRole, number> = { tank: 0, healer: 0, dps: 0 };
+  readonly buckets: readonly TargetRole[];
+  readonly counts: Record<TargetRole, number> = {
+    tank: 0,
+    healer: 0,
+    dps: 0,
+    melee: 0,
+    ranged: 0,
+  };
 
   constructor(
     readonly raidSize: number,
     readonly targets: RoleTargets,
-  ) {}
+  ) {
+    this.buckets = targetBuckets(targets);
+  }
 
   has(c: Candidate): boolean {
     return this.picked.has(c.signup.id);
   }
 
-  hasRoom(bucket: CompRole): boolean {
-    return this.counts[bucket] < this.targets[bucket];
+  target(bucket: TargetRole): number {
+    return targetFor(this.targets, bucket);
+  }
+
+  hasRoom(bucket: TargetRole): boolean {
+    return this.counts[bucket] < this.target(bucket);
   }
 
   isFull(): boolean {
     return this.picked.size >= this.raidSize;
   }
 
-  shortRoles(): CompRole[] {
-    return COMP_ROLES.filter((r) => this.hasRoom(r));
+  shortRoles(): TargetRole[] {
+    return this.buckets.filter((r) => this.hasRoom(r));
   }
 
   pick(c: Candidate, code: SelectionCode, reason: string): void {
@@ -160,11 +196,11 @@ function pickRequirements(
 
 /** Phase 2: fill each role up to its target, best-ranked first. */
 function pickRoles(roster: Roster, candidates: readonly Candidate[]) {
-  for (const bucket of COMP_ROLES) {
+  for (const bucket of roster.buckets) {
     for (const c of candidates) {
       if (!roster.hasRoom(bucket)) break;
       if (c.bucket !== bucket || roster.has(c)) continue;
-      roster.pick(c, 'role', `${bucket} ${roster.counts[bucket] + 1} of ${roster.targets[bucket]}`);
+      roster.pick(c, 'role', `${bucket} ${roster.counts[bucket] + 1} of ${roster.target(bucket)}`);
     }
   }
 }
@@ -188,10 +224,11 @@ function pickFill(roster: Roster, candidates: readonly Candidate[]) {
  * of their role, the raid size is.
  */
 function benchDecision(roster: Roster, c: Candidate): Decision<BenchCode> {
-  const roleFull = roster.counts[c.bucket] <= roster.targets[c.bucket];
+  const target = roster.target(c.bucket);
+  const roleFull = roster.counts[c.bucket] <= target;
   const code: BenchCode = roleFull ? 'role-full' : 'raid-full';
   const why = roleFull
-    ? `${c.bucket} slots full (${roster.counts[c.bucket]}/${roster.targets[c.bucket]})`
+    ? `${c.bucket} slots full (${roster.counts[c.bucket]}/${target})`
     : `raid full (${roster.picked.size}/${roster.raidSize})`;
   const reason = c.signup.status === 'bench' ? `signed up as bench; ${why}` : why;
   return { signup: c.signup, role: c.role, code, reason };
@@ -199,7 +236,7 @@ function benchDecision(roster: Roster, c: Candidate): Decision<BenchCode> {
 
 function roleGaps(roster: Roster): CompGap[] {
   return roster.shortRoles().map((role) => {
-    const target = roster.targets[role];
+    const target = roster.target(role);
     const have = roster.counts[role];
     const missing = target - have;
     return {
@@ -250,8 +287,9 @@ export function solveComp(input: CompInput): CompResult {
   if (issues.length > 0) throw new RangeError(issues.join('; '));
 
   const requirements = input.template.requirements ?? [];
+  const split = hasSplitDpsTargets(input.template.targets);
   const roster = new Roster(input.raidSize, input.template.targets);
-  const { candidates, excluded } = partition(input.signups);
+  const { candidates, excluded } = partition(input.signups, split);
 
   pickRequirements(roster, candidates, requirements);
   pickRoles(roster, candidates);
@@ -266,6 +304,8 @@ export function solveComp(input: CompInput): CompResult {
     ...requirementGaps(roster, requirements),
     ...sizeGap(roster, roleMissing),
   ];
+  const melee = selected.filter((d) => d.role === 'melee').length;
+  const ranged = selected.filter((d) => d.role === 'ranged').length;
 
   return {
     selected,
@@ -275,9 +315,11 @@ export function solveComp(input: CompInput): CompResult {
     counts: {
       selected: selected.length,
       raidSize: input.raidSize,
-      ...roster.counts,
-      melee: selected.filter((d) => d.role === 'melee').length,
-      ranged: selected.filter((d) => d.role === 'ranged').length,
+      tank: roster.counts.tank,
+      healer: roster.counts.healer,
+      dps: melee + ranged,
+      melee,
+      ranged,
       confirmed: selected.filter((d) => d.signup.status === 'accepted').length,
     },
   };

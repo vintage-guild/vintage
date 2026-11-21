@@ -3,7 +3,7 @@
 // coming raids and the site's recruiting needs, works out which classes could fill a tank or
 // healer gap, and posts that to the ops channel with one "Raise <class> to high" button each.
 // The model may reword the facts; the facts, the suggestions, and the buttons are code.
-import type { CompRole } from '@vintage/comp-solver';
+import type { CompRole, TargetRole } from '@vintage/comp-solver';
 import {
   actionRow,
   ButtonStyle,
@@ -50,7 +50,7 @@ export interface RoleGap {
   eventId: string;
   raid: string;
   startsAt: number;
-  role: CompRole;
+  role: TargetRole;
   have: number;
   target: number;
 }
@@ -117,7 +117,13 @@ export function buildAssessment(
 }
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-const ROLE_NAME: Record<CompRole, string> = { tank: 'tanks', healer: 'healers', dps: 'DPS' };
+const ROLE_NAME: Record<TargetRole, string> = {
+  tank: 'tanks',
+  healer: 'healers',
+  dps: 'DPS',
+  melee: 'melee',
+  ranged: 'ranged',
+};
 
 /** The facts in plain lines: what the model may reword, and the fallback when it can't. */
 export function assessmentFacts(a: Assessment): string {

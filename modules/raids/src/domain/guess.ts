@@ -1,5 +1,6 @@
 // Which character a member is likely bringing (#148, character-choice §1). Pure: the command
 // reads the signup, the series history, and the characters, and this picks one with a reason.
+import { hasSplitDpsTargets } from '@vintage/comp-solver';
 import type { Character } from '@vintage/identity/contract';
 import { type Role, roleFor } from '@vintage/wow-data';
 import type { RaidEvent, Signup } from '../contract';
@@ -141,9 +142,16 @@ export const compRole = (role: Role): CompRole =>
  */
 export function rolesNeeded(event: RaidEvent, signups: Signup[]): CompRole[] {
   const targets = targetsOf(event);
-  const going = { tank: 0, healer: 0, dps: 0 };
+  const going = { tank: 0, healer: 0, melee: 0, ranged: 0 };
   for (const s of signups) {
-    if ((s.status === 'accepted' || s.status === 'late') && !s.queued) going[compRole(s.role)]++;
+    if ((s.status === 'accepted' || s.status === 'late') && !s.queued) going[s.role]++;
   }
-  return (['tank', 'healer', 'dps'] as const).filter((r) => going[r] < targets[r]);
+  const needed: CompRole[] = [];
+  if (going.tank < targets.tank) needed.push('tank');
+  if (going.healer < targets.healer) needed.push('healer');
+  const shortDps = hasSplitDpsTargets(targets)
+    ? going.melee < targets.melee || going.ranged < targets.ranged
+    : going.melee + going.ranged < targets.dps;
+  if (shortDps) needed.push('dps');
+  return needed;
 }

@@ -26,6 +26,7 @@ export const weekday = v.union(
 );
 
 export const roleTargets = v.union(
+  v.object({ tank: v.number(), healer: v.number(), melee: v.number(), ranged: v.number() }),
   v.object({ tank: v.number(), healer: v.number(), dps: v.number() }),
   v.null(),
 );
@@ -116,7 +117,11 @@ export const signupFields = {
   role,
   // True when a role was picked for this raid (#149); optional so older rows stay valid.
   rolePicked: v.optional(v.boolean()),
+  // Other roles this character can play for this raid; optional so older rows read as [].
+  alsoRoles: v.optional(v.array(role)),
   status: signupStatus,
+  // How late (5, 15, or 30 minutes) when status is 'late'; optional so older rows read as null.
+  lateMinutes: v.optional(v.union(v.literal(5), v.literal(15), v.literal(30), v.null())),
   note: v.union(v.string(), v.null()),
   signedUpAt: v.number(),
   updatedAt: v.number(),

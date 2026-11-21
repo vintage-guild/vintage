@@ -77,8 +77,8 @@ const STATUS_LABELS: Record<SignupStatus | 'none', string> = {
   accepted: 'Going',
   late: 'Coming late',
   tentative: 'Tentative',
-  bench: 'On the bench',
-  declined: 'Not coming',
+  bench: 'Standby',
+  declined: 'Absent',
   none: 'No answer yet',
 };
 
@@ -751,6 +751,7 @@ export class VintageSignupCard extends FASTElement {
           eventId: this.eventId,
           characterId: this.characterId,
           status,
+          ...(status === 'late' ? { lateMinutes: 15 } : {}),
           ...(this.spec ? { spec: this.spec } : {}),
           ...(isRole(this.playRole) ? { role: this.playRole } : {}),
         }),

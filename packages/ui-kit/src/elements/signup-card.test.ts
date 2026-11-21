@@ -96,6 +96,7 @@ describe('vintage-signup-card', () => {
       eventId: 'e1',
       characterId: 'c1',
       status: 'late',
+      lateMinutes: 15,
     });
     expect(el.status).toBe('late');
     expect(el.statusText).toBe('Bloodfen: late for Launch night');

@@ -1,5 +1,6 @@
 import { css, FASTElement, html, observable, when } from '@lushly-dev/fast-element';
 import type { Character, MemberPrefs } from '@vintage/identity/contract';
+import { type AbsenceRow, getCommandClient } from '@vintage/ui-kit';
 import { characterLabel } from '../characters';
 import { readMember } from '../member-data';
 import { canSignIn, currentSession, refreshSession, setSession } from '../session';
@@ -49,12 +50,18 @@ const template = html<Page>`
           ${when((x) => !x.loaded, html`<p class="muted">Loading your settings…</p>`)}
           ${when(
             (x) => x.loaded && x.prefs,
-            html<Page>`<vintage-member-prefs
-              :characters="${(x) => x.characters}"
-              timezone="${(x) => x.prefs?.timezone ?? ''}"
-              ?dm-opt-out="${(x) => x.prefs?.dmOptOut ?? false}"
-              @prefs-changed="${(x) => x.changed()}"
-            ></vintage-member-prefs>`,
+            html<Page>`
+              <vintage-member-prefs
+                :characters="${(x) => x.characters}"
+                timezone="${(x) => x.prefs?.timezone ?? ''}"
+                ?dm-opt-out="${(x) => x.prefs?.dmOptOut ?? false}"
+                @prefs-changed="${(x) => x.changed()}"
+              ></vintage-member-prefs>
+              <vintage-absences-panel
+                :absences="${(x) => x.absences}"
+                @absences-changed="${(x) => x.loadAbsences()}"
+              ></vintage-absences-panel>
+            `,
           )}
           ${when((x) => x.error, html<Page>`<p class="error" role="alert">${(x) => x.error}</p>`)}
         </section>
@@ -96,6 +103,7 @@ const styles = css`
 export class Page extends FASTElement {
   @observable characters: Character[] = [];
   @observable prefs: MemberPrefs | null = null;
+  @observable absences: AbsenceRow[] = [];
   @observable loaded = false;
   @observable notInGuild = false;
   @observable error = '';
@@ -118,12 +126,24 @@ export class Page extends FASTElement {
       this.characters = read.data.characters;
       this.prefs = read.data.member.prefs;
       this.error = '';
+      await this.loadAbsences();
     } else if (read.reason === 'not-in-guild') {
       this.notInGuild = true;
     } else {
       this.error = read.message;
     }
     this.loaded = true;
+  }
+
+  async loadAbsences(): Promise<void> {
+    try {
+      const res = await getCommandClient().read('absence-list', {});
+      if (res.success && Array.isArray(res.data)) {
+        this.absences = res.data as AbsenceRow[];
+      }
+    } catch {
+      // Members below Recruit tier or offline stubs leave absences empty.
+    }
   }
 
   /**

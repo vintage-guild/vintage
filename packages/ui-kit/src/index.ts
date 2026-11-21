@@ -6,6 +6,12 @@ export {
   NOT_CONNECTED,
   setCommandClient,
 } from './client';
+export {
+  type AbsenceRow,
+  type AbsenceWeekday,
+  type AbsenceWeeklyNight,
+  VintageAbsencesPanel,
+} from './elements/absences-panel';
 export { POLL_MS as AGENT_POLL_MS, VintageAgentPanel } from './elements/agent-panel';
 export {
   type AgentPanelConfirmation,

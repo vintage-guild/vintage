@@ -346,3 +346,130 @@ instance, **so I can** take everyone who turns up without a cap or a queue.
   "Going N" column with no "/size", no role columns, and **Comp** no gaps.
 - [ ] Six people answer and none is queued.
 - [ ] A raid made without a size or an instance is refused with what it needs.
+
+### J50 · Mark myself absent before the raids are up
+**When** I know ahead of time I'm out for a stretch of days, **I (raider) want** to set a date
+absence once, **so I can** show as Absent on those raids without getting pinged or DMed.
+- [x] Cade adds Dec 3 to Dec 7 with reason `"work trip"`.
+- [x] Wednesday and Thursday guild raids count him in Absent (card count + Roster Absent names
+  only), skip him in T-72h reminders and T-30h DMs, and list `Absent (1): Cade (work trip)` in the
+  `#leads` digest.
+
+### J51 · A night I can never make
+**When** a weekly raid night doesn't fit my schedule, **I (raider) want** to set it once as a
+weekly absent night, **so I can** stop getting reminded for that weekday.
+- [x] Dara sets Wednesday as absent via `/random absence weekly` (or `absence-weekly-set`).
+- [x] Every Wednesday guild raid marks her absent and leaves her alone; Thursdays still remind her.
+- [x] Clearing her weekly rule restores Wednesday reminders.
+
+### J52 · I can make it after all
+**When** an absence covers a night I can actually attend, **I (raider) want** to press Accept on
+that raid without touching my absence, **so I can** override just that night.
+- [x] Dara (absent Wednesdays) presses Accept on this Wednesday's raid: she shows under her role,
+  drops out of `away` and the digest's Absent line, and next Wednesday stays absent.
+
+### J53 · Absent after I've signed up
+**When** I add an absence over raids I already signed up for, **I (raider) want** the bot to tell
+me and offer to mark them absent without silently deleting my signups.
+- [x] Aeryn accepts Wednesday and Thursday, then adds Dec 3 to Dec 7. The reply lists both raids
+  and offers **Mark all 2 absent**; until clicked, both signups stay intact.
+
+### J54 · An officer marks someone absent
+**When** a raider tells an officer in DM they're out, **I (leader) want** to add the absence for
+them, **so I can** keep the roster accurate.
+- [x] Ana adds an absence with `memberId: bram`; `createdBy` is Ana. A raider attempting `member:`
+  gets "needs the Raid Leader rank".
+
+### J55 · Leaders see who's out, reasons stay private
+**When** planning the raid, **I (leader) want** to see absence reasons while members only see
+names.
+- [x] `absence-list` with `eventId` returns reasons to leaders and omits reasons for raiders.
+
+### J56 · Always late on Thursdays
+**When** I'm always 15 minutes late on Thursdays, **I (raider) want** Accept to record Late (15m)
+with an **On time this week** override.
+- [x] Bram sets Thursday 15m late. Thursday still reminds him; pressing Accept signs him up as
+  Late (15m) with **On time this week** to flip to Accepted.
+
+### J57 · One night out from the post
+**When** I'm missing just tonight, **I (raider) want** the Absent button to decline only that raid
+and offer **Absent more days**.
+- [x] Pip presses **Absent** on Friday's post; no absence row is created and the reply includes the
+  **Absent more days** button.
+
+### J58 · See the whole raid on the card
+**When** 40 people with long names sign up, **I (raider) want** four role columns (Tanks, Healers,
+Melee, Ranged) with spec icons inside Discord's limits.
+- [x] 40-person card renders 2x2 role columns, spec icons, and stays within Discord's 1,024/field
+  and 6,000/embed limits without slicing mid-emoji.
+
+### J59 · Say how late
+**When** I'll be late, **I (raider) want** 5 / 15 / 30 min buttons instead of a form, while
+Tentative still asks for a reason shown inline.
+- [x] Pressing Late shows 5/15/30 min buttons; the card shows the late minutes and the digest shows
+  `Name 15m`. Tentative shows its reason inline after the name.
+
+### J60 · Flex raiders wait on Standby
+**When** I'm a Flex Raider answering a guild raid, **I (flex raider) want** to land on Standby with
+a private explanation until a leader seats me.
+- [x] Bram presses Accept on a guild raid with open seats: stored as Standby, private reply
+  explains why, and leaders can seat him.
+
+### J61 · A tank drops the night before
+**When** a seated tank drops out after the T-24h digest, **I (leader) want** a `#leads` dropout
+alert with Standby-only `[Seat X]` buttons and seated flex players listed as text.
+- [x] Aeryn declines at T-20h. `#leads` gets the dropout post with `[Seat Ironhide]` and
+  `[Seat Moonglade]` (can also tank) and `Thorgrim` as plain text. Pressing `[Seat Moonglade]`
+  places her in Aeryn's group as `tank` and mentions her once.
+
+### J62 · Lock with open seats
+**When** a raid locks with open seats, **I (leader) want** the approved party post to become the
+final roster in place without auto-seating tentative players.
+- [x] Approved party post edits in place into Final Roster at lock, mentioning Standby once and
+  showing open seats.
+
+### J63 · A druid who can also heal
+**When** I save other roles I can play, **I (raider) want** leaders to see them in the digest and
+dropout alerts without volunteering me on the public card.
+- [x] Moonglade's `alsoRoles` shows in digest gap hints (`Can also heal: Moonglade.`) and dropout
+  suggestions, never on the public card.
+
+### J64 · Approve the parties the night before
+**When** the T-24h party draft posts in `#leads`, **I (leader) want** manual group moves to update
+the draft live without spamming the change feed, and **Approve and post** to publish the parties.
+- [x] Group-only moves update the `#leads` draft in place with no change-feed alert; approving
+  posts the party post in the signup channel and promotes it in place at lock.
+
+### J65 · Targets are suggestions
+**When** more melee sign up than the melee target while seats remain, **I (raider) want** everyone
+seated and the header to read `Melee 12/10`.
+- [x] Going over a role target never benches anyone while raid seats remain.
+
+### J66 · The comp decides, not who answered first
+**When** a raid fills, **I (leader) want** comp balance and rank priority (`Raider > Recruit > Flex
+Raider > Member > Friend`) to decide seats, not signup timestamp.
+- [x] A tank answering last is seated ahead of an extra DPS who answered first.
+
+### J67 · Flex raiders on Standby in a guild raid
+**When** a Flex Raider presses Late 15m on a guild raid, **I (leader) want** them on Standby with
+their 15 minutes preserved, while Members are refused and Friends don't see guild raids.
+- [x] Bram's Late 15m lands on Standby keeping `lateMinutes: 15`; Member is refused (`Recruit`
+  required); Friend sees only open raids.
+
+### J68 · An open raid for pugs
+**When** a leader creates an open raid (`access: 'open'`), **I (leader) want** it posted in the
+open-raid channel where Members, Flex Raiders, and Friends sign up in full with no reminders or DMs.
+- [x] Open raid posts to `openSignupChannelId`, allows Friends/Members/Flex Raiders to be seated in
+  full, and sends no reminders, DMs, or absences.
+
+### J69 · Leads see seat and Standby changes after T-24h
+**When** signups or seats change after the T-24h digest, **I (leader) want** batched alerts in
+`#leads` within seconds, and nothing before the digest.
+- [x] Before digest: silent. After digest: new signups, late/tentative updates, switches, and
+  leader seats batch into one `#leads` post per tick.
+
+### J70 · A new Friend on raid night
+**When** someone receives the Friend role minutes before an open raid, **I (friend) want** pressing
+Accept to sync me on the spot and sign me up.
+- [x] Clicking Accept on an open raid syncs an unknown Discord member from `interaction.member.roles`
+  and signs them up immediately.

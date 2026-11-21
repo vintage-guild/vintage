@@ -1,7 +1,7 @@
 # Absences: marking yourself absent before the raid is posted
 
-**Status:** proposed (2026-11-20). Nothing built. TJ's product calls and Bloodfen's technical
-calls are settled (PR #302 review, 2026-11-20). **Owner modules:** raids (absences),
+**Status:** active (2026-11-21). Implemented across raids, coordinator, Discord, web, and agent.
+TJ's product calls and Bloodfen's technical calls are settled (PR #302 review, 2026-11-20). **Owner modules:** raids (absences),
 coordinator (reminders, digest, card), apps/api (Discord), web (profile, home, quarters).
 Research: [oxm.md](../../../research/oxm.md) idea 2.
 
@@ -313,16 +313,16 @@ None open.
   `domain/clock.ts` (the guild clock as a shared resolver, used by apps/api and apps/web), the
   four commands with soft-close on remove and replace, the memory store, `absence-changed`, and
   the manifest.
-- [ ] **The bot stops chasing** (apps/api tick source, coordinator): `away` and `usuallyLate` on
+- [x] **The bot stops chasing** (apps/api tick source, coordinator): `away` and `usuallyLate` on
   `TickEvent`, `nonResponders`, the digest lines, the card's absent count, the Roster reply's
   Absent section.
-- [ ] **Late nights on answer** (apps/api `discord-signups.ts`, web signup card): Accept as late
+- [x] **Late nights on answer** (apps/api `discord-signups.ts`, web signup card): Accept as late
   with the rule's minutes, On time this week, the usual minutes marked on the Late buttons,
   Mark late.
-- [ ] **Discord** (gateway, apps/api): the `/random absence` group, the Absence and weekly forms,
+- [x] **Discord** (gateway, apps/api): the `/random absence` group, the Absence and weekly forms,
   autocomplete for `remove`, Absent more days on the Absent reply, and the Mark absent button.
   The Decline button's label becomes Absent (status stays `declined`).
-- [ ] **Site** (web, ui-kit): the Absences calendar and Weekly nights on the profile, Absent on
+- [x] **Site** (web, ui-kit): the Absences calendar and Weekly nights on the profile, Absent on
   the home card, the quarters' absent and late counts and list.
-- [ ] **Jobs** J50–J57 in `raid-night.md` and the scenario test.
-- [ ] **The agent** (§7): the absence commands in the agent's tools.
+- [x] **Jobs** J50–J57 in `raid-night.md` and the scenario test.
+- [x] **The agent** (§7): the absence commands in the agent's tools.

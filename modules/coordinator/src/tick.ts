@@ -16,7 +16,12 @@ import {
   renderAssessment,
   WORDING_INSTRUCTIONS,
 } from './domain/assessment';
-import { renderFinalRoster, renderSignupPost } from './domain/card';
+import {
+  renderFinalRoster,
+  renderPartyDraft,
+  renderPartyPost,
+  renderSignupPost,
+} from './domain/card';
 import { triageNotes } from './domain/notes';
 import { type PlannedAction, planTick } from './domain/plan';
 import {
@@ -62,7 +67,14 @@ type Performed = {
 };
 
 /** Planned actions that edit in place and are never logged. */
-type Unlogged = { kind: 'refresh' | 'server-event-update' | 'summary-update' };
+type Unlogged = {
+  kind:
+    | 'refresh'
+    | 'server-event-update'
+    | 'summary-update'
+    | 'party-draft-update'
+    | 'party-post-update';
+};
 type Logged = Exclude<PlannedAction, Unlogged>;
 
 /** Discord 50013: the bot lacks a permission. For server events that is CREATE_EVENTS. */
@@ -157,6 +169,20 @@ async function perform(
       const labels = await triageNotes(ports.decisions, state.guildId, digestNotes(tick));
       return send(renderDigest(tick, state.members, action.waiting, labels));
     }
+    case 'party-draft': {
+      const message = renderPartyDraft(tick, state.members);
+      return { ...(await send(message)), renderHash: hashMessage(message) };
+    }
+    case 'party-post': {
+      const locked = tick.event.status === 'locked';
+      const message = renderPartyPost(tick, state.members, { locked });
+      return { ...(await send(message)), renderHash: hashMessage(message) };
+    }
+    case 'unapproved-notice':
+      return send({
+        content: `Groups weren't approved before lock for **${tick.event.name}**; posted the 4-column final roster instead.`,
+        allowed_mentions: { parse: [] },
+      });
     case 'lock':
       await ports.raids.lock(state.guildId, tick.event.id);
       return { status: 'sent' };
@@ -284,6 +310,8 @@ async function reportFailure(
     action.kind === 'refresh' ||
     action.kind === 'server-event-update' ||
     action.kind === 'summary-update' ||
+    action.kind === 'party-draft-update' ||
+    action.kind === 'party-post-update' ||
     action.target === ops
   ) {
     return;
@@ -437,22 +465,50 @@ export async function runTick(ports: TickPorts, guildId: string, now: number): P
     (tick) => hashMessage(renderSignupPost(tick, state.members)),
     (tick, post) => hashServerEvent(serverEventFor(tick, post, ports)),
     (recorded) => hashMessage(renderRaidSummary(recorded)),
+    (tick) => hashMessage(renderPartyDraft(tick, state.members)),
+    (tick, locked) => hashMessage(renderPartyPost(tick, state.members, { locked })),
   );
   const outcomes: TickOutcome[] = [...settled];
   // In order: a raid's post goes out before its reminders, the lock before the final roster.
   for (const action of plan) {
-    outcomes.push(
-      action.kind === 'refresh'
-        ? await refresh(action, state, ports)
-        : action.kind === 'server-event-update'
-          ? await updateServerEvent(action, state, ports)
-          : action.kind === 'summary-update'
-            ? await updateSummary(action, state, ports)
-            : await execute(action, state, ports, now),
-    );
+    outcomes.push(await runPlannedAction(action, state, ports, now));
   }
   outcomes.push(...(await runAssessment(ports, state, config, now)));
   return { outcomes };
+}
+
+function runPlannedAction(
+  action: PlannedAction,
+  state: TickState,
+  ports: TickPorts,
+  now: number,
+): Promise<TickOutcome> {
+  switch (action.kind) {
+    case 'refresh':
+      return refresh(action, state, ports);
+    case 'server-event-update':
+      return updateServerEvent(action, state, ports);
+    case 'summary-update':
+      return updateSummary(action, state, ports);
+    case 'party-draft-update':
+      return editPost(
+        'party-draft-update',
+        action.draft,
+        renderPartyDraft(action.tick, state.members),
+        state,
+        ports,
+      );
+    case 'party-post-update':
+      return editPost(
+        'party-post-update',
+        action.partyPost,
+        renderPartyPost(action.tick, state.members, { locked: action.locked }),
+        state,
+        ports,
+      );
+    default:
+      return execute(action, state, ports, now);
+  }
 }
 
 /** The weekly roster and recruitment check (#130), claimed once per week like any action. */

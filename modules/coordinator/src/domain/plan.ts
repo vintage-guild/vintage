@@ -16,7 +16,7 @@
 //   raid-summary   once an officer records the addon's export: how the bosses went, who came, and
 //                  what dropped, to the signup channel; edited when a different export replaces
 //                  it (not logged, like refresh)
-import { accessOf, type RaidEvent, type Signup } from '@vintage/raids/contract';
+import { accessOf, kindOf, type RaidEvent, type Signup } from '@vintage/raids/contract';
 import type { CoordinatorAction, CoordinatorConfig } from '../contract';
 import type { TickEvent, TickMember, TickRecorded, TickState } from '../store';
 import { MAX_SERVER_EVENTS } from './server-event';
@@ -53,6 +53,16 @@ export type PlannedAction =
       post: CoordinatorAction;
     }
   | { kind: 'digest'; tick: TickEvent; rule: 'digest'; target: string; waiting: TickMember[] }
+  | { kind: 'party-draft'; tick: TickEvent; rule: 'party-draft'; target: string }
+  | { kind: 'party-draft-update'; tick: TickEvent; draft: CoordinatorAction }
+  | { kind: 'party-post'; tick: TickEvent; rule: 'party-post'; target: string }
+  | {
+      kind: 'party-post-update';
+      tick: TickEvent;
+      partyPost: CoordinatorAction;
+      locked: boolean;
+    }
+  | { kind: 'unapproved-notice'; tick: TickEvent; rule: 'unapproved-notice'; target: string }
   | { kind: 'lock'; tick: TickEvent; rule: 'lock'; target: string }
   | { kind: 'final-roster'; tick: TickEvent; rule: 'final-roster'; target: string }
   | { kind: 'import-string'; tick: TickEvent; rule: 'import-string'; target: string }
@@ -187,6 +197,69 @@ function planDigest(
   ];
 }
 
+function planPartyDraft(
+  state: TickState,
+  tick: TickEvent,
+  done: Set<string>,
+  now: number,
+  locked: boolean,
+  partyDraftHash?: (tick: TickEvent) => string,
+): PlannedAction[] {
+  const leads = leadsChannelFor(state.config);
+  const dueAt = tick.event.startsAt - (tick.timings.digestHours ?? 24) * HOUR;
+  if (!leads || now < dueAt) return [];
+  const draft = sentAction(state, tick.event.id, 'party-draft');
+  if (!draft) {
+    if (done.has(`party-draft|${leads}`) || tick.event.rosterApprovedAt !== null || locked) {
+      return [];
+    }
+    return [{ kind: 'party-draft', tick, rule: 'party-draft', target: leads }];
+  }
+  if (partyDraftHash && draft.renderHash !== partyDraftHash(tick)) {
+    return [{ kind: 'party-draft-update', tick, draft }];
+  }
+  return [];
+}
+
+function planPartyPost(
+  state: TickState,
+  tick: TickEvent,
+  done: Set<string>,
+  locked: boolean,
+  partyPostHash?: (tick: TickEvent, locked: boolean) => string,
+): PlannedAction[] {
+  const channel = signupChannelFor(state.config, tick.event);
+  if (!channel || tick.event.rosterApprovedAt === null) return [];
+  const partyPost = sentAction(state, tick.event.id, 'party-post');
+  if (!partyPost) {
+    return done.has(`party-post|${channel}`)
+      ? []
+      : [{ kind: 'party-post', tick, rule: 'party-post', target: channel }];
+  }
+  if (partyPostHash && partyPost.renderHash !== partyPostHash(tick, locked)) {
+    return [{ kind: 'party-post-update', tick, partyPost, locked }];
+  }
+  return [];
+}
+
+function planParties(
+  state: TickState,
+  tick: TickEvent,
+  done: Set<string>,
+  now: number,
+  partyDraftHash?: (tick: TickEvent) => string,
+  partyPostHash?: (tick: TickEvent, locked: boolean) => string,
+): PlannedAction[] {
+  // Parties are for raids only (signup-improvements §1a).
+  if (kindOf(tick.event) !== 'raid') return [];
+  const lockAt = tick.event.startsAt - tick.timings.lockHours * HOUR;
+  const locked = now >= lockAt || tick.event.status === 'locked';
+  return [
+    ...planPartyDraft(state, tick, done, now, locked, partyDraftHash),
+    ...planPartyPost(state, tick, done, locked, partyPostHash),
+  ];
+}
+
 function planLock(
   state: TickState,
   tick: TickEvent,
@@ -199,10 +272,20 @@ function planLock(
   if (!done.has(`lock|${event.id}`))
     out.push({ kind: 'lock', tick, rule: 'lock', target: event.id });
   const channel = signupChannelFor(state.config, event);
-  if (channel && !done.has(`final-roster|${channel}`)) {
+  const approvedRaid = kindOf(event) === 'raid' && event.rosterApprovedAt !== null;
+  // An approved raid's party post becomes the final roster in place; otherwise post 4-column roster.
+  if (channel && !approvedRaid && !done.has(`final-roster|${channel}`)) {
     out.push({ kind: 'final-roster', tick, rule: 'final-roster', target: channel });
   }
   const leads = leadsChannelFor(state.config);
+  if (
+    leads &&
+    kindOf(event) === 'raid' &&
+    event.rosterApprovedAt === null &&
+    !done.has(`unapproved-notice|${leads}`)
+  ) {
+    out.push({ kind: 'unapproved-notice', tick, rule: 'unapproved-notice', target: leads });
+  }
   if (leads && !done.has(`import-string|${leads}`)) {
     out.push({ kind: 'import-string', tick, rule: 'import-string', target: leads });
   }
@@ -283,6 +366,8 @@ function planEvent(
   tick: TickEvent,
   now: number,
   renderHash: (tick: TickEvent) => string,
+  partyDraftHash?: (tick: TickEvent) => string,
+  partyPostHash?: (tick: TickEvent, locked: boolean) => string,
 ): PlannedAction[] {
   if (
     now >= tick.event.startsAt ||
@@ -303,6 +388,7 @@ function planEvent(
     ...planPromotions(state, tick, done),
     ...planReminders(state, tick, done, now, post),
     ...planDigest(state, tick, done, now),
+    ...planParties(state, tick, done, now, partyDraftHash, partyPostHash),
     ...planLock(state, tick, done, now),
   );
   return out;
@@ -317,11 +403,13 @@ export function planTick(
   serverEventHash?: (tick: TickEvent, post: CoordinatorAction) => string,
   /** Hash of the summary a recorded raid should have; needed only when `recorded` has raids. */
   summaryHash?: (recorded: TickRecorded) => string,
+  partyDraftHash?: (tick: TickEvent) => string,
+  partyPostHash?: (tick: TickEvent, locked: boolean) => string,
 ): PlannedAction[] {
   if (state.config.paused || !state.config.signupChannelId) return [];
   const out: PlannedAction[] = [];
   for (const tick of state.events) {
-    out.push(...planEvent(state, tick, now, renderHash));
+    out.push(...planEvent(state, tick, now, renderHash, partyDraftHash, partyPostHash));
   }
   if (state.config.serverEvents && serverEventHash) {
     out.push(...planServerEvents(state, now, serverEventHash));

@@ -62,5 +62,11 @@
   "status_tentative": "file:assets/emoji/status_tentative.png",
   "head_tank": "file:assets/emoji/head_tank.png",
   "head_healer": "file:assets/emoji/head_healer.png",
-  "head_dps": "file:assets/emoji/head_dps.png"
+  "head_dps": "file:assets/emoji/head_dps.png",
+  "head_melee": "file:assets/emoji/head_melee.png",
+  "head_ranged": "file:assets/emoji/head_ranged.png",
+  "recruit": "file:assets/emoji/recruit.png",
+  "late_5": "file:assets/emoji/late_5.png",
+  "late_15": "file:assets/emoji/late_15.png",
+  "late_30": "file:assets/emoji/late_30.png"
 }

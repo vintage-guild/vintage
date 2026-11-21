@@ -22,6 +22,7 @@ const COLOR = {
   standby: '#8fb3d9',
   out: '#e8676b',
   neutral: '#9a9086',
+  verdigris: '#4fd1a5',
 };
 
 const ICONS = {
@@ -38,7 +39,12 @@ const ICONS = {
   head_tank: ['shield', COLOR.neutral],
   head_healer: ['heart', COLOR.neutral],
   head_dps: ['sword', COLOR.neutral],
+  head_melee: ['sword', COLOR.neutral],
+  head_ranged: ['bow', COLOR.neutral],
+  recruit: ['seedling', COLOR.verdigris],
 };
+
+const LATE_BADGES = [5, 15, 30];
 
 // WoW's class colors.
 const CLASSES = {
@@ -67,6 +73,16 @@ for (const [cls, color] of Object.entries(CLASSES)) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="3" fill="${color}" stroke="#00000055" stroke-width="0.75"/></svg>`;
   writeFileSync(join(OUT, `square_${cls}.png`), png(svg));
 }
+for (const minutes of LATE_BADGES) {
+  // Clock outline with the late minutes badge (5, 15, 30) in the late amber token.
+  const svg = [
+    '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">',
+    `<circle cx="12" cy="12" r="9.5" stroke="${COLOR.late}" stroke-width="2"/>`,
+    `<text x="12" y="15.8" text-anchor="middle" font-family="sans-serif" font-weight="700" font-size="${minutes >= 10 ? 10 : 12}" fill="${COLOR.late}">${minutes}</text>`,
+    '</svg>',
+  ].join('');
+  writeFileSync(join(OUT, `late_${minutes}.png`), png(svg));
+}
 console.log(
-  `Wrote ${Object.keys(ICONS).length + Object.keys(CLASSES).length} images to assets/emoji`,
+  `Wrote ${Object.keys(ICONS).length + Object.keys(CLASSES).length + LATE_BADGES.length} images to assets/emoji`,
 );

@@ -56,6 +56,7 @@ import {
   handleEventInteraction,
 } from '../../src/discord-events';
 import { handleHelpInteraction } from '../../src/discord-help';
+import { handleManageInteraction } from '../../src/discord-manage';
 import { handlePollInteraction } from '../../src/discord-polls';
 import { handleScheduleAutocomplete, handleScheduleInteraction } from '../../src/discord-schedules';
 import { handleSignupInteraction } from '../../src/discord-signups';
@@ -589,6 +590,26 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     afterChange: () => deps.scheduler.runTickNow(GUILD),
     now: clock.now,
   };
+
+  /** The signup card's Manage button and its private steps, run through src/discord-manage.ts. */
+  const manageUi = (discordId: string, interaction: Partial<Interaction>) =>
+    handleManageInteraction(
+      {
+        id: 'i',
+        application_id: 'app',
+        token: 'token',
+        type: InteractionType.MESSAGE_COMPONENT,
+        guild_id: DISCORD_GUILD,
+        channel_id: SIGNUP_CHANNEL,
+        member: { user: { id: discordId, username: discordId }, roles: [] },
+        ...interaction,
+      } as Interaction,
+      {
+        ...eventPorts,
+        run: (caller, name, input, confirmToken) =>
+          registry.execute({ name, input, caller, confirmToken }, deps),
+      },
+    );
 
   /** `/vintage event create` and `/vintage event pick-night`, run through src/discord-events.ts. */
   const eventUi = {
@@ -1138,6 +1159,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     characterUi,
     eventUi,
     scheduleUi,
+    manageUi,
     pollUi,
     clock,
     deps,

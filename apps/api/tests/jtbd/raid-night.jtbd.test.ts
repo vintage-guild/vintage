@@ -4,7 +4,7 @@
 import { decodeRaidImport, encodeBridge, type RaidExport } from '@vintage/bridge-format';
 import luaMade from '@vintage/bridge-format/fixtures/lua-made.json';
 import { buttonLabels, messageText } from '@vintage/coordinator/testing';
-import { ScheduledEventStatus } from '@vintage/discord-kit';
+import { type Interaction, InteractionType, ScheduledEventStatus } from '@vintage/discord-kit';
 import type { Caller } from '@vintage/guild-kit';
 import type { Progress } from '@vintage/progress/contract';
 import type { ExportCheck, RaidEvent, Signup } from '@vintage/raids/contract';
@@ -115,13 +115,14 @@ describe('JTBD: raid night', () => {
     const posts = g.host.sentTo(SIGNUP_CHANNEL);
     for (const p of posts) expect(p.message.embeds?.[0]?.title).toBe('Raid night · Molten Core');
     expect(posts).toHaveLength(2);
-    // No Roster yet: a new card hides no one.
+    // No Roster yet: a new card hides no one. Manage is for raid leaders and officers.
     expect(buttonLabels(posts[0]!.message)).toEqual([
       'Accept',
       'Late',
       'Tentative',
       'Standby',
       'Absent',
+      'Manage',
     ]);
     // Running again posts nothing new.
     await g.host.tick();
@@ -1849,5 +1850,47 @@ describe('JTBD: raid night', () => {
       .sentTo(SIGNUP_CHANNEL)
       .find((m) => m.message.embeds?.[0]?.title?.startsWith('Final roster'));
     expect(finalPost?.message.embeds?.[0]?.description).toContain(`· ${masked}`);
+  });
+
+  it('J75 · a leader moves or cancels an event from its signup card', async () => {
+    const { wed, thu } = await scheduleRaidNights(g);
+    const text = (r: unknown) => (r as { data?: { content?: string } }).data?.content ?? '';
+    const click = (who: Caller, customId: string) =>
+      g.host.manageUi(who.discordId!, { data: { custom_id: customId, component_type: 2 } });
+
+    // A raider can press Manage but gets a private "ask a raid leader"; nothing changes.
+    expect(text(await click(g.aeryn, `manage:${wed.id}`))).toMatch(/needs the Raid Leader rank/);
+
+    // The leader moves Wednesday an hour later with the form's pickers.
+    const menu = await click(g.rook, `manage:${wed.id}`);
+    expect(text(menu)).toContain('What do you want to change?');
+    const form = await click(g.rook, `manage:move:${wed.id}`);
+    const date = JSON.stringify(form).match(/"value":"(\d{4}-\d{2}-\d{2})","default":true/)![1];
+    const moved = await g.host.manageUi(g.rook.discordId!, {
+      type: InteractionType.MODAL_SUBMIT,
+      data: {
+        custom_id: `manage:when:${wed.id}`,
+        components: [
+          { type: 18, component: { type: 3, custom_id: 'date', values: [date] } },
+          { type: 18, component: { type: 3, custom_id: 'time', values: ['21:00'] } },
+        ],
+      },
+    } as Partial<Interaction>);
+    expect(text(moved)).toMatch(/^Moved \*\*Raid night\*\*/);
+    const after = await g.host.ok<{ event: RaidEvent }>(g.aeryn, 'raid-get', { eventId: wed.id });
+    expect(after.event.startsAt).toBe(WED + HOUR);
+    await g.host.tick();
+    const wedCard = g.host.editsTo(SIGNUP_CHANNEL).at(-1)!;
+    expect(JSON.stringify(wedCard.message)).toContain(`<t:${(WED + HOUR) / 1000}:`);
+
+    // Thursday is cancelled: asked first, then confirmed; its card loses its buttons.
+    expect(text(await click(g.rook, `manage:cancel:${thu.id}`))).toMatch(/^Cancel \*\*Raid night/);
+    expect(text(await click(g.rook, `manage:confirm:${thu.id}`))).toMatch(/^Cancelled/);
+    const gone = await g.host.ok<{ event: RaidEvent }>(g.aeryn, 'raid-get', { eventId: thu.id });
+    expect(gone.event.status).toBe('cancelled');
+    await g.host.tick();
+    const thuCard = g.host.editsTo(SIGNUP_CHANNEL).at(-1)!;
+    expect(thuCard.message.embeds?.[0]?.title).toBe('Cancelled · Raid night · Molten Core');
+    expect(thuCard.message.components).toEqual([]);
   });
 });

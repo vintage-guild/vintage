@@ -146,10 +146,9 @@ export function createTickSource(stores: {
       const config = await coordinator.getConfig(guildId);
       const window = { from: now, to: now + LOOKAHEAD_MS };
       const events = await raids.listEvents(guildId, { ...window, statuses: ['open', 'locked'] });
-      // Cancelled raids matter only for server events, which get cancelled with them.
-      const cancelled = config.serverEvents
-        ? await raids.listEvents(guildId, { ...window, statuses: ['cancelled'] })
-        : [];
+      // Cancelled raids: their signup posts are redrawn as cancelled, and their server events
+      // (when on) are cancelled with them.
+      const cancelled = await raids.listEvents(guildId, { ...window, statuses: ['cancelled'] });
       const [membersRaw, activeAbsences] = await Promise.all([
         identity.listMembers(guildId),
         raids.listAbsences(guildId, { activeOnly: true }),

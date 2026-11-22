@@ -506,3 +506,11 @@ right on the signup post that opens that raid's signup card.
 - [x] Opening `/r/<code>` resolves through `raid-get({ shortCode })` (case-insensitive), answers on
   the signup card refresh the Discord post within a tick, and a Friend probing a guild raid's code
   gets `RAID_NOT_FOUND`.
+
+### J75 · Move or cancel from the signup card
+**When** an event was posted on the wrong day or won't happen, **I (leader) want** to fix it from
+its Discord signup card, without the website.
+- [x] **Manage** on the card gives a leader a private Move / Cancel menu; anyone below Raid Leader
+  gets a private "ask a raid leader". Move picks a day and a time in the guild's clock and keeps
+  signups; Cancel asks first. The card follows on the next tick: the new time, or a Cancelled
+  card with no buttons.

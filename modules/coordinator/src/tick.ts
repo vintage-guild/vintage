@@ -18,6 +18,7 @@ import {
 } from './domain/assessment';
 import {
   raidSiteLink,
+  renderCancelledPost,
   renderFinalRoster,
   renderPartyDraft,
   renderPartyPost,
@@ -78,6 +79,7 @@ type Performed = {
 type Unlogged = {
   kind:
     | 'refresh'
+    | 'cancelled-card'
     | 'server-event-update'
     | 'summary-update'
     | 'party-draft-update'
@@ -616,6 +618,7 @@ export async function runTick(ports: TickPorts, guildId: string, now: number): P
     (tick) => hashMessage(renderPartyDraft(tick, state.members, cardOptions(ports))),
     (tick, locked) =>
       hashMessage(renderPartyPost(tick, state.members, { locked, ...cardOptions(ports) })),
+    (tick) => hashMessage(renderCancelledPost(tick.event)),
   );
   // In order: a raid's post goes out before its reminders, the lock before the final roster.
   for (const action of plan) {
@@ -634,6 +637,16 @@ function runPlannedAction(
   switch (action.kind) {
     case 'refresh':
       return refresh(action, state, ports, now);
+    case 'cancelled-card':
+      return editPost(
+        'cancelled-card',
+        action.tick,
+        action.post,
+        renderCancelledPost(action.tick.event),
+        state,
+        ports,
+        now,
+      );
     case 'server-event-update':
       return updateServerEvent(action, state, ports, now);
     case 'summary-update':

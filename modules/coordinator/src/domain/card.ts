@@ -4,8 +4,8 @@
 // - Spec icons (`spec_<class>_<spec>`, falling back to `square_<class>`), no spec text, no place
 //   numbers, late minutes icon/text, and recruit sprout mark.
 // - Line-safe character-budget packing (<= 1,024 chars/field, never slicing mid-token).
-// - Tentative reasons inline (no Notes field or footer); Missing going-only + subtext if tentative
-//   or standby would change it.
+// - Tentative names without public reasons (reasons stay leader-only in the digest and quarters);
+//   Missing going-only + subtext if tentative or standby would change it; Absent names below Missing.
 // - T-24h party draft in #leads (Approve and post / Redraft / Edit in quarters) and approved party
 //   post that promotes in place into the Final Roster at lock.
 // Pure: data in, MessageData out.
@@ -282,10 +282,21 @@ function buildMissingValue(tick: TickEvent, members: TickMember[]): string {
   return `${mainText}\n${sub}`;
 }
 
+/** Plain names for everyone absent: declined signups and scheduled absences, sorted, no reasons. */
+function absentNames(
+  signups: readonly Signup[],
+  away: readonly Pick<TickAway, 'displayName'>[] = [],
+): string[] {
+  const declined = signups.filter((s) => s.status === 'declined').map((s) => s.characterName);
+  const covered = away.map((a) => a.displayName);
+  return [...declined, ...covered].sort((a, b) => a.localeCompare(b));
+}
+
 /**
  * The signup post (Card v2): 2x2 role columns (Tanks/Healers, Melee/Ranged), sorted by class then
- * name, spec icons, late minutes, recruit mark, inline Tentative reasons, Standby, going-only
- * Missing + tentative/standby subtext, answer buttons, and Row 2 Raid page + Roster.
+ * name, spec icons, late minutes, recruit mark, Standby, Tentative (names only; reasons stay
+ * leader-only), going-only Missing + tentative/standby subtext, Absent names below Missing,
+ * answer buttons, and Row 2 Raid page + Roster (when anything overflows).
  */
 export function renderSignupPost(
   tick: TickEvent,
@@ -321,7 +332,7 @@ export function renderSignupPost(
   }
   if (maybe.length) {
     const fitted = fitLines(
-      maybe.map((s) => `${line(s, ranks)}${s.note ? ` (${s.note})` : ''}`),
+      maybe.map((s) => line(s, ranks)),
       FIELD_MAX,
       ' · ',
       `${emoji('status_tentative')} **Tentative** `,
@@ -331,8 +342,15 @@ export function renderSignupPost(
   }
   fields.push({ name: BLANK, value: buildMissingValue(tick, members) });
 
+  const absent = absentNames(signups, tick.away);
+  if (absent.length) {
+    const fitted = fitLines(absent, FIELD_MAX, ' · ', `${emoji('status_out')} **Absent** `);
+    hidden += fitted.hidden;
+    fields.push({ name: BLANK, value: fitted.text });
+  }
+
   const awayCount = tick.away?.length ?? 0;
-  const showRoster = hidden > 0 || awayCount > 0 || signups.some((s) => s.status === 'declined');
+  const showRoster = hidden > 0;
   const row2 = [
     ...(options.siteUrl
       ? [linkButton(`${options.siteUrl.replace(/\/$/, '')}/raids/${event.id}`, 'Raid page')]
@@ -395,7 +413,7 @@ export function cardHidesSomeone(tick: TickEvent, members: TickMember[] = []): b
   if (
     maybe.length &&
     fitLines(
-      maybe.map((s) => `${line(s, ranks)}${s.note ? ` (${s.note})` : ''}`),
+      maybe.map((s) => line(s, ranks)),
       FIELD_MAX,
       ' · ',
       `${emoji('status_tentative')} **Tentative** `,
@@ -403,7 +421,11 @@ export function cardHidesSomeone(tick: TickEvent, members: TickMember[] = []): b
   ) {
     return true;
   }
-  return (tick.away?.length ?? 0) > 0 || tick.signups.some((s) => s.status === 'declined');
+  const absent = absentNames(tick.signups, tick.away);
+  return (
+    absent.length > 0 &&
+    fitLines(absent, FIELD_MAX, ' · ', `${emoji('status_out')} **Absent** `).hidden > 0
+  );
 }
 
 /** Lines split into embed fields of at most 1024 characters, the first one titled. */
@@ -422,8 +444,8 @@ function chunkFields(title: string, lines: string[], inline: boolean): EmbedFiel
 }
 
 /**
- * Everyone signed up, privately (the Roster button): 4 roles in full, then Standby, Tentative
- * (with inline reasons), and Absent.
+ * Everyone signed up, privately (the Roster button): 4 roles in full, then Standby, Tentative,
+ * and Absent. Reasons stay officer-only (digest and quarters), never shown here.
  */
 export function renderRosterReply(
   event: RaidEvent,
@@ -441,11 +463,11 @@ export function renderRosterReply(
       true,
     );
   });
-  const group = (title: string, list: Signup[], withNote = false) =>
+  const group = (title: string, list: Signup[]) =>
     list.length
       ? chunkFields(
           `${title} (${list.length})`,
-          list.map((s) => `${line(s, ranks)}${withNote && s.note ? ` (${s.note})` : ''}`),
+          list.map((s) => line(s, ranks)),
           false,
         )
       : [];
@@ -465,11 +487,7 @@ export function renderRosterReply(
         .filter((s) => s.status === 'bench' || s.roster === 'benched')
         .sort(byStandbyOrder(ranks)),
     ),
-    ...group(
-      'Tentative',
-      signups.filter((s) => s.status === 'tentative').sort(byClassThenName),
-      true,
-    ),
+    ...group('Tentative', signups.filter((s) => s.status === 'tentative').sort(byClassThenName)),
     ...(absentLines.length
       ? chunkFields(`Absent (${absentLines.length})`, absentLines, false)
       : []),

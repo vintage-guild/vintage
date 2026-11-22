@@ -98,24 +98,35 @@ function expectWithinLimits(message: MessageData) {
 }
 
 describe('raid cards', () => {
-  it('a 40-person card with long names, late/recruit marks, and tentative reasons stays within Discord limits', () => {
+  it('a 40-person card with long names, late/recruit marks, and absent players stays within Discord limits without leaking tentative reasons', () => {
     const base = fullRaid();
-    // Worst-case long first+last names, late minutes, tentative reasons on everyone tentative.
+    // Worst-case long first+last names, late minutes, tentative reasons, and absent players.
     const statusFor = (i: number): Signup['status'] => {
       if (i >= 46) return 'tentative';
       if (i >= 40) return 'bench';
       return i % 5 === 0 ? 'late' : 'accepted';
     };
-    const signups = base.signups.map((s, i) => {
-      const status = statusFor(i);
-      return {
-        ...s,
-        characterName: `Thalassian Longsurname${String(i).padStart(2, '0')}`,
-        status,
-        lateMinutes: status === 'late' ? (15 as const) : null,
-        note: status === 'tentative' ? 'might be stuck in traffic after work' : null,
-      };
-    });
+    const signups = [
+      ...base.signups.map((s, i) => {
+        const status = statusFor(i);
+        return {
+          ...s,
+          characterName: `Thalassian Longsurname${String(i).padStart(2, '0')}`,
+          status,
+          lateMinutes: status === 'late' ? (15 as const) : null,
+          note: status === 'tentative' ? 'might be stuck in traffic after work' : null,
+        };
+      }),
+      ...Array.from({ length: 10 }, (_, i) => ({
+        ...base.signups[0]!,
+        id: `abs${i}`,
+        memberId: `am${i}`,
+        characterId: `ac${i}`,
+        characterName: `Absent Raider${String(i).padStart(2, '0')}`,
+        status: 'declined' as const,
+        note: 'private reason',
+      })),
+    ];
     const members = signups.map((s, i) => ({
       memberId: s.memberId,
       discordId: `200000000000000${String(i).padStart(3, '0')}`,
@@ -134,10 +145,57 @@ describe('raid cards', () => {
     expect(fields[1]!.name).toContain('Healers');
     expect(fields[3]!.name).toContain('Melee');
     expect(fields[4]!.name).toContain('Ranged');
-    // No footer (Tentative reasons are inline).
+    // No footer, and tentative/absent reasons never show publicly on the card.
     expect((message.embeds![0] as Embed).footer).toBeUndefined();
+    const text = messageText(message);
+    expect(text).not.toContain('might be stuck in traffic after work');
+    expect(text).not.toContain('private reason');
+    // Absent row sits below Missing.
+    const missingIdx = fields.findIndex(
+      (f) => f.value.includes('**Missing**') || f.value.includes('**Comp**'),
+    );
+    const absentIdx = fields.findIndex((f) => f.value.includes('**Absent**'));
+    expect(missingIdx).toBeGreaterThan(-1);
+    expect(absentIdx).toBe(missingIdx + 1);
     expect(buttonLabels(message)).toContain('Absent');
     expect(buttonLabels(message)).toContain('Raid page');
+  });
+
+  it('shows Absent names (declined and scheduled away) below Missing without reasons', () => {
+    const raid = fullRaid();
+    const going = raid.signups[0]!;
+    const declined: Signup = {
+      ...raid.signups[1]!,
+      characterName: 'Gore Khan',
+      status: 'declined',
+      note: 'family dinner',
+    };
+    const tentative: Signup = {
+      ...raid.signups[2]!,
+      characterName: 'Plate Licker',
+      status: 'tentative',
+      note: 'might have plans with my wife',
+    };
+    const message = renderSignupPost(
+      {
+        ...raid,
+        signups: [going, declined, tentative],
+        away: [
+          { memberId: 'm-away', displayName: 'Cade', reason: 'work trip', summary: 'Oct 28–30' },
+        ],
+      },
+      [],
+    );
+    const fields = (message.embeds![0] as Embed).fields!;
+    const missingIdx = fields.findIndex((f) => f.value.includes('**Missing**'));
+    const absentIdx = fields.findIndex((f) => f.value.includes('**Absent**'));
+    expect(absentIdx).toBe(missingIdx + 1);
+    expect(fields[absentIdx]!.value).toContain('**Absent** Cade · Gore Khan');
+    const text = messageText(message);
+    expect(text).toContain('Plate Licker');
+    expect(text).not.toContain('might have plans with my wife');
+    expect(text).not.toContain('family dinner');
+    expect(text).not.toContain('work trip');
   });
 
   it('fitLines packs whole lines within the budget and never splits tokens', () => {
@@ -152,7 +210,7 @@ describe('raid cards', () => {
     expect(fitted.text).not.toMatch(/<:[^>]*$/);
   });
 
-  it('offers Roster only when the card leaves someone out or someone is absent', () => {
+  it('offers Roster only when the card overflows and leaves someone out', () => {
     const raid = fullRaid();
     const hasRoster = (signups: typeof raid.signups) =>
       buttonLabels(renderSignupPost({ ...raid, signups }, [])).includes('Roster');
@@ -161,8 +219,8 @@ describe('raid cards', () => {
       .slice(0, 3)
       .map((s) => ({ ...s, status: 'accepted' as const, queued: false }));
     expect(hasRoster(few)).toBe(false);
-    // One absent: the card counts them but doesn't name them, so Roster shows.
-    expect(hasRoster([...few, { ...few[0]!, id: 'd1', status: 'declined' as const }])).toBe(true);
+    // One absent fits on the Absent line below Missing, so Roster isn't needed.
+    expect(hasRoster([...few, { ...few[0]!, id: 'd1', status: 'declined' as const }])).toBe(false);
     // Overflowing tentative list triggers Roster.
     const manyTentative = Array.from({ length: 30 }, (_, i) => ({
       ...few[0]!,
@@ -172,15 +230,25 @@ describe('raid cards', () => {
       note: 'might have to work late tonight',
     }));
     expect(hasRoster([...few, ...manyTentative])).toBe(true);
+    // Overflowing absent list triggers Roster.
+    const manyAbsent = Array.from({ length: 60 }, (_, i) => ({
+      ...few[0]!,
+      id: `a${i}`,
+      characterName: `VeryLongAbsentName${String(i).padStart(2, '0')}`,
+      status: 'declined' as const,
+    }));
+    expect(hasRoster([...few, ...manyAbsent])).toBe(true);
   });
 
-  it('the Roster reply lists everyone and stays inside the limits', () => {
+  it('the Roster reply lists everyone without leaking tentative reasons and stays inside the limits', () => {
     const raid = fullRaid();
     const message = renderRosterReply(raid.event, raid.signups);
     expectWithinLimits(message);
+    const text = messageText(message);
     for (let i = 0; i < 52; i++) {
-      expect(messageText(message)).toContain(`Longnamechar${String(i).padStart(2, '0')}`);
+      expect(text).toContain(`Longnamechar${String(i).padStart(2, '0')}`);
     }
+    expect(text).not.toContain('might have to work late tonight');
   });
 
   it('the final roster stays inside the limits and sends no empty Standby field', () => {

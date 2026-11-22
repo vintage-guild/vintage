@@ -345,7 +345,7 @@ function roleOptions(signup: Signup, character: Character | undefined, needed: C
 }
 
 const noteField = (_status: SignupStatus): NoteField => ({
-  label: 'What might stop you? (optional)',
+  label: 'What might stop you? (optional, leaders only)',
   placeholder: 'Might have to work',
 });
 

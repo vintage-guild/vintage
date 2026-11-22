@@ -1,8 +1,8 @@
-// `/random absence …` and absence buttons/modals (absences.plan.md §5):
-//   /random absence add [from] [to] [reason] [member]  → absence-add (or opens form when no from)
-//   /random absence weekly                             → opens weekly nights form → absence-weekly-set
-//   /random absence list                               → absence-list (own active absences)
-//   /random absence remove <absence>                   → absence-remove (autocompleted from own)
+// `/vintage absence …` and absence buttons/modals (absences.plan.md §5):
+//   /vintage absence add [from] [to] [reason] [member]  → absence-add (or opens form when no from)
+//   /vintage absence weekly                             → opens weekly nights form → absence-weekly-set
+//   /vintage absence list                               → absence-list (own active absences)
+//   /vintage absence remove <absence>                   → absence-remove (autocompleted from own)
 //   button  absence-more-days                          → opens the Absence form
 //   button  absence-mark:<mode>:<eventIds>             → marks stillSignedUp raids absent or late
 // Pure over ports, so Convex (`convex/discord.ts`) and tests run the same flow.

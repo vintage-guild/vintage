@@ -67,7 +67,7 @@ const askCommand = (question: string, overrides: Partial<Interaction> = {}) =>
     ...base,
     type: InteractionType.APPLICATION_COMMAND,
     data: {
-      name: 'random',
+      name: 'vintage',
       options: [
         { name: 'ask', type: 1, options: [{ name: 'question', type: 3, value: question }] },
       ],
@@ -83,7 +83,7 @@ const click = (customId: string, content = 'Your signup will change. **Change 1:
     message: { id: 'm1', content },
   }) as unknown as Interaction;
 
-describe('/random ask', () => {
+describe('/vintage ask', () => {
   it('queues the question as the member and answers with a private deferred reply', async () => {
     const { p, asked } = ports();
     const response = await handleAgentInteraction(askCommand('  when is raid?  '), p);
@@ -139,7 +139,7 @@ describe('/random ask', () => {
       {
         ...base,
         type: InteractionType.APPLICATION_COMMAND,
-        data: { name: 'random', options: [{ name: 'poll', type: 2, options: [] }] },
+        data: { name: 'vintage', options: [{ name: 'poll', type: 2, options: [] }] },
       } as unknown as Interaction,
       p,
     );

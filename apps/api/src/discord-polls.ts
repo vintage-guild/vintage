@@ -1,6 +1,6 @@
 // Polls in Discord (#62). Pure over ports, so Convex (convex/discord.ts) and the JTBD host run the
 // same flow:
-//   /random poll create …           → poll-create as the member, then the post goes up in this channel
+//   /vintage poll create …           → poll-create as the member, then the post goes up in this channel
 //   button  poll:v:<pollId>:<option>  → vote-cast with that option
 //   select  poll:s:<pollId>           → vote-cast with the picked options
 //   button  poll:x:<pollId>           → vote-retract
@@ -181,7 +181,7 @@ async function pollFor(ports: PollPorts, caller: Caller, pollId: string): Promis
   return result.success ? (result.data as { poll: Poll }).poll : null;
 }
 
-/** Is this one of ours? A poll control, or `/random poll …`. */
+/** Is this one of ours? A poll control, or `/vintage poll …`. */
 export function isPollInteraction(interaction: Interaction): boolean {
   if (interaction.type === InteractionType.APPLICATION_COMMAND) {
     return interaction.data?.name === SLASH_COMMAND && subcommandPath(interaction)[0] === 'poll';

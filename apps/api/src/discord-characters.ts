@@ -1,9 +1,9 @@
 // Characters from Discord (#149, character-choice §3). Pure over ports, so Convex
 // (convex/discord.ts) and the JTBD host run the same flow:
-//   /random character add name class spec [role] [main] → character-add as the member
-//   /random character list                             → character-list, main marked
-//   /random character main name                        → character-update { isMain }
-//   /random character remove name                      → character-remove's preview, with a
+//   /vintage character add name class spec [role] [main] → character-add as the member
+//   /vintage character list                             → character-list, main marked
+//   /vintage character main name                        → character-update { isMain }
+//   /vintage character remove name                      → character-remove's preview, with a
 //                                                        Confirm button
 //   button  char-rm:<characterId>                      → character-remove for real (a fresh
 //                                                        preview, confirmed at once)
@@ -117,7 +117,7 @@ const isRole = (s: string | undefined): s is Role =>
 const isClass = (s: string | undefined): s is WowClass =>
   !!s && (CLASS_NAMES as readonly string[]).includes(s);
 
-/** Is this one of ours? `/random character …`, its autocomplete, or the remove confirm. */
+/** Is this one of ours? `/vintage character …`, its autocomplete, or the remove confirm. */
 export function isCharacterInteraction(interaction: Interaction): boolean {
   if (
     interaction.type === InteractionType.APPLICATION_COMMAND ||
@@ -162,7 +162,7 @@ export function findCharacter(characters: Character[], typed: string): Character
 
 const notYours = (typed: string) =>
   ephemeral(
-    `You have no character called **${typed.slice(0, 40)}**. See yours with \`/random character list\`.`,
+    `You have no character called **${typed.slice(0, 40)}**. See yours with \`/vintage character list\`.`,
   );
 
 async function add(ports: CharacterPorts, caller: Caller, interaction: Interaction) {
@@ -192,7 +192,7 @@ async function list(ports: CharacterPorts, caller: Caller) {
   const mine = await myCharacters(ports, caller);
   if ('refusal' in mine) return mine.refusal;
   if (mine.characters.length === 0) {
-    return ephemeral('No characters yet. Add one with `/random character add`.');
+    return ephemeral('No characters yet. Add one with `/vintage character add`.');
   }
   return ephemeral(
     [
@@ -298,7 +298,7 @@ function specChoices(wowClass: string | undefined, typed: string): AutocompleteC
 }
 
 /**
- * Suggestions for `/random character` as the member types: specs filtered by the class chosen so
+ * Suggestions for `/vintage character` as the member types: specs filtered by the class chosen so
  * far, and the member's own characters for `name`. Anything unexpected (another server, someone
  * Random doesn't know, another option) gets no suggestions; the command checks the value anyway.
  */

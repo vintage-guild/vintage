@@ -1,7 +1,7 @@
 // Random's help pages (#155), built from the slash command definitions the gateway registers
 // (RANDOM_COMMAND) plus the hand-written topics in help-topics.ts, and rendered for one reader's
 // tier: what they can do first, what higher ranks can do in one line. Pure. `help-get` serves
-// the pages to every surface, so `/random help` and the agent answer from the same text.
+// the pages to every surface, so `/vintage help` and the agent answer from the same text.
 import type { ApplicationCommandOption } from '@vintage/discord-kit';
 import { ApplicationCommandOptionType as T } from '@vintage/discord-kit';
 import { RANDOM_COMMAND } from '@vintage/gateway/commands';
@@ -18,13 +18,13 @@ import { HELP_TOPICS, type HelpTopic } from './help-topics';
 export const HELP_SUBCOMMAND = 'help';
 export const HELP_TOPIC_KEYS = HELP_TOPICS.map((t) => t.key) as [string, ...string[]];
 
-/** A `/random` leaf subcommand, by its path under `/random` (`poll create`, `ask`). */
+/** A `/vintage` leaf subcommand, by its path under `/vintage` (`poll create`, `ask`). */
 export interface SlashLeaf {
   path: string;
   definition: ApplicationCommandOption;
 }
 
-/** Every `/random` leaf subcommand except the help ones, in definition order. */
+/** Every `/vintage` leaf subcommand except the help ones, in definition order. */
 export function slashLeaves(
   options: readonly ApplicationCommandOption[] = RANDOM_COMMAND.options,
 ): SlashLeaf[] {
@@ -77,7 +77,7 @@ export function parseExample(
   leaves: readonly SlashLeaf[] = slashLeaves(),
 ): { leaf: SlashLeaf; values: Record<string, string> } | { problem: string } {
   const words = example.trim().split(/\s+/);
-  if (words[0] !== `/${RANDOM_COMMAND.name}`) return { problem: 'not a /random command' };
+  if (words[0] !== `/${RANDOM_COMMAND.name}`) return { problem: 'not a /vintage command' };
   const leaf =
     leaves.find((l) => l.path === `${words[1]} ${words[2]}`) ??
     leaves.find((l) => l.path === words[1]);
@@ -197,7 +197,7 @@ function topicActions(topic: HelpTopic, ctx: HelpContext) {
   return [...slashActions, ...buttonActions];
 }
 
-/** "Raid leaders and officers can also: `/random raid create`." One line per tier above. */
+/** "Raid leaders and officers can also: `/vintage raid create`." One line per tier above. */
 function higherRankLines(
   actions: ReturnType<typeof topicActions>,
   ctx: HelpContext,

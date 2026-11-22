@@ -1,8 +1,8 @@
-// Events from Discord (#151; `/random raid` until then). Pure over ports, so Convex
+// Events from Discord (#151; `/vintage raid` until then). Pure over ports, so Convex
 // (convex/discord.ts) and the JTBD host run the same flow:
-//   /random event create …      → raid-create as the member; the coordinator then posts its card
-//   /random event pick-night …  → raid-night-poll as the member; the poll goes up in the signup channel
-//   /random event check-export … → raid-export-check as the member; a private summary, nothing recorded
+//   /vintage event create …      → raid-create as the member; the coordinator then posts its card
+//   /vintage event pick-night …  → raid-night-poll as the member; the poll goes up in the signup channel
+//   /vintage event check-export … → raid-export-check as the member; a private summary, nothing recorded
 // `kind` (default raid) and the optional tanks/healers/dps counts pass through. Times are typed in
 // the guild's clock and echoed back as Discord timestamps. Commands decide everything else (raid
 // leader tier, sizes per kind, time rules); this file only translates.
@@ -278,7 +278,7 @@ async function pickNight(ports: EventPorts, caller: Caller, values: OptionValues
   );
 }
 
-// ── /random event check-export ────────────────────────────────────────────────────────────────
+// ── /vintage event check-export ────────────────────────────────────────────────────────────────
 
 const NEEDS_LEADER_CHECK =
   'Checking a raid export needs the Raid Leader rank or higher. Ask a raid leader or officer.';
@@ -402,7 +402,7 @@ const suggestionName = (event: RaidEvent, zone: string) =>
     minute: '2-digit',
   }).format(event.startsAt)}`;
 
-/** Suggestions for `event:` in `/random event check-export`: last week's raids, latest first, then tomorrow's. */
+/** Suggestions for `event:` in `/vintage event check-export`: last week's raids, latest first, then tomorrow's. */
 export async function handleEventAutocomplete(
   interaction: Interaction,
   ports: EventAutocompletePorts,
@@ -445,7 +445,7 @@ export async function handleEventAutocomplete(
 const isEventGroup = (interaction: Interaction) =>
   interaction.data?.name === SLASH_COMMAND && subcommandPath(interaction)[0] === EVENT_GROUP;
 
-/** Is this `/random event …`? */
+/** Is this `/vintage event …`? */
 export function isEventInteraction(interaction: Interaction): boolean {
   return interaction.type === InteractionType.APPLICATION_COMMAND && isEventGroup(interaction);
 }

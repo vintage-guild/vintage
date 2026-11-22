@@ -1,4 +1,4 @@
-// What every `/random` flow shares (polls, raids): the command name, reading a slash command's
+// What every `/vintage` flow shares (polls, raids): the command name, reading a slash command's
 // options, the guild check and the member behind an interaction, and a failed command in words.
 // Pure; the flows themselves stay in their own files.
 import {
@@ -14,7 +14,7 @@ import type { Member } from '@vintage/identity/contract';
 import type { Role } from '@vintage/wow-data';
 
 /** The bot's slash command; the same name as RANDOM_COMMAND in apps/gateway/src/commands.ts. */
-export const SLASH_COMMAND = 'random';
+export const SLASH_COMMAND = 'vintage';
 
 export type OptionValues = Record<string, string | number | boolean>;
 

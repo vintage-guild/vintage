@@ -1,6 +1,6 @@
 // The guild agent in Discord (#18). Pure over ports, so Convex (convex/discord.ts) and tests run
 // the same flow:
-//   /random ask question:…        → agent-ask as the member; a private "thinking" reply now, edited
+//   /vintage ask question:…        → agent-ask as the member; a private "thinking" reply now, edited
 //                                   with the answer when the run ends (convex/agent.ts)
 //   button  agent:ok:<confirmId>  → agent-confirm as the clicker
 //   button  agent:no:<confirmId>  → agent-decline as the clicker
@@ -89,7 +89,7 @@ async function callerFor(
 async function ask(interaction: Interaction, ports: AgentDiscordPorts, caller: Caller) {
   const question = questionOf(interaction).trim();
   if (!question)
-    return ephemeral('Ask a question, for example `/random ask when is the next raid?`');
+    return ephemeral('Ask a question, for example `/vintage ask when is the next raid?`');
   const result = await ports.ask(
     caller,
     { question, ...(interaction.channel_id ? { thread: interaction.channel_id } : {}) },

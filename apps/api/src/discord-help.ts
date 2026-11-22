@@ -1,7 +1,7 @@
 // Random's help from Discord (#155). Pure over ports, so Convex (convex/discord.ts) and the JTBD
 // host run the same flow:
-//   /random help [topic:…]   → help-get as the member: the overview, or one topic
-//   /random <group> help     → help-get for that group's topic (`/random poll help` → polls)
+//   /vintage help [topic:…]   → help-get as the member: the overview, or one topic
+//   /vintage <group> help     → help-get for that group's topic (`/vintage poll help` → polls)
 // Someone Random doesn't know yet gets the public page and the role-sync note. The reply is
 // private. help-get decides what each tier sees; this file only translates.
 import {
@@ -42,7 +42,7 @@ function requestedTopic(interaction: Interaction): string | undefined | null {
   return null;
 }
 
-/** Is this `/random help` or `/random <group> help`? */
+/** Is this `/vintage help` or `/vintage <group> help`? */
 export function isHelpInteraction(interaction: Interaction): boolean {
   return requestedTopic(interaction) !== null;
 }

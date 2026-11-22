@@ -113,7 +113,7 @@ const slash = (
   ...base(who, guildId),
   type: InteractionType.APPLICATION_COMMAND,
   data: {
-    name: 'random',
+    name: 'vintage',
     options: [
       {
         name: 'event',
@@ -237,7 +237,7 @@ const stageOne = (overrides: Record<string, Answer> = {}) =>
 
 // ── Opening the form ─────────────────────────────────────────────────────────────────────────
 
-describe('a bare /random event create', () => {
+describe('a bare /vintage event create', () => {
   it('opens the New event form: name, kind, where, a date and a time in the guild’s clock', async () => {
     const r = await run(slash('rook'));
     expect(typeOf(r)).toBe(InteractionResponseType.MODAL);

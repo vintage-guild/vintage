@@ -1,6 +1,6 @@
-// The New event form (`/random event create` with no name or start). Pure over the same ports as
+// The New event form (`/vintage event create` with no name or start). Pure over the same ports as
 // discord-events.ts, so Convex (convex/discord.ts) and the JTBD host run the same flow:
-//   /random event create (bare)   → stage 1 modal `evform:new`: name, kind (radio), where, a date
+//   /vintage event create (bare)   → stage 1 modal `evform:new`: name, kind (radio), where, a date
 //                                   (the next 25 days in the guild's clock) and a time (half-hour
 //                                   steps, starting on the guild's usual raid time). Options typed
 //                                   so far prefill it; size, counts and length ride in its custom
@@ -112,7 +112,7 @@ export const POST_LABEL = 'Post event';
 export const SET_UP_LABEL = 'Set up event';
 export const CANCELLED = 'Cancelled, nothing was made.';
 export const OLD_DRAFT =
-  'That draft is from an older version; run `/random event create` again. Nothing was made.';
+  'That draft is from an older version; run `/vintage event create` again. Nothing was made.';
 /** Before the draft in the footer, so a reader finds it and nothing else. */
 const DRAFT_TAG = 'v2.';
 
@@ -508,7 +508,7 @@ export function detailsForm(
     label(
       'Date',
       stringSelect('date', dateOptions(clock.zone, now, draft.date), { placeholder: 'Pick a day' }),
-      'Further ahead? Type it: /random event create start:',
+      'Further ahead? Type it: /vintage event create start:',
     ),
     label(
       `Time (${zoneCity(clock.zone)})`.slice(0, 45),
@@ -758,7 +758,7 @@ const isCreate = (interaction: Interaction) => {
   return interaction.data?.name === SLASH_COMMAND && group === EVENT_GROUP && sub === 'create';
 };
 
-/** A bare (or partly typed) `/random event create`: no name or no start, so the form opens. */
+/** A bare (or partly typed) `/vintage event create`: no name or no start, so the form opens. */
 function opensForm(interaction: Interaction): boolean {
   if (interaction.type !== InteractionType.APPLICATION_COMMAND || !isCreate(interaction)) {
     return false;
@@ -816,9 +816,9 @@ function draftFromOptions(values: OptionValues, zone: string): Partial<Draft> {
   };
 }
 
-const NOT_YOURS = 'That form belongs to someone else. Start your own with `/random event create`.';
+const NOT_YOURS = 'That form belongs to someone else. Start your own with `/vintage event create`.';
 const EXPIRED =
-  'I can’t read that form any more. Start again with `/random event create`; nothing was made.';
+  'I can’t read that form any more. Start again with `/vintage event create`; nothing was made.';
 
 const done = (content: string) =>
   updateMessage({ content, embeds: [], components: [], allowed_mentions: { parse: [] } });

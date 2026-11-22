@@ -520,7 +520,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     );
   }
 
-  /** `/random poll create`, and clicks or picks on a poll post or its private replies. */
+  /** `/vintage poll create`, and clicks or picks on a poll post or its private replies. */
 
   /** The member's caller for a Discord interaction, resolved like convex/discord.ts. */
   const memberByDiscordId = (discordId: string) => identity.getMemberByDiscordId(GUILD, discordId);
@@ -578,9 +578,9 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     now: clock.now,
   };
 
-  /** `/random event create` and `/random event pick-night`, run through src/discord-events.ts. */
+  /** `/vintage event create` and `/vintage event pick-night`, run through src/discord-events.ts. */
   const eventUi = {
-    /** `/random event event:` suggestions while typing, as convex/discord.ts's autocomplete. */
+    /** `/vintage event event:` suggestions while typing, as convex/discord.ts's autocomplete. */
     autocomplete: (discordId: string, typed: string) =>
       handleEventAutocomplete(
         {
@@ -592,7 +592,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
           channel_id: SIGNUP_CHANNEL,
           member: { user: { id: discordId, username: discordId }, roles: [] },
           data: {
-            name: 'random',
+            name: 'vintage',
             options: [
               {
                 name: 'event',
@@ -635,7 +635,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
           channel_id: SIGNUP_CHANNEL,
           member: { user: { id: discordId, username: discordId }, roles: [] },
           data: {
-            name: 'random',
+            name: 'vintage',
             options: [
               {
                 name: 'event',
@@ -658,7 +658,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
         eventPorts,
       ),
     /**
-     * A step of the New event form (a bare `/random event create`, a click, or a modal submit),
+     * A step of the New event form (a bare `/vintage event create`, a click, or a modal submit),
      * routed as convex/discord.ts does: the form first, then the event flows.
      */
     form: async (discordId: string, interaction: Partial<Interaction>) => {
@@ -679,7 +679,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     },
   };
 
-  /** A `/random character …` interaction from a member, as convex/discord.ts builds it. */
+  /** A `/vintage character …` interaction from a member, as convex/discord.ts builds it. */
   const characterInteraction = (
     discordId: string,
     type: Interaction['type'],
@@ -694,7 +694,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     channel_id: SIGNUP_CHANNEL,
     member: { user: { id: discordId, username: discordId }, roles: [] },
     data: {
-      name: 'random',
+      name: 'vintage',
       options: [{ name: 'character', type: 2, options: [{ name: sub, type: 1, options }] }],
     },
   });
@@ -713,7 +713,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     })) as CommandInteractionOption[];
 
   /**
-   * `/random character add|list|main|remove`, the remove confirm button, and autocomplete, run
+   * `/vintage character add|list|main|remove`, the remove confirm button, and autocomplete, run
    * through src/discord-characters.ts.
    */
   const characterUi = {
@@ -740,7 +740,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
         },
         characterPorts,
       ),
-    /** Typing `focused` into `/random character <sub>`, with the other options chosen so far. */
+    /** Typing `focused` into `/vintage character <sub>`, with the other options chosen so far. */
     autocomplete: (
       discordId: string,
       sub: string,
@@ -761,7 +761,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
       ),
   };
 
-  /** `/random help [topic]` and `/random <group> help`, run through src/discord-help.ts. */
+  /** `/vintage help [topic]` and `/vintage <group> help`, run through src/discord-help.ts. */
   const helpUi = {
     slash: (discordId: string, where: { topic?: string; group?: string } = {}) => {
       const help: CommandInteractionOption = {
@@ -779,7 +779,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
           channel_id: SIGNUP_CHANNEL,
           member: { user: { id: discordId, username: discordId }, roles: [] },
           data: {
-            name: 'random',
+            name: 'vintage',
             options: where.group ? [{ name: where.group, type: 2, options: [help] }] : [help],
           },
         },
@@ -798,7 +798,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
       agentInteract(discordId, {
         type: InteractionType.APPLICATION_COMMAND,
         data: {
-          name: 'random',
+          name: 'vintage',
           options: [
             { name: 'ask', type: 1, options: [{ name: 'question', type: 3, value: question }] },
           ],
@@ -885,7 +885,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
   }
 
   const applicationUi = {
-    /** /random apply, then the modal, as one Discord user. */
+    /** /vintage apply, then the modal, as one Discord user. */
     apply: async (
       discordId: string,
       form: { character: string; class: string; spec: string; role: string },
@@ -894,7 +894,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
       const opened = (await applicationInteract(discordId, {
         type: InteractionType.APPLICATION_COMMAND,
         data: {
-          name: 'random',
+          name: 'vintage',
           options: [
             {
               name: 'apply',
@@ -917,11 +917,11 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
         },
       } as Partial<Interaction>);
     },
-    /** `/random recruiting`: the recruiting post (public for leaders, private for others). */
+    /** `/vintage recruiting`: the recruiting post (public for leaders, private for others). */
     recruiting: (discordId: string) =>
       applicationInteract(discordId, {
         type: InteractionType.APPLICATION_COMMAND,
-        data: { name: 'random', options: [{ name: 'recruiting', type: 1 }] },
+        data: { name: 'vintage', options: [{ name: 'recruiting', type: 1 }] },
       } as Partial<Interaction>),
     /** Click an Apply button on the recruiting post, then fill the whole form in its modal. */
     applyFromPost: async (discordId: string, buttonId: string, fields: Record<string, string>) => {
@@ -964,7 +964,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
       pollInteract(discordId, {
         type: InteractionType.APPLICATION_COMMAND,
         data: {
-          name: 'random',
+          name: 'vintage',
           options: [
             {
               name: 'poll',

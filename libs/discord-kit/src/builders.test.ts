@@ -206,7 +206,7 @@ describe('interaction responses', () => {
       token: 't',
       type: InteractionType.APPLICATION_COMMAND_AUTOCOMPLETE,
       data: {
-        name: 'random',
+        name: 'vintage',
         options: [
           {
             type: 2 as const,
@@ -226,7 +226,7 @@ describe('interaction responses', () => {
       },
     };
     expect(focusedOption(typing)).toEqual({ name: 'spec', value: 'fer' });
-    expect(focusedOption({ ...typing, data: { name: 'random' } })).toBeUndefined();
+    expect(focusedOption({ ...typing, data: { name: 'vintage' } })).toBeUndefined();
   });
 
   it('builds deferred and update responses', () => {

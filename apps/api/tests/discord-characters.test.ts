@@ -1,4 +1,4 @@
-// The edges of /random character (#149) with stub ports: autocomplete that answers nothing
+// The edges of /vintage character (#149) with stub ports: autocomplete that answers nothing
 // outside the guild, names matched loosely, and custom ids within Discord's 100 characters. The
 // JTBD host runs the whole flow against the registry (J40, J41).
 import {
@@ -62,7 +62,7 @@ const slash = (
   guild_id: guild,
   member: { user: { id: 'd-fen', username: 'fen' }, roles: [] },
   data: {
-    name: 'random',
+    name: 'vintage',
     options: [
       {
         name: 'character',
@@ -88,7 +88,7 @@ const autocompletePorts: AutocompletePorts = {
 const choices = (r: unknown) =>
   (r as { data: { choices: { name: string; value: string }[] } }).data.choices;
 
-describe('/random character', () => {
+describe('/vintage character', () => {
   it('reads the also option as roles, ignored for a class with one role', () => {
     expect(parseAlsoRoles('Tank, melee', 'warrior')).toEqual({ alsoRoles: ['tank', 'melee'] });
     expect(parseAlsoRoles('healer ranged', 'druid')).toEqual({ alsoRoles: ['healer', 'ranged'] });

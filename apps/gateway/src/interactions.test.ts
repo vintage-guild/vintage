@@ -68,12 +68,12 @@ describe('interactions endpoint', () => {
     expect(res.status).toBe(401);
   });
 
-  it('answers /random ping with an immediate reply and a timestamp', async () => {
+  it('answers /vintage ping with an immediate reply and a timestamp', async () => {
     const res = await handler()(
       await signedRequest({
         ...base,
         type: InteractionType.APPLICATION_COMMAND,
-        data: { name: 'random', options: [{ name: 'ping', type: 1 }] },
+        data: { name: 'vintage', options: [{ name: 'ping', type: 1 }] },
       }),
     );
     expect(res.status).toBe(200);
@@ -83,11 +83,11 @@ describe('interactions endpoint', () => {
     expect(body.data.flags).toBe(64);
   });
 
-  it('tells the member privately when a /random subcommand is newer than this gateway', async () => {
+  it('tells the member privately when a /vintage subcommand is newer than this gateway', async () => {
     const newer = await signedRequest({
       ...base,
       type: InteractionType.APPLICATION_COMMAND,
-      data: { name: 'random', options: [{ name: 'nope', type: 1 }] },
+      data: { name: 'vintage', options: [{ name: 'nope', type: 1 }] },
     });
     const res = await handler()(newer);
     expect(res.status).toBe(200);
@@ -98,11 +98,11 @@ describe('interactions endpoint', () => {
   });
 
   it('returns 400 for unknown commands and interaction types', async () => {
-    // The command was /vintage until the bot became Random; the old name is no longer answered.
+    // The command was /random before it became /vintage; the old name is no longer answered.
     const retired = await signedRequest({
       ...base,
       type: InteractionType.APPLICATION_COMMAND,
-      data: { name: 'vintage', options: [{ name: 'ping', type: 1 }] },
+      data: { name: 'random', options: [{ name: 'ping', type: 1 }] },
     });
     expect((await handler()(retired)).status).toBe(400);
     const unknownType = await signedRequest({
@@ -178,13 +178,13 @@ describe('interactions endpoint', () => {
     });
   });
 
-  describe('/random poll', () => {
+  describe('/vintage poll', () => {
     const pollCreate = {
       ...base,
       type: InteractionType.APPLICATION_COMMAND,
       guild_id: 'g1',
       data: {
-        name: 'random',
+        name: 'vintage',
         options: [
           {
             name: 'poll',
@@ -220,7 +220,7 @@ describe('interactions endpoint', () => {
       expect(bodies).toEqual([pollCreate]);
     });
 
-    it('answers a stale /random raid privately instead of forwarding it (#151 renamed it)', async () => {
+    it('answers a stale /vintage raid privately instead of forwarding it (#151 renamed it)', async () => {
       const bodies: unknown[] = [];
       const fakeFetch = (async (_url: string, init: RequestInit) => {
         bodies.push(JSON.parse(init.body as string));
@@ -234,7 +234,7 @@ describe('interactions endpoint', () => {
       const stale = {
         ...pollCreate,
         data: {
-          name: 'random',
+          name: 'vintage',
           options: [{ name: 'raid', type: 2, options: [{ name: 'create', type: 1 }] }],
         },
       };
@@ -248,7 +248,7 @@ describe('interactions endpoint', () => {
       const raidCreate = {
         ...pollCreate,
         data: {
-          name: 'random',
+          name: 'vintage',
           options: [
             {
               name: 'event',
@@ -279,13 +279,13 @@ describe('interactions endpoint', () => {
       expect(bodies).toEqual([raidCreate]);
     });
 
-    it('forwards /random help to Convex, so the page fits the reader’s rank', async () => {
+    it('forwards /vintage help to Convex, so the page fits the reader’s rank', async () => {
       const help = {
         ...base,
         type: InteractionType.APPLICATION_COMMAND,
         guild_id: 'g1',
         data: {
-          name: 'random',
+          name: 'vintage',
           options: [
             { name: 'help', type: 1, options: [{ name: 'topic', type: 3, value: 'polls' }] },
           ],
@@ -306,13 +306,13 @@ describe('interactions endpoint', () => {
       expect(bodies).toEqual([help]);
     });
 
-    it('forwards /random ask to Convex and returns its deferred reply', async () => {
+    it('forwards /vintage ask to Convex and returns its deferred reply', async () => {
       const ask = {
         ...base,
         type: InteractionType.APPLICATION_COMMAND,
         guild_id: 'g1',
         data: {
-          name: 'random',
+          name: 'vintage',
           options: [
             {
               name: 'ask',
@@ -337,7 +337,7 @@ describe('interactions endpoint', () => {
       expect(bodies).toEqual([ask]);
     });
 
-    it('keeps /random ping local', async () => {
+    it('keeps /vintage ping local', async () => {
       const calls: unknown[] = [];
       const fakeFetch = (async () => {
         calls.push(1);
@@ -346,7 +346,7 @@ describe('interactions endpoint', () => {
       const ping = {
         ...base,
         type: InteractionType.APPLICATION_COMMAND,
-        data: { name: 'random', options: [{ name: 'ping', type: 1 }] },
+        data: { name: 'vintage', options: [{ name: 'ping', type: 1 }] },
       };
       const handle = createInteractionHandler({
         publicKey,
@@ -358,13 +358,13 @@ describe('interactions endpoint', () => {
     });
   });
 
-  describe('/random character and its autocomplete (#149)', () => {
+  describe('/vintage character and its autocomplete (#149)', () => {
     const typing = (group = 'character') => ({
       ...base,
       type: InteractionType.APPLICATION_COMMAND_AUTOCOMPLETE,
       guild_id: 'g1',
       data: {
-        name: 'random',
+        name: 'vintage',
         options: [
           {
             name: group,
@@ -406,7 +406,7 @@ describe('interactions endpoint', () => {
         type: InteractionType.APPLICATION_COMMAND,
         guild_id: 'g1',
         data: {
-          name: 'random',
+          name: 'vintage',
           options: [{ name: 'character', type: 2, options: [{ name: 'list', type: 1 }] }],
         },
       };

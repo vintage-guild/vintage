@@ -55,8 +55,8 @@ member to confirm. This module owns the agent's data and commands; the runtime l
   `pnpm --filter @vintage/agent exec tsx scripts/score-questions.ts` when the choices change.
 - **How-to questions read the help pages.** `ASK_INSTRUCTIONS` points the agent at `help-get`
   (registered in apps/api, public, read-only), so "how do I make a raid?" is answered from the
-  same page `/random help` shows that member.
-- **Discord replies are private.** `/random ask` defers an ephemeral reply; the action edits it
+  same page `/vintage help` shows that member.
+- **Discord replies are private.** `/vintage ask` defers an ephemeral reply; the action edits it
   with the answer through the interaction token (passed to the scheduled run, never stored,
   valid 15 minutes). A missed delivery leaves the answer in the ledger.
 - **Page context is a fact, not an instruction.** `agent-ask` takes an optional `context` (the

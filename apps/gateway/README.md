@@ -36,7 +36,7 @@ the character remove confirm (`char-rm:…`) are verified here, then forwarded t
 flow (`apps/api/src/discord-signups.ts`) and returns the response this endpoint sends back to
 Discord. Without the two variables, members get a private "not set up yet" reply.
 
-The New event form (`/random event create` with no name or start) works the same way: its modals
+The New event form (`/vintage event create` with no name or start) works the same way: its modals
 and buttons all use `evform:…` custom ids (`evform:new`, `evform:kind:<kind>`, `evform:next`,
 `evform:edit`, `evform:edit-kind`, `evform:post`, `evform:cancel`) and are forwarded like any
 other click; Convex runs them in `apps/api/src/discord-event-form.ts`. Every `create` option is
@@ -86,29 +86,29 @@ DISCORD_GUILD_ID=<server id> node --env-file=../api/.env.local --import tsx scri
 ### Autocomplete
 
 Options with `autocomplete: true` make Discord send `APPLICATION_COMMAND_AUTOCOMPLETE` (type 4)
-while the member types. For groups in `AUTOCOMPLETED_GROUPS` (`/random character`, #149) the
+while the member types. For groups in `AUTOCOMPLETED_GROUPS` (`/vintage character`, #149) the
 endpoint forwards it to Convex's `/gateway/interaction` like any other interaction (Convex runs it
 as a query) and returns its type 8 answer. It waits at most `AUTOCOMPLETE_TIMEOUT_MS` (2 seconds);
 when Convex is slow, down, not deployed yet, or answers anything but type 8, it answers with no
-suggestions, and the member types the value themselves. Autocomplete for any other `/random`
+suggestions, and the member types the value themselves. Autocomplete for any other `/vintage`
 group gets no suggestions without a call. Suggestions are only hints: the command checks what's
 sent.
 
 ### Help pages follow the definitions
 
-`/random help` and each group's `help` subcommand are forwarded to Convex, which builds the page
+`/vintage help` and each group's `help` subcommand are forwarded to Convex, which builds the page
 from `RANDOM_COMMAND` (exported as `@vintage/gateway/commands`) and the examples in
 `apps/api/src/help-topics.ts`. When you add or change a subcommand, add it to a topic there with an
 example: `apps/api/tests/help.test.ts` fails until you do, and when an example no longer fits the
 options. A new subcommand group also needs its own `help` subcommand (`GROUP_HELP`), and a new
-topic needs a choice on `/random help`.
+topic needs a choice on `/vintage help`.
 
 ## Bot name and avatar
 
 The bot is **Random**, the raven the site calls Random Raven in its News section. Its avatar is the
 animated head crop in `assets/brand/random-avatar.gif`. The application in the Developer Portal is
 named Random too, with the raven as its icon (set by hand in General Information), and the slash
-command is `/random` (it was `/vintage` until 2026-10-26). The app id, token, and OAuth client are
+command is `/vintage` (renamed from `/random`). The app id, token, and OAuth client are
 unchanged. To change the bot's name or avatar:
 
 ```bash

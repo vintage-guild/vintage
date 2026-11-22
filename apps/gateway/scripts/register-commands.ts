@@ -6,7 +6,7 @@
 // developing). Without it they are global and can take up to an hour to show up. Each command is
 // upserted by name, so re-running is safe and leaves other commands alone. With --prune it also
 // deletes commands registered in the same scope that the code no longer defines (a renamed
-// command, like /vintage → /random).
+// command, like /random → /vintage).
 import { parseArgs } from 'node:util';
 import { createDiscordRest, DiscordRestError } from '@vintage/discord-kit';
 import { COMMANDS } from '../src/commands';

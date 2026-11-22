@@ -122,7 +122,7 @@ function slash(
     guild_id: 'dg1',
     member: { user: { id: discordId, username: discordId }, roles: [] },
     data: {
-      name: 'random',
+      name: 'vintage',
       options: [
         {
           type: ApplicationCommandOptionType.SUB_COMMAND_GROUP,
@@ -149,7 +149,7 @@ function replyText(res: unknown): string {
   return r?.data?.content ?? '';
 }
 
-describe('discord-absences (/random absence, Mark absent, autocomplete)', () => {
+describe('discord-absences (/vintage absence, Mark absent, autocomplete)', () => {
   function makePorts() {
     const ran: { name: string; input: unknown }[] = [];
     const ports: AbsencePorts = {
@@ -191,7 +191,7 @@ describe('discord-absences (/random absence, Mark absent, autocomplete)', () => 
     expect(replyText(res)).toContain('still signed up for Raid night');
   });
 
-  it('refuses a raider using member: on /random absence add (J54)', async () => {
+  it('refuses a raider using member: on /vintage absence add (J54)', async () => {
     const { ports, ran } = makePorts();
     const res = await handleAbsenceInteraction(
       slash('add', [
@@ -204,7 +204,7 @@ describe('discord-absences (/random absence, Mark absent, autocomplete)', () => 
     expect(ran).toHaveLength(0);
   });
 
-  it('autocompletes own active absences for /random absence remove', async () => {
+  it('autocompletes own active absences for /vintage absence remove', async () => {
     const { ports } = makePorts();
     const interaction: Interaction = {
       id: 'i2',
@@ -214,7 +214,7 @@ describe('discord-absences (/random absence, Mark absent, autocomplete)', () => 
       guild_id: 'dg1',
       member: { user: { id: RAIDER.discordId, username: 'Cade' }, roles: [] },
       data: {
-        name: 'random',
+        name: 'vintage',
         options: [
           {
             type: ApplicationCommandOptionType.SUB_COMMAND_GROUP,

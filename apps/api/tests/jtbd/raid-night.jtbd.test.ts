@@ -1311,7 +1311,7 @@ describe('JTBD: raid night', () => {
     const form = await ui.form(rook, {
       type: 2,
       data: {
-        name: 'random',
+        name: 'vintage',
         options: [{ name: 'event', type: 2, options: [{ name: 'create', type: 1, options: [] }] }],
       },
     });
@@ -1382,7 +1382,7 @@ describe('JTBD: raid night', () => {
     const far = await ui.form(rook, {
       type: 2,
       data: {
-        name: 'random',
+        name: 'vintage',
         options: [
           {
             name: 'event',
@@ -1437,7 +1437,7 @@ describe('JTBD: raid night', () => {
     const refused = await ui.form(g.aeryn.discordId!, {
       type: 2,
       data: {
-        name: 'random',
+        name: 'vintage',
         options: [{ name: 'event', type: 2, options: [{ name: 'create', type: 1, options: [] }] }],
       },
     });

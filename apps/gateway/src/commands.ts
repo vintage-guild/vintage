@@ -7,7 +7,7 @@ import { type ApplicationCommand, ApplicationCommandOptionType } from '@vintage/
 const T = ApplicationCommandOptionType;
 
 /**
- * `/random <group> help`: that group's help page. Convex renders it for the reader's rank from
+ * `/vintage <group> help`: that group's help page. Convex renders it for the reader's rank from
  * these same definitions (apps/api/src/help.ts).
  */
 const GROUP_HELP = {
@@ -16,7 +16,7 @@ const GROUP_HELP = {
   description: 'How these commands work, for your rank',
 } as const;
 
-/** `/random poll create`: Discord checks the option types and ranges; poll-create checks the rest. */
+/** `/vintage poll create`: Discord checks the option types and ranges; poll-create checks the rest. */
 const POLL_GROUP = {
   type: T.SUB_COMMAND_GROUP,
   name: 'poll',
@@ -162,8 +162,8 @@ const EVENT_EXTRAS = [
 ];
 
 /**
- * `/random event create`, `/random event pick-night` (#151; `/random raid` until then), and
- * `/random event check-export`: raid-create, raid-night-poll, and raid-export-check, run as the raid
+ * `/vintage event create`, `/vintage event pick-night` (#151; `/vintage raid` until then), and
+ * `/vintage event check-export`: raid-create, raid-night-poll, and raid-export-check, run as the raid
  * leader who asked, for a raid, dungeon,
  * battleground, or other event. Times are typed in the guild's clock (`2026-11-10 20:00`, or
  * `2026-11-10 8pm`) and echoed back as Discord timestamps, so mistakes show at once.
@@ -270,7 +270,7 @@ const OWN_CHARACTER = {
 };
 
 /**
- * `/random character …` (#149): character-add, character-list, character-update and
+ * `/vintage character …` (#149): character-add, character-list, character-update and
  * character-remove, run as the member. `spec` and `name` are autocompleted in Convex (spec by
  * the chosen class, names from the member's own characters); the commands still check what's
  * typed, since a member can ignore the suggestions.
@@ -354,7 +354,7 @@ const CHARACTER_GROUP = {
 };
 
 /**
- * `/random absence …` (absences.plan.md §5): date-range absences and weekly absent/late nights.
+ * `/vintage absence …` (absences.plan.md §5): date-range absences and weekly absent/late nights.
  */
 const ABSENCE_GROUP = {
   type: T.SUB_COMMAND_GROUP,
@@ -420,7 +420,7 @@ const ABSENCE_GROUP = {
   ],
 };
 
-/** `/random ask`: a question for the guild agent (#18); the answer arrives privately. */
+/** `/vintage ask`: a question for the guild agent (#18); the answer arrives privately. */
 const ASK = {
   type: T.SUB_COMMAND,
   name: 'ask',
@@ -436,7 +436,7 @@ const ASK = {
   ],
 };
 
-/** `/random apply`: the short answers here, the long ones in a modal (#135). */
+/** `/vintage apply`: the short answers here, the long ones in a modal (#135). */
 const APPLY = {
   type: T.SUB_COMMAND,
   name: 'apply',
@@ -475,7 +475,7 @@ const APPLY = {
   ],
 };
 
-/** `/random recruiting`: the open needs; leaders and officers post it to the channel. */
+/** `/vintage recruiting`: the open needs; leaders and officers post it to the channel. */
 const RECRUITING = {
   type: T.SUB_COMMAND,
   name: 'recruiting',
@@ -483,7 +483,7 @@ const RECRUITING = {
 };
 
 /**
- * `/random help`: what Random does, for the reader's rank, or one topic's page. The topic values
+ * `/vintage help`: what Random does, for the reader's rank, or one topic's page. The topic values
  * match HELP_TOPICS in apps/api/src/help-topics.ts; a test there checks they stay the same.
  */
 const HELP = {
@@ -510,7 +510,7 @@ const HELP = {
 };
 
 export const RANDOM_COMMAND = {
-  name: 'random',
+  name: 'vintage',
   description: 'Vintage guild tools',
   contexts: [0],
   options: [
@@ -543,8 +543,8 @@ export const FORWARDED_GROUPS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Groups whose autocomplete interactions the gateway forwards to Convex: `/random character`
- * (spec and name, #149), `/random event check-export` (the raid), and `/random absence remove`.
+ * Groups whose autocomplete interactions the gateway forwards to Convex: `/vintage character`
+ * (spec and name, #149), `/vintage event check-export` (the raid), and `/vintage absence remove`.
  */
 export const AUTOCOMPLETED_GROUPS: ReadonlySet<string> = new Set([
   CHARACTER_GROUP.name,

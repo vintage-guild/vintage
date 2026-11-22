@@ -14,7 +14,7 @@ Applications tab (`vintage-applications-desk`). Maturity: **official**.
 | `src/commands/` | `application-check`, `application-submit`, `application-get`, `application-withdraw` (public, own); `application-list`, `application-review`, `application-decline` (destructive), `application-config-get`, `application-config-set` (officer); `application-onboard` (system only) |
 | `src/domain/eligibility.ts` | `checkApply`: who may apply now, in order, and `BLOCKS` (each refusal's code and words); `guildLimit` |
 | `src/domain/labels.ts` | The Decisions request (role it reads as, complete, fit to the open needs) and `LABEL_THRESHOLDS` |
-| `src/render/discord.ts` | The apply modals (the slash command's, and the full one behind the recruiting post's Apply buttons, `app:start:<role>` → `app:open:<role>`), the review post with Accept / Ask more / Decline, the decline preview, the officer's accept reply, DMs, the `/random recruiting` post; custom ids `app:<action>:<id>` |
+| `src/render/discord.ts` | The apply modals (the slash command's, and the full one behind the recruiting post's Apply buttons, `app:start:<role>` → `app:open:<role>`), the review post with Accept / Ask more / Decline, the decline preview, the officer's accept reply, DMs, the `/vintage recruiting` post; custom ids `app:<action>:<id>` |
 | `src/testing.ts` | Memory store and deps (recording effects) |
 | `convex/` | The `applications` component: `applications` and `config` |
 
@@ -30,7 +30,7 @@ Applications tab (`vintage-applications-desk`). Maturity: **official**.
   (`APPLICATIONS_BUSY`, retryable, with `retryAt`). Surfaces show the block's message and
   suggestion; they never re-derive it.
 - **Join the Discord first** (decided 2026-10-27). Officers answer applicants in Discord, so
-  applying needs membership of the server. `/random` callers are in it by definition; on the
+  applying needs membership of the server. `/vintage` callers are in it by definition; on the
   site, identity's `Member.inServer` from the last sync (every 15 minutes) decides, and the
   site's "I've joined" runs `member-refresh` to re-read it now.
 - **A rolling limit, not a cap** (decided 2026-10-27). At most `limitCount` applications

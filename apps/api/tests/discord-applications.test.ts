@@ -74,7 +74,7 @@ const slash = (userId: string, sub: string, options: Record<string, string> = {}
     ...base(userId),
     type: InteractionType.APPLICATION_COMMAND,
     data: {
-      name: 'random',
+      name: 'vintage',
       options: [
         {
           name: sub,
@@ -131,7 +131,7 @@ async function apply(userId = 'd-guest') {
 
 const only = () => [...deps.applications.rows.values()][0] as Application;
 
-describe('/random apply', () => {
+describe('/vintage apply', () => {
   it('opens the modal, then submits as the Discord user, even before they are a member', async () => {
     const response = await apply();
     expect(content(response)).toMatch(/Thanks! Your application is with the officers/);
@@ -294,7 +294,7 @@ describe('officer buttons', () => {
 });
 
 describe('recruiting', () => {
-  it('/random recruiting: leaders post it for the channel, others see it privately', async () => {
+  it('/vintage recruiting: leaders post it for the channel, others see it privately', async () => {
     const byLeader = await handleApplicationInteraction(slash('d-rook', 'recruiting'), ports);
     expect(content(byLeader)).toMatch(/Vintage is recruiting/);
     expect(content(byLeader)).not.toMatch(/"flags":64/);

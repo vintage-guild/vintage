@@ -83,8 +83,8 @@ npx convex run commands:run '{"name":"agent-ask","input":{"question":"When is th
 
 ## Discord (only if you work on the bot)
 
-The bot's settings live in the Discord Developer Portal under the **Random** application (renamed
-from Vintage on 2026-10-26; the bot is Random the raven, and the slash command is `/random`, which was `/vintage` until then). To run
+The bot's settings live in the Discord Developer Portal under the **Random** application (the
+bot keeps the Random raven avatar, and the slash command is `/vintage`, renamed from `/random`). To run
 Discord code locally, put these in `apps/api/.env.local` (gitignored; never commit them):
 
 ```
@@ -152,14 +152,14 @@ Clicks from any server other than `DISCORD_GUILD_ID` get a private refusal.
 
 ### Polls in Discord
 
-`/random poll create` uses the same gateway → Convex path, and the bot posts and edits poll
+`/vintage poll create` uses the same gateway → Convex path, and the bot posts and edits poll
 messages with `DISCORD_BOT_TOKEN` (no new permissions). After changing `apps/gateway/src/commands.ts`,
 register the commands again (`pnpm --filter @vintage/gateway register-commands`). Optional:
 set `VINTAGE_SITE_URL` in the Convex env so ranked polls link to the website (once #63 adds the page).
 
 ### Raids from Discord
 
-`/random event create` and `/random event pick-night` (Raid Leader and up) run `raid-create` and
+`/vintage event create` and `/vintage event pick-night` (Raid Leader and up) run `raid-create` and
 `raid-night-poll` through the same path, for a raid, dungeon, battleground, or other event
 (`kind`, default raid). `instance` and `size` are optional options because kind `other` (a
 levelling group anyone can join) may leave them out: no size means open, with no cap and no
@@ -168,7 +168,7 @@ queue. Every other kind still needs both, and the command says so. `size` is che
 `healers` and `dps` set the comp, and any left out come from the kind's default (dps fills
 what's left). Times are typed in the guild's clock. No new bot permissions.
 
-`/random event check-export` (Raid Leader and up) runs `raid-export-check`: paste the addon's
+`/vintage event check-export` (Raid Leader and up) runs `raid-export-check`: paste the addon's
 export string (Discord takes up to 6,000 characters; a 40-player night is about 3,000) and get a
 private summary matched to the raid. Its `event:` option autocompletes the last week's raids, so
 the gateway forwards autocomplete for the `event` group too (`AUTOCOMPLETED_GROUPS`). Nothing is
@@ -176,7 +176,7 @@ recorded. The addon can't make an export in game yet (its Export tab is still to
 then, try it with a string from `libs/bridge-format/fixtures/lua-made.json`. Re-register the
 commands after deploying.
 
-`/random event create` with no name or no start opens the **New event** form instead
+`/vintage event create` with no name or no start opens the **New event** form instead
 (`apps/api/src/discord-event-form.ts`): name, kind, where, date and time, and length, then **Set
 up event** for a second form built for the kind (its sizes, and the tank, healer and DPS counts),
 then a private preview with **Post event**, which runs `raid-create` like the options do. No
@@ -185,13 +185,13 @@ Every `create` option is optional now, so **re-register the commands** after dep
 server first). Until then Discord still requires `name` and `start`, so the typed path works as
 before and the form just can't be opened. No new bot permissions.
 
-The group was `/random raid` until #151. After deploying Convex and the gateway, re-register the
+The group was `/vintage raid` until #151. After deploying Convex and the gateway, re-register the
 commands (`pnpm --filter @vintage/gateway register-commands`), the test server first
-(`DISCORD_DEV_GUILD_ID`). Until then a stale `/random raid` gets the private "can't do that yet".
+(`DISCORD_DEV_GUILD_ID`). Until then a stale `/vintage raid` gets the private "can't do that yet".
 
 ### Characters from Discord
 
-`/random character add|list|main|remove` (Member and up) run the `character-*` commands through
+`/vintage character add|list|main|remove` (Member and up) run the `character-*` commands through
 the same path (#149). `spec` and `name` are autocompleted: the gateway forwards Discord's
 autocomplete interactions for this group to Convex, which answers from a query, and the gateway
 gives up after 2 seconds with no suggestions (Discord's limit is 3). The signup picker and Switch
@@ -200,12 +200,12 @@ saves the character and signs up with it. No new bot permissions.
 
 After merging: deploy Convex, then the gateway, then re-register the commands
 (`pnpm --filter @vintage/gateway register-commands`), the test server first
-(`DISCORD_DEV_GUILD_ID`). Until then `/random character` isn't offered, and a stale client gets
+(`DISCORD_DEV_GUILD_ID`). Until then `/vintage character` isn't offered, and a stale client gets
 the private "can't do that yet".
 
 ### Help in Discord
 
-`/random help` (an overview, or one `topic`) and `/random poll help` / `/random event help` answer
+`/vintage help` (an overview, or one `topic`) and `/vintage poll help` / `/vintage event help` answer
 privately through the same path, fitted to the member's rank by `help-get`. The pages come from
 `apps/gateway/src/commands.ts`, so after a command change: deploy Convex and the gateway, then
 register the commands again, in the test server first. Topic pages link `VINTAGE_SITE_URL` when it

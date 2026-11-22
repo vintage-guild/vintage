@@ -123,12 +123,12 @@ describe('who may apply (#145)', () => {
     expect((await check(guest)).reason).toBe('open');
   });
 
-  it('asks website applicants to join the Discord first; /random apply is already there', async () => {
+  it('asks website applicants to join the Discord first; /vintage apply is already there', async () => {
     harness.notInServer.add('d-web');
     const refused = await run('application-submit', form, web('d-web'));
     expect(code(refused)).toBe('JOIN_DISCORD_FIRST');
     expect(refused.error?.suggestion).toMatch(/join/i);
-    // Someone using /random is in the server whatever the last sync said.
+    // Someone using /vintage is in the server whatever the last sync said.
     harness.notInServer.add('d-kol');
     expect(code(await run('application-submit', form, guest))).toBe('OK');
   });

@@ -1,8 +1,8 @@
 // Discord interactions, run inside Convex (#10). The gateway verifies Discord's signature and
-// forwards component and modal interactions, `/random poll`, `/random event`, and the rest of
+// forwards component and modal interactions, `/vintage poll`, `/vintage event`, and the rest of
 // FORWARDED_GROUPS to the HTTP route in http.ts, which calls `interaction` here. The flows live in
-// src/discord-*.ts. Help goes first: `/random poll help` would otherwise reach the poll flow.
-// Autocomplete (`/random character` spec and name, #149; the raid in `/random event check-export`)
+// src/discord-*.ts. Help goes first: `/vintage poll help` would otherwise reach the poll flow.
+// Autocomplete (`/vintage character` spec and name, #149; the raid in `/vintage event check-export`)
 // runs in `autocomplete`, a query: indexed reads, no writes, so it answers well inside Discord's
 // 3 seconds.
 import type { Interaction } from '@vintage/discord-kit';
@@ -161,7 +161,7 @@ export const interaction = internalMutation({
       afterChange: () => coordinatorScheduler(ctx).runTickNow(GUILD_ID),
       now: () => Date.now(),
     };
-    // The New event form first: it takes a bare `/random event create` and its own clicks.
+    // The New event form first: it takes a bare `/vintage event create` and its own clicks.
     const form = await handleEventFormInteraction(incoming, eventPorts);
     if (form) return form;
     const event = await handleEventInteraction(incoming, eventPorts);
@@ -186,7 +186,7 @@ export const interaction = internalMutation({
 });
 
 /**
- * Autocomplete for `/random character` (spec, name) and `/random event check-export` (the raid):
+ * Autocomplete for `/vintage character` (spec, name) and `/vintage event check-export` (the raid):
  * suggestions only, so a query (no command runs).
  */
 export const autocomplete = internalQuery({

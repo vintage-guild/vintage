@@ -2,12 +2,12 @@
 // code runs on Vercel functions and in tests. Verify first, over the raw body: Discord probes the
 // URL with bad signatures and drops it unless those get a 401 (PLAN §6.2).
 //
-// Button clicks, modal submits, and the `/random` groups in FORWARDED_GROUPS are forwarded to
+// Button clicks, modal submits, and the `/vintage` groups in FORWARDED_GROUPS are forwarded to
 // Convex, which runs them through the command registry (apps/api convex/http.ts → discord.ts).
-// Autocomplete for `/random character` (#149) goes the same way under a short timeout, and any
+// Autocomplete for `/vintage character` (#149) goes the same way under a short timeout, and any
 // trouble answers with no suggestions: Discord wants type 8 within 3 seconds, and an empty list
 // just means the member types the value themselves (the command still checks it).
-// `/random ping` answers locally. A `/random` command or click that this gateway or Convex doesn't
+// `/vintage ping` answers locally. A `/vintage` command or click that this gateway or Convex doesn't
 // know yet (say, registered before a deploy reached both) gets a private "can't do that yet"
 // instead of a timeout.
 import {
@@ -38,7 +38,7 @@ export interface ConvexForward {
 export interface InteractionHandlerOptions {
   /** The application's public key (hex), from the Discord Developer Portal. */
   publicKey: string;
-  /** Forward buttons, modals, and `/random poll` here. Without it they get a "not set up yet" reply. */
+  /** Forward buttons, modals, and `/vintage poll` here. Without it they get a "not set up yet" reply. */
   convex?: ConvexForward;
   now?: () => Date;
   /** How long autocomplete waits for Convex before answering with no suggestions. */

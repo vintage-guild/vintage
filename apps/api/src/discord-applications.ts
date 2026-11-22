@@ -2,14 +2,14 @@
 // and tests run the same flow:
 //   button app:start:<role>      → the full apply modal, from the recruiting post (anyone may apply)
 //   modal  app:open:<role>       → application-submit as the applicant
-//   /random apply character class spec role → the apply modal (the long answers only)
+//   /vintage apply character class spec role → the apply modal (the long answers only)
 //   modal  app:form:…            → application-submit as the applicant
 //   button app:ok:<id>           → application-review accepted (officers); a private reply names
 //                                  the Discord role to give (the bot never sets roles)
 //   button app:re:<id>           → the Ask more modal (officers); modal app:rs:<id> → in-review + reply
 //   button app:no:<id>           → application-decline preview with a Confirm button (officers)
 //   button app:nn:<id>           → application-decline for real (the click is the confirmation)
-//   /random recruiting           → the open needs with Apply buttons; leaders and officers post it
+//   /vintage recruiting           → the open needs with Apply buttons; leaders and officers post it
 //   button recruit:hi:<class>    → recruiting-set that class to high (the weekly assessment)
 // Commands decide everything; this file only translates.
 
@@ -143,7 +143,7 @@ async function startApply(
   const role = o.role === 'flex-raider' ? 'flex-raider' : 'raider';
   if (!wowClass || !o.character?.trim() || !o.spec?.trim()) {
     return ephemeral(
-      'Give your character, class, and spec: `/random apply character:Kol class:shaman spec:restoration`',
+      'Give your character, class, and spec: `/vintage apply character:Kol class:shaman spec:restoration`',
     );
   }
   return applyModal({ wowClass, role, characterName: o.character.trim(), spec: o.spec.trim() });

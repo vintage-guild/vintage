@@ -232,9 +232,9 @@ describe('Guild agent', () => {
     const raider = page(await g.host.helpUi.slash(AERYN));
     expect(raider.flags).toBe(64);
     expect(raider.embeds[0]?.title).toBe('Random help');
-    expect(raider.embeds[0]?.description).toContain('You can use `/random poll create`.');
+    expect(raider.embeds[0]?.description).toContain('You can use `/vintage poll create`.');
     expect(raider.embeds[0]?.description).toContain(
-      '-# Raid leaders and officers can: `/random event create`, `/random event pick-night`.',
+      '-# Raid leaders and officers can: `/vintage event create`, `/vintage event pick-night`.',
     );
     const raiderEvents = page(await g.host.helpUi.slash(AERYN, { group: 'event' }));
     expect(raiderEvents.embeds[0]?.description).toContain('Your rank can’t use these yet.');
@@ -243,14 +243,14 @@ describe('Guild agent', () => {
     const leader = page(await g.host.helpUi.slash(ROOK, { topic: 'events' }));
     expect(leader.embeds[0]?.title).toBe('Random help: Events');
     expect(leader.embeds[0]?.description).toContain(
-      '**`/random event create`** · Make a one-off event, open for signups',
+      '**`/vintage event create`** · Make a one-off event, open for signups',
     );
     expect(leader.embeds[0]?.description).toContain('**Examples**');
 
     // Someone Random doesn't know yet: the role-sync note and what anyone can do.
     const stranger = page(await g.host.helpUi.slash('500000000000000099'));
     expect(stranger.embeds[0]?.description).toMatch(/^-# I don't know you yet/);
-    expect(stranger.embeds[0]?.description).toContain('You can use `/random apply`');
+    expect(stranger.embeds[0]?.description).toContain('You can use `/vintage apply`');
 
     // Asking in plain words: the agent reads the same page as the member.
     await g.host.agentUi.ask(AERYN, 'how do I make a dungeon run?');
@@ -258,11 +258,11 @@ describe('Guild agent', () => {
     await g.host.agentUi.answer(
       runId,
       [{ tool: 'afd-call', args: { name: 'help-get', input: { topic: 'events' } } }],
-      'Raid leaders and officers make events with /random event create.',
+      'Raid leaders and officers make events with /vintage event create.',
     );
     const read = await g.host.deps.agent.getToolResult('guild-test', runId, 'call-0');
     expect(read?.output).toContain('Your rank can’t use these yet.');
-    expect(read?.output).toContain('Raid leaders and officers can: `/random event create`');
+    expect(read?.output).toContain('Raid leaders and officers can: `/vintage event create`');
   });
 });
 

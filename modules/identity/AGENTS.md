@@ -63,7 +63,7 @@ Members, characters, and Discord roles → guild rank → permission tier (PLAN 
   from #301, read as `alsoRoles` until the row's list is next written; drop that field once no
   row has it.
 - `character-update` edits name (unique, normalized), class (with a spec of that class), spec,
-  role, alsoRoles (a full replacement), and main. Discord's `/random character`, the site's Characters page, and
+  role, alsoRoles (a full replacement), and main. Discord's `/vintage character`, the site's Characters page, and
   the Roster page's inline role editor all use it.
 - Members edit only their own characters; officers can edit anyone's.
 - Character names are unique per guild, stored capitalized.

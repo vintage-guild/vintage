@@ -67,6 +67,6 @@ export function plainDm(zoneName: string, findings: readonly InsightFinding[]): 
   return [
     `From the ${zoneName} log:`,
     ...findings.map((f) => `• ${f.text} (${f.evidence})`),
-    '-# To stop these notes, use `/random ask` and say "stop my raid notes".',
+    '-# To stop these notes, use `/vintage ask` and say "stop my raid notes".',
   ].join('\n');
 }

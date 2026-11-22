@@ -106,7 +106,7 @@ const slash = (
   channel_id: '400000000000000009',
   member: { user: { id: `d-${who}`, username: who }, roles: [] },
   data: {
-    name: 'random',
+    name: 'vintage',
     options: [
       {
         name: 'event',
@@ -130,7 +130,7 @@ const slash = (
 const said = (r: unknown) => (r as { data?: { content?: string; flags?: number } }).data ?? {};
 const BASICS = { name: 'Onyxia run', instance: 'Onyxia’s Lair', size: 40 };
 
-describe('/random event create', () => {
+describe('/vintage event create', () => {
   it('makes the raid as the raid leader, in the guild clock, and starts a tick', async () => {
     const reply = said(
       await handleEventInteraction(
@@ -327,7 +327,7 @@ describe('/random event create', () => {
   });
 });
 
-describe('/random event pick-night', () => {
+describe('/vintage event pick-night', () => {
   it('opens a raid-night vote with the times, closing after the vote hours', async () => {
     const reply = said(
       await handleEventInteraction(
@@ -408,7 +408,7 @@ describe('scope', () => {
   it('ignores other commands', async () => {
     const poll = {
       ...slash('rook', 'create', {}),
-      data: { name: 'random', options: [{ name: 'poll', type: T.SUB_COMMAND_GROUP }] },
+      data: { name: 'vintage', options: [{ name: 'poll', type: T.SUB_COMMAND_GROUP }] },
     };
     expect(await handleEventInteraction(poll as Interaction, ports)).toBeNull();
   });
@@ -445,7 +445,7 @@ const exportCheck = (over: Partial<ExportCheck> = {}): ExportCheck => ({
 
 const many = (n: number, what: string) => Array.from({ length: n }, (_, i) => `${what}${i}`);
 
-describe('/random event check-export, bosses', () => {
+describe('/vintage event check-export, bosses', () => {
   it('says which bosses died and how many wipes', () => {
     const boss = (name: string, kills: number, wipes: number) => ({
       encounterId: null,
@@ -467,7 +467,7 @@ describe('/random event check-export, bosses', () => {
   });
 });
 
-describe('/random event check-export, the reply', () => {
+describe('/vintage event check-export, the reply', () => {
   const lineOf = (text: string, prefix: string) =>
     text.split('\n').findIndex((l) => l.startsWith(prefix));
 
@@ -595,7 +595,7 @@ describe('/random event check-export, the reply', () => {
   });
 });
 
-describe('/random event check-export, suggesting raids', () => {
+describe('/vintage event check-export, suggesting raids', () => {
   const raid = (id: string, name: string, startsAt: number, status = 'open') =>
     ({ id, guildId: GUILD, name, startsAt, status }) as RaidEvent;
   const EVENTS = [

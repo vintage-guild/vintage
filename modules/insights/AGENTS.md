@@ -35,7 +35,7 @@ the notes, and raiders who opted in get one private DM. Maturity: **labs**.
   gate drops a finding only when it is sure it won't help, never all of them. Terra at low
   effort writes a one- or two-sentence opening that names what to work on without repeating
   the findings; the plain findings follow it, so the evidence is always there. The footer tells
-  members to stop the notes with `/random ask` (the agent prepares `insights-optin-set`, and
+  members to stop the notes with `/vintage ask` (the agent prepares `insights-optin-set`, and
   they confirm).
 - **Raid support is upstream.** Today's summaries are dungeon-shaped (one tank, run-level
   boundaries); encounter segmentation, roles, and defensives land in Farsight first

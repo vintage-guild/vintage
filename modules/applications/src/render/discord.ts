@@ -1,7 +1,7 @@
 // Applications in Discord (#135). Pure: data in, discord-kit shapes out.
 //   button app:start:<role> on the recruiting post → the full apply modal; modal app:open:<role>
 //                       → application-submit
-//   /random apply character class spec role → the apply modal (the long answers)
+//   /vintage apply character class spec role → the apply modal (the long answers)
 //   modal  app:form:<class>:<role>:<name>:<spec> → application-submit
 //   button app:ok:<id>  → application-review accepted; the officer is told which role to give
 //   button app:re:<id>  → the Ask more modal; modal app:rs:<id> → application-review in-review + reply
@@ -288,7 +288,7 @@ function withoutTrailingSlashes(url: string): string {
   return url.slice(0, end);
 }
 
-/** `/random recruiting`: the open needs (`recruiting-get`), and buttons that open the application. */
+/** `/vintage recruiting`: the open needs (`recruiting-get`), and buttons that open the application. */
 export function renderRecruitingPost(
   headline: string,
   needs: readonly NeedLineView[],

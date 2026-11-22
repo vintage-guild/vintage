@@ -1,5 +1,5 @@
 // Who may apply right now (#145). One answer for the website's pre-check (`application-check`),
-// `/random apply` before its form, and `application-submit` itself, so nobody fills in a form
+// `/vintage apply` before its form, and `application-submit` itself, so nobody fills in a form
 // only to be refused. In order: a Discord account, not raiding already, in the Vintage Discord
 // server, no open application, not too many this month, and the guild not over its rolling limit.
 import { type Caller, tierAllows } from '@vintage/guild-kit';
@@ -15,7 +15,7 @@ export const BLOCKS: Record<ApplyBlock, { code: string; message: string; suggest
     code: 'DISCORD_REQUIRED',
     message: 'Applications need a Discord account',
     suggestion:
-      'Apply with /random apply in the Vintage Discord, or sign in with Discord on the site',
+      'Apply with /vintage apply in the Vintage Discord, or sign in with Discord on the site',
   },
   'already-raiding': {
     code: 'ALREADY_RAIDING',
@@ -76,7 +76,7 @@ export async function guildLimit(
   return { reached, retryAt: reached && oldest ? oldest.createdAt + windowMs : null, windowMs };
 }
 
-/** In the Vintage server: anyone using `/random` there is; on the site, identity knows. */
+/** In the Vintage server: anyone using `/vintage` there is; on the site, identity knows. */
 function inServer(caller: Caller, deps: ApplicationsDeps, guildId: string, discordId: string) {
   if (caller.surface === 'discord') return Promise.resolve(true);
   return deps.applicationMembers.inServer(guildId, discordId);

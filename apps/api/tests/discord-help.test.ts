@@ -52,7 +52,7 @@ function slash(
     version: 1,
     guild_id: guildId,
     member: { user: { id: user, username: user }, roles: [] },
-    data: { id: 'c1', name: 'random', options },
+    data: { id: 'c1', name: 'vintage', options },
   } as unknown as Interaction;
 }
 
@@ -76,31 +76,31 @@ const embedOf = (response: Awaited<ReturnType<typeof handleHelpInteraction>>) =>
   return data.embeds?.[0] as { title: string; description: string };
 };
 
-describe('/random help', () => {
+describe('/vintage help', () => {
   it('shows the overview privately, for the reader’s rank', async () => {
     const page = embedOf(await handleHelpInteraction(slash(helpTopic()), ports));
     expect(page.title).toBe('Random help');
-    expect(page.description).toContain('You can use `/random poll create`.');
+    expect(page.description).toContain('You can use `/vintage poll create`.');
     expect(page.description).toContain('-# Raid leaders and officers can:');
   });
 
   it('opens one topic', async () => {
     const page = embedOf(await handleHelpInteraction(slash(helpTopic('polls')), ports));
     expect(page.title).toBe('Random help: Polls');
-    expect(page.description).toContain('**`/random poll create`** · Post a poll in this channel');
+    expect(page.description).toContain('**`/vintage poll create`** · Post a poll in this channel');
   });
 
-  it('/random event help opens the events page, with the commands a raid leader can use', async () => {
+  it('/vintage event help opens the events page, with the commands a raid leader can use', async () => {
     const page = embedOf(await handleHelpInteraction(slash(groupHelp('event'), 'd-rook'), ports));
     expect(page.title).toBe('Random help: Events');
-    expect(page.description).toContain('**`/random event create`**');
+    expect(page.description).toContain('**`/vintage event create`**');
   });
 
   it('someone Random does not know yet gets the role-sync note and what anyone can do', async () => {
     const page = embedOf(await handleHelpInteraction(slash(helpTopic(), 'd-stranger'), ports));
     expect(page.description.startsWith(UNKNOWN_MEMBER_NOTE)).toBe(true);
-    expect(page.description).toContain('You can use `/random apply`, `/random recruiting`.');
-    expect(page.description).not.toContain('You can use `/random poll create`');
+    expect(page.description).toContain('You can use `/vintage apply`, `/vintage recruiting`.');
+    expect(page.description).not.toContain('You can use `/vintage poll create`');
   });
 
   it('refuses other servers, and leaves other commands to their flows', async () => {

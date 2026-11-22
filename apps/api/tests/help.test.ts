@@ -35,7 +35,7 @@ describe('help drift', () => {
 
   it('every forwarded subcommand has a help topic', () => {
     expect(forwarded.length).toBeGreaterThan(0);
-    for (const leaf of forwarded) expect(covered, `/random ${leaf.path}`).toContain(leaf.path);
+    for (const leaf of forwarded) expect(covered, `/vintage ${leaf.path}`).toContain(leaf.path);
   });
 
   it('every forwarded subcommand has an example, and every topic two or more', () => {
@@ -45,13 +45,13 @@ describe('help drift', () => {
         .flatMap((p) => ('leaf' in p ? [p.leaf.path] : [])),
     );
     for (const leaf of forwarded)
-      expect([...exampled], `/random ${leaf.path}`).toContain(leaf.path);
+      expect([...exampled], `/vintage ${leaf.path}`).toContain(leaf.path);
     for (const topic of HELP_TOPICS) {
       expect(topic.examples.length, topic.key).toBeGreaterThanOrEqual(2);
     }
   });
 
-  it('every /random example still parses against the definitions', () => {
+  it('every /vintage example still parses against the definitions', () => {
     for (const example of HELP_TOPICS.flatMap((t) => t.examples)) {
       if (!example.startsWith('/')) continue;
       expect(parseExample(example), example).not.toHaveProperty('problem');
@@ -69,7 +69,7 @@ describe('help drift', () => {
     }
   });
 
-  it('/random help offers every topic, and every group is forwarded and has its own help', () => {
+  it('/vintage help offers every topic, and every group is forwarded and has its own help', () => {
     const top: readonly ApplicationCommandOption[] = RANDOM_COMMAND.options;
     const help = top.find((o) => o.name === 'help');
     const choices = help?.options?.find((o) => o.name === 'topic')?.choices ?? [];
@@ -91,7 +91,7 @@ describe('help drift', () => {
 describe('parseExample', () => {
   it('reads options whose values hold spaces and times', () => {
     const parsed = parseExample(
-      '/random event pick-night name:ZG run instance:Zul’Gurub size:20 times:2026-11-10 20:00; 2026-11-12 8pm',
+      '/vintage event pick-night name:ZG run instance:Zul’Gurub size:20 times:2026-11-10 20:00; 2026-11-12 8pm',
     );
     expect(parsed).toMatchObject({
       leaf: { path: 'event pick-night' },
@@ -101,22 +101,22 @@ describe('parseExample', () => {
 
   it('names what no longer fits', () => {
     expect(
-      parseExample('/random event create name:X instance:Y size:50 start:2026-11-10 8pm'),
+      parseExample('/vintage event create name:X instance:Y size:50 start:2026-11-10 8pm'),
     ).toEqual({ problem: 'event create: size is above the maximum' });
-    expect(parseExample('/random poll create question:Which night?')).toEqual({
+    expect(parseExample('/vintage poll create question:Which night?')).toEqual({
       problem: 'poll create: options is required',
     });
-    expect(parseExample('/random event start name:X')).toEqual({
+    expect(parseExample('/vintage event start name:X')).toEqual({
       problem: 'no subcommand event start',
     });
     expect(
       parseExample(
-        '/random event create name:X instance:Y size:40 start:2026-11-10 8pm duration:4',
+        '/vintage event create name:X instance:Y size:40 start:2026-11-10 8pm duration:4',
       ),
     ).toEqual({
       problem: 'event create: text before the first option, or an option it does not have',
     });
-    expect(parseExample('/random poll create oops question:Q options:A; B')).toHaveProperty(
+    expect(parseExample('/vintage poll create oops question:Q options:A; B')).toHaveProperty(
       'problem',
     );
   });
@@ -125,10 +125,10 @@ describe('parseExample', () => {
 describe('help pages', () => {
   it('a raider sees how to sign up, and one line on who makes events', () => {
     const page = renderHelp('events', ctx('raider'));
-    expect(page.text).not.toContain('`/random event create` ·');
+    expect(page.text).not.toContain('`/vintage event create` ·');
     expect(page.text).toContain('Your rank can’t use these yet.');
     expect(page.text).toContain(
-      '-# Raid leaders and officers can: `/random event create`, `/random event pick-night`.',
+      '-# Raid leaders and officers can: `/vintage event create`, `/vintage event pick-night`.',
     );
     expect(page.text).not.toContain('**Examples**');
   });
@@ -136,14 +136,14 @@ describe('help pages', () => {
   it('a raid leader sees the event commands with their options and examples', () => {
     const page = renderHelp('events', ctx('leader'));
     expect(page.text).toContain(
-      '**`/random event create`** · Make a one-off event, open for signups',
+      '**`/vintage event create`** · Make a one-off event, open for signups',
     );
     expect(page.text).toContain(
       '• `kind` · Raid / Dungeon / Battleground / Other · What kind of event (default raid)',
     );
     expect(page.text).toContain('• `hours` · 0.5–8 · How long it runs, in hours (default 3)');
     expect(page.text).toContain('**Examples**');
-    expect(page.text).toMatch(/`\/random event create`\n/);
+    expect(page.text).toMatch(/`\/vintage event create`\n/);
     expect(page.text).toContain('(leave out name or start for a form)');
     expect(page.text).toContain('type `start:` for any date, further ahead too');
     expect(page.text).not.toContain('can:');
@@ -152,8 +152,8 @@ describe('help pages', () => {
   it('the overview says what each rank can do and links the site', () => {
     const page = renderHelp(undefined, ctx('raider', 'https://vintage.test'));
     expect(page.title).toBe('Random help');
-    expect(page.text).toContain('You can use `/random poll create`.');
-    expect(page.text).toContain('-# Raid leaders and officers can: `/random event create`');
+    expect(page.text).toContain('You can use `/vintage poll create`.');
+    expect(page.text).toContain('-# Raid leaders and officers can: `/vintage event create`');
     expect(page.url).toBe('https://vintage.test');
   });
 
@@ -188,9 +188,9 @@ describe('help-get', () => {
     const anyone = await run(publicCaller(GUILD, 'discord'), {});
     expect(anyone.success).toBe(true);
     const leader = await run(as('leader'), { topic: 'events' });
-    expect((leader.data as HelpPage).text).toContain('**`/random event create`**');
+    expect((leader.data as HelpPage).text).toContain('**`/vintage event create`**');
     const raider = await run(as('raider'), { topic: 'events' });
-    expect((raider.data as HelpPage).text).not.toContain('**`/random event create`**');
+    expect((raider.data as HelpPage).text).not.toContain('**`/vintage event create`**');
   });
 
   it('refuses a topic that does not exist', async () => {

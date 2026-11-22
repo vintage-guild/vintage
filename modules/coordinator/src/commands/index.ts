@@ -144,7 +144,9 @@ export const coordinatorConfigSet = command({
   name: 'coordinator-config-set',
   description:
     'Set where the coordinator posts (signup and officer channels), whose answers it chases ' +
-    '(expectedRanks), whether it DMs non-responders, whether it posts the weekly roster ' +
+    '(expectedRanks), whether it DMs non-responders (dmReminders) and which ranks get the DM ' +
+    '(dmRanks; null for every rank), which Discord roles the reminder pings instead of each ' +
+    'non-responder (reminderRoleIds; empty pings people), whether it posts the weekly roster ' +
     'and recruitment check (weeklyAssessment), and whether each posted raid also gets a ' +
     'Discord server event (serverEvents; the bot needs the Create Events permission).',
   tier: 'officer',
@@ -156,6 +158,8 @@ export const coordinatorConfigSet = command({
     opsChannelId: snowflake.nullable().optional(),
     expectedRanks: z.array(z.enum(GUILD_RANKS)).min(1).optional(),
     dmReminders: z.boolean().optional(),
+    dmRanks: z.array(z.enum(GUILD_RANKS)).min(1).nullable().optional(),
+    reminderRoleIds: z.array(snowflake).max(10).optional(),
     serverEvents: z.boolean().optional(),
     weeklyAssessment: z.boolean().optional(),
   }),

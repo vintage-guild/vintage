@@ -84,14 +84,36 @@ export function hashJson(value: unknown): string {
   return (h >>> 0).toString(36);
 }
 
-/** Channel reminder that pings only the people who haven't answered. */
-export function renderReminder(tick: TickEvent, waiting: TickMember[]): MessageData {
+/**
+ * Channel reminder. By default it pings only the people who haven't answered. Given `roleIds`,
+ * it pings those roles instead and lists who hasn't answered as plain names (no user pings).
+ */
+export function renderReminder(
+  tick: TickEvent,
+  waiting: TickMember[],
+  roleIds: string[] = [],
+): MessageData {
+  const head = `**${eventTitle(tick.event)}** starts ${when(tick.event.startsAt)}.`;
+  const foot = 'Answer on the signup post above.';
+  if (roleIds.length) {
+    const roles = roleIds.map((id) => `<@&${id}>`).join(' ');
+    const names = waiting.map((m) => m.displayName).join(', ');
+    return {
+      content: fit(`${roles} ${head} Still waiting on ${waiting.length}: ${names}\n${foot}`, foot),
+      allowed_mentions: { parse: [], roles: [...roleIds] },
+    };
+  }
   const names = waiting.map(mention).join(' ');
-  const content = `**${eventTitle(tick.event)}** starts ${when(tick.event.startsAt)}. Still waiting on: ${names}\nAnswer on the signup post above.`;
   return {
-    content: content.slice(0, MAX_CONTENT),
+    content: fit(`${head} Still waiting on: ${names}\n${foot}`, foot),
     allowed_mentions: { users: waiting.map((m) => m.discordId) },
   };
+}
+
+/** Trim to Discord's limit, keeping the closing line. */
+function fit(content: string, foot: string): string {
+  if (content.length <= MAX_CONTENT) return content;
+  return `${content.slice(0, MAX_CONTENT - foot.length - 2)}…\n${foot}`;
 }
 
 /** Tells someone from the queue that a spot opened and they're in. */

@@ -27,6 +27,17 @@ export interface CoordinatorConfig {
   /** DM non-responders at the last reminder. Members can still opt out in their prefs. */
   dmReminders: boolean;
   /**
+   * Discord role ids the channel reminder pings instead of each non-responder. Empty: ping the
+   * non-responders by name (the default). With roles, the reminder still lists who hasn't
+   * answered, as plain names that don't notify.
+   */
+  reminderRoleIds: string[];
+  /**
+   * Only non-responders with one of these ranks get the reminder DM; null DMs every
+   * non-responder (the default). `['officer']` keeps DMs to officers while testing.
+   */
+  dmRanks: GuildRank[] | null;
+  /**
    * Keep a Discord server event (the Events list) in step with each posted raid. Off by default;
    * the bot needs the CREATE_EVENTS permission first (SETUP.md).
    */
@@ -54,6 +65,8 @@ export function defaultConfig(guildId: string): CoordinatorConfig {
     opsChannelId: null,
     expectedRanks: [...DEFAULT_EXPECTED_RANKS],
     dmReminders: true,
+    reminderRoleIds: [],
+    dmRanks: null,
     serverEvents: false,
     weeklyAssessment: false,
     paused: false,

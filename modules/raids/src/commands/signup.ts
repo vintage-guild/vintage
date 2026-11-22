@@ -417,11 +417,16 @@ export const signupList = command({
     if (!event) return eventNotFound();
     const denied = accessRefusal(caller, event);
     if (denied) return denied;
+    const leader = isLeader(caller);
     const all = await deps.raids.listSignups(guildId, eventId);
     const signups = all
       .filter((s) => !statuses || statuses.includes(s.status))
       .sort((a, b) => statusRank(a) - statusRank(b) || a.signedUpAt - b.signedUpAt)
-      .map((s) => ({ ...s, queuePosition: null }));
+      .map((s) => ({
+        ...s,
+        note: leader || s.memberId === caller.memberId ? s.note : null,
+        queuePosition: null,
+      }));
     return success(signups);
   },
 });

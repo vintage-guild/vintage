@@ -408,7 +408,8 @@ describe('runTick', () => {
       /\n-# <:info_open:\d+> Signups open · lock \d+h before · 10-person raid\n/,
     );
     expect(text).toMatch(/\*\*Standby\*\* <:spec_mage_frost:\d+> Pip/);
-    expect(text).toMatch(/\*\*Tentative\*\* <:spec_warrior_protection:\d+> Cade \(maybe\)/);
+    expect(text).toMatch(/\*\*Tentative\*\* <:spec_warrior_protection:\d+> Cade(?! \(maybe\))/);
+    expect(text).not.toContain('(maybe)');
     expect(buttonLabels(message)).toEqual(['Accept', 'Late', 'Tentative', 'Standby', 'Absent']);
   });
 

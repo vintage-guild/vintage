@@ -91,10 +91,12 @@ and posts the final roster and addon import string. Maturity: **core**.
 - **Raid nights carry the kind.** `raid-night-poll` takes `kind` and `roleTargets`, checks them
   like `raid-create`, stores them on the night (optional fields; old nights read as `raid` and
   null), and `createForRaidNight` passes them to `raid-create`.
-- **The signup post** shows a role counter line ("Tanks 4 · Healers 9 · DPS 25"), who's in by
-  role with late people marked and everyone's reason (the signup `note`), the queue when the raid
-  is full, tentative and bench with reasons, and comp gaps. The digest lists late, tentative, and
-  bench reasons too. (Ideas from Raid-Helper: docs/research/raid-helper.md.)
+- **The signup post** shows four role columns (Tanks/Healers, Melee/Ranged), Standby, Tentative
+  (names only; tentative reasons stay leader-only in the officer digest and Officers' quarters,
+  never on the card or Roster reply), going-only comp gaps (**Missing**), and **Absent** names
+  below Missing (declined signups and scheduled absences, plain names, no reasons). The digest
+  lists late, tentative, bench, and absence reasons. (Ideas from Raid-Helper:
+  docs/research/raid-helper.md.)
 - **Weekly assessment (#130).** Off until `coordinator-config-set weeklyAssessment:true`. Then the
   first tick after Monday 16:00 UTC (`assessmentRule`, claimed per week) posts **Weekly roster
   check** to the ops channel: role gaps in the next three raids, the site's open needs (the

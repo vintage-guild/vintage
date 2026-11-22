@@ -466,6 +466,28 @@ describe('raids commands', () => {
       ).toHaveLength(1);
     });
 
+    it('hides other members’ signup notes from non-leaders in signup-list', async () => {
+      const raid = await createRaid();
+      await ok(
+        'signup-set',
+        { eventId: raid.id, characterId: 'aeryn', status: 'tentative', note: 'personal plans' },
+        as('aeryn'),
+      );
+      await ok(
+        'signup-set',
+        { eventId: raid.id, characterId: 'cade', status: 'tentative', note: 'work call' },
+        as('cade'),
+      );
+      // A raider sees their own note, not someone else's.
+      const asCade = await ok<Signup[]>('signup-list', { eventId: raid.id }, as('cade'));
+      expect(asCade.find((s) => s.memberId === 'cade')?.note).toBe('work call');
+      expect(asCade.find((s) => s.memberId === 'aeryn')?.note).toBeNull();
+      // Leaders see every note.
+      const asLeader = await ok<Signup[]>('signup-list', { eventId: raid.id }, leader);
+      expect(asLeader.find((s) => s.memberId === 'aeryn')?.note).toBe('personal plans');
+      expect(asLeader.find((s) => s.memberId === 'cade')?.note).toBe('work call');
+    });
+
     it('does not emit when nothing changed', async () => {
       const raid = await createRaid();
       await ok(

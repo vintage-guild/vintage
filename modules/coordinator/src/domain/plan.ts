@@ -44,7 +44,15 @@ export type PlannedAction =
   | { kind: 'post'; tick: TickEvent; rule: 'post'; target: string }
   | { kind: 'refresh'; tick: TickEvent; post: CoordinatorAction }
   | { kind: 'promote'; tick: TickEvent; rule: string; target: string; signup: Signup }
-  | { kind: 'remind'; tick: TickEvent; rule: string; target: string; waiting: TickMember[] }
+  | {
+      kind: 'remind';
+      tick: TickEvent;
+      rule: string;
+      target: string;
+      waiting: TickMember[];
+      /** Roles to ping instead of the non-responders; empty pings the people. */
+      roleIds: string[];
+    }
   | {
       kind: 'dm';
       tick: TickEvent;
@@ -176,7 +184,14 @@ function planReminders(
   }));
   out.push(
     waiting.length
-      ? { kind: 'remind', tick, rule: `remind-${current}h`, target: channel, waiting }
+      ? {
+          kind: 'remind',
+          tick,
+          rule: `remind-${current}h`,
+          target: channel,
+          waiting,
+          roleIds: state.config.reminderRoleIds,
+        }
       : {
           kind: 'skip',
           tick,
@@ -186,19 +201,37 @@ function planReminders(
         },
   );
   if (state.config.dmReminders && current === lastReminderHours(tick)) {
-    for (const member of waiting) {
-      if (member.dmOptOut || done.has(`dm-${current}h|${member.memberId}`)) continue;
-      out.push({
-        kind: 'dm',
-        tick,
-        rule: `dm-${current}h`,
-        target: member.memberId,
-        member,
-        post,
-      });
-    }
+    out.push(...planDms(state, tick, done, current, waiting, post));
   }
   return out;
+}
+
+/** Reminder DMs at the last reminder: non-responders who allow DMs and pass the rank filter. */
+function planDms(
+  state: TickState,
+  tick: TickEvent,
+  done: Set<string>,
+  hours: number,
+  waiting: TickMember[],
+  post: CoordinatorAction,
+): PlannedAction[] {
+  // A DM rank filter (e.g. officers only while testing) leaves everyone else un-DMed.
+  const ranks = state.config.dmRanks ? new Set(state.config.dmRanks) : null;
+  return waiting
+    .filter(
+      (m) =>
+        !m.dmOptOut &&
+        !done.has(`dm-${hours}h|${m.memberId}`) &&
+        (!ranks || (m.rank !== null && ranks.has(m.rank))),
+    )
+    .map((member) => ({
+      kind: 'dm',
+      tick,
+      rule: `dm-${hours}h`,
+      target: member.memberId,
+      member,
+      post,
+    }));
 }
 
 /** Queue auto-promotion was retired in favor of comp-based seating and leader Standby picks. */

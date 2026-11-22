@@ -293,7 +293,11 @@ npx convex run coordinator:tick   # run one tick now instead of waiting
 ```
 
 `coordinator-pause` / `coordinator-resume` stop and restart it; `coordinator-status` shows what
-it did and what is due. DMs to non-responders are on by default (`dmReminders`).
+it did and what is due. DMs to non-responders are on by default (`dmReminders`); `dmRanks`
+limits them to some ranks (`["officer"]` while testing, `null` for everyone). Reminders ping each
+non-responder unless `reminderRoleIds` lists Discord roles to ping instead (the reminder then
+names who hasn't answered without notifying them). The bot's Mention Everyone permission lets it
+ping roles that aren't mentionable.
 
 **Raids in the server's Events list (optional, off by default).** With `serverEvents` on, each
 posted raid also gets a Discord server event at its instance, linking to the signup card; it moves

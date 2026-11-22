@@ -147,7 +147,7 @@ async function perform(
         ),
       );
     case 'remind':
-      return send(renderReminder(tick, action.waiting));
+      return send(renderReminder(tick, action.waiting, action.roleIds));
     case 'dm':
       try {
         const link = signupLink(ports.links, {

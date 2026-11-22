@@ -28,6 +28,10 @@ export const configFields = {
   opsChannelId: v.union(v.string(), v.null()),
   expectedRanks: v.array(guildRank),
   dmReminders: v.boolean(),
+  /** Optional: rows saved before role pings existed read as [] (ping members). */
+  reminderRoleIds: v.optional(v.array(v.string())),
+  /** Optional: rows saved before the DM rank filter existed read as null (DM everyone). */
+  dmRanks: v.optional(v.union(v.array(guildRank), v.null())),
   /** Optional: rows saved before server events existed read as off. */
   serverEvents: v.optional(v.boolean()),
   /** Optional so rows saved before #130 still load; read as false (officers turn it on). */

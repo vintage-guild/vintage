@@ -215,6 +215,34 @@ describe('runTick', () => {
     );
   });
 
+  it('pings the configured roles instead of each non-responder', async () => {
+    const ROLE = '300000000000000001';
+    await store.setConfig(G, { reminderRoleIds: [ROLE] }, 0);
+    await tick(START - 100 * HOUR);
+    await tick(START - 72 * HOUR);
+    const [reminder] = discord.sent.filter((s) => s.message.content?.includes('Still waiting'));
+    expect(reminder?.message.content).toContain(`<@&${ROLE}>`);
+    expect(reminder?.message.content).toMatch(/Still waiting on 2: bram, cade/);
+    expect(reminder?.message.content).not.toContain('<@2');
+    expect(reminder?.message.allowed_mentions).toEqual({ parse: [], roles: [ROLE] });
+  });
+
+  it('DMs nobody when no non-responder has a dmRanks rank', async () => {
+    await store.setConfig(G, { dmRanks: ['officer'] }, 0);
+    await tick(START - 100 * HOUR);
+    await tick(START - 24 * HOUR);
+    expect(discord.sent.filter((s) => s.kind === 'dm')).toEqual([]);
+  });
+
+  it('DMs only the non-responders whose rank is in dmRanks', async () => {
+    await store.setConfig(G, { dmRanks: ['officer', 'flex-raider'] }, 0);
+    await tick(START - 100 * HOUR);
+    await tick(START - 24 * HOUR);
+    expect(discord.sent.filter((s) => s.kind === 'dm').map((d) => d.to)).toEqual([
+      member('bram', 'flex-raider').discordId,
+    ]);
+  });
+
   it('skips DMs when they are turned off', async () => {
     await store.setConfig(G, { dmReminders: false }, 0);
     await tick(START - 100 * HOUR);

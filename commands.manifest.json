@@ -1858,7 +1858,7 @@
     },
     {
       "name": "coordinator-config-set",
-      "description": "Set where the coordinator posts (signup and officer channels), whose answers it chases (expectedRanks), whether it DMs non-responders, whether it posts the weekly roster and recruitment check (weeklyAssessment), and whether each posted raid also gets a Discord server event (serverEvents; the bot needs the Create Events permission).",
+      "description": "Set where the coordinator posts (signup and officer channels), whose answers it chases (expectedRanks), whether it DMs non-responders (dmReminders) and which ranks get the DM (dmRanks; null for every rank), which Discord roles the reminder pings instead of each non-responder (reminderRoleIds; empty pings people), whether it posts the weekly roster and recruitment check (weeklyAssessment), and whether each posted raid also gets a Discord server event (serverEvents; the bot needs the Create Events permission).",
       "tier": "officer",
       "mutation": true,
       "destructive": false,
@@ -1928,6 +1928,37 @@
           },
           "dmReminders": {
             "type": "boolean"
+          },
+          "dmRanks": {
+            "anyOf": [
+              {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "officer",
+                    "raid-leader",
+                    "raider",
+                    "flex-raider",
+                    "recruit",
+                    "member",
+                    "friend"
+                  ]
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reminderRoleIds": {
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^\\d{17,20}$"
+            }
           },
           "serverEvents": {
             "type": "boolean"

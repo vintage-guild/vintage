@@ -30,8 +30,8 @@ and posts the final roster and addon import string. Maturity: **core**.
 | `post` | as soon as the raid exists | signup channel, with answer buttons |
 | refresh | whenever the post's content changed (not logged) | edits the post |
 | `promoted-<signup>-<time>` | when raids promotes someone from the queue | signup channel, mentions them once |
-| `remind-<h>h` | each reminder offset, before lock; only the latest due one is sent | signup channel, pings non-responders only |
-| `dm-<h>h` | the last reminder offset, if `dmReminders`; skips members who opted out | DM |
+| `remind-<h>h` | each reminder offset, before lock; only the latest due one is sent | signup channel, pings non-responders only, or the `reminderRoleIds` roles with the non-responders named as plain text |
+| `dm-<h>h` | the last reminder offset, if `dmReminders`; skips members who opted out and, when `dmRanks` is set, ranks not in it | DM |
 | `digest` | the last reminder offset | ops channel |
 | `lock` | `lockHours` before start | runs `roster-lock` |
 | `final-roster`, `import-string` | after lock | signup channel, ops channel |

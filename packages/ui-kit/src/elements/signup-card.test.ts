@@ -28,7 +28,7 @@ const buttons = (el: Element) => [
 ];
 
 describe('vintage-signup-card', () => {
-  it('shows the raid, time, counts, and the four answers', async () => {
+  it('shows the raid, time, counts, and the five answers', async () => {
     const el = await mount<VintageSignupCard>(
       '<vintage-signup-card event-id="e1" event-title="Launch night" starts-at="2026-11-05T01:00:00Z" status="tentative" character-id="c1" character-label="Bloodfen · Protection"></vintage-signup-card>',
     );
@@ -49,12 +49,14 @@ describe('vintage-signup-card', () => {
       'Going',
       'Late',
       'Tentative',
-      "Can't",
+      'Standby',
+      'Absent',
     ]);
     expect(buttons(el).map((b) => b.getAttribute('aria-pressed'))).toEqual([
       'false',
       'false',
       'true',
+      'false',
       'false',
     ]);
   });
@@ -77,10 +79,10 @@ describe('vintage-signup-card', () => {
     expect(result).toMatchObject({ success: false, error: { code: 'COMMAND_DISABLED' } });
   });
 
-  it('answers through signup-set with the character, then reflects the stored signup', async () => {
+  it('opens the 5 / 15 / 30 min picker on Late instead of silently sending 15', async () => {
     const client = useClient(() => ({
       success: true,
-      data: { id: 's1', status: 'late', queued: false },
+      data: { id: 's1', status: 'late', lateMinutes: 30, queued: false },
       reasoning: 'Bloodfen: late for Launch night',
     }));
     const el = await mount<VintageSignupCard>(
@@ -89,19 +91,62 @@ describe('vintage-signup-card', () => {
     const seen: unknown[] = [];
     el.addEventListener('signup-changed', (e) => seen.push((e as CustomEvent).detail));
 
-    const result = await el.answer('late');
+    // Clicking Late opens the picker without running signup-set yet.
+    buttons(el)[1]!.click();
     await settle();
-    expect(result.success).toBe(true);
+    expect(client.run).not.toHaveBeenCalled();
+    const lateBtns = [...el.shadowRoot!.querySelectorAll<HTMLButtonElement>('.late-picker .chip')];
+    expect(lateBtns.map((b) => b.textContent?.trim())).toEqual(['5 min', '15 min', '30 min']);
+
+    // Programmatic answer('late') without minutes is rejected.
+    expect(await el.answer('late')).toMatchObject({
+      success: false,
+      error: { code: 'INVALID_PARAMETERS' },
+    });
+
+    // Picking 30 min runs signup-set with lateMinutes: 30 and closes the picker.
+    lateBtns[2]!.click();
+    await settle();
     expect(client.run).toHaveBeenCalledWith('signup-set', {
       eventId: 'e1',
       characterId: 'c1',
       status: 'late',
-      lateMinutes: 15,
+      lateMinutes: 30,
     });
     expect(el.status).toBe('late');
+    expect(el.lateMinutes).toBe(30);
+    expect(el.picking).toBeNull();
     expect(el.statusText).toBe('Bloodfen: late for Launch night');
-    expect(seen).toEqual([{ id: 's1', status: 'late', queued: false }]);
+    expect(seen).toEqual([{ id: 's1', status: 'late', lateMinutes: 30, queued: false }]);
+    expect(buttons(el)[1]?.textContent?.trim()).toBe('Late (30m)');
     expect(buttons(el)[1]?.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('asks for an optional Tentative reason and sends it through signup-set', async () => {
+    const client = useClient(() => ({
+      success: true,
+      data: { id: 's1', status: 'tentative', note: 'depends on work', queued: false },
+    }));
+    const el = await mount<VintageSignupCard>(
+      '<vintage-signup-card event-id="e1" character-id="c1"></vintage-signup-card>',
+    );
+    buttons(el)[2]!.click();
+    await settle();
+    expect(client.run).not.toHaveBeenCalled();
+    const input = el.shadowRoot!.querySelector<HTMLInputElement>('#tentative-note')!;
+    input.value = '  depends on work  ';
+    input.dispatchEvent(new Event('input'));
+    el.shadowRoot!.querySelector<HTMLFormElement>('.tentative-picker')!.requestSubmit();
+    await settle();
+    expect(client.run).toHaveBeenCalledWith('signup-set', {
+      eventId: 'e1',
+      characterId: 'c1',
+      status: 'tentative',
+      note: 'depends on work',
+    });
+    expect(el.status).toBe('tentative');
+    expect(el.note).toBe('depends on work');
+    expect(shadowText(el)).toContain('Reason: depends on work');
   });
 
   it('reports a refusal from the server without changing the answer', async () => {
@@ -120,14 +165,14 @@ describe('vintage-signup-card', () => {
     expect(el.statusText).toContain('Launch night is locked');
   });
 
-  it('rejects an answer that is not one of the four', async () => {
+  it('rejects an answer that is not one of the five', async () => {
     useClient(() => ({ success: true, data: null }));
     const el = await mount<VintageSignupCard>(
       '<vintage-signup-card event-id="e1" character-id="c1"></vintage-signup-card>',
     );
-    const result = await el.answer('bench');
+    const result = await el.answer('maybe');
     expect(result).toMatchObject({ success: false, error: { code: 'INVALID_PARAMETERS' } });
-    expect(ANSWERS).not.toContain('bench');
+    expect(ANSWERS).toContain('bench');
   });
 
   describe('the guess, Switch character, and Change spec', () => {
@@ -362,5 +407,123 @@ describe('vintage-signup-card queue line', () => {
     el.removeAttribute('queue-position');
     await settle();
     expect(line()).toBeUndefined();
+  });
+});
+
+describe('vintage-signup-card v2 controls (#322)', () => {
+  it('supports Standby, Flex Raider Standby-only mode, and private Standby reasons', async () => {
+    const client = useClient(() => ({
+      success: true,
+      data: { id: 's1', status: 'bench', roster: 'pending' },
+    }));
+    const el = await mount<VintageSignupCard>(
+      '<vintage-signup-card event-id="e1" character-id="c1" flex-standby-only></vintage-signup-card>',
+    );
+    // Flex Raiders on guild raids see Standby instead of Going, plus an explanation.
+    expect(buttons(el).map((b) => b.textContent?.trim())).toEqual([
+      'Standby',
+      'Late',
+      'Tentative',
+      'Absent',
+    ]);
+    expect(shadowText(el)).toContain('Flex Raiders start on Standby for guild raids');
+
+    buttons(el)[0]!.click();
+    await settle();
+    expect(client.run).toHaveBeenCalledWith('signup-set', {
+      eventId: 'e1',
+      characterId: 'c1',
+      status: 'bench',
+    });
+    expect(el.shadowRoot?.querySelector('.standby')?.textContent?.trim()).toContain(
+      'Flex Raiders start on Standby',
+    );
+
+    // Non-flex member on Standby after parties are approved gets the approved explanation.
+    el.flexStandbyOnly = false;
+    el.rosterApproved = true;
+    await settle();
+    expect(el.shadowRoot?.querySelector('.standby')?.textContent?.trim()).toContain(
+      'parties are already approved',
+    );
+  });
+
+  it('offers Can also play flex roles for hybrid classes and hides it for pure DPS', async () => {
+    const client = useClient(() => ({
+      success: true,
+      data: { status: 'accepted', alsoRoles: ['healer'] },
+    }));
+    const el = await mount<VintageSignupCard>(
+      '<vintage-signup-card event-id="e1" character-id="d" status="accepted"></vintage-signup-card>',
+    );
+    el.characters = [
+      {
+        id: 'd',
+        name: 'Aerbark',
+        class: 'druid',
+        spec: 'feral-tank',
+        role: 'tank',
+        isMain: true,
+        alsoRoles: ['melee'],
+      },
+      { id: 'm', name: 'Frostwyn', class: 'mage', spec: 'frost', role: 'ranged', isMain: false },
+    ];
+    await settle();
+    const roleLabels = () =>
+      [...el.shadowRoot!.querySelectorAll('.also-roles label')].map((l) => l.textContent?.trim());
+    expect(roleLabels()).toEqual(['Healer', 'Melee DPS', 'Ranged DPS']);
+
+    const res = await el.changeAlsoRoles(['healer']);
+    expect(res.success).toBe(true);
+    expect(client.run).toHaveBeenLastCalledWith('signup-set', {
+      eventId: 'e1',
+      characterId: 'd',
+      alsoRoles: ['healer'],
+      status: 'accepted',
+    });
+
+    // Rejects a role the class cannot play.
+    await el.switchCharacter('m');
+    await settle();
+    expect(el.shadowRoot?.querySelector('.also-roles')).toBeNull();
+    expect(await el.changeAlsoRoles(['tank'])).toMatchObject({
+      success: false,
+      error: { code: 'INVALID_PARAMETERS' },
+    });
+  });
+
+  it('shows absence coverage and weekly-late On time this week override', async () => {
+    const client = useClient(() => ({
+      success: true,
+      data: { id: 's1', status: 'accepted', lateMinutes: null },
+    }));
+    const el = await mount<VintageSignupCard>(
+      '<vintage-signup-card event-id="e1" character-id="c1" status="late" late-minutes="15" absence-coverage="late" weekly-late-minutes="15"></vintage-signup-card>',
+    );
+    await settle();
+    expect(el.shadowRoot?.querySelector('.coverage')?.textContent).toContain(
+      '15 min late from your weekly rule',
+    );
+    const onTime = el.shadowRoot?.querySelector<HTMLButtonElement>('.coverage button');
+    expect(onTime?.textContent?.trim()).toBe('On time this week');
+    onTime!.click();
+    await settle();
+    expect(client.run).toHaveBeenCalledWith('signup-set', {
+      eventId: 'e1',
+      characterId: 'c1',
+      status: 'accepted',
+      lateMinutes: null,
+    });
+    expect(el.status).toBe('accepted');
+    expect(el.lateMinutes).toBeNull();
+
+    // Away absence shows its reason without the On time button.
+    el.absenceCoverage = 'away';
+    el.absenceReason = 'Traveling';
+    await settle();
+    expect(el.shadowRoot?.querySelector('.coverage')?.textContent).toContain(
+      'Covered by your absence: Traveling',
+    );
+    expect(el.shadowRoot?.querySelector('.coverage button')).toBeNull();
   });
 });

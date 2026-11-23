@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { DEFAULT_PERSONA, FIXTURE_PERSONAS, isPersona, personaFrom } from './fixtures/persona';
 import { type Session, setSession } from './session';
-import { canSignUp, currentView, sectionsFor, viewFor } from './view';
+import { canSignUp, canViewRaids, currentView, sectionsFor, viewFor } from './view';
 
 const as = (tier: string): Session => ({
   memberId: 'm1',
@@ -32,11 +32,25 @@ describe('viewFor', () => {
     expect(currentView()).toBe('member');
   });
 
-  it('lets recruits and up answer signups, matching signup-set', () => {
-    expect([null, as('public'), as('member')].map(canSignUp)).toEqual([false, false, false]);
+  it('lets recruits and up answer guild raids, and friends and up view/answer open raids (#322)', () => {
+    expect([null, as('public'), as('friend'), as('member')].map((s) => canSignUp(s))).toEqual([
+      false,
+      false,
+      false,
+      false,
+    ]);
     expect(['recruit', 'raider', 'leader', 'officer'].map((t) => canSignUp(as(t)))).toEqual([
       true,
       true,
+      true,
+      true,
+    ]);
+    expect(
+      [null, as('public'), as('friend'), as('member')].map((s) => canSignUp(s, 'open')),
+    ).toEqual([false, false, true, true]);
+    expect([null, as('public'), as('friend'), as('member')].map(canViewRaids)).toEqual([
+      false,
+      false,
       true,
       true,
     ]);

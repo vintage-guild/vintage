@@ -137,6 +137,60 @@ describe('/raids/<id> without fixtures', () => {
     expect(read).not.toHaveBeenCalled();
   });
 
+  it('lets a signed-in Friend view and answer an open raid, and hides guild raids (#322)', async () => {
+    const openEvent = {
+      id: 'r_open',
+      name: 'Open ZG',
+      instance: "Zul'Gurub",
+      kind: 'raid',
+      access: 'open',
+      size: 20,
+      status: 'open',
+      startsAt: Date.parse('2026-12-05T01:00:00Z'),
+    };
+    const friendChar = {
+      id: 'c_wren',
+      name: 'Wren',
+      class: 'priest',
+      spec: 'holy',
+      role: 'healer',
+      isMain: true,
+    };
+    const counts = { accepted: 0, late: 0, tentative: 0, bench: 0, declined: 0 };
+    restore = setCommandClient({
+      read: (async (name: string) => {
+        if (name === 'raid-get')
+          return { success: true, data: { event: openEvent, counts, mine: null } };
+        if (name === 'signup-list') return { success: true, data: [] };
+        if (name === 'character-list') return { success: true, data: [friendChar] };
+        if (name === 'signup-suggest') {
+          return {
+            success: true,
+            data: {
+              characterId: 'c_wren',
+              characterName: 'Wren',
+              spec: 'holy',
+              role: 'healer',
+              reason: 'your main',
+            },
+          };
+        }
+        return { success: false, error: { code: 'COMMAND_NOT_FOUND', message: 'no' } };
+      }) as never,
+      run: (async () => ({ success: true, data: { id: 's1', status: 'accepted' } })) as never,
+    });
+    setSession({ memberId: 'm_wren', displayName: 'Wren', tier: 'friend', rank: 'friend' });
+    history.replaceState(null, '', '/raids/r_open');
+    await import('./raid');
+    document.body.innerHTML = '<vintage-raid-page></vintage-raid-page>';
+    const page = document.querySelector('vintage-raid-page') as Page;
+    await until(() => page.loaded && Boolean(card(page)?.characterId));
+    expect(page.allowed).toBe(true);
+    expect(page.signUpAllowed).toBe(true);
+    expect(page.shadowRoot?.querySelector('vintage-sign-in-card')).toBeNull();
+    expect(card(page)?.characterId).toBe('c_wren');
+  });
+
   it('keeps the newest read when an older one finishes last', async () => {
     const answers: ((r: CommandResult) => void)[] = [];
     const event = (name: string) => ({ id: 'r1', name, size: 10, status: 'open', startsAt: 0 });

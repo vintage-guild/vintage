@@ -28,9 +28,9 @@ import { type Caller, type CommandResult, tierAllows } from '@vintage/guild-kit'
 import type { Character, Member } from '@vintage/identity/contract';
 import {
   type Absence,
+  type AbsenceCoverage,
   LATE_MINUTES,
   type LateMinutes,
-  type RaidEvent,
   WEEKDAYS,
   type Weekday,
   type WeeklyNight,
@@ -212,28 +212,60 @@ function parseDays(raw: string): { days: Weekday[] } | { invalid: string } {
   return { days: out };
 }
 
+/** Shape returned by `absence-add` and `absence-weekly-set` in `stillSignedUp`. */
+export interface StillSignedUpRaid {
+  eventId: string;
+  name: string;
+  startsAt: number;
+  status: string;
+  coverage?: Exclude<AbsenceCoverage, null>;
+}
+
+const MAX_CUSTOM_ID = 100;
+
+/** Pack as many event IDs as fit inside Discord's 100-char custom_id limit. */
+function packEventIds(prefix: string, events: readonly StillSignedUpRaid[]): string[] {
+  const ids: string[] = [];
+  let len = prefix.length;
+  for (const e of events) {
+    if (!e.eventId) continue;
+    const add = (ids.length ? 1 : 0) + e.eventId.length;
+    if (len + add > MAX_CUSTOM_ID) break;
+    ids.push(e.eventId);
+    len += add;
+  }
+  return ids;
+}
+
 function formatStillSignedUp(
-  events: RaidEvent[],
+  events: readonly StillSignedUpRaid[],
   mode: 'absent' | { lateMinutes: LateMinutes },
-): { line: string; row: ReturnType<typeof actionRow> } {
+): { line: string; button: ReturnType<typeof button> } | null {
+  const prefix =
+    mode === 'absent' ? 'absence-mark:absent:' : `absence-mark:late-${mode.lateMinutes}:`;
+  const packed = packEventIds(prefix, events);
+  if (packed.length === 0) return null;
   const names = events.map((e) => e.name).join(', ');
-  const ids = events
-    .slice(0, 3)
-    .map((e) => e.id)
-    .join(',');
+  const ids = packed.join(',');
+  const truncated = packed.length < events.length;
+  const countLabel = truncated
+    ? `${packed.length} of ${events.length}`
+    : events.length === 1
+      ? ''
+      : `all ${events.length}`;
   if (mode === 'absent') {
-    const label = events.length === 1 ? 'Mark absent' : `Mark all ${events.length} absent`;
+    const label = countLabel ? `Mark ${countLabel} absent` : 'Mark absent';
+    const note = truncated ? ` (next ${packed.length} here; update the rest on their posts)` : '';
     return {
-      line: `You're still signed up for ${names}.`,
-      row: actionRow(button(`absence-mark:absent:${ids}`, label, ButtonStyle.DANGER)),
+      line: `You're still signed up for ${names}.${note}`,
+      button: button(`${prefix}${ids}`, label, ButtonStyle.DANGER),
     };
   }
-  const label = events.length === 1 ? 'Mark late' : `Mark all ${events.length} late`;
+  const label = countLabel ? `Mark ${countLabel} late` : 'Mark late';
+  const note = truncated ? ` (next ${packed.length} here; update the rest on their posts)` : '';
   return {
-    line: `You're on time for ${names}.`,
-    row: actionRow(
-      button(`absence-mark:late-${mode.lateMinutes}:${ids}`, label, ButtonStyle.PRIMARY),
-    ),
+    line: `You're on time for ${names}.${note}`,
+    button: button(`${prefix}${ids}`, label, ButtonStyle.PRIMARY),
   };
 }
 
@@ -244,7 +276,7 @@ async function runAbsenceAdd(
 ): Promise<InteractionResponse> {
   const res = (await ports.run(caller, 'absence-add', input)) as CommandResult<{
     absence: Absence;
-    stillSignedUp: RaidEvent[];
+    stillSignedUp: StillSignedUpRaid[];
   }>;
   if (!res.success) return ephemeral(absenceErrorText(res));
   await ports.afterChange();
@@ -254,8 +286,12 @@ async function runAbsenceAdd(
     ? `Marked absent ${span}.`
     : `You're absent ${span}. Answer any of those raids to change it.`;
   if (!stillSignedUp.length || input.memberId) return ephemeral(head);
-  const { line, row } = formatStillSignedUp(stillSignedUp, 'absent');
-  return reply({ content: `${head}\n${line}`, components: [row] }, { ephemeral: true });
+  const prompt = formatStillSignedUp(stillSignedUp, 'absent');
+  if (!prompt) return ephemeral(head);
+  return reply(
+    { content: `${head}\n${prompt.line}`, components: [actionRow(prompt.button)] },
+    { ephemeral: true },
+  );
 }
 
 function parseWeeklyInput(
@@ -294,6 +330,44 @@ function parseWeeklyInput(
   return { nights, awayCount: parsedAway.days.length, lateMinutes, reason };
 }
 
+function weeklyStillSignedUpReply(
+  head: string,
+  stillSignedUp: readonly StillSignedUpRaid[],
+  awayCount: number,
+  defaultLateMinutes: LateMinutes | null,
+): InteractionResponse {
+  if (!stillSignedUp.length) return ephemeral(head);
+  // Split away-covered raids from late-covered raids so mixed weekly rules never mark late raids absent.
+  const awayRaids = stillSignedUp.filter(
+    (e) => e.coverage === 'away' || (!e.coverage && awayCount > 0),
+  );
+  const lateRaids = stillSignedUp.filter((e) => e.coverage && e.coverage !== 'away');
+  const fallbackLate = !awayRaids.length && !lateRaids.length ? stillSignedUp : lateRaids;
+  const lines = [head];
+  const buttons: ReturnType<typeof button>[] = [];
+  if (awayRaids.length) {
+    const prompt = formatStillSignedUp(awayRaids, 'absent');
+    if (prompt) {
+      lines.push(prompt.line);
+      buttons.push(prompt.button);
+    }
+  }
+  if (fallbackLate.length) {
+    const first = fallbackLate[0]?.coverage;
+    const mins = (first && first !== 'away' ? first.lateMinutes : defaultLateMinutes) ?? 15;
+    const prompt = formatStillSignedUp(fallbackLate, { lateMinutes: mins });
+    if (prompt) {
+      lines.push(prompt.line);
+      buttons.push(prompt.button);
+    }
+  }
+  if (!buttons.length) return ephemeral(head);
+  return reply(
+    { content: lines.join('\n'), components: [actionRow(...buttons)] },
+    { ephemeral: true },
+  );
+}
+
 async function handleWeeklySubmit(
   ports: AbsencePorts,
   caller: Caller,
@@ -304,17 +378,13 @@ async function handleWeeklySubmit(
   const res = (await ports.run(caller, 'absence-weekly-set', {
     nights: parsed.nights,
     ...(parsed.reason ? { reason: parsed.reason } : {}),
-  })) as CommandResult<{ absence: Absence | null; stillSignedUp: RaidEvent[] }>;
+  })) as CommandResult<{ absence: Absence | null; stillSignedUp: StillSignedUpRaid[] }>;
   if (!res.success) return ephemeral(absenceErrorText(res));
   await ports.afterChange();
   const { absence, stillSignedUp } = res.data!;
   if (!absence) return ephemeral('No weekly nights set.');
   const head = `${formatAbsenceLine(absence, false)}. Answer any of those raids to change it.`;
-  if (!stillSignedUp.length) return ephemeral(head);
-  const mode =
-    parsed.awayCount > 0 ? 'absent' : { lateMinutes: parsed.lateMinutes ?? (15 as LateMinutes) };
-  const { line, row } = formatStillSignedUp(stillSignedUp, mode);
-  return reply({ content: `${head}\n${line}`, components: [row] }, { ephemeral: true });
+  return weeklyStillSignedUpReply(head, stillSignedUp, parsed.awayCount, parsed.lateMinutes);
 }
 
 function markSignupInput(eventId: string, characterId: string, mode: string) {
@@ -390,6 +460,31 @@ async function handleSlashAdd(
   return runAbsenceAdd(ports, caller, { from, to, reason, memberId: targetMemberId });
 }
 
+async function handleSlashList(ports: AbsencePorts, caller: Caller): Promise<InteractionResponse> {
+  const res = (await ports.run(caller, 'absence-list', {})) as CommandResult<{
+    absences: Absence[];
+  }>;
+  if (!res.success) return ephemeral(absenceErrorText(res));
+  const list = res.data?.absences ?? [];
+  if (!list.length) return ephemeral('You have no active absences or weekly nights set.');
+  return ephemeral(list.map((a) => `• ${formatAbsenceLine(a, true)}`).join('\n'));
+}
+
+async function handleSlashRemove(
+  ports: AbsencePorts,
+  caller: Caller,
+  opts: Record<string, unknown>,
+): Promise<InteractionResponse> {
+  const absenceId = typeof opts.absence === 'string' ? opts.absence.trim() : '';
+  const res = (await ports.run(caller, 'absence-remove', {
+    absenceId,
+  })) as CommandResult<{ removed: Absence }>;
+  if (!res.success) return ephemeral(absenceErrorText(res));
+  await ports.afterChange();
+  const removed = res.data?.removed;
+  return ephemeral(removed ? `Removed ${formatAbsenceLine(removed, false)}.` : 'Removed absence.');
+}
+
 async function handleSlash(
   interaction: Interaction,
   ports: AbsencePorts,
@@ -405,22 +500,8 @@ async function handleSlash(
     const existing = (await ports.absences(member.id)).find((a) => a.kind === 'weekly');
     return weeklyModal(existing);
   }
-  if (sub === 'list') {
-    const res = (await ports.run(caller, 'absence-list', {})) as CommandResult<Absence[]>;
-    if (!res.success) return ephemeral(absenceErrorText(res));
-    const list = res.data ?? [];
-    if (!list.length) return ephemeral('You have no active absences or weekly nights set.');
-    return ephemeral(list.map((a) => `• ${formatAbsenceLine(a, true)}`).join('\n'));
-  }
-  if (sub === 'remove') {
-    const absenceId = typeof opts.absence === 'string' ? opts.absence.trim() : '';
-    const res = (await ports.run(caller, 'absence-remove', {
-      absenceId,
-    })) as CommandResult<Absence>;
-    if (!res.success) return ephemeral(absenceErrorText(res));
-    await ports.afterChange();
-    return ephemeral(`Removed ${formatAbsenceLine(res.data!, false)}.`);
-  }
+  if (sub === 'list') return handleSlashList(ports, caller);
+  if (sub === 'remove') return handleSlashRemove(ports, caller, opts);
   return null;
 }
 

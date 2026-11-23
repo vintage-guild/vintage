@@ -1,7 +1,9 @@
 # Signup improvements: the card, standby, late minutes, change alerts, other roles
 
-**Status:** proposed (2026-11-20). Nothing built. TJ's product calls and Bloodfen's technical
-calls are settled (PR #302 review, 2026-11-20), except row 8 (proposed) and the bot's name.
+**Status:** active (2026-11-21). Core work landed across PRs #303–#317; remaining bugs and
+follow-ups are tracked in #320, #321, #322, #323, and #324. TJ's product calls and Bloodfen's
+technical calls are settled (PR #302 review, 2026-11-20), except row 8 (proposed) and the #317
+card-copy reconciliation below.
 **Owner modules:** coordinator (card, final roster, alerts), raids (signups, seats), identity
 (characters), guild-kit (tiers), apps/api (Discord), web.
 Research: [oxm.md](../../../research/oxm.md), [raid-helper.md](../../../research/raid-helper.md).
@@ -464,17 +466,22 @@ For TJ:
 
 1. **Row 8:** keep "can also play" off the public signup post, visible to leads only? Proposed
    so nobody feels volunteered.
+2. **#317 card policy change (reconcile Decision 31 & absences Decision 7):** PR #317 moved
+   Tentative reasons off the public signup card and Roster reply (leader-only in the digest and
+   quarters) and added plain **Absent** names below Missing on the card. Confirm this is the
+   settled behavior so both Decisions tables can be updated to match `main`.
 
 Group composition and default role targets are under Later.
 
 For Bloodfen:
 
-1. **Rename the bot to Vintage?** TJ would like the bot called Vintage, with `/vintage` as its
-   slash command, instead of Random (`/random`). Open while you two talk about it; Bloodfen notes
-   the slash commands are guild-scoped, so the command name and the bot's nickname can be set per
-   server. Worth knowing: the addon already uses `/vintage` in game, and a rename touches the
-   Discord app name, the slash command, about 31 source files, 18 tests and 20 docs. The plans
-   say `/random` until it's decided.
+1. **Rename the bot to Vintage:** Decided and shipped in PR #314 (`/vintage`).
+
+Remaining post-implementation bugs & follow-ups from #303–#317: #320 (`tick.ts` `siteUrl` and
+`TICK_TRIGGERS`), #321 (`discord-absences.ts` runtime bugs and pickers), #322 (`/raids/<id>` open
+raid access and `vintage-signup-card` v2 controls), #323 (split melee/ranged and `access` in
+calendar/event forms), #324 (lock open-seat suggestions, pre-approval comp Standby, stale queue
+cleanup).
 
 ## Later
 

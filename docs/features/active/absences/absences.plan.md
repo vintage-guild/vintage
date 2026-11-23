@@ -304,7 +304,12 @@ technical calls. Rows marked "TJ, 2026-11-20" are decided; the rest are proposed
 
 ## Open questions
 
-None open.
+1. **#317 card policy change (for TJ):** PR #317 added plain **Absent** names (declined signups
+   and covered absences, no reasons) below Missing on the signup card, revising row 7 above.
+   Confirm this is the settled behavior so row 7 can be updated.
+
+Post-implementation bugs & follow-ups tracked in #321 (`discord-absences.ts` Mark absent/late,
+wrapped command responses, and Discord pickers) and #322 (home/raid signup card absence display).
 
 ## Tasks
 

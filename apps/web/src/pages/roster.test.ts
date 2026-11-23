@@ -106,6 +106,12 @@ const flush = async () => {
   }
 };
 
+/** The Role menu among the roster's filters. */
+const roleFilter = (root: ShadowRoot) =>
+  [...root.querySelectorAll('.controls label')]
+    .find((l) => l.querySelector('span')?.textContent === 'Role')!
+    .querySelector('select')!;
+
 let restore: CommandClient | undefined;
 afterEach(() => {
   if (restore) setCommandClient(restore);
@@ -166,20 +172,51 @@ describe('/roster', () => {
     expect(root.querySelector('.kpi-value')?.textContent?.trim()).toBe('3');
     expect(root.querySelector('.role-chart button[aria-label^="Ranged: 1"]')).not.toBeNull();
 
-    // Clicking the Tank bar filters by declared preferredRole and shows a removable chip.
+    // Clicking the Tank bar filters by declared preferredRole and sets the Role filter.
     const tankBar = root.querySelector<HTMLButtonElement>(
       '.role-chart button[aria-label^="Tank:"]',
     )!;
     tankBar.click();
     await flush();
     expect(root.querySelector('.count')?.textContent?.trim()).toBe('1 of 4 characters');
-    const roleChip = root.querySelector<HTMLButtonElement>('.active-filter')!;
-    expect(roleChip.textContent).toContain('Role: Tank');
+    const roleSelect = roleFilter(root);
+    expect(roleSelect.value).toBe('tank');
 
-    roleChip.click();
+    roleSelect.value = '';
+    roleSelect.dispatchEvent(new Event('change'));
     await flush();
-    expect(root.querySelector('.active-filter')).toBeNull();
     expect(root.querySelector('.count')?.textContent?.trim()).toBe('4 of 4 characters');
+    expect(tankBar.getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('filters by main raid role from the Role menu, with no class or profession cards', async () => {
+    restore = useClient().restore;
+    await import('./roster');
+    document.body.innerHTML = '<vintage-roster-page></vintage-roster-page>';
+    await flush();
+
+    const root = document.querySelector('vintage-roster-page')!.shadowRoot!;
+    expect(root.textContent).not.toContain('Raid roster by class');
+    expect(root.textContent).not.toContain('Primary professions');
+    expect(root.textContent).not.toContain('Profession 225+');
+
+    const roleSelect = roleFilter(root);
+    expect([...roleSelect.options].map((o) => o.textContent)).toEqual([
+      'All roles',
+      'Tank',
+      'Healer',
+      'Melee',
+      'Ranged',
+    ]);
+    // Aeryn's main role is Ranged; Strattaca only flexes into Melee, so isn't listed under it.
+    roleSelect.value = 'ranged';
+    roleSelect.dispatchEvent(new Event('change'));
+    await flush();
+    expect(root.querySelector('.count')?.textContent?.trim()).toBe('1 of 4 characters');
+    roleSelect.value = 'melee';
+    roleSelect.dispatchEvent(new Event('change'));
+    await flush();
+    expect(root.querySelector('.count')?.textContent?.trim()).toBe('0 of 4 characters');
   });
 
   it('lets officers edit roles on both linked and unlinked rows, and lets members edit only their own linked row', async () => {
@@ -256,24 +293,24 @@ describe('/roster', () => {
     expect(raiderRoot.querySelector('.also-field')).toBeNull();
   });
 
-  it('keeps the Class and Profession dropdown values in sync with stat-bar toggles after manual select changes', async () => {
+  it('keeps the Class dropdown in sync with the class chart after manual select changes', async () => {
     restore = useClient().restore;
     await import('./roster');
     document.body.innerHTML = '<vintage-roster-page></vintage-roster-page>';
     await flush();
 
     const root = document.querySelector('vintage-roster-page')!.shadowRoot!;
-    const [, classSelect, profSelect] = [
-      ...root.querySelectorAll<HTMLSelectElement>('.controls select'),
-    ];
+    const [, classSelect] = [...root.querySelectorAll<HTMLSelectElement>('.controls select')];
 
     classSelect!.value = 'Warrior';
     classSelect!.dispatchEvent(new Event('change'));
     await flush();
     expect(root.querySelector('.count')?.textContent?.trim()).toBe('1 of 4 characters');
 
+    root.querySelector<HTMLButtonElement>('.comp-toggle')!.click();
+    await flush();
     const paladinBar = root.querySelector<HTMLButtonElement>(
-      'button.stat[aria-label^="Paladin,"]',
+      '.class-chart button[aria-label^="Paladin:"]',
     )!;
     paladinBar.click();
     await flush();
@@ -283,18 +320,5 @@ describe('/roster', () => {
     await flush();
     expect(classSelect!.value).toBe('');
     expect(root.querySelector('.count')?.textContent?.trim()).toBe('4 of 4 characters');
-
-    profSelect!.value = 'Tailoring';
-    profSelect!.dispatchEvent(new Event('change'));
-    await flush();
-    expect(root.querySelector('.count')?.textContent?.trim()).toBe('1 of 4 characters');
-
-    const bsBar = root.querySelector<HTMLButtonElement>(
-      'button.stat[aria-label^="Blacksmithing,"]',
-    )!;
-    bsBar.click();
-    await flush();
-    expect(profSelect!.value).toBe('Blacksmithing');
-    expect(root.querySelector('.count')?.textContent?.trim()).toBe('2 of 4 characters');
   });
 });

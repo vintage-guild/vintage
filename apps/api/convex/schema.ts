@@ -17,4 +17,11 @@ export default defineSchema({
     guildId: v.string(),
     scheduledFor: v.number(),
   }).index('by_guild', ['guildId']),
+  /** Last ops-channel alert sent per failure kind, for hourly deduplication (#262). */
+  opsAlerts: defineTable({
+    guildId: v.string(),
+    key: v.string(),
+    lastSentAt: v.number(),
+    lastError: v.string(),
+  }).index('by_guild_key', ['guildId', 'key']),
 });

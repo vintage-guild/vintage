@@ -4,10 +4,12 @@
 //   npx convex run roleSync:syncAllMembers
 
 import { discordGuildDirectory } from '../src/discord-directory';
+import { runRoleSyncWithAlerts } from '../src/ops-alerts';
 import { type RoleSyncSummary, runRoleSync } from '../src/role-sync';
 import { internal } from './_generated/api';
 import { internalAction, internalQuery } from './_generated/server';
 import { GUILD_ID } from './commands';
+import { reportCronFailure } from './opsAlerts';
 import { identityStore } from './stores';
 
 /** Members identity already knows, for finding the ones who left the server. */
@@ -25,7 +27,7 @@ let warnedUnconfigured = false;
 /** Sync every member's rank and tier from Discord. A no-op until the bot is configured. */
 export const syncAllMembers = internalAction({
   args: {},
-  handler: async (ctx): Promise<RoleSyncSummary | { skipped: string }> => {
+  handler: async (ctx): Promise<RoleSyncSummary | { skipped: string } | { failed: string }> => {
     const token = process.env.DISCORD_BOT_TOKEN;
     const discordGuildId = process.env.DISCORD_GUILD_ID;
     if (!token || !discordGuildId) {
@@ -35,15 +37,20 @@ export const syncAllMembers = internalAction({
       }
       return { skipped: 'DISCORD_BOT_TOKEN or DISCORD_GUILD_ID is not set' };
     }
-    const summary = await runRoleSync({
-      directory: discordGuildDirectory({ token, guildId: discordGuildId }),
-      knownMembers: () => ctx.runQuery(internal.roleSync.knownMembers, {}),
-      apply: (members) => ctx.runMutation(internal.commands.syncMembers, { members }),
-    });
-    console.log(
-      `Role sync: ${summary.inServer} in server, ${summary.departed} departed, ` +
-        `${summary.synced} synced, ${summary.failed.length} failed`,
+    return runRoleSyncWithAlerts(
+      async () => {
+        const summary = await runRoleSync({
+          directory: discordGuildDirectory({ token, guildId: discordGuildId }),
+          knownMembers: () => ctx.runQuery(internal.roleSync.knownMembers, {}),
+          apply: (members) => ctx.runMutation(internal.commands.syncMembers, { members }),
+        });
+        console.log(
+          `Role sync: ${summary.inServer} in server, ${summary.departed} departed, ` +
+            `${summary.synced} synced, ${summary.failed.length} failed`,
+        );
+        return summary;
+      },
+      (alert, at) => reportCronFailure(ctx, alert, at),
     );
-    return summary;
   },
 });

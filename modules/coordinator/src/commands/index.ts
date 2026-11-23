@@ -32,15 +32,18 @@ export {
   snapshotForEvent,
 } from '../domain/changes';
 export { leadsChannelFor, signupChannelFor } from '../domain/plan';
+export { renderStepFailure } from '../domain/render';
 export type {
   CoordinatorDeps,
   CoordinatorDiscord,
   CoordinatorPolls,
   CoordinatorRaids,
   CoordinatorStore,
+  OpsAlertPort,
   TickAway,
   TickDrop,
   TickEvent,
+  TickFailure,
   TickMember,
   TickPorts,
   TickRecorded,

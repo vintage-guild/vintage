@@ -1,7 +1,7 @@
 # Raid scheduling: edit a raid's comp and size, schedules from Discord, a short site link
 
 **Status:** proposed (2026-11-22). Nothing built. All of Bloodfen's technical calls and all of
-TJ's product calls except row 16 (proposed) are settled (2026-11-22). **Owner modules:** raids
+TJ's product calls are settled (2026-11-22, row 16 on 2026-11-23). **Owner modules:** raids
 (commands), comp-solver (`groupDraft`), apps/api (Discord), web (quarters, short links),
 coordinator (signup post, party post, leads feed).
 
@@ -200,11 +200,11 @@ TJ decides how it behaves; Bloodfen makes the technical calls. Dated rows are de
 | 13 | `raid-update` allows every edit after the raid starts (time, notes, size, comp); only completed and cancelled raids refuse | Nights change mid-raid too | TJ, 2026-11-22 |
 | 14 | Discord forms keep melee and ranged apart, for schedules and for `/vintage event create` (#323) | Same targets as the site | TJ, 2026-11-22 |
 | 15 | Length lives as a `stringSelect` (0.5h–8h in half-hour steps, default 3h) on the preview message alongside the `Open to pugs` toggle, freeing Stage 2 for Size, Tanks, Healers, Melee, and Ranged (shared by events #323 and schedules) | Avoids a 3rd modal step and fits in 2 of Discord's 5 message action rows | Bloodfen, 2026-11-22 |
-| 16 | `/vintage schedule create` is form-only, like the event form, with no inline slash options | One way in, and the form checks every field | TJ (proposed) |
+| 16 | `/vintage schedule create` is form-only, like the event form, with no inline slash options | One way in, and the form checks every field | TJ, 2026-11-23 |
 
 ## Open questions
 
-For TJ: row 16 (confirm form-only `/vintage schedule create` — Bloodfen agrees).
+For TJ: none.
 
 For Bloodfen: none (all technical calls settled). Remaining prerequisites are tracked in #322
 (`vintage-signup-card` v2 controls), #323 (split melee/ranged + `access` in calendar & Discord

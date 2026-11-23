@@ -1274,7 +1274,7 @@ describe('JTBD: raid night', () => {
             value?: string;
             options?: { label: string; value: string; default?: boolean }[];
           };
-          components?: { label: string; custom_id: string; disabled?: boolean }[];
+          components?: { type?: number; label?: string; custom_id: string; disabled?: boolean }[];
         }[];
       };
     };
@@ -1284,7 +1284,9 @@ describe('JTBD: raid night', () => {
     const input = (r: unknown, id: string) =>
       seen(r).data.components?.find((c) => c.component?.custom_id === id)?.component;
     const buttons = (r: unknown) =>
-      (seen(r).data.components ?? []).flatMap((row) => row.components ?? []);
+      (seen(r).data.components ?? [])
+        .flatMap((row) => row.components ?? [])
+        .filter((c) => c.type === 2);
     const message = (r: unknown) => ({ id: 'preview', embeds: seen(r).data.embeds ?? [] });
     // Selects come back as lists, radio groups (`{ radio }`) as one value, boxes as text.
     type Answer = string | string[] | { radio: string };
@@ -1306,6 +1308,11 @@ describe('JTBD: raid night', () => {
       });
     const click = (customId: string, from: unknown) =>
       ui.form(rook, { data: { custom_id: customId, component_type: 2 }, message: message(from) });
+    const choose = (customId: string, values: string[], from: unknown) =>
+      ui.form(rook, {
+        data: { custom_id: customId, component_type: 3, values },
+        message: message(from),
+      });
 
     // The bare command opens the New event form, in the guild's clock.
     const form = await ui.form(rook, {
@@ -1344,7 +1351,13 @@ describe('JTBD: raid night', () => {
     });
     expect(field(first, 'Roles')).toBe('1 tank · 1 healer · 3 DPS (the usual comp)');
     expect(field(first, 'Length')).toBe('3 hours');
-    expect(buttons(first).map((b) => b.label)).toEqual(['Set up event', 'Edit details', 'Cancel']);
+    expect(field(first, 'Access')).toBe('Guild only');
+    expect(buttons(first).map((b) => b.label)).toEqual([
+      'Set up event',
+      'Edit details',
+      'Open to pugs: Off',
+      'Cancel',
+    ]);
     // Today at noon has already gone by (it's Saturday noon), so the preview says so.
     const gone = await submit('evform:new', {
       name: 'Cathedral run',
@@ -1355,23 +1368,26 @@ describe('JTBD: raid night', () => {
     });
     expect(field(gone, 'Fix before posting')).toContain('already passed');
 
-    // Stage 2 is built for a dungeon: its one size in the title, the usual 1/1/3 and 3 hours.
+    // Stage 2 is built for a dungeon: its one size in the title, tanks/healers/melee/ranged.
     const details = await click('evform:next', first);
     expect(seen(details).data.title).toBe('Dungeon details (5 players)');
     expect(seen(details).data.components?.map((c) => c.label)).toEqual([
       'Tanks',
       'Healers',
-      'DPS',
-      'Length in hours',
+      'Melee',
+      'Ranged',
     ]);
-    // Rook wants two healers, two DPS, and two hours.
-    const preview = await submit(
+    // Rook wants two healers, 1 melee, 1 ranged, then picks 2 hours and opens it to pugs on the preview.
+    const comped = await submit(
       'evform:kind:dungeon',
-      { tanks: '1', healers: '2', dps: '2', hours: '2' },
+      { tanks: '1', healers: '2', melee: '1', ranged: '1' },
       first,
     );
-    expect(field(preview, 'Roles')).toBe('1 tank · 2 healers · 2 DPS');
+    const sized = await choose('evform:hours', ['2'], comped);
+    const preview = await click('evform:access', sized);
+    expect(field(preview, 'Roles')).toBe('1 tank · 2 healers · 1 melee · 1 ranged');
     expect(field(preview, 'Length')).toBe('2 hours');
+    expect(field(preview, 'Access')).toBe('Open to pugs');
     expect(buttons(preview)[0]).toMatchObject({ label: 'Post event', disabled: false });
     // Edit details reopens stage 1 with Wednesday and 7:00 PM still picked.
     const edit = await click('evform:edit', preview);
@@ -1417,16 +1433,19 @@ describe('JTBD: raid night', () => {
     expect(seen(posted).data.content).toContain(
       'Made **Cathedral run** (Scarlet Monastery, 5-player dungeon)',
     );
-    expect(seen(posted).data.content).toContain('looking for 1 tank · 2 healers · 2 DPS');
+    expect(seen(posted).data.content).toContain(
+      'looking for 1 tank · 2 healers · 1 melee · 1 ranged',
+    );
     expect(seen(posted).data.components).toEqual([]);
     await g.host.tick();
     const raids = await g.host.ok<{ event: RaidEvent }[]>(g.aeryn, 'raid-list', {});
     const sm = raids.find((r) => r.event.name === 'Cathedral run')!.event;
     expect(sm).toMatchObject({
       kind: 'dungeon',
+      access: 'open',
       size: 5,
       durationMinutes: 120,
-      roleTargets: { tank: 1, healer: 2, dps: 2 },
+      roleTargets: { tank: 1, healer: 2, melee: 1, ranged: 1 },
     });
     const card = g.host
       .sentTo(SIGNUP_CHANNEL)

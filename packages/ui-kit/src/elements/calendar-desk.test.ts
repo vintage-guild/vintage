@@ -317,6 +317,7 @@ describe('vintage-schedule-form', () => {
         name: 'Raid night',
         instance: 'Molten Core',
         kind: 'raid',
+        access: 'guild',
         size: 40,
         roleTargets: null,
         weekdays: ['tue', 'thu'],
@@ -368,14 +369,15 @@ describe('vintage-schedule-form', () => {
     });
   });
 
-  it('pre-fills the comp from the kind and size, and follows them until a count is typed', async () => {
+  it('pre-fills tanks and healers, keeps melee and ranged blank until set, and follows size', async () => {
     const { f, submitted } = await form(null);
-    expect([f.tanks, f.healers, f.dps]).toEqual([4, 10, 26]);
+    expect([f.tanks, f.healers, f.melee, f.ranged]).toEqual([4, 10, null, null]);
     f.setKind('dungeon');
     expect(f.size).toBe(5);
-    expect([f.tanks, f.healers, f.dps]).toEqual([1, 1, 3]);
+    expect([f.tanks, f.healers, f.melee, f.ranged]).toEqual([1, 1, null, null]);
     await settle();
-    expect(f.shadowRoot?.querySelector<HTMLInputElement>('#dps')?.value).toBe('3');
+    expect(f.shadowRoot?.querySelector<HTMLInputElement>('#melee')?.value).toBe('');
+    expect(f.shadowRoot?.querySelector<HTMLInputElement>('#ranged')?.value).toBe('');
     expect(text(f.shadowRoot?.querySelector('.counts-note') as Element)).toContain(
       '5-player dungeon',
     );
@@ -386,25 +388,33 @@ describe('vintage-schedule-form', () => {
     // The usual comp goes out as null, so it keeps following the kind's default.
     expect(submitted).toHaveBeenLastCalledWith({
       command: 'schedule-create',
-      input: expect.objectContaining({ kind: 'dungeon', size: 5, roleTargets: null }),
+      input: expect.objectContaining({
+        kind: 'dungeon',
+        access: 'guild',
+        size: 5,
+        roleTargets: null,
+      }),
     });
 
     f.setKind('battleground');
     f.setSize(15);
-    expect([f.tanks, f.healers, f.dps]).toEqual([0, 3, 12]);
+    expect([f.tanks, f.healers, f.melee, f.ranged]).toEqual([0, 3, null, null]);
     f.setCount('healers', 4);
+    f.setSplitCount('melee', 6);
+    f.setSplitCount('ranged', 6);
     f.setSize(10);
-    expect([f.tanks, f.healers, f.dps]).toEqual([0, 4, 12]);
+    expect([f.tanks, f.healers, f.melee, f.ranged]).toEqual([0, 4, 6, 6]);
     submit(f);
     expect(f.problem).toBe('The counts add up to more than 10 players.');
-    f.setCount('dps', 6);
+    f.setSplitCount('melee', 3);
+    f.setSplitCount('ranged', 3);
     submit(f);
     expect(submitted).toHaveBeenLastCalledWith({
       command: 'schedule-create',
       input: expect.objectContaining({
         kind: 'battleground',
         size: 10,
-        roleTargets: { tank: 0, healer: 4, dps: 6 },
+        roleTargets: { tank: 0, healer: 4, melee: 3, ranged: 3 },
       }),
     });
   });
@@ -430,7 +440,7 @@ describe('vintage-schedule-form', () => {
     expect(submitted).not.toHaveBeenCalled();
   });
 
-  it('edits a schedule’s kind and its own counts', async () => {
+  it('edits a schedule’s kind, split/legacy counts, and Open to pugs access', async () => {
     const { f, submitted } = await form({
       ...SCHEDULE,
       kind: 'dungeon',
@@ -438,14 +448,40 @@ describe('vintage-schedule-form', () => {
       roleTargets: { tank: 1, healer: 2, dps: 2 },
     });
     expect(f.kind).toBe('dungeon');
-    expect([f.tanks, f.healers, f.dps]).toEqual([1, 2, 2]);
+    // Legacy DPS-only targets keep melee and ranged blank until the officer sets them.
+    expect([f.tanks, f.healers, f.melee, f.ranged]).toEqual([1, 2, null, null]);
+    // Saving with only access changed preserves the legacy roleTargets without sending it.
+    f.setAccess(true);
+    submit(f);
+    expect(submitted).toHaveBeenLastCalledWith({
+      command: 'schedule-update',
+      input: { scheduleId: 's1', access: 'open' },
+    });
+    f.setAccess(false);
     f.setCount('healers', 1);
-    f.setCount('dps', 3);
     submit(f);
     // Back to the dungeon's usual 1/1/3: stored as null, the kind's default.
-    expect(submitted).toHaveBeenCalledWith({
+    expect(submitted).toHaveBeenLastCalledWith({
       command: 'schedule-update',
       input: { scheduleId: 's1', roleTargets: null },
+    });
+
+    // Loading a schedule with split melee/ranged targets pre-fills both boxes.
+    const split = await form({
+      ...SCHEDULE,
+      access: 'open',
+      kind: 'raid',
+      size: 20,
+      roleTargets: { tank: 2, healer: 5, melee: 6, ranged: 7 },
+    });
+    expect(split.f.access).toBe('open');
+    expect([split.f.tanks, split.f.healers, split.f.melee, split.f.ranged]).toEqual([2, 5, 6, 7]);
+    split.f.setSplitCount('melee', 7);
+    split.f.setSplitCount('ranged', 6);
+    submit(split.f);
+    expect(split.submitted).toHaveBeenLastCalledWith({
+      command: 'schedule-update',
+      input: { scheduleId: 's1', roleTargets: { tank: 2, healer: 5, melee: 7, ranged: 6 } },
     });
   });
 });
@@ -469,7 +505,7 @@ describe('vintage-raid-form', () => {
     expect(f.problem).toContain('already passed');
   });
 
-  it('adds a one-off dungeon with its kind and counts', async () => {
+  it('adds a one-off dungeon with its kind, split counts, and Open to pugs', async () => {
     const el = await desk();
     el.openRaid(null);
     await settle();
@@ -479,7 +515,9 @@ describe('vintage-raid-form', () => {
     f.setKind('dungeon');
     f.setCount('tanks', 1);
     f.setCount('healers', 1);
-    f.setCount('dps', 2);
+    f.setSplitCount('melee', 1);
+    f.setSplitCount('ranged', 1);
+    f.setAccess(true);
     Object.assign(f, {
       name: 'Cathedral run',
       instance: 'Scarlet Monastery',
@@ -493,8 +531,9 @@ describe('vintage-raid-form', () => {
       command: 'raid-create',
       input: expect.objectContaining({
         kind: 'dungeon',
+        access: 'open',
         size: 5,
-        roleTargets: { tank: 1, healer: 1, dps: 2 },
+        roleTargets: { tank: 1, healer: 1, melee: 1, ranged: 1 },
       }),
     });
   });

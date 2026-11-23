@@ -62,6 +62,7 @@ export {
 export {
   CALENDAR_SIZES,
   type CalendarRaid,
+  type CalendarRaidAccess,
   type CalendarRaidSize,
   type CalendarRaidStatus,
   type CalendarSchedule,

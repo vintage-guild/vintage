@@ -118,3 +118,8 @@ export function occurrences(recurrence: Recurrence, from: number, to: number): n
   }
   return out;
 }
+
+/** Soonest occurrence of a weekly recurrence at or after `from` (epoch ms), or null if invalid. */
+export function nextOccurrence(recurrence: Recurrence, from: number): number | null {
+  return occurrences(recurrence, from, from + 9 * DAY_MS)[0] ?? null;
+}

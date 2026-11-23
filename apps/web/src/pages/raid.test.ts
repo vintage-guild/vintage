@@ -123,6 +123,113 @@ describe('/raids/<id>', () => {
     expect(page.shadowRoot?.querySelector('h1')?.textContent).toBe('Raid not found');
     expect(page.shadowRoot?.querySelector('vintage-raid-roster')).toBeNull();
   });
+
+  it('updates the roster, counts, and comp live when another member answers or an officer locks (#17)', async () => {
+    const { page, host } = await open('Bloodfen', 'Deadmines, two groups');
+    const beforeCount = roster(page).signups.length;
+    const eventId = page.event?.id ?? '';
+
+    // Another member signs up on the server without Bloodfen touching the page.
+    const aeryn = await host.member('Aeryn');
+    if (!aeryn) throw new Error('fixtures: Aeryn is missing');
+    const aerynCaller = host.callerFor(aeryn);
+    const aerynChars = await host.run<{ id: string; name: string }[]>(
+      aerynCaller,
+      'character-list',
+    );
+    const aerynChar = aerynChars.data?.[0];
+    if (!aerynChar) throw new Error('fixtures: Aeryn has no character');
+    const signed = await host.run(aerynCaller, 'signup-set', {
+      eventId,
+      characterId: aerynChar.id,
+      status: 'tentative',
+      note: 'might be late',
+    });
+    expect(signed.success).toBe(true);
+
+    await until(() =>
+      roster(page).signups.some(
+        (s) => s.characterName === aerynChar.name && s.status === 'tentative',
+      ),
+    );
+    expect(roster(page).signups.length).toBeGreaterThanOrEqual(beforeCount);
+    expect(roster(page).signups.find((s) => s.characterName === aerynChar.name)?.status).toBe(
+      'tentative',
+    );
+
+    // Officer locks the roster: the card's lock line and roster status update live.
+    const locked = await host.run(aerynCaller, 'roster-lock', { eventId });
+    expect(locked.success).toBe(true);
+    await until(() => page.event?.status === 'locked');
+    expect(card(page)?.lockLabel).toBe('locked · roster posted');
+    expect(roster(page).raid?.status).toBe('locked');
+  });
+
+  it('unsubscribes every live watcher when the page leaves the DOM (#17)', async () => {
+    const unsubscribes: ReturnType<typeof vi.fn>[] = [];
+    restore = setCommandClient({
+      read: vi.fn() as never,
+      run: vi.fn() as never,
+      watch: vi.fn((name, _input, onUpdate) => {
+        const stop = vi.fn();
+        unsubscribes.push(stop);
+        if (name === 'raid-get') {
+          onUpdate({
+            success: true,
+            data: {
+              event: {
+                id: 'r1',
+                name: 'Barrow Deeps',
+                instance: 'Barrow Deeps',
+                kind: 'raid',
+                access: 'guild',
+                size: 10,
+                status: 'open',
+                startsAt: Date.parse('2026-12-09T01:00:00Z'),
+              },
+              counts: { accepted: 1, late: 0, tentative: 0, bench: 0, declined: 0 },
+              mine: null,
+            },
+          });
+        } else if (name === 'signup-list' || name === 'character-list') {
+          onUpdate({ success: true, data: [] });
+        } else {
+          onUpdate({ success: false, error: { code: 'COMMAND_NOT_FOUND', message: 'no' } });
+        }
+        return stop;
+      }) as never,
+    });
+    setSession({ memberId: 'm1', displayName: 'Bloodfen', tier: 'raider', rank: 'raider' });
+    history.replaceState(null, '', '/raids/r1');
+    await import('./raid');
+    document.body.innerHTML = '<vintage-raid-page></vintage-raid-page>';
+    const page = document.querySelector('vintage-raid-page') as Page;
+    await until(() => page.loaded);
+    expect(unsubscribes.length).toBeGreaterThanOrEqual(4);
+    for (const stop of unsubscribes) expect(stop).not.toHaveBeenCalled();
+
+    page.remove();
+    for (const stop of unsubscribes) expect(stop).toHaveBeenCalledOnce();
+  });
+
+  it('surfaces a live subscription error cleanly instead of hanging in loading (#17)', async () => {
+    restore = setCommandClient({
+      read: vi.fn() as never,
+      run: vi.fn() as never,
+      watch: vi.fn((name, _input, _onUpdate, onError) => {
+        if (name === 'raid-get') onError?.(new Error('socket closed'));
+        return () => {};
+      }) as never,
+    });
+    setSession({ memberId: 'm1', displayName: 'Bloodfen', tier: 'raider', rank: 'raider' });
+    history.replaceState(null, '', '/raids/r1');
+    await import('./raid');
+    document.body.innerHTML = '<vintage-raid-page></vintage-raid-page>';
+    const page = document.querySelector('vintage-raid-page') as Page;
+    await until(() => page.loaded);
+    expect(page.missing).toBe(false);
+    expect(page.error).toContain('socket closed');
+  });
 });
 
 describe('/raids/<id> without fixtures', () => {

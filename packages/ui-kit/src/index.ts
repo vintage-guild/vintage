@@ -4,7 +4,10 @@ export {
   createStubClient,
   getCommandClient,
   NOT_CONNECTED,
+  type RunOptions,
   setCommandClient,
+  type Unsubscribe,
+  watchCommand,
 } from './client';
 export {
   type AbsenceRow,

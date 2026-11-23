@@ -152,4 +152,19 @@ describe('vintage-raid-roster', () => {
     await settle();
     expect(el.countRows[0]).toEqual(['going', '4']);
   });
+
+  it('updates counts and placements when raid arrives after counts or transitions live to locked', async () => {
+    const el = await mount<VintageRaidRoster>('<vintage-raid-roster></vintage-raid-roster>');
+    el.counts = { accepted: 3, late: 1, tentative: 0, bench: 0, declined: 0 };
+    el.signups = SIGNUPS;
+    await settle();
+    expect(texts(el, '[part="counts"] > div')[0]).toBe('4 going');
+    el.raid = { id: 'e1', size: 10, status: 'open' };
+    await settle();
+    expect(texts(el, '[part="counts"] > div')[0]).toBe('4/10 going');
+    el.raid = { id: 'e1', size: 10, status: 'locked' };
+    await settle();
+    expect(rows(el, 'signups')).toContain('Stridulent Protection going group 1');
+    expect(rows(el, 'signups')).toContain('Brannoch Fury going benched');
+  });
 });

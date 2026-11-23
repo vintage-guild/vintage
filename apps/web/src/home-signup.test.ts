@@ -176,4 +176,56 @@ describe('the home signup card on raid day', () => {
       page.remove();
     }
   });
+
+  it('updates upcoming raids and next-raid counts live, and unsubscribes on remove (#17)', async () => {
+    const watchers = new Map<string, (r: CommandResult) => void>();
+    const unsubs: (() => void)[] = [];
+    let unsubCount = 0;
+    restore = setCommandClient({
+      read: (async (name: string) => reader(name)) as CommandClient['read'],
+      run: async () => ({ success: true }),
+      watch: ((name: string, _input: unknown, onUpdate: (r: CommandResult) => void) => {
+        watchers.set(name, onUpdate);
+        onUpdate(reader(name));
+        const stop = () => {
+          unsubCount++;
+        };
+        unsubs.push(stop);
+        return stop;
+      }) as CommandClient['watch'],
+    });
+    setSession({ memberId: 'm1', tier: 'raider', rank: 'raider' } as never);
+    const page = document.createElement('vintage-home-page') as HomePage & {
+      nextCounts: { accepted: number; dps: number };
+    };
+    document.body.append(page);
+    try {
+      await new Promise((r) => setTimeout(r, 20));
+      expect(page.nextCounts.accepted).toBe(2);
+      expect(page.nextCounts.dps).toBe(0);
+
+      // Another raider signs up as melee DPS: live updates push through without calling loadRaids().
+      watchers.get('raid-list')?.({
+        success: true,
+        data: [
+          {
+            event,
+            counts: { accepted: 3, late: 0, tentative: 0, bench: 0, declined: 0 },
+            myStatus: 'accepted',
+          },
+        ],
+      });
+      watchers.get('signup-list')?.({
+        success: true,
+        data: [signup('m1', 'tank'), signup('m2', 'healer'), signup('m3', 'melee')],
+      });
+      await new Promise((r) => setTimeout(r, 20));
+      expect(page.nextCounts.accepted).toBe(3);
+      expect(page.nextCounts.dps).toBe(1);
+    } finally {
+      page.remove();
+    }
+    expect(unsubCount).toBe(unsubs.length);
+    expect(unsubs.length).toBeGreaterThanOrEqual(2);
+  });
 });

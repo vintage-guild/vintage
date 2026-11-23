@@ -19,6 +19,10 @@ signOutButton.onclick = () => vintage.signOut();
 
 await vintage.commands.run('member-prefs-set', { timezone: 'Europe/London' });
 await vintage.refresh(); // re-reads member-me; listeners hear only if something changed
+
+// Live Convex query subscription over commands:read (updates when server data changes)
+const stop = vintage.commands.watch?.('signup-list', { eventId }, (res) => render(res));
+stop?.();
 ```
 
 Before `ready`, the session is null even for a signed-in member, so mount after `ready`. After

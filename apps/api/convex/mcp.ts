@@ -10,8 +10,14 @@ import {
   type StoredClient,
 } from '../src/mcp-caller';
 import { callFor, type McpCall, type McpTools, toolsFor } from '../src/mcp-gateway';
+import { checkMcpRateLimit, rateLimitSubject } from '../src/mcp-rate-limit';
 import { components } from './_generated/api';
-import { internalMutation, internalQuery, type QueryCtx } from './_generated/server';
+import {
+  internalMutation,
+  internalQuery,
+  type MutationCtx,
+  type QueryCtx,
+} from './_generated/server';
 import { discordIdOfUser } from './auth';
 import { GUILD_ID, registry, runCommandAs } from './commands';
 import { identityStore } from './stores';
@@ -46,9 +52,32 @@ export const tools = internalQuery({
     toolsFor(await resolve(ctx, token), (c) => toManifest(registry().visibleTo(c)).commands),
 });
 
+/** Consume one call from the caller's rolling window, or return RATE_LIMITED (#175). */
+async function enforceRateLimit(
+  ctx: MutationCtx,
+  caller: { guildId: string; memberId?: string; discordId?: string },
+) {
+  const subject = rateLimitSubject(caller);
+  const existing = await ctx.db
+    .query('mcpRateLimits')
+    .withIndex('by_guild_subject', (q) => q.eq('guildId', caller.guildId).eq('subject', subject))
+    .unique();
+  const check = checkMcpRateLimit(
+    existing ? { windowStart: existing.windowStart, count: existing.count } : null,
+    Date.now(),
+  );
+  if (!check.allowed) return check.result;
+  if (existing) {
+    await ctx.db.patch(existing._id, check.next);
+  } else {
+    await ctx.db.insert('mcpRateLimits', { guildId: caller.guildId, subject, ...check.next });
+  }
+  return null;
+}
+
 /**
- * One command as the token's member. The token is checked in the same transaction that runs the
- * command, so a revoked token can't slip between the check and the run.
+ * One command as the token's member. The token and per-member rate limit are checked in the same
+ * transaction that runs the command, so a revoked token or over-limit caller can't slip through.
  */
 export const call = internalMutation({
   args: {
@@ -62,5 +91,6 @@ export const call = internalMutation({
       await resolve(ctx, token),
       { name, input, ...(confirmToken ? { confirmToken } : {}) },
       (c, r) => runCommandAs(ctx, c, r.name, r.input, r.confirmToken),
+      (c) => enforceRateLimit(ctx, c),
     ),
 });

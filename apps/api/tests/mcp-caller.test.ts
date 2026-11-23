@@ -87,10 +87,12 @@ describe('mcpCaller', () => {
     expect('caller' in result && result.caller.memberId).toBeFalsy();
   });
 
-  it('refuses missing, unknown, and expired tokens', async () => {
+  it('refuses missing, unknown, revoked, and expired tokens', async () => {
     const p = await ports('tok', {});
     expect(await mcpCaller(TEST_GUILD_ID, undefined, p)).toEqual({ refused: 'missing' });
     expect(await mcpCaller(TEST_GUILD_ID, 'other', p)).toEqual({ refused: 'unknown' });
+    const revoked = await ports('tok', { revoked: NOW - 1000 });
+    expect(await mcpCaller(TEST_GUILD_ID, 'tok', revoked)).toEqual({ refused: 'unknown' });
     const expired = await ports('tok', { expiresAt: NOW });
     expect(await mcpCaller(TEST_GUILD_ID, 'tok', expired)).toEqual({ refused: 'expired' });
     // The schema makes expiresAt optional; a row without one is not valid forever.

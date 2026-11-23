@@ -47,13 +47,16 @@ export function toolsFor(
   return { caller: viewOf(resolved.caller), tools: visibleManifest(resolved.caller) };
 }
 
-/** Run one command for a resolved token, or refuse the token. */
+/** Run one command for a resolved token, or refuse the token (or an over-limit caller). */
 export async function callFor(
   resolved: McpCallerResult,
   request: McpCallRequest,
   execute: (caller: Caller, request: McpCallRequest) => Promise<CommandResult<unknown>>,
+  checkRateLimit?: (caller: Caller) => Promise<CommandResult<unknown> | null>,
 ): Promise<McpCall> {
   if ('refused' in resolved) return resolved;
+  const limited = await checkRateLimit?.(resolved.caller);
+  if (limited) return { result: limited };
   return { result: await execute(resolved.caller, request) };
 }
 

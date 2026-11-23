@@ -175,22 +175,47 @@ export function callbackGuard(o: OAuthServerOptions): BetterAuthPlugin {
   };
 }
 
+/**
+ * Keep the two `oauthClient` columns dropped by @better-auth/oauth-provider 1.7 optional in
+ * Convex's schema so pre-1.7 rows already in production keep validating on deploy.
+ */
+function legacyOAuthClientColumns(): BetterAuthPlugin {
+  return {
+    id: 'vintage-legacy-oauth-client-columns',
+    schema: {
+      oauthClient: {
+        fields: {
+          public: { type: 'boolean', required: false },
+          type: { type: 'string', required: false },
+        },
+      },
+    },
+  };
+}
+
 /** The plugins, in order. They go before the cross-domain plugin in Better Auth's options. */
 export function oauthPlugins(o: OAuthServerOptions) {
   return [
     oauthProvider({
       loginPage: `${o.siteUrl}/oauth/sign-in`,
       consentPage: `${o.siteUrl}/oauth/consent`,
-      validAudiences: [o.mcpUrl],
+      resources: [o.mcpUrl],
+      clientRegistrationDefaultResources: [o.mcpUrl],
+      // Only one resource exists (/mcp); keep pre-1.7 registered clients working without a backfill.
+      enforcePerClientResources: false,
       scopes: [MCP_SCOPE, 'offline_access'],
       clientRegistrationDefaultScopes: [MCP_SCOPE, 'offline_access'],
       grantTypes: ['authorization_code', 'refresh_token'],
       allowDynamicClientRegistration: true,
       allowUnauthenticatedClientRegistration: true,
+      // Native MCP clients (Claude Code, Codex, Cursor) often omit application_type on DCR while
+      // registering loopback or custom-scheme callbacks.
+      clientRegistrationDefaultApplicationType: 'infer',
       // Opaque tokens: the convex plugin owns JWT signing, and the provider can't share it.
       disableJwtPlugin: true,
       storeTokens: { hash: hashToken },
     }),
+    legacyOAuthClientColumns(),
     callbackGuard(o),
   ] as const;
 }

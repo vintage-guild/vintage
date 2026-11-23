@@ -231,9 +231,72 @@ export const insightsSend = command({
   },
 });
 
+export const runDelete = command({
+  name: 'run-delete',
+  description:
+    'Remove an imported run and its findings, freeing its run_key to be imported again. Refuses runs whose DMs were already sent unless allowSent is true (sent Discord DMs are not unsent). Shows a preview first; confirm to delete. Officers only.',
+  tier: 'officer',
+  destructive: true,
+  input: z.object({
+    runId: z.string().min(1),
+    allowSent: z.boolean().default(false),
+  }),
+  handler: async ({ runId, allowSent }, { guildId, deps, dryRun }) => {
+    const run = await deps.insights.getRun(guildId, runId);
+    if (!run) return notFound(runId);
+    const alreadySent = run.sentAt !== null;
+    if (alreadySent && !allowSent) {
+      return error('ALREADY_SENT', 'This run’s notes were already sent', {
+        suggestion:
+          'Pass allowSent: true to remove the run and its findings anyway (already-sent Discord DMs are not unsent, and re-importing this run_key allows sending again)',
+        retryable: false,
+      });
+    }
+    const findings = await deps.insights.listFindings(guildId, run.id);
+    const plural = findings.length === 1 ? 'finding' : 'findings';
+    if (dryRun) {
+      return success(
+        {
+          willDelete: {
+            id: run.id,
+            zoneName: run.zoneName,
+            runKey: run.runKey,
+            startedAt: run.startedAt,
+            sentAt: run.sentAt,
+          },
+          findings: findings.length,
+          alreadySent,
+          warning: alreadySent
+            ? 'This run’s DMs were already sent. Removing it clears its findings and frees its run_key to be imported and sent again, but does not unsend Discord DMs.'
+            : null,
+        },
+        {
+          reasoning:
+            `Removes ${run.zoneName} and ${findings.length} ${plural}` +
+            (alreadySent ? ' (DMs were already sent)' : ''),
+        },
+      );
+    }
+    const removed = await deps.insights.deleteRun(guildId, run.id);
+    if (!removed) return notFound(runId);
+    const deletedPlural = removed.deletedFindings === 1 ? 'finding' : 'findings';
+    return success(
+      {
+        deleted: removed.run,
+        deletedFindings: removed.deletedFindings,
+        alreadySent: removed.run.sentAt !== null,
+      },
+      {
+        reasoning: `Removed ${removed.run.zoneName} and ${removed.deletedFindings} ${deletedPlural}`,
+      },
+    );
+  },
+});
+
 /** Every insights command, registered by apps/api through guild-kit. */
 export const insightsCommands = [
   runImport,
+  runDelete,
   insightsRuns,
   insightsGet,
   insightsOptInSet,

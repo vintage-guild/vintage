@@ -402,3 +402,12 @@ export function renderFailure(tick: TickEvent, rule: string, error: string): Mes
     allowed_mentions: { parse: [] },
   };
 }
+
+/** Ops-channel alert for a coordinator step that isn't tied to a TickEvent (e.g. materialize, raid-night). */
+export function renderStepFailure(step: string, error: string, subject?: string): MessageData {
+  const target = subject ? ` for ${subject}` : '';
+  return {
+    content: `Coordinator could not do \`${step}\`${target}: ${error}`.slice(0, MAX_CONTENT),
+    allowed_mentions: { parse: [] },
+  };
+}

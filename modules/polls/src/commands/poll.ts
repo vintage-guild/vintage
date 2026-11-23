@@ -8,7 +8,7 @@ import {
   RESULTS_VISIBILITY,
 } from '../contract';
 import { tally } from '../domain/tally';
-import { command } from '../store';
+import { command, type PollsDeps } from '../store';
 import {
   actorOf,
   canManage,
@@ -83,14 +83,58 @@ function checkMaxChoices(method: PollMethod, maxChoices: number | null, optionCo
   return null;
 }
 
+/** Discord channel snowflake: 17–20 digits. */
+const channelIdSchema = z.string().regex(/^\d{17,20}$/, 'a Discord channel id: 17–20 digits');
+
+/**
+ * Keep leader and officer polls out of public Discord channels (#82):
+ * - `officer` polls require the configured officer channel (`opsChannelId`); `#leads` is still
+ *   readable by raid leaders, who cannot see officer polls through commands.
+ * - `leader` polls require either the configured leads channel (`leadsChannelId`) or officer
+ *   channel (`opsChannelId`).
+ * Web-only polls (no `channelId`) are already hidden by tier in every read command.
+ */
+async function checkChannel(
+  deps: PollsDeps,
+  guildId: string,
+  eligibleTier: Tier,
+  channelId: string | null,
+) {
+  if (!channelId || !tierAllows(eligibleTier, 'leader')) return null;
+  const { opsChannelId, leadsChannelId } = await deps.pollChannels.getRestrictedChannels(guildId);
+  const rawAllowed = eligibleTier === 'officer' ? [opsChannelId] : [leadsChannelId, opsChannelId];
+  const allowed = [...new Set(rawAllowed.filter((id): id is string => id !== null))];
+  if (allowed.includes(channelId)) return null;
+
+  const isOfficerOnly = eligibleTier === 'officer';
+  const audience = isOfficerOnly ? 'Officer' : 'Raid-leader';
+  if (allowed.length === 0) {
+    const kind = isOfficerOnly ? 'officer' : 'leads or officer';
+    const setting = isOfficerOnly ? 'opsChannelId' : 'opsChannelId or leadsChannelId';
+    return invalid(
+      'CHANNEL_NOT_ALLOWED',
+      `${audience} polls can only be posted in a configured ${kind} channel, and none is configured`,
+      `Configure ${setting} with coordinator-config-set, or create the poll on the website`,
+    );
+  }
+  const where = allowed.map((id) => `<#${id}>`).join(' or ');
+  return invalid(
+    'CHANNEL_NOT_ALLOWED',
+    `${audience} polls can only be posted in ${where}`,
+    `Run this in ${where}, or create the poll on the website`,
+  );
+}
+
 export const pollCreate = command({
   name: 'poll-create',
   description:
     'Create a poll: a question, 2–25 options, a method (single, multi, or ranked), who may vote ' +
-    '(eligibleTier, raider by default), and optional anonymity, hidden results, quorum, and ' +
-    'close time. Opens at once unless open is false or opensAt is later. Raiders create polls ' +
-    'for raiders and up; reaching members or recruits takes a raid leader, and nobody can ' +
-    'target a tier above their own.',
+    '(eligibleTier, raider by default), and optional anonymity, hidden results, quorum, ' +
+    'close time, and target Discord channelId. Opens at once unless open is false or opensAt is ' +
+    'later. Raiders create polls for raiders and up; reaching members or recruits takes a raid ' +
+    'leader, and nobody can target a tier above their own. When channelId is given, officer ' +
+    'polls must target the configured officer channel and leader polls must target the ' +
+    'configured leads or officer channel.',
   tier: 'raider',
   mutation: true,
   input: z.object({
@@ -107,6 +151,7 @@ export const pollCreate = command({
     closesAt: instantSchema.nullable().optional(),
     tags: tagsSchema.default([]),
     open: z.boolean().default(true),
+    channelId: channelIdSchema.nullable().optional(),
   }),
   handler: async (input, { caller, guildId, deps, now }) => {
     if (!caller.memberId && caller.surface !== 'system') return notSignedIn();
@@ -114,10 +159,12 @@ export const pollCreate = command({
     const opensAt = input.opensAt ?? null;
     const closesAt = input.closesAt ?? null;
     const maxChoices = input.maxChoices ?? null;
+    const channelId = input.channelId ?? null;
     const problem =
       checkAudience(caller, input.eligibleTier) ??
       checkMaxChoices(input.method, maxChoices, input.options.length) ??
-      checkTimes(opensAt, closesAt, at);
+      checkTimes(opensAt, closesAt, at) ??
+      (await checkChannel(deps, guildId, input.eligibleTier, channelId));
     if (problem) return problem;
 
     const draft = await deps.polls.insertPoll({

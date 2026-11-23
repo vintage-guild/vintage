@@ -86,6 +86,7 @@ export async function commandTiers(): Promise<Record<string, Tier>> {
   const lists = await Promise.all([
     import('@vintage/identity/commands').then((m) => m.identityCommands),
     import('@vintage/raids/commands').then((m) => m.raidsCommands),
+    import('@vintage/loot/commands').then((m) => m.lootCommands),
     import('@vintage/coordinator/commands').then((m) => m.coordinatorCommands),
     import('@vintage/polls/commands').then((m) => m.pollsCommands),
     import('@vintage/progress/commands').then((m) => m.progressCommands),

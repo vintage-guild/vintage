@@ -1,6 +1,6 @@
 import type { Member } from '@vintage/identity/contract';
 import type { Poll, PollPost, PollsEvents, Vote } from './contract';
-import type { PollsDeps, PollsEventSink, PollsMembers, PollsStore } from './store';
+import type { PollsChannels, PollsDeps, PollsEventSink, PollsMembers, PollsStore } from './store';
 
 /** In-memory PollsStore for tests and local agents. Same behavior contract as the Convex component. */
 export function createMemoryPollsStore(): PollsStore & {
@@ -123,13 +123,37 @@ export function createRecordingEventSink(): PollsEventSink & { emitted: EmittedE
   };
 }
 
-export function createMemoryPollsDeps(members: Member[] = []): PollsDeps & {
+export interface RestrictedChannels {
+  opsChannelId: string | null;
+  leadsChannelId: string | null;
+}
+
+/** Configured officer and leads channels for polls tests. */
+export function createMemoryPollsChannels(
+  channels: Partial<RestrictedChannels> = {},
+): PollsChannels & { channels: RestrictedChannels } {
+  const state: RestrictedChannels = {
+    opsChannelId: channels.opsChannelId ?? null,
+    leadsChannelId: channels.leadsChannelId ?? null,
+  };
+  return {
+    channels: state,
+    getRestrictedChannels: async () => ({ ...state }),
+  };
+}
+
+export function createMemoryPollsDeps(
+  members: Member[] = [],
+  channels: Partial<RestrictedChannels> = {},
+): PollsDeps & {
   polls: ReturnType<typeof createMemoryPollsStore>;
   pollEvents: ReturnType<typeof createRecordingEventSink>;
+  pollChannels: ReturnType<typeof createMemoryPollsChannels>;
 } {
   return {
     polls: createMemoryPollsStore(),
     pollMembers: createMemoryPollsMembers(members),
     pollEvents: createRecordingEventSink(),
+    pollChannels: createMemoryPollsChannels(channels),
   };
 }

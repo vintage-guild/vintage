@@ -119,6 +119,15 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         "internal",
         {
           config: {
+            dmRanks?: Array<
+              | "officer"
+              | "raid-leader"
+              | "raider"
+              | "flex-raider"
+              | "recruit"
+              | "member"
+              | "friend"
+            > | null;
             dmReminders: boolean;
             expectedRanks: Array<
               | "officer"
@@ -133,6 +142,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             openSignupChannelId?: string | null;
             opsChannelId: string | null;
             paused: boolean;
+            reminderRoleIds?: Array<string>;
             serverEvents?: boolean;
             signupChannelId: string | null;
             weeklyAssessment?: boolean;

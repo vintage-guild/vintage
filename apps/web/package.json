@@ -24,6 +24,7 @@
     "@vintage/design-tokens": "workspace:*",
     "@vintage/guild-kit": "workspace:*",
     "@vintage/identity": "workspace:*",
+    "@vintage/loot": "workspace:*",
     "@vintage/polls": "workspace:*",
     "@vintage/progress": "workspace:*",
     "@vintage/raids": "workspace:*",
@@ -37,6 +38,6 @@
     "@vintage/config": "workspace:*",
     "happy-dom": "^21.0.4",
     "typescript": "catalog:",
-    "vite": "^8.3.4"
+    "vite": "^8.3.8"
   }
 }

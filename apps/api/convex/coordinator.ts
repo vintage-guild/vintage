@@ -2,14 +2,21 @@
 // `coordinator-run`. Planning and idempotency live in @vintage/coordinator (runTick); this file
 // adapts its ports to Convex and the Discord REST API.
 //   npx convex run coordinator:tick
-import { type CoordinatorDiscord, runTick, type TickReport } from '@vintage/coordinator/commands';
+import {
+  type CoordinatorDiscord,
+  renderStepFailure,
+  runTick,
+  type TickReport,
+} from '@vintage/coordinator/commands';
 import { createDiscordRest } from '@vintage/discord-kit';
 import { STARTER_RECRUITING } from '@vintage/site/contract';
 import { v } from 'convex/values';
+import { describeError } from '../src/ops-alerts';
 import { internal } from './_generated/api';
 import { internalAction, internalMutation, internalQuery } from './_generated/server';
 import { GUILD_ID, runSystemCommand } from './commands';
 import { decisionsFor } from './decisions';
+import { reportCronFailure } from './opsAlerts';
 import { coordinatorStore, pollsStore, raidsStore, siteStore, tickSource } from './stores';
 import { writeWording } from './wording';
 
@@ -228,94 +235,136 @@ export const tick = internalAction({
   handler: async (ctx): Promise<TickReport> => {
     const token = process.env.DISCORD_BOT_TOKEN;
     if (!token) return { skipped: 'DISCORD_BOT_TOKEN is not set', outcomes: [] };
-    const report = await runTick(
-      {
-        store: {
-          getConfig: (guildId) => ctx.runQuery(internal.coordinator.config, { guildId }),
-          setConfig: () => Promise.reject(new Error('a tick never changes config')),
-          listActions: () => Promise.reject(new Error('a tick reads actions through state')),
-          claimAction: (key, now, staleMs) =>
-            ctx.runMutation(internal.coordinator.claim, { ...key, now, staleMs }),
-          completeAction: (guildId, actionId, result, now) =>
-            ctx.runMutation(internal.coordinator.complete, {
-              guildId,
-              actionId,
-              status: result.status,
-              discordMessageId: result.discordMessageId ?? null,
-              detail: result.detail ?? null,
-              renderHash: result.renderHash ?? null,
-              now,
-            }),
-          setRenderHash: async (guildId, actionId, renderHash) => {
-            await ctx.runMutation(internal.coordinator.setRenderHash, {
-              guildId,
-              actionId,
-              renderHash,
-            });
+    const now = Date.now();
+    try {
+      const report = await runTick(
+        {
+          store: {
+            getConfig: (guildId) => ctx.runQuery(internal.coordinator.config, { guildId }),
+            setConfig: () => Promise.reject(new Error('a tick never changes config')),
+            listActions: () => Promise.reject(new Error('a tick reads actions through state')),
+            claimAction: (key, at, staleMs) =>
+              ctx.runMutation(internal.coordinator.claim, { ...key, now: at, staleMs }),
+            completeAction: (guildId, actionId, result, at) =>
+              ctx.runMutation(internal.coordinator.complete, {
+                guildId,
+                actionId,
+                status: result.status,
+                discordMessageId: result.discordMessageId ?? null,
+                detail: result.detail ?? null,
+                renderHash: result.renderHash ?? null,
+                now: at,
+              }),
+            setRenderHash: async (guildId, actionId, renderHash) => {
+              await ctx.runMutation(internal.coordinator.setRenderHash, {
+                guildId,
+                actionId,
+                renderHash,
+              });
+            },
+            listRaidNights: (guildId) => ctx.runQuery(internal.coordinator.raidNights, { guildId }),
+            insertRaidNight: () =>
+              Promise.reject(new Error('a tick never starts a raid-night poll')),
+            updateRaidNight: (guildId, raidNightId, patch) => {
+              if (patch.outcome !== 'cancelled' && patch.outcome !== 'unresolved') {
+                return Promise.reject(new Error('a tick only cancels or unresolves a raid night'));
+              }
+              return ctx.runMutation(internal.coordinator.updateRaidNight, {
+                guildId,
+                raidNightId,
+                outcome: patch.outcome,
+                detail: patch.detail ?? '',
+              });
+            },
+            upsertAnnouncedState: async (rows) => {
+              if (rows.length === 0) return;
+              await ctx.runMutation(internal.coordinator.upsertAnnouncedState, { rows });
+            },
           },
-          listRaidNights: (guildId) => ctx.runQuery(internal.coordinator.raidNights, { guildId }),
-          insertRaidNight: () => Promise.reject(new Error('a tick never starts a raid-night poll')),
-          updateRaidNight: (guildId, raidNightId, patch) => {
-            if (patch.outcome !== 'cancelled' && patch.outcome !== 'unresolved') {
-              return Promise.reject(new Error('a tick only cancels or unresolves a raid night'));
-            }
-            return ctx.runMutation(internal.coordinator.updateRaidNight, {
-              guildId,
-              raidNightId,
-              outcome: patch.outcome,
-              detail: patch.detail ?? '',
-            });
+          polls: {
+            get: (guildId, pollId) => ctx.runQuery(internal.coordinator.poll, { guildId, pollId }),
           },
-          upsertAnnouncedState: async (rows) => {
-            if (rows.length === 0) return;
-            await ctx.runMutation(internal.coordinator.upsertAnnouncedState, { rows });
+          source: {
+            load: (guildId, at) => ctx.runQuery(internal.coordinator.state, { guildId, now: at }),
+          },
+          raids: {
+            materialize: async () => {
+              await ctx.runMutation(internal.coordinator.materialize, {});
+            },
+            lock: async (_guildId, eventId) => {
+              await ctx.runMutation(internal.coordinator.lock, { eventId });
+            },
+            createForRaidNight: (guildId, raidNightId, raid, detail) =>
+              ctx.runMutation(internal.coordinator.createForRaidNight, {
+                guildId,
+                raidNightId,
+                raid,
+                detail,
+              }),
+          },
+          discord: discordPorts(token, process.env.DISCORD_GUILD_ID),
+          // Server events and reminder DMs link to the signup card, or to the site without a
+          // Discord server id.
+          links: {
+            discordGuildId: process.env.DISCORD_GUILD_ID ?? null,
+            siteUrl: process.env.VINTAGE_SITE_URL ?? null,
+          },
+          // Signup-note labels for the digest (#132); null without a key, and the digest prints notes raw.
+          decisions: decisionsFor(ctx, 'note-triage'),
+          // The weekly assessment (#130): the site's needs, and Terra (low) to word the facts.
+          recruiting: {
+            needs: async () => (await ctx.runQuery(internal.coordinator.recruitingNeeds, {})) ?? [],
+          },
+          wording: {
+            write: (instructions, facts) =>
+              writeWording(ctx, 'weekly-assessment', instructions, facts),
+          },
+          // Hourly-deduplicated ops alerts for every tick step and action failure (#262).
+          opsAlert: {
+            report: async (failure, at) => {
+              await reportCronFailure(
+                ctx,
+                {
+                  job: 'coordinator',
+                  step: failure.step,
+                  subject: failure.subject,
+                  error: failure.error,
+                  key: failure.key,
+                  message:
+                    failure.message ??
+                    renderStepFailure(failure.step, failure.error, failure.subject),
+                },
+                at,
+              );
+            },
           },
         },
-        polls: {
-          get: (guildId, pollId) => ctx.runQuery(internal.coordinator.poll, { guildId, pollId }),
+        GUILD_ID,
+        now,
+      );
+      const counts: Record<string, number> = {};
+      for (const o of report.outcomes) counts[o.status] = (counts[o.status] ?? 0) + 1;
+      console.log(`Coordinator tick: ${report.skipped ?? JSON.stringify(counts)}`);
+      return report;
+    } catch (err) {
+      const error = describeError(err);
+      console.error(`Coordinator tick failed: ${error}`);
+      await reportCronFailure(
+        ctx,
+        {
+          job: 'coordinator',
+          step: 'tick',
+          error,
+          key: 'coordinator:tick',
+          message: renderStepFailure('tick', error),
         },
-        source: {
-          load: (guildId, now) => ctx.runQuery(internal.coordinator.state, { guildId, now }),
-        },
-        raids: {
-          materialize: async () => {
-            await ctx.runMutation(internal.coordinator.materialize, {});
-          },
-          lock: async (_guildId, eventId) => {
-            await ctx.runMutation(internal.coordinator.lock, { eventId });
-          },
-          createForRaidNight: (guildId, raidNightId, raid, detail) =>
-            ctx.runMutation(internal.coordinator.createForRaidNight, {
-              guildId,
-              raidNightId,
-              raid,
-              detail,
-            }),
-        },
-        discord: discordPorts(token, process.env.DISCORD_GUILD_ID),
-        // Server events and reminder DMs link to the signup card, or to the site without a
-        // Discord server id.
-        links: {
-          discordGuildId: process.env.DISCORD_GUILD_ID ?? null,
-          siteUrl: process.env.VINTAGE_SITE_URL ?? null,
-        },
-        // Signup-note labels for the digest (#132); null without a key, and the digest prints notes raw.
-        decisions: decisionsFor(ctx, 'note-triage'),
-        // The weekly assessment (#130): the site's needs, and Terra (low) to word the facts.
-        recruiting: {
-          needs: async () => (await ctx.runQuery(internal.coordinator.recruitingNeeds, {})) ?? [],
-        },
-        wording: {
-          write: (instructions, facts) =>
-            writeWording(ctx, 'weekly-assessment', instructions, facts),
-        },
-      },
-      GUILD_ID,
-      Date.now(),
-    );
-    const counts: Record<string, number> = {};
-    for (const o of report.outcomes) counts[o.status] = (counts[o.status] ?? 0) + 1;
-    console.log(`Coordinator tick: ${report.skipped ?? JSON.stringify(counts)}`);
-    return report;
+        now,
+      );
+      return {
+        outcomes: [
+          { eventId: 'tick', rule: 'tick', target: GUILD_ID, status: 'failed', detail: error },
+        ],
+      };
+    }
   },
 });

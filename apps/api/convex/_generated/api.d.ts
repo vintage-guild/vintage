@@ -20,6 +20,7 @@ import type * as discord from "../discord.js";
 import type * as http from "../http.js";
 import type * as insights from "../insights.js";
 import type * as mcp from "../mcp.js";
+import type * as opsAlerts from "../opsAlerts.js";
 import type * as pollPosts from "../pollPosts.js";
 import type * as polls from "../polls.js";
 import type * as roleSync from "../roleSync.js";
@@ -45,6 +46,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   insights: typeof insights;
   mcp: typeof mcp;
+  opsAlerts: typeof opsAlerts;
   pollPosts: typeof pollPosts;
   polls: typeof polls;
   roleSync: typeof roleSync;

@@ -2,7 +2,13 @@ import { pollCancel, pollClose, pollCreate, pollOpen, pollSweep, pollUpdate } fr
 import { pollGet, pollList, pollResults } from './read';
 import { voteCast, voteRetract } from './vote';
 
-export type { PollsDeps, PollsEventSink, PollsMembers, PollsStore } from '../store';
+export type {
+  PollsChannels,
+  PollsDeps,
+  PollsEventSink,
+  PollsMembers,
+  PollsStore,
+} from '../store';
 export type { PollView } from './shared';
 
 /** Every polls command, registered by apps/api through guild-kit (#61). */

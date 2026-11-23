@@ -11,6 +11,7 @@ import {
   GUILD,
   HOUR,
   type Host,
+  LEADS_CHANNEL,
   OPS_CHANNEL,
   POLL_CHANNEL,
   ROLES,
@@ -329,5 +330,100 @@ describe('JTBD: polls', () => {
       });
       expect(tried).toMatchObject({ success: false, error: { code: 'COMMAND_NOT_FOUND' } });
     });
+  });
+
+  it('J71 · leader and officer polls stay out of public channels and post only in configured ones', async () => {
+    const ana = await g.host.discordMember('500000000000000001', 'Ana', [ROLES.officer]);
+
+    // Before officer/leads channels are configured, Discord creation for officer polls is refused.
+    const unconfigured = await ui.create(
+      ana.discordId!,
+      { question: 'Promote Bram?', options: 'Yes; Not yet', audience: 'officer' },
+      POLL_CHANNEL,
+    );
+    expect(flags(unconfigured)).toBe(EPHEMERAL);
+    expect(content(unconfigured)).toContain('coordinator-config-set');
+    expect(ui.pollPosts.size).toBe(0);
+
+    // Web-only creation (no channelId) still works because every command hides officer polls by tier.
+    const webOnly = await g.host.ok<Poll>(ana, 'poll-create', {
+      question: 'Policy draft?',
+      options: ['Approve', 'Revise'],
+      eligibleTier: 'officer',
+    });
+    expect(webOnly.eligibleTier).toBe('officer');
+
+    // Configure both the officer and leads channels.
+    await g.host.configureCoordinator({ leadsChannelId: LEADS_CHANNEL });
+
+    // Officer poll in a public channel or in #leads is refused privately; nothing is posted.
+    const officerPublic = await ui.create(
+      ana.discordId!,
+      { question: 'Promote Bram?', options: 'Yes; Not yet', audience: 'officer' },
+      POLL_CHANNEL,
+    );
+    expect(flags(officerPublic)).toBe(EPHEMERAL);
+    expect(content(officerPublic)).toContain(`<#${OPS_CHANNEL}>`);
+    expect(ui.pollPosts.size).toBe(0);
+
+    const officerInLeads = await ui.create(
+      ana.discordId!,
+      { question: 'Promote Bram?', options: 'Yes; Not yet', audience: 'officer' },
+      LEADS_CHANNEL,
+    );
+    expect(flags(officerInLeads)).toBe(EPHEMERAL);
+    expect(content(officerInLeads)).toContain(`<#${OPS_CHANNEL}>`);
+    expect(ui.pollPosts.size).toBe(0);
+
+    // Officer poll in #vintage-ops succeeds and posts there.
+    const officerOk = await ui.create(
+      ana.discordId!,
+      { question: 'Promote Bram?', options: 'Yes; Not yet', audience: 'officer' },
+      OPS_CHANNEL,
+    );
+    expect(flags(officerOk)).toBe(EPHEMERAL);
+    expect(content(officerOk)).toMatch(/going up in this channel/);
+    const [opsPost] = [...ui.pollPosts.values()];
+    expect(opsPost?.channelId).toBe(OPS_CHANNEL);
+
+    // Raid-leader poll in a public channel is refused; in #leads or #vintage-ops it succeeds.
+    const leaderPublic = await ui.create(
+      g.rook.discordId!,
+      { question: 'Raid roster order?', options: 'A; B', audience: 'leader' },
+      POLL_CHANNEL,
+    );
+    expect(flags(leaderPublic)).toBe(EPHEMERAL);
+    expect(content(leaderPublic)).toContain(`<#${LEADS_CHANNEL}>`);
+    expect(content(leaderPublic)).toContain(`<#${OPS_CHANNEL}>`);
+    expect(ui.pollPosts.size).toBe(1);
+
+    const leaderInLeads = await ui.create(
+      g.rook.discordId!,
+      { question: 'Raid roster order?', options: 'A; B', audience: 'leader' },
+      LEADS_CHANNEL,
+    );
+    expect(content(leaderInLeads)).toMatch(/going up in this channel/);
+    expect([...ui.pollPosts.values()].some((p) => p.channelId === LEADS_CHANNEL)).toBe(true);
+
+    const leaderInOps = await ui.create(
+      ana.discordId!,
+      { question: 'Loot split?', options: 'A; B', audience: 'leader' },
+      OPS_CHANNEL,
+    );
+    expect(content(leaderInOps)).toMatch(/going up in this channel/);
+    expect(ui.pollPosts.size).toBe(3);
+
+    // A raid-night poll targeting leaders cannot be posted to the public signup channel either.
+    const TUE = Date.UTC(2026, 10, 4, 1);
+    const THU = Date.UTC(2026, 10, 6, 1);
+    const badNight = await g.host.run(g.rook, 'raid-night-poll', {
+      name: 'Leads sync',
+      instance: 'Onyxia',
+      size: 40,
+      eligibleTier: 'leader',
+      startTimes: [TUE, THU],
+      closesAt: g.host.clock.now() + 48 * HOUR,
+    });
+    expect(badNight).toMatchObject({ success: false, error: { code: 'CHANNEL_NOT_ALLOWED' } });
   });
 });

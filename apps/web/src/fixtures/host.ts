@@ -24,6 +24,8 @@ import { createGuildRegistry, systemCaller } from '@vintage/guild-kit';
 import { type IdentityDeps, identityCommands } from '@vintage/identity/commands';
 import type { GuildRank, Member, RoleRankMap } from '@vintage/identity/contract';
 import { createMemoryIdentityDeps } from '@vintage/identity/testing';
+import { type LootDeps, lootCommands } from '@vintage/loot/commands';
+import { createMemoryLootStore } from '@vintage/loot/testing';
 import { type PollsDeps, pollsCommands } from '@vintage/polls/commands';
 import type { Poll } from '@vintage/polls/contract';
 import {
@@ -35,11 +37,7 @@ import type { KillRecorded } from '@vintage/progress/contract';
 import { createMemoryProgressStore } from '@vintage/progress/testing';
 import { type RaidsDeps, raidsCommands } from '@vintage/raids/commands';
 import { DEFAULT_TIMINGS } from '@vintage/raids/contract';
-import {
-  createMemoryRaidsLoot,
-  createMemoryRaidsStore,
-  createRecordingEventSink,
-} from '@vintage/raids/testing';
+import { createMemoryRaidsStore, createRecordingEventSink } from '@vintage/raids/testing';
 import { type SiteDeps, siteCommands } from '@vintage/site/commands';
 import { createMemorySiteStore } from '@vintage/site/testing';
 import type { CommandClient } from '@vintage/ui-kit';
@@ -49,6 +47,7 @@ import { FIXTURE_GUILD_ID, FIXTURE_NOW, ROLE_IDS } from './data';
 
 export type FixtureDeps = IdentityDeps &
   RaidsDeps &
+  LootDeps &
   ProgressDeps &
   PollsDeps &
   CoordinatorDeps &
@@ -137,6 +136,7 @@ export function createFixtureHost(
   };
 
   const polls = createMemoryPollsStore();
+  const loot = createMemoryLootStore();
   // The armory: the real commands and store, with a fake Blizzard over the example characters.
   const armory = createMemoryArmoryStore();
   const armoryRoster = createMemoryRosterStore();
@@ -216,8 +216,8 @@ export function createFixtureHost(
       getMember: (g, id) => identity.getMember(g, id),
     },
     events: createRecordingEventSink(),
-    // Recorded drops stay in memory; the dev site has no loot module yet.
-    raidLoot: createMemoryRaidsLoot(),
+    loot,
+    raidLoot: loot,
     // Like apps/api: an export's kills go on the ledger through kill-record.
     raidProgress: {
       recordKill: async (caller, kill) =>
@@ -251,9 +251,19 @@ export function createFixtureHost(
       listMembers: (g) => identity.listMembers(g),
     },
     pollEvents: createPollsEventSink(),
+    pollChannels: {
+      getRestrictedChannels: async (g) => {
+        const { opsChannelId, leadsChannelId } = await coordinator.getConfig(g);
+        return { opsChannelId, leadsChannelId };
+      },
+    },
     // Like apps/api: poll-create as the caller; there is no Discord post to put up here.
     coordinatorPolls: {
-      create: (caller, input) => run(caller, 'poll-create', input) as Promise<CommandResult<Poll>>,
+      create: (caller, input, channelId) =>
+        run(caller, 'poll-create', {
+          ...input,
+          ...(channelId ? { channelId } : {}),
+        }) as Promise<CommandResult<Poll>>,
       get: (g, id) => polls.getPoll(g, id),
     },
     coordinator,
@@ -298,6 +308,7 @@ export function createFixtureHost(
     commands: [
       ...identityCommands,
       ...raidsCommands,
+      ...lootCommands,
       ...progressCommands,
       ...pollsCommands,
       ...coordinatorCommands,

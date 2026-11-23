@@ -348,6 +348,229 @@ describe('vintage-tonight, checking a raid export', () => {
     expect((await el.checkExport()).success).toBe(false);
     expect(client.read).not.toHaveBeenCalled();
   });
+
+  it('shows standby and bosses on the export check when present', async () => {
+    useClient(() => ({
+      success: true,
+      data: check({
+        standby: [{ characterId: 'c5', name: 'Bram', reason: 'standby' }],
+        bosses: [
+          { name: 'Chillhowl', attempts: 2, kills: 1, wipes: 1 },
+          { name: 'Khalith', attempts: 2, kills: 0, wipes: 2 },
+        ],
+      }),
+    }));
+    const el = await tonight();
+    await pasted(el, '!VIN:1!abc');
+    await el.checkExport();
+    await settle();
+    const found = text(el, 'export-result');
+    expect(found).toContain('Bosses Chillhowl killed (1w) · Khalith 2w');
+    expect(found).toContain('Stood by Bram');
+  });
+});
+
+describe('vintage-tonight, recording a raid export (#29)', () => {
+  const preview = (over: Record<string, unknown> = {}) => ({
+    event: { id: 'e0', name: 'Barrow Deeps', startsAt: Date.UTC(2026, 9, 29), status: 'locked' },
+    unchanged: false,
+    replaces: null,
+    completes: true,
+    attendance: [
+      { name: 'Aeryn', snapshots: 2 },
+      { name: 'Bram', snapshots: 0, stoodBy: true },
+    ],
+    drops: [{ itemId: 17_011, itemName: 'Arcanist Boots', count: 1, looter: 'Aeryn' }],
+    kills: [
+      { name: 'Chillhowl', raidId: 'barrow-deeps', bossId: 'chillhowl' },
+      { name: 'Gloomfang', raidId: null, bossId: null },
+    ],
+    check: {
+      event: { id: 'e0', name: 'Barrow Deeps', startsAt: Date.UTC(2026, 9, 29), status: 'locked' },
+      otherGuild: false,
+      exporter: 'Aeryn',
+      addonVersion: '0.1.0',
+      snapshots: [{ at: 1, label: 'start', present: 1, online: 1 }],
+      attendees: [{ name: 'Aeryn', snapshots: 1, characterId: 'c1' }],
+      loot: [
+        {
+          itemId: 17_011,
+          itemName: 'Arcanist Boots',
+          looter: 'Aeryn',
+          count: 1,
+          source: 'Chillhowl',
+        },
+      ],
+      unknownNames: [],
+      absent: [],
+      standby: [{ characterId: 'c2', name: 'Bram', reason: 'standby' }],
+      warnings: [{ code: 'TIMES_APART', message: 'Snapshot was 3 hours after start.' }],
+    },
+    ...over,
+  });
+
+  async function openWithExport(canRecord: boolean, value: string) {
+    const el = await mount<VintageTonight>(
+      `<vintage-tonight time-zone="UTC"${canRecord ? ' can-record' : ''}></vintage-tonight>`,
+    );
+    el.recentRaids = [{ id: 'e0', name: 'Barrow Deeps', startsAt: Date.now() - 3_600_000 }];
+    el.toggleExport();
+    await settle();
+    const box = el.shadowRoot!.querySelector<HTMLTextAreaElement>('[part="export"] textarea')!;
+    box.value = value;
+    box.dispatchEvent(new Event('input'));
+    await settle();
+    return el;
+  }
+
+  it('hides the Record export button unless can-record is set', async () => {
+    const leader = await openWithExport(false, '!VIN:1!abc');
+    const leaderButtons = [...leader.shadowRoot!.querySelectorAll('[part="export"] button')].map(
+      (b) => b.textContent?.trim(),
+    );
+    expect(leaderButtons).toEqual(['Check export']);
+
+    const officer = await openWithExport(true, '!VIN:1!abc');
+    const officerButtons = [...officer.shadowRoot!.querySelectorAll('[part="export"] button')].map(
+      (b) => b.textContent?.trim(),
+    );
+    expect(officerButtons).toEqual(['Check export', 'Record export']);
+  });
+
+  it('previews recording with warnings and ledger kills, then saves only after confirmToken', async () => {
+    const calls: [string, unknown, string | undefined][] = [];
+    useClient((name, input, token) => {
+      calls.push([name, input, token]);
+      if (!token) {
+        return {
+          success: true,
+          data: { preview: preview(), confirmToken: 'rec-tok-1' },
+          reasoning: 'raid-export-record changes data.',
+        };
+      }
+      return {
+        success: true,
+        data: {
+          event: {
+            id: 'e0',
+            name: 'Barrow Deeps',
+            startsAt: Date.UTC(2026, 9, 29),
+            status: 'completed',
+          },
+          unchanged: false,
+          record: { attended: 2, drops: 1, snapshots: 1, exporter: 'Aeryn' },
+          ledger: [
+            {
+              name: 'Chillhowl',
+              raidId: 'barrow-deeps',
+              bossId: 'chillhowl',
+              outcome: 'first',
+              detail: null,
+            },
+            { name: 'Gloomfang', raidId: null, bossId: null, outcome: 'unmatched', detail: null },
+          ],
+        },
+        reasoning: 'Recorded Barrow Deeps: 2 attended, 1 drop; 1 first kill on the ledger',
+      };
+    });
+
+    const el = await openWithExport(true, '  !VIN:1!abc  ');
+    const changed = vi.fn();
+    el.addEventListener('tonight-changed', changed);
+
+    await el.recordExport();
+    await settle();
+    expect(calls).toEqual([
+      ['raid-export-record', { exportString: '!VIN:1!abc', eventId: 'e0' }, undefined],
+    ]);
+    expect(changed).not.toHaveBeenCalled();
+
+    const confirm = text(el, 'export-confirm');
+    expect(confirm).toContain('Record export for Barrow Deeps?');
+    expect(confirm).toContain('2 attended (1 stood by), 1 drop');
+    expect(confirm).toContain('completes Barrow Deeps');
+    expect(confirm).toContain('1 kill for the progress ledger');
+    expect(confirm).toContain('1 kill matched no boss (Gloomfang)');
+    expect(confirm).not.toContain('rec-tok-1');
+    // Check warnings are shown below the confirmation dialog before the officer confirms.
+    expect(text(el, 'export-result')).toContain('Snapshot was 3 hours after start.');
+
+    await el.confirmRecord();
+    await settle();
+    expect(calls).toEqual([
+      ['raid-export-record', { exportString: '!VIN:1!abc', eventId: 'e0' }, undefined],
+      ['raid-export-record', { exportString: '!VIN:1!abc', eventId: 'e0' }, 'rec-tok-1'],
+    ]);
+    expect(changed).toHaveBeenCalledTimes(1);
+    expect(el.shadowRoot!.querySelector('[part="export-confirm"]')).toBeNull();
+    const recorded = text(el, 'export-recorded');
+    expect(recorded).toContain('Recorded · Barrow Deeps');
+    expect(recorded).toContain('First kills: Chillhowl');
+    expect(recorded).toContain('Matched no boss: Gloomfang');
+    expect(recorded).toContain('raid summary in Discord');
+    expect(el.statusKind).toBe('success');
+  });
+
+  it('handles an unchanged export without prompting to confirm', async () => {
+    const client = useClient(() => ({
+      success: true,
+      data: {
+        preview: {
+          event: { id: 'e0', name: 'Barrow Deeps', startsAt: 1, status: 'completed' },
+          unchanged: true,
+          record: { attended: 2, drops: 1, snapshots: 1, exporter: 'Aeryn' },
+        },
+        confirmToken: 'unused',
+      },
+    }));
+    const el = await openWithExport(true, '!VIN:1!abc');
+    await el.recordExport();
+    await settle();
+    expect(client.run).toHaveBeenCalledTimes(1);
+    expect(el.pendingRecord).toBeNull();
+    expect(text(el, 'export-recorded')).toContain('already has this export recorded');
+    expect(text(el, 'export-recorded')).not.toContain('raid summary in Discord');
+  });
+
+  it('clears the pending record preview on cancel, text edit, or raid change', async () => {
+    useClient(() => ({
+      success: true,
+      data: { preview: preview(), confirmToken: 'tok-c' },
+    }));
+    const el = await openWithExport(true, '!VIN:1!abc');
+    await el.recordExport();
+    expect(el.pendingRecord).not.toBeNull();
+
+    el.cancelRecord();
+    expect(el.pendingRecord).toBeNull();
+    expect(el.statusText).toBe('Export not recorded.');
+
+    await el.recordExport();
+    expect(el.pendingRecord).not.toBeNull();
+    el.setExportText('!VIN:1!different');
+    expect(el.pendingRecord).toBeNull();
+
+    await el.recordExport();
+    expect(el.pendingRecord).not.toBeNull();
+    el.pickExportRaid('');
+    expect(el.pendingRecord).toBeNull();
+  });
+
+  it('reports a server refusal on recordExport cleanly', async () => {
+    useClient(() => ({
+      success: false,
+      error: {
+        code: 'RAID_NOT_STARTED',
+        message: "Barrow Deeps hasn't started yet",
+      },
+    }));
+    const el = await openWithExport(true, '!VIN:1!abc');
+    const result = await el.recordExport();
+    expect(result.success).toBe(false);
+    expect(el.pendingRecord).toBeNull();
+    expect(el.statusKind).toBe('error');
+    expect(el.statusText).toContain("hasn't started yet");
+  });
 });
 
 describe('vintage-tonight, data arriving late', () => {

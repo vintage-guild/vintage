@@ -693,7 +693,7 @@ Phase 0 has about ten days and one maintainer, so it is cut to the minimum that 
 - [x] Convex local components as the module pattern: auth context handoff, parent-orchestrated cross-module call, scheduled fan-out (Q8; fallback: namespaced folders) **Passed.**
 - [ ] **Dependency, not a spike:** AFD 2.2 (stateless Streamable HTTP; separate session, in progress) published before `/mcp` is wired around day 5. If it slips, `/mcp` runs on the raw v2 SDK behind the `guild-kit` adapter until it lands (§3.7)
 - [x] Violet CLI export from in-repo nodes in CI (Q14; fallback: plain DTCG script) **No**: plain DTCG fallback (#45); upstream lushly-dev/violet#30.
-- [x] Vercel plan decision: Pro seat or public repo (Q10); Convex preview availability on the chosen plan **Public repo**, so Vercel Hobby works; Convex plan still open.
+- [x] Vercel plan decision: Pro seat or public repo (Q10); Convex preview availability on the chosen plan **Public repo**, so Vercel Hobby works; Convex production is set up (Q10 answered 2026-11-23).
 
 **Build:**
 
@@ -732,7 +732,7 @@ Phase 0 has about ten days and one maintainer, so it is cut to the minimum that 
 - [x] `libs/bridge-format` + Lua side with shared fixtures (#23: TS side #49; Lua side `addon/Vintage/Core/BridgeFormat`, 2026-10-27)
 - [ ] Addon: import roster → invite all → arrange groups (FenUI), attendance snapshot, loot capture, item data capture, export string; `vintage-addon` skill
 - [ ] CurseForge project **Vintage**; `release-addon.yml` with `BigWigsMods/packager@v2` (workflow built 2026-10-29, not yet run; the project and secret are human steps, #25)
-- [ ] `loot` host module + `libs/loot-core`; first two methods (likely soft-reserve + council, per Q5)
+- [ ] `loot` host module + `libs/loot-core`; first method mainspec over offspec (MS/OS, Q5), then soft-reserve and council (#26)
 - [ ] `wishlist` module; wishlists feed council candidates
 - [ ] Addon loot popup showing precomputed candidates
 - [x] Post-raid: paste export → attendance + loot recorded → bot posts raid summary (#29: `raid-export-check` J44, `raid-export-record` + `loot` module J46, first kills on the progress ledger + raid summary post J47/#221, standby credit #235, and website recording in `/officers` Tonight tab + attendance/loot report on `/raids/<id>`)
@@ -765,19 +765,21 @@ Phase 0 has about ten days and one maintainer, so it is cut to the minimum that 
 
 ## 9. Open questions
 
+Tracked in #30 until 2026-11-23, when the GM answered the rest; Q6 and Q7 moved to #21.
+
 | # | Question | Owner | Blocks |
 |---|---|---|---|
 | 1 | ~~Discord role names and which tier each maps to~~ **Answered** (§3.4); role ids come from the bot | GM | — |
-| 2 | Raid nights/times and the channels the bot posts in. **Partly answered** (2026-10-25): Wednesday + Thursday (18 of 29 can make both). Start time, time zone, and channels still open | GM | Phase 1 schedules |
+| 2 | ~~Raid nights/times and the channels the bot posts in~~ **Answered**: Wednesday + Thursday, 8 pm `America/New_York` (the production schedule); the signup channel is set. Ops and leads channels are tracked in #165 | GM | — |
 | 3 | ~~Reminder etiquette: are DMs OK, or channel pings only?~~ **Answered** (2026-10-25): DMs on by default at the last reminder; officers can turn them off (`coordinator-config-set dmReminders`), members can opt out | GM | — |
-| 4 | Who adds the bot (needs Manage Server), and is the Server Members intent OK? | GM | Phase 0 role sync |
-| 5 | Which loot system(s) to start with | GM + officers | Phase 2 first methods |
-| 6 | Confirm the master-loot handout flow on the live client (`GiveMasterLoot` is documented for Forever 1.60.1 and used by three Forever addons, so this is a check, not an unknown) | Bloodfen, Nov 4–6 | Phase 2 award flow |
-| 7 | Do `C_PartyInfo.InviteUnit`, `SetRaidSubgroup`, and the loot events behave on Forever, and do Mechanic's sandbox stubs cover the 1.60.1 changes? | Bloodfen, Nov 4–6 | Phase 2 addon |
-| 8 | Do Convex local components handle the module pattern cleanly (auth handoff, cross-module events)? | Bloodfen, spike | Phase 0 module pattern |
-| 9 | Exact GitHub org name (`Vintage` if available, else a `Vintage-*` variant); is the guild name secured at reservation? | GM + Bloodfen | Org creation |
-| 10 | Hosting budget: Vercel Pro seat (~$20/mo) vs. a public repo; Convex Starter limits and preview availability; OpenAI spend cap and who pays. The caps exist (`agent-config-set`: 20 questions per member per day, 1,000 per guild per month, 20,000 Decisions calls per month by default); who pays is open | GM + Bloodfen | First deploy, Phase 1 agent |
-| 11 | Website domain | GM | Phase 0 deploy |
-| 12 | Guild colors, crest/logo, and how "WoW" the site should feel (subtle vs. full parchment-and-gold) | GM | Phase 1 reskin |
+| 4 | ~~Who adds the bot, and is the Server Members intent OK?~~ **Answered**: Random is in the Vintage server with the intent; role sync runs on the real rank roles | GM | — |
+| 5 | ~~Which loot system(s) to start with~~ **Answered** (2026-11-23): **mainspec over offspec (MS/OS)** first; soft-reserve and council stay candidates (#26) | GM + officers | — |
+| 6 | Confirm the master-loot handout flow on the live client (`GiveMasterLoot` is documented for Forever 1.60.1 and used by three Forever addons, so this is a check, not an unknown). **Waits for raids** to be released on Forever (#21) | Bloodfen | Phase 2 award flow |
+| 7 | Do `C_PartyInfo.InviteUnit`, `SetRaidSubgroup`, and the loot events behave on Forever, and do Mechanic's sandbox stubs cover the 1.60.1 changes? **Waits for raids** (#21) | Bloodfen | Phase 2 addon |
+| 8 | ~~Do Convex local components handle the module pattern cleanly?~~ **Passed** (2026-10-25) | Bloodfen, spike | — |
+| 9 | ~~Exact GitHub org name~~ **Answered**: `vintage-guild` (2026-10-25) | GM + Bloodfen | — |
+| 10 | ~~Hosting budget~~ **Answered** (2026-11-23): public repo on Vercel Hobby; Convex production is set up; the GM pays for OpenAI, under the `agent-config-set` caps | GM + Bloodfen | — |
+| 11 | ~~Website domain~~ **Answered**: https://vintageguild.gg (SETUP.md → Deployments) | GM | — |
+| 12 | ~~Guild colors, crest/logo, and how "WoW" the site should feel~~ **Answered**: the color emblem and the vintage-dark / vintage-parchment themes shipped | GM | — |
 | 13 | ~~Does FenUI accept an external theme table that overrides its semantic tokens, or does that need an upstream hook?~~ **Answered** (2026-10-27): it accepts the table (`RegisterTheme`), but applies colors only globally; per-window colors need an upstream hook (§7.5) | Bloodfen | Vintage colors in the addon window |
-| 14 | Can the Violet CLI export from in-repo node definitions in CI without a running Violet server? | Bloodfen, spike | Phase 0 design tokens |
+| 14 | ~~Can the Violet CLI export without a running Violet server?~~ **No** (2026-10-25): plain DTCG in `libs/design-tokens` | Bloodfen, spike | — |

@@ -24,7 +24,7 @@ Members, characters, and Discord roles → guild rank → permission tier (PLAN 
 - `member-sync` also writes `rankSince`: the sync time when the rank changes or the member is
   first seen, otherwise the stored value. Rows from before 2026-10-27 have none and read as null
   ("before tracking began") until their rank changes; never backfill it with a guessed date. A
-  recruit's trial runs from it; how long a trial lasts is still open (vintage-guild/vintage#30).
+  recruit's trial runs from it; a trial lasts two weeks (decided 2026-11-23, vintage-guild/vintage#30); the Roster flag is #244.
 - The Discord role id → rank map lives in `roleRanks`, read with `guild-roles-get` (leader) and
   replaced with `guild-roles-set` (officer, destructive). The map must keep an officer role, so
   officers can't lock themselves out. Tiers follow at the next sync, not at save time. The first

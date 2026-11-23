@@ -1498,7 +1498,7 @@ describe('JTBD: raid night', () => {
     expect(text).toContain('**Missing** 1 healer · 3 dps');
     expect(text).not.toMatch(/MotW|Fort|Mark of the Wild|Fortitude|Arcane Intellect/);
 
-    // Five more answer: the dungeon holds five, so the sixth person in is queued.
+    // Five more answer: the dungeon holds five, so comp-solver seats five and puts the sixth on Standby.
     g.host.clock.advance(60 * 1000);
     await answer(g, g.bram, 'bram', sm.id, 'accepted');
     for (const [who, key] of [
@@ -1514,7 +1514,9 @@ describe('JTBD: raid night', () => {
     expect(sixth?.queued).toBe(false);
     await g.host.tick();
     const edited = messageText(g.host.editsTo(SIGNUP_CHANNEL).at(-1)!.message);
-    expect(edited).toMatch(/\*\*6\*\* going/);
+    expect(edited).toMatch(/\*\*5\*\* going/);
+    expect(edited).toMatch(/\*\*1\*\* standby/);
+    expect(edited).toMatch(/\*\*Standby\*\* .*Bramble/);
   });
 
   it('J32 · an open levelling group takes everyone who answers, with no cap and no queue', async () => {

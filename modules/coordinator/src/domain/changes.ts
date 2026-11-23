@@ -5,7 +5,7 @@
 //   Standby who match via `alsoRoles`), plus already-seated flex candidates as plain text.
 // - All other seat/Standby/answer/switch/removal/absence changes batch into one post per tick.
 // Pure: data in, diff + MessageData out.
-import { hasSplitDpsTargets } from '@vintage/comp-solver';
+import { hasSplitDpsTargets, type TargetRole } from '@vintage/comp-solver';
 import {
   actionRow,
   ButtonStyle,
@@ -20,7 +20,7 @@ import type { Role } from '@vintage/wow-data';
 import type { AnnouncedMemberState } from '../contract';
 import type { TickEvent, TickMember } from '../store';
 import { cardTitle, eventTitle } from './kind-words';
-import { finalRoster } from './render';
+import { compFor, finalRoster } from './render';
 
 const MAX_SEAT_BUTTONS = 4;
 
@@ -417,6 +417,163 @@ export function renderChangeBatch(tick: TickEvent, lines: readonly string[]): Me
   const header = `**${eventTitle(tick.event)}**`;
   return {
     content: [header, ...lines].join('\n').slice(0, 2000),
+    allowed_mentions: { parse: [] },
+  };
+}
+
+interface SeatPick {
+  signup: Signup;
+  role: Role;
+  viaAlsoRole: boolean;
+  rank: GuildRank | null;
+}
+
+const DPS_ROLES: readonly Role[] = ['melee', 'ranged'];
+
+function matchRoleForGap(
+  s: Signup,
+  target: TargetRole,
+): { role: Role; viaAlsoRole: boolean } | null {
+  if (target === 'dps') {
+    if (DPS_ROLES.includes(s.role)) return { role: s.role, viaAlsoRole: false };
+    const flex = DPS_ROLES.find((r) => s.alsoRoles.includes(r));
+    return flex ? { role: flex, viaAlsoRole: true } : null;
+  }
+  if (s.role === target) return { role: target, viaAlsoRole: false };
+  return s.alsoRoles.includes(target) ? { role: target, viaAlsoRole: true } : null;
+}
+
+function sortPicks(a: SeatPick, b: SeatPick): number {
+  if (a.viaAlsoRole !== b.viaAlsoRole) return a.viaAlsoRole ? 1 : -1;
+  const pa = a.rank ? RANK_PRIORITY[a.rank] : 0;
+  const pb = b.rank ? RANK_PRIORITY[b.rank] : 0;
+  return pb - pa || a.signup.characterName.localeCompare(b.signup.characterName);
+}
+
+function formatPick(p: SeatPick, verb: string): string {
+  if (p.viaAlsoRole) return `${p.signup.characterName} (can also ${verb})`;
+  const tag = p.rank ? RANK_NOTE[p.rank] : undefined;
+  return tag ? `${p.signup.characterName} (${tag})` : p.signup.characterName;
+}
+
+function candidatesForGap(
+  going: readonly Signup[],
+  bench: readonly Signup[],
+  rankById: ReadonlyMap<string, GuildRank | null>,
+  target: TargetRole,
+): { standby: SeatPick[]; seatedFlex: Signup[] } {
+  const standby: SeatPick[] = [];
+  for (const s of bench) {
+    const match = matchRoleForGap(s, target);
+    if (match) standby.push({ signup: s, ...match, rank: rankById.get(s.memberId) ?? null });
+  }
+  standby.sort(sortPicks);
+  const seatedFlex = going
+    .filter((s) => {
+      const match = matchRoleForGap(s, target);
+      return Boolean(match?.viaAlsoRole);
+    })
+    .sort((a, b) => a.characterName.localeCompare(b.characterName));
+  return { standby, seatedFlex };
+}
+
+function recordStandbyPicks(
+  picks: readonly SeatPick[],
+  chosen: Map<string, SeatPick>,
+  listedIds: Set<string>,
+) {
+  for (const p of picks) {
+    listedIds.add(p.signup.id);
+    if (!chosen.has(p.signup.id)) chosen.set(p.signup.id, p);
+  }
+}
+
+function collectRoleGapLines(
+  tick: TickEvent,
+  going: readonly Signup[],
+  bench: readonly Signup[],
+  rankById: ReadonlyMap<string, GuildRank | null>,
+  members: TickMember[],
+): { lines: string[]; chosen: Map<string, SeatPick>; listedIds: Set<string> } {
+  const lines: string[] = [];
+  const chosen = new Map<string, SeatPick>();
+  const listedIds = new Set<string>();
+  const roleGaps = compFor(tick, members, { goingOnly: true }).gaps.filter(
+    (g) => g.kind === 'role',
+  );
+  for (const gap of roleGaps) {
+    const verb = gap.role === 'dps' ? 'dps' : ROLE_VERB[gap.role];
+    const { standby, seatedFlex } = candidatesForGap(going, bench, rankById, gap.role);
+    if (standby.length) {
+      recordStandbyPicks(standby, chosen, listedIds);
+      lines.push(
+        `Open ${gap.reason.replace(/^need /, '')}: Standby who could ${verb}: ${standby.map((p) => formatPick(p, verb)).join(', ')}.`,
+      );
+    }
+    if (seatedFlex.length) {
+      lines.push(
+        `Already seated who can ${verb}: ${seatedFlex.map((s) => s.characterName).join(', ')}.`,
+      );
+    }
+  }
+  return { lines, chosen, listedIds };
+}
+
+/**
+ * Lock-time `#leads` alert when a raid locks with open seats and Standby available: lists each
+ * open role gap and general Standby candidates with up to 4 Standby-only `[Seat X]` buttons
+ * (same pattern as `renderDropoutAlert`).
+ */
+export function renderLockOpenSeats(tick: TickEvent, members: TickMember[]): MessageData {
+  const { going, bench } = finalRoster(tick, members);
+  const openSeats = tick.event.size !== null ? Math.max(0, tick.event.size - going.length) : 0;
+  const when = discordTimestamp(tick.event.startsAt, TimestampStyle.SHORT_DATE_TIME);
+  const seatWord = openSeats === 1 ? 'seat' : 'seats';
+  const rankById = new Map(members.map((m) => [m.memberId, m.rank]));
+  const {
+    lines: gapLines,
+    chosen,
+    listedIds,
+  } = collectRoleGapLines(tick, going, bench, rankById, members);
+  const lines = [
+    `**${cardTitle(tick.event)}** (${when}) locked with **${openSeats} open ${seatWord}** (${going.length}/${tick.event.size}).`,
+    ...gapLines,
+  ];
+
+  const remaining = bench
+    .filter((s) => !listedIds.has(s.id))
+    .map(
+      (s): SeatPick => ({
+        signup: s,
+        role: s.role,
+        viaAlsoRole: false,
+        rank: rankById.get(s.memberId) ?? null,
+      }),
+    )
+    .sort(sortPicks);
+
+  if (remaining.length) {
+    for (const p of remaining) {
+      if (!chosen.has(p.signup.id)) chosen.set(p.signup.id, p);
+    }
+    lines.push(
+      `Standby available: ${remaining.map((p) => formatPick(p, ROLE_VERB[p.role])).join(', ')}.`,
+    );
+  }
+
+  const buttons = [...chosen.values()]
+    .slice(0, MAX_SEAT_BUTTONS)
+    .map((p) =>
+      button(
+        `seat:${tick.event.id}:${p.signup.id}:${p.role}:0`,
+        `Seat ${p.signup.characterName}`.slice(0, 80),
+        ButtonStyle.PRIMARY,
+      ),
+    );
+
+  return {
+    content: lines.join('\n').slice(0, 2000),
+    ...(buttons.length ? { components: [actionRow(...buttons)] } : {}),
     allowed_mentions: { parse: [] },
   };
 }

@@ -1,12 +1,12 @@
 // Public surface of the raids module. Other modules import only this file.
 
 import type { RoleTargets, SignupStatus } from '@vintage/comp-solver';
-import type { GuildRank } from '@vintage/identity/contract';
 import type { RaidId } from '@vintage/progress/contract';
 import type { Role, WowClass } from '@vintage/wow-data';
 import type { EventKind } from './domain/kinds';
 
 export {
+  type CompResult,
   dpsTargetOf,
   type GroupDraftResult,
   type GroupMember,
@@ -36,6 +36,7 @@ export {
   type GuildClock,
   resolveGuildClock,
 } from './domain/clock';
+export { RANK_PRIORITY, solveEventComp } from './domain/comp';
 export {
   type CompRole,
   compRole,
@@ -203,21 +204,6 @@ export interface Signup {
   /** Legacy queue promotion timestamp (kept for stored rows; new signups always write null). */
   promotedAt: number | null;
 }
-
-/**
- * Comp and Standby priority by guild rank (signup-improvements §3): raiders and above first,
- * then recruits, then flex raiders, then members, then friends. `GUILD_RANKS` in identity is
- * unchanged.
- */
-export const RANK_PRIORITY: Record<GuildRank, number> = {
-  officer: 4,
-  'raid-leader': 4,
-  raider: 4,
-  recruit: 3,
-  'flex-raider': 2,
-  member: 1,
-  friend: 0,
-};
 
 /** Coordinator timings for one-off raids that have no schedule. */
 export const DEFAULT_TIMINGS: ScheduleTimings = {

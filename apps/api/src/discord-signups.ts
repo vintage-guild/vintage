@@ -42,7 +42,7 @@ import {
   updateMessage,
 } from '@vintage/discord-kit';
 import { type Caller, type CommandResult, tierAllows } from '@vintage/guild-kit';
-import type { Character, Member } from '@vintage/identity/contract';
+import type { Character, GuildRank, Member } from '@vintage/identity/contract';
 import {
   type Absence,
   accessOf,
@@ -57,6 +57,7 @@ import {
   type Signup,
   type SignupGuess,
   type SignupStatus,
+  solveEventComp,
 } from '@vintage/raids/contract';
 import { CLASSES, classRoles, ROLES, type Role, roleFor } from '@vintage/wow-data';
 import {
@@ -434,14 +435,52 @@ function characterPicker(
   );
 }
 
+/**
+ * When a going signup overflows the comp solver onto Standby pre-approval, return comp-solver's
+ * bench reason (e.g. "melee slots full (10/10)" or "raid full (20/20)"); otherwise null.
+ */
+function compBenchReason(
+  event: RaidEvent,
+  signup: Signup,
+  signups: readonly Signup[],
+  members: readonly Member[],
+): string | null {
+  if (
+    (signup.status !== 'accepted' && signup.status !== 'late') ||
+    signup.roster === 'benched' ||
+    event.size === null ||
+    !signup.id ||
+    !signup.class ||
+    !signup.spec
+  ) {
+    return null;
+  }
+  const combined = signups.some((r) => r.id === signup.id) ? signups : [...signups, signup];
+  const valid = combined
+    .filter((r) => Boolean(r.id && r.class && r.spec))
+    .map((r) => ({ ...r, signedUpAt: r.signedUpAt ?? 0 }));
+  const ranks = new Map<string, GuildRank | null>(members.map((m) => [m.id, m.rank]));
+  const comp = solveEventComp(event, valid, ranks, { goingOnly: true });
+  const decision = comp.bench.find((d) => d.signup.id === signup.id);
+  return decision && decision.code !== 'standby' ? decision.reason : null;
+}
+
 /** Standby explanation for the private reply (signup-improvements row 38). */
-function standbyTail(s: Signup, member: Member, event: RaidEvent): string | null {
-  if (s.status !== 'bench' && s.roster !== 'benched') return null;
+function standbyTail(
+  s: Signup,
+  member: Member,
+  event: RaidEvent,
+  benchReason: string | null = null,
+): string | null {
+  if (s.status !== 'bench' && s.roster !== 'benched' && !benchReason) return null;
   if (kindOf(event) === 'raid' && accessOf(event) === 'guild' && member.rank === 'flex-raider') {
     return "You're on Standby because Flex Raiders start on Standby for guild raids; leaders seat you where the comp needs you.";
   }
   if (event.rosterApprovedAt !== null) {
     return "You're on Standby because parties are already approved; leaders will seat you if a spot opens.";
+  }
+  if (benchReason) {
+    return `You're on Standby (${benchReason}); leaders will seat you if a spot opens.`;
   }
   return "You're on Standby; leaders will seat you if a spot opens.";
 }
@@ -454,6 +493,23 @@ function alsoRoleOptions(signup: Signup): SelectOption[] {
     value: role,
     ...(current.includes(role) ? { default: true } : {}),
   }));
+}
+
+function outcomeHead(
+  event: RaidEvent,
+  s: Signup,
+  reason: string | null,
+  fromWeeklyLate?: boolean,
+): string {
+  if (fromWeeklyLate) {
+    return `**Late** for ${event.name} as **${s.characterName}**, ${s.lateMinutes} minutes, like most weeks.`;
+  }
+  const why = reason ? `: ${reason}` : '';
+  const statusLabel =
+    s.status === 'late' && s.lateMinutes
+      ? `${LABEL[s.status]} (${s.lateMinutes}m)`
+      : LABEL[s.status];
+  return `**${statusLabel}** for ${event.name} as **${s.characterName}** (${playing(s)})${why}.`;
 }
 
 /**
@@ -478,29 +534,26 @@ async function outcome(
     return { content, components: [] };
   }
   const s = result.data!;
-  const why = reason ? `: ${reason}` : '';
-  const statusLabel =
-    s.status === 'late' && s.lateMinutes
-      ? `${LABEL[s.status]} (${s.lateMinutes}m)`
-      : LABEL[s.status];
-  const head = options.fromWeeklyLate
-    ? `**Late** for ${event.name} as **${s.characterName}**, ${s.lateMinutes} minutes, like most weeks.`
-    : `**${statusLabel}** for ${event.name} as **${s.characterName}** (${playing(s)})${why}.`;
-  const tail = standbyTail(s, member, event) ?? 'The signup post updates in a few seconds.';
-  const content = `${head}\n${tail}`;
+  const head = outcomeHead(event, s, reason, options.fromWeeklyLate);
   if (s.status === 'declined') {
     return {
-      content,
+      content: `${head}\nThe signup post updates in a few seconds.`,
       components: [
         actionRow(button('absence-more-days', 'Absent more days', ButtonStyle.SECONDARY)),
       ],
     };
   }
 
-  const [characters, signups] = await Promise.all([
+  const [characters, signups, rosterCtx] = await Promise.all([
     ports.characters(member.id),
     ports.signups(event.id),
+    ports.rosterContext?.() ?? Promise.resolve(null),
   ]);
+  const membersForComp = rosterCtx?.members ?? [member];
+  const benchReason = compBenchReason(event, s, signups, membersForComp);
+  const tail =
+    standbyTail(s, member, event, benchReason) ?? 'The signup post updates in a few seconds.';
+  const content = `${head}\n${tail}`;
   const needed = rolesShort(event, signups, member);
   const components = [];
   // Switch character always shows now: with one character it still offers New character….

@@ -720,6 +720,13 @@ describe('raids commands', () => {
       expect(approved.rosterApprovedAt).not.toBeNull();
       expect(approved.rosterApprovedBy).toBe('leader-1');
 
+      // Approval materialized Bram's drafted seat and group onto the signup row.
+      const afterApprove = await ok<Signup[]>('signup-list', { eventId: openRaid.id }, leader);
+      expect(afterApprove.find((s) => s.id === bramSignup.id)).toMatchObject({
+        roster: 'rostered',
+        group: 1,
+      });
+
       // New answers after approval land on Standby until a leader seats them.
       const lateComer = await ok<Signup>(
         'signup-set',
@@ -734,6 +741,40 @@ describe('raids commands', () => {
       expect(seated.roster).toBe('rostered');
       expect(seated.updatedBy).toBe('leader-1');
       expect(seated.updatedAt).toBeGreaterThan(lateComer.updatedAt);
+    });
+
+    it('roster-approve materializes drafted seats, groups, and overflow Standby, preserving leader-assigned groups', async () => {
+      const event = await createRaid({
+        kind: 'other',
+        size: 2,
+        roleTargets: { tank: 1, healer: 1, dps: 0 },
+      });
+      // Aeryn (raider tank), Cade (raider healer), Dara (recruit tank -> overflows size 2).
+      const aerynSignup = await ok<Signup>(
+        'signup-set',
+        { eventId: event.id, characterId: 'aeryn', status: 'accepted' },
+        as('aeryn'),
+      );
+      const cadeSignup = await ok<Signup>(
+        'signup-set',
+        { eventId: event.id, characterId: 'cade', status: 'accepted' },
+        as('cade'),
+      );
+      const daraSignup = await ok<Signup>(
+        'signup-set',
+        { eventId: event.id, characterId: 'dara', status: 'accepted' },
+        as('dara', 'recruit'),
+      );
+      // Leader pre-places Cade in group 1 before approving.
+      await ok<Signup>('roster-move', { signupId: cadeSignup.id, group: 1 }, leader);
+
+      await ok<RaidEvent>('roster-approve', { eventId: event.id }, leader);
+      const rows = await ok<Signup[]>('signup-list', { eventId: event.id }, leader);
+      const byId = new Map(rows.map((r) => [r.id, r]));
+
+      expect(byId.get(aerynSignup.id)).toMatchObject({ roster: 'rostered', group: 1 });
+      expect(byId.get(cadeSignup.id)).toMatchObject({ roster: 'rostered', group: 1 });
+      expect(byId.get(daraSignup.id)).toMatchObject({ roster: 'benched', group: null });
     });
 
     it('is hidden below raider tier', async () => {

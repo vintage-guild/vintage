@@ -20,7 +20,7 @@ import { accessOf, kindOf, type RaidEvent, type Signup } from '@vintage/raids/co
 import type { AnnouncedMemberState, CoordinatorAction, CoordinatorConfig } from '../contract';
 import type { TickEvent, TickMember, TickRecorded, TickState } from '../store';
 import { type DropoutAlert, diffEventChanges } from './changes';
-import { hashJson } from './render';
+import { finalRoster, hashJson } from './render';
 import { MAX_SERVER_EVENTS } from './server-event';
 
 const HOUR = 60 * 60 * 1000;
@@ -88,6 +88,7 @@ export type PlannedAction =
       locked: boolean;
     }
   | { kind: 'unapproved-notice'; tick: TickEvent; rule: 'unapproved-notice'; target: string }
+  | { kind: 'open-seats'; tick: TickEvent; rule: 'lock-open-seats'; target: string }
   | { kind: 'lock'; tick: TickEvent; rule: 'lock'; target: string }
   | { kind: 'final-roster'; tick: TickEvent; rule: 'final-roster'; target: string }
   | { kind: 'import-string'; tick: TickEvent; rule: 'import-string'; target: string }
@@ -385,6 +386,12 @@ function planLock(
     !done.has(`unapproved-notice|${leads}`)
   ) {
     out.push({ kind: 'unapproved-notice', tick, rule: 'unapproved-notice', target: leads });
+  }
+  if (leads && event.size !== null && !done.has(`lock-open-seats|${leads}`)) {
+    const { going, bench } = finalRoster(tick, state.members);
+    if (going.length < event.size && bench.length > 0) {
+      out.push({ kind: 'open-seats', tick, rule: 'lock-open-seats', target: leads });
+    }
   }
   if (leads && !done.has(`import-string|${leads}`)) {
     out.push({ kind: 'import-string', tick, rule: 'import-string', target: leads });

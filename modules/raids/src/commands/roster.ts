@@ -1,6 +1,14 @@
 import { error, success } from '@vintage/guild-kit';
+import type { GuildRank } from '@vintage/identity/contract';
 import { z } from 'zod';
-import { kindNoun, MAX_EVENT_SIZE, type RaidEvent, type Signup } from '../contract';
+import {
+  groupDraft,
+  kindNoun,
+  MAX_EVENT_SIZE,
+  type RaidEvent,
+  type Signup,
+  solveEventComp,
+} from '../contract';
 import { command, type RaidsDeps } from '../store';
 import { eventNotFound, isLive, raidClosed, signupNotFound } from './shared';
 
@@ -61,6 +69,47 @@ export const rosterUnlock = command({
   handler: setStatus('open'),
 });
 
+function draftedGroupsBySignup(selected: readonly Signup[], raidSize: number): Map<string, number> {
+  const draft = groupDraft(
+    selected.map((s) => ({ id: s.id, role: s.role, group: s.group })),
+    { raidSize, groupSize: GROUP_SIZE },
+  );
+  const groupBySignup = new Map<string, number>();
+  for (const g of draft.groups) {
+    for (const id of g.ids) groupBySignup.set(id, g.group);
+  }
+  return groupBySignup;
+}
+
+/** Materialize drafted comp seats and party groups onto signups at approval time. */
+async function materializeApprovedRoster(deps: RaidsDeps, guildId: string, event: RaidEvent) {
+  const signups = await deps.raids.listSignups(guildId, event.id);
+  if (signups.length === 0) return;
+  const ranks = new Map<string, GuildRank | null>();
+  for (const memberId of new Set(signups.map((s) => s.memberId))) {
+    ranks.set(memberId, (await deps.members.getMember(guildId, memberId))?.rank ?? null);
+  }
+  const comp = solveEventComp(event, signups, ranks, { goingOnly: true });
+  const byId = new Map(signups.map((s) => [s.id, s]));
+  const selected = comp.selected
+    .map((d) => byId.get(d.signup.id))
+    .filter((s): s is Signup => Boolean(s));
+  const groupBySignup = draftedGroupsBySignup(selected, event.size ?? MAX_EVENT_SIZE);
+
+  for (const s of selected) {
+    const group = groupBySignup.get(s.id) ?? s.group;
+    if (s.roster !== 'rostered' || s.group !== group) {
+      await deps.raids.updateSignup(guildId, s.id, { roster: 'rostered', group });
+    }
+  }
+  for (const d of comp.bench) {
+    const s = byId.get(d.signup.id);
+    if (s && (s.roster !== 'benched' || s.group !== null)) {
+      await deps.raids.updateSignup(guildId, s.id, { roster: 'benched', group: null });
+    }
+  }
+}
+
 export const rosterApprove = command({
   name: 'roster-approve',
   description:
@@ -76,6 +125,7 @@ export const rosterApprove = command({
     if (event.rosterApprovedAt !== null) {
       return success(event, { reasoning: `${event.name} roster is already approved` });
     }
+    await materializeApprovedRoster(deps, guildId, event);
     const actor = caller.memberId ?? caller.discordId ?? 'system';
     const at = now();
     const updated = await deps.raids.updateEvent(guildId, eventId, {

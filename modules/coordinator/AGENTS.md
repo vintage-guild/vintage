@@ -11,7 +11,8 @@ and posts the final roster and addon import string. Maturity: **core**.
 | `src/contract.ts` | `CoordinatorConfig`, `CoordinatorAction`, `RaidNight`, command names |
 | `src/domain/raid-night.ts` | Pure: option labels in the guild zone, `decideRaidNight` (what a closed poll means), the ops message when no raid is made |
 | `src/domain/plan.ts` | Pure: `planTick(state, now)` → the actions due now, per raid and rule |
-| `src/domain/card.ts` | Pure: the signup post, the private Roster reply, and the final roster as embeds with three role columns, our status icons, and class-colored squares |
+| `src/domain/card.ts` | Pure: the signup post (2x2 role columns), private Roster reply, T-24h party draft, approved party post, and fallback final roster as embeds with spec icons and character-budget packing |
+| `src/domain/changes.ts` | Pure: post-digest `#leads` change feed, seated dropout alerts with Standby `[Seat X]` buttons, and lock-time open-seat suggestions |
 | `src/domain/server-event.ts` | Pure: a raid as an EXTERNAL Discord server event (name, instance as location, times, a link to the card), its hash, and `MAX_SERVER_EVENTS` |
 | `src/domain/kind-words.ts` | Pure: the title, size words, and noun for an event kind (raids keep their own name) |
 | `src/domain/render.ts` | Pure: the plain messages (reminder, DM, digest, promotion, import string, failure) and the comp helper |
@@ -27,14 +28,15 @@ and posts the final roster and addon import string. Maturity: **core**.
 
 | Rule | When | Where |
 |---|---|---|
-| `post` | as soon as the raid exists | signup channel, with answer buttons |
+| `post` | as soon as the raid exists | signup channel (or `openSignupChannelId` for open raids), with answer buttons |
 | refresh | whenever the post's content changed (not logged) | edits the post |
-| `promoted-<signup>-<time>` | when raids promotes someone from the queue | signup channel, mentions them once |
-| `remind-<h>h` | each reminder offset, before lock; only the latest due one is sent | signup channel, pings non-responders only, or the `reminderRoleIds` roles with the non-responders named as plain text |
-| `dm-<h>h` | the last reminder offset, if `dmReminders`; skips members who opted out and, when `dmRanks` is set, ranks not in it | DM |
-| `digest` | the last reminder offset | ops channel |
+| `remind-<h>h` | each reminder offset, before lock (guild raids only); only the latest due one is sent | signup channel, pings non-responders only, or the `reminderRoleIds` roles with the non-responders named as plain text |
+| `dm-<h>h` | the last reminder offset (guild raids only), if `dmReminders`; skips members who opted out and, when `dmRanks` is set, ranks not in it | DM |
+| `digest`, `party-draft` | `digestHours` (default 24h) before start | leads channel (`leadsChannelId`, else `opsChannelId`); seeds `announcedState` for the post-digest change feed |
+| `dropout-*`, `changes-*` | after digest, when signups or absences change (group-only moves ignored) | leads channel (seated dropouts get Standby-only `[Seat X]` buttons) |
+| `party-post` | once a leader approves the roster (`roster-approve`) | signup channel; edited in place on moves and promoted into Final Roster at lock |
 | `lock` | `lockHours` before start | runs `roster-lock` |
-| `final-roster`, `import-string` | after lock | signup channel, ops channel |
+| `final-roster`, `unapproved-notice`, `lock-open-seats`, `import-string` | after lock | signup channel (fallback if unapproved), leads channel (unapproved notice, open-seat `[Seat X]` suggestions when open seats and Standby exist, addon import string) |
 | `raid-night` | a raid-night poll has closed (keyed by the poll id) | runs `raid-create`, or tells the ops channel why not |
 | `server-event` | if `serverEvents`, the tick after the post is up | a Discord server event (Events list); edited in place when the raid moves or is renamed (not logged) |
 | `server-event-cancel` | if `serverEvents`, the raid was cancelled before it started | sets the server event to CANCELED |
@@ -64,16 +66,21 @@ and posts the final roster and addon import string. Maturity: **core**.
   night `created` in one transaction, and the `raid-night` action is claimed per poll. A failed
   attempt leaves the night `pending` for the next tick to retry. A tie, a missed quorum, no votes,
   or a winning time already past creates nothing and goes to the ops channel.
-- **Cards are embeds with three inline role columns** (Components V2 can't do columns), each
-  headed by an outline role icon (`head_tank`, `head_healer`, `head_dps`). The description is
-  the time, the lock and size as `-#` subtext, the raid's notes quoted (`> `, a block per
-  paragraph; none when it has none), then the status counts spaced with em spaces. The render
-  hash is over the whole message, so a notes edit refreshes the post on the next tick. Each
-  column shows up to `COLUMN_CAP` names then "+N more", so a 40-person card keeps its height; the
-  **Roster** button (`roster:<eventId>`) shows everyone privately. `tests/card.test.ts` checks a
-  full raid against Discord's embed limits. Icons are the app's own emoji (`emoji('status_late')`,
-  `emoji('square_mage')`): our art in `assets/emoji` (`scripts/build-emoji-art.mjs`) plus Blizzard
-  class and spec icons; add new ones to `scripts/discord-emojis.json` and re-run the upload script. A post deleted in Discord (error 10008) is reposted on the next tick;
+- **Cards are embeds with four role columns in a 2x2 grid** (Tanks/Healers on row 1,
+  Melee/Ranged on row 2, padded with inline spacers; Components V2 can't do columns), each
+  headed by an outline role icon (`head_tank`, `head_healer`, `head_dps`). Going and Standby
+  follow `finalRoster` (`solveEventComp`), so pre-approval overflow shows in **Standby** rather
+  than inflating the role columns. The description is the time, the lock and size as `-#`
+  subtext, the raid's notes quoted (`> `, a block per paragraph; none when it has none), then
+  the status counts spaced with em spaces. The render hash is over the whole message, so a notes
+  edit refreshes the post on the next tick. Each field uses line-safe character-budget packing
+  (`fitLines`, <= 1,024 chars) ending in `+N more…` only when a field overflows; the **Roster**
+  button (`roster:<eventId>`) appears only when someone is hidden and shows everyone privately.
+  `tests/card.test.ts` checks a full raid against Discord's embed limits. Icons are the app's
+  own emoji (`emoji('status_late')`, `emoji('spec_warrior_protection')`, falling back to
+  `emoji('square_<class>')`): our art in `assets/emoji` (`scripts/build-emoji-art.mjs`) plus
+  Blizzard class and spec icons; add new ones to `scripts/discord-emojis.json` and re-run the
+  upload script. A post deleted in Discord (error 10008) is reposted on the next tick;
   `coordinator-repost` replaces one on purpose and deletes the old message.
 - **Words follow the event kind (#151)** through `domain/kind-words.ts`. A raid keeps its own
   title ("Raid night · Molten Core"); other kinds lead with theirs ("Dungeon · Cathedral run ·
@@ -115,8 +122,9 @@ and posts the final roster and addon import string. Maturity: **core**.
   No `decisions` port, a paused agent, a refusal, or an error: the digest is exactly the old one.
 - Button clicks (`signup:<eventId>:<status>` for accepted, late, tentative, bench, declined) go
   gateway → Convex `POST /gateway/interaction` → `apps/api/src/discord-signups.ts`: a character
-  picker when needed, a reason form for Late and Tentative, private replies, and an immediate tick
-  so the post refreshes in seconds.
+  picker when needed, 5/15/30 min buttons for Late, a reason form for Tentative, private replies
+  (with comp-solver Standby reasons when overflowed), and an immediate tick so the post refreshes
+  in seconds.
 - **The raid summary (#221).** The tick source reads completed raids from the last 7 days that
   have a record (`TickState.recorded`: the record, attendance names, and drops read from the loot
   module by apps/api). The embed's description leads with **Bosses: 6/8, 14 wipes, 2h 41m**

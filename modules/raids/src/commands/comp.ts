@@ -1,8 +1,7 @@
-import { type CompSignup, solveComp } from '@vintage/comp-solver';
 import { success } from '@vintage/guild-kit';
 import type { GuildRank } from '@vintage/identity/contract';
 import { z } from 'zod';
-import { compSize, eventTemplate, RANK_PRIORITY } from '../contract';
+import { solveEventComp } from '../contract';
 import { command } from '../store';
 import { eventNotFound } from './shared';
 
@@ -21,25 +20,7 @@ export const compSuggest = command({
     for (const memberId of new Set(signups.map((s) => s.memberId))) {
       ranks.set(memberId, (await deps.members.getMember(guildId, memberId))?.rank ?? null);
     }
-    const compSignups: CompSignup[] = signups.map((s) => {
-      const rank = ranks.get(s.memberId);
-      return {
-        id: s.id,
-        name: s.characterName,
-        class: s.class,
-        spec: s.spec,
-        role: s.role,
-        status: s.roster === 'benched' ? 'bench' : s.status,
-        priority: s.roster === 'rostered' ? 100 : rank ? RANK_PRIORITY[rank] : 0,
-        signedUpAt: s.signedUpAt,
-      };
-    });
-    // The kind's targets, and raid buffs only for raids.
-    const template = eventTemplate(event);
-    // An open event plays everyone going: no cap, so nobody sits for size.
-    const going = compSignups.filter((s) => s.status === 'accepted' || s.status === 'late').length;
-    const raidSize = compSize(event, going);
-    const result = solveComp({ raidSize, template, signups: compSignups, goingOnly: true });
+    const result = solveEventComp(event, signups, ranks, { goingOnly: true });
     const of = event.size === null ? '' : `/${event.size}`;
     const reasoning = result.gaps.length
       ? result.gaps.map((g) => g.reason).join(' · ')

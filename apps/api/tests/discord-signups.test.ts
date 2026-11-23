@@ -394,4 +394,103 @@ describe('discord signups', () => {
     expect(click('signup:raid1:accepted:junk')).toBeNull();
     expect(pick('signup-pick:raid1:accepted:x', 'oak')).toBeNull();
   });
+
+  it('surfaces comp-solver bench reason in private reply when pre-approval signup overflows onto Standby (#324)', async () => {
+    const { p } = ports({ ...guessOak, spec: 'feral', role: 'melee' });
+    const smallRaid: RaidEvent = {
+      ...raid,
+      size: 10,
+      kind: 'raid',
+      access: 'guild',
+      roleTargets: { tank: 2, healer: 2, melee: 3, ranged: 3 },
+      rosterApprovedAt: null,
+      rosterApprovedBy: null,
+    };
+    const recruitMember: Member = { ...member, id: 'fen', rank: 'recruit', tier: 'recruit' };
+    const existingSignups: Signup[] = [
+      // 2 tanks, 2 healers, 3 melee, 3 ranged (all higher-priority raiders) -> raid full (10/10), melee 3/3.
+      ...Array.from({ length: 2 }, (_, i) => ({
+        id: `t${i}`,
+        memberId: `mt${i}`,
+        characterName: `Tank${i}`,
+        class: 'warrior',
+        spec: 'protection',
+        role: 'tank',
+        status: 'accepted',
+        roster: 'pending',
+        signedUpAt: i,
+      })),
+      ...Array.from({ length: 2 }, (_, i) => ({
+        id: `h${i}`,
+        memberId: `mh${i}`,
+        characterName: `Heal${i}`,
+        class: i === 0 ? 'priest' : 'druid',
+        spec: i === 0 ? 'holy' : 'restoration',
+        role: 'healer',
+        status: 'accepted',
+        roster: 'pending',
+        signedUpAt: 10 + i,
+      })),
+      ...Array.from({ length: 3 }, (_, i) => ({
+        id: `m${i}`,
+        memberId: `mm${i}`,
+        characterName: `Melee${i}`,
+        class: 'rogue',
+        spec: 'combat',
+        role: 'melee',
+        status: 'accepted',
+        roster: 'pending',
+        signedUpAt: 20 + i,
+      })),
+      ...Array.from({ length: 3 }, (_, i) => ({
+        id: `r${i}`,
+        memberId: `mr${i}`,
+        characterName: `Ranged${i}`,
+        class: 'mage',
+        spec: 'frost',
+        role: 'ranged',
+        status: 'accepted',
+        roster: 'pending',
+        signedUpAt: 30 + i,
+      })),
+    ] as Signup[];
+    const allMembers: Member[] = [
+      recruitMember,
+      ...existingSignups.map((s) => ({ ...member, id: s.memberId, rank: 'raider' as const })),
+    ];
+    p.memberByDiscordId = async () => recruitMember;
+    p.event = async () => smallRaid;
+    p.signups = async () => existingSignups;
+    p.rosterContext = async () => ({ members: allMembers, absences: [] });
+    p.signupSet = async (_caller, input) => ({
+      success: true,
+      data: {
+        id: 's-fen',
+        guildId: 'g',
+        eventId: 'raid1',
+        memberId: 'fen',
+        characterId: 'oak',
+        characterName: 'Oak',
+        class: 'druid',
+        spec: input.spec ?? 'feral',
+        role: 'melee',
+        alsoRoles: [],
+        status: input.status,
+        lateMinutes: null,
+        note: null,
+        roster: 'pending',
+        group: null,
+        signedUpAt: 100,
+        updatedAt: 100,
+        updatedBy: 'fen',
+        queued: false,
+        promotedAt: null,
+      } satisfies Signup,
+    });
+
+    const res = await handleSignupInteraction(interaction('signup:raid1:accepted'), p);
+    expect(JSON.stringify(res)).toContain(
+      "You're on Standby (melee slots full (3/3)); leaders will seat you if a spot opens.",
+    );
+  });
 });

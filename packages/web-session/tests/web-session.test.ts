@@ -8,6 +8,13 @@ import { type MemberMe, sameSession, toWebSession } from '../src/session';
 /** Records which Convex function each call hit and with what. */
 function fakeConvex() {
   const calls: { kind: string; fn: string; args: unknown }[] = [];
+  const subs: {
+    fn: string;
+    args: unknown;
+    onUpdate: (result: CommandResult<unknown>) => unknown;
+    onError?: (error: Error) => unknown;
+    unsubscribed: number;
+  }[] = [];
   const ok: CommandResult<unknown> = { success: true, data: { hi: true } };
   const convex: ConvexCalls = {
     async query(ref, args) {
@@ -18,8 +25,22 @@ function fakeConvex() {
       calls.push({ kind: 'mutation', fn: getFunctionName(ref), args });
       return ok;
     },
+    onUpdate(ref, args, callback, onError) {
+      const entry = {
+        fn: getFunctionName(ref),
+        args,
+        onUpdate: callback,
+        onError,
+        unsubscribed: 0,
+      };
+      calls.push({ kind: 'onUpdate', fn: entry.fn, args });
+      subs.push(entry);
+      return () => {
+        entry.unsubscribed++;
+      };
+    },
   };
-  return { calls, client: convexCommandClient(convex) };
+  return { calls, subs, client: convexCommandClient(convex) };
 }
 
 describe('convexCommandClient', () => {
@@ -53,6 +74,47 @@ describe('convexCommandClient', () => {
         args: { name: 'character-remove', input: { id: 'c1' }, confirmToken: 'tok' },
       },
     ]);
+  });
+
+  it('subscribes to commands:read via onUpdate, delivers live updates and errors, and unsubscribes cleanly', () => {
+    const { calls, subs, client } = fakeConvex();
+    const seen: CommandResult<unknown>[] = [];
+    const errors: Error[] = [];
+    const stop = client.watch?.(
+      'signup-list',
+      { eventId: 'e1' },
+      (r) => seen.push(r),
+      (e) => errors.push(e),
+    );
+    const stopDefault = client.watch?.('member-me', undefined, () => {});
+    expect(calls).toEqual([
+      {
+        kind: 'onUpdate',
+        fn: 'commands:read',
+        args: { name: 'signup-list', input: { eventId: 'e1' } },
+      },
+      { kind: 'onUpdate', fn: 'commands:read', args: { name: 'member-me', input: {} } },
+    ]);
+    subs[0]?.onUpdate({ success: true, data: ['Aeryn'] });
+    subs[0]?.onUpdate({ success: true, data: ['Aeryn', 'Bram'] });
+    subs[0]?.onError?.(new Error('socket reset'));
+    expect(seen).toEqual([
+      { success: true, data: ['Aeryn'] },
+      { success: true, data: ['Aeryn', 'Bram'] },
+    ]);
+    expect(errors.map((e) => e.message)).toEqual(['socket reset']);
+
+    stop?.();
+    stop?.();
+    stopDefault?.();
+    expect(subs[0]?.unsubscribed).toBe(1);
+    expect(subs[1]?.unsubscribed).toBe(1);
+
+    // Updates or errors arriving after unsubscribe are suppressed.
+    subs[0]?.onUpdate({ success: true, data: ['Stale'] });
+    subs[0]?.onError?.(new Error('late'));
+    expect(seen).toHaveLength(2);
+    expect(errors).toHaveLength(1);
   });
 });
 

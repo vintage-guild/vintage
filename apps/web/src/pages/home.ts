@@ -45,6 +45,8 @@ import {
   ruleWords,
   type SignupCounts,
   titleCase,
+  type Unsubscribe,
+  watchCommand,
 } from '@vintage/ui-kit';
 import { characterLabel } from '../characters';
 import { classIcon } from '../class-icons';
@@ -242,7 +244,7 @@ const template = html<Page>`
                   :needed="${(x) => x.nextNeeded}"
                   time-zone="${() => preferredTimeZone() ?? ''}"
                   :counts="${(x) => x.nextCounts}"
-                  @signup-changed="${(x) => x.loadRaids().then(() => (x.view === 'officer' ? x.loadOfficer() : undefined))}"
+                  @signup-changed="${(x) => x.onSignupChanged()}"
                 >
                   <p class="note">${(x) => (x.next ? [x.next.event.instance, players(x.next.event)].filter(Boolean).join(' · ') : '')}</p>
                   <p class="note"><a href="${(x) => raidHref(x.next?.event.id ?? '')}">See who’s coming</a></p>
@@ -1266,6 +1268,10 @@ export class Page extends FASTElement {
     return this.sections.has(section);
   }
   private stopWatching: (() => void) | null = null;
+  private raidListSub: Unsubscribe | null = null;
+  private nextRaidSubs: Unsubscribe[] = [];
+  private watchedNextId: string | null = null;
+  private nextSignups: SignupRow[] = [];
 
   get daysToLaunch(): string {
     return String(daysUntil(LAUNCH_AT));
@@ -1450,9 +1456,7 @@ export class Page extends FASTElement {
     void this.loadGuild();
     if (this.shows('raids')) void this.loadSchedules();
     void this.loadMembers();
-    void this.loadRaids().then(() =>
-      Promise.all([this.loadFeed(), this.view === 'officer' ? this.loadOfficer() : null]),
-    );
+    this.watchRaids();
     void this.loadMain();
     void this.loadProgress();
     void this.loadPoll();
@@ -1473,7 +1477,139 @@ export class Page extends FASTElement {
   disconnectedCallback(): void {
     this.stopWatching?.();
     this.stopWatching = null;
+    this.stopWatchingRaids();
     super.disconnectedCallback();
+  }
+
+  /** Live clients push raid and signup updates automatically; one-shot clients re-read. */
+  onSignupChanged(): void {
+    if (getCommandClient().watch) {
+      if (this.view === 'officer') void this.loadOfficer();
+      return;
+    }
+    void this.loadRaids().then(() => (this.view === 'officer' ? this.loadOfficer() : undefined));
+  }
+
+  private stopWatchingNextRaid(): void {
+    for (const stop of this.nextRaidSubs) stop();
+    this.nextRaidSubs = [];
+    this.watchedNextId = null;
+    this.nextSignups = [];
+  }
+
+  private stopWatchingRaids(): void {
+    this.raidListSub?.();
+    this.raidListSub = null;
+    this.stopWatchingNextRaid();
+  }
+
+  private applyNextSignups(next: RaidRow, rows: SignupRow[]): void {
+    this.nextSignups = rows;
+    this.mySignup = rows.find((s) => s.memberId === this.meId) ?? null;
+    this.nextNeeded = rolesNeeded(
+      next.event,
+      rows.filter((s) => s.memberId !== this.meId),
+    );
+    const going = rows.filter((s) => (s.status === 'accepted' || s.status === 'late') && !s.queued);
+    this.nextCounts = {
+      ...next.counts,
+      tank: going.filter((s) => s.role === 'tank').length,
+      healer: going.filter((s) => s.role === 'healer').length,
+      dps: going.filter((s) => s.role === 'melee' || s.role === 'ranged').length,
+      queued: rows.filter((s) => s.queued).length,
+    };
+  }
+
+  /** Subscribe live to upcoming raids and the next raid's signups, falling back to one-shot read. */
+  private watchRaids(): void {
+    this.stopWatchingRaids();
+    if (this.view === 'visitor') {
+      void this.loadRaids().then(() => this.loadFeed());
+      return;
+    }
+    const client = getCommandClient();
+    const to = Date.now() + CALENDAR_DAYS * DAY_MS;
+    let firstList = true;
+    this.raidListSub = watchCommand<RaidRow[]>(
+      client,
+      'raid-list',
+      { to },
+      (list) => {
+        this.raids = list.success ? (list.data ?? []) : [];
+        this.raidsFailed = !list.success;
+        this.raidsLoaded = true;
+        if (firstList) {
+          firstList = false;
+          void Promise.all([this.loadFeed(), this.view === 'officer' ? this.loadOfficer() : null]);
+        }
+        const next = this.next;
+        if (!next) {
+          this.stopWatchingNextRaid();
+          this.nextCounts = EMPTY_COUNTS;
+          this.guess = null;
+          this.mySignup = null;
+          this.nextNeeded = [];
+          return;
+        }
+        if (this.watchedNextId === next.event.id) {
+          this.applyNextSignups(next, this.nextSignups);
+          return;
+        }
+        this.stopWatchingNextRaid();
+        this.watchedNextId = next.event.id;
+        this.applyNextSignups(next, []);
+        const eventId = next.event.id;
+        const subs: Unsubscribe[] = [
+          watchCommand<SignupRow[]>(
+            client,
+            'signup-list',
+            { eventId },
+            (signups) => {
+              const current = this.next;
+              if (!current || current.event.id !== eventId) return;
+              this.applyNextSignups(current, signups.success ? (signups.data ?? []) : []);
+            },
+            () => {
+              const current = this.next;
+              if (!current || current.event.id !== eventId) return;
+              this.applyNextSignups(current, []);
+            },
+          ),
+        ];
+        if (this.signUpAllowed) {
+          subs.push(
+            watchCommand<SignupGuess | null>(
+              client,
+              'signup-suggest',
+              { eventId },
+              (guess) => {
+                if (this.watchedNextId !== eventId) return;
+                this.guess = guess.success ? (guess.data ?? null) : null;
+              },
+              () => {
+                if (this.watchedNextId !== eventId) return;
+                this.guess = null;
+              },
+            ),
+          );
+        }
+        this.nextRaidSubs = subs;
+      },
+      () => {
+        this.raids = [];
+        this.raidsFailed = true;
+        this.raidsLoaded = true;
+        this.stopWatchingNextRaid();
+        this.nextCounts = EMPTY_COUNTS;
+        this.guess = null;
+        this.mySignup = null;
+        this.nextNeeded = [];
+        if (firstList) {
+          firstList = false;
+          void Promise.all([this.loadFeed(), this.view === 'officer' ? this.loadOfficer() : null]);
+        }
+      },
+    );
   }
 
   /**

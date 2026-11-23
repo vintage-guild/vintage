@@ -1,3 +1,4 @@
+import type { CommandResult } from '@vintage/guild-kit';
 import type { CommandClient } from '@vintage/ui-kit';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { commandTiers, previewClient, previewFrom } from './preview';
@@ -94,6 +95,35 @@ describe('previewClient', () => {
     expect(result.success ? 'OK' : result.error?.code).toBe('PREVIEW_ONLY');
     expect(result.success ? '' : result.error?.message).toContain('as a raider');
     expect(inner.run).not.toHaveBeenCalled();
+  });
+
+  it('watches allowed commands live and refuses commands above the preview tier without subscribing', async () => {
+    const unsub = vi.fn();
+    let push: ((r: CommandResult<unknown>) => void) | undefined;
+    const liveInner: CommandClient = {
+      read: vi.fn(async () => ({ success: true, data: 'one-shot' })) as CommandClient['read'],
+      run: vi.fn(async () => ({ success: true })) as CommandClient['run'],
+      watch: vi.fn((_name, _input, onUpdate) => {
+        push = onUpdate;
+        return unsub;
+      }) as CommandClient['watch'],
+    };
+    const asMember = previewClient(liveInner, 'member', tiers);
+    const seenAllowed: unknown[] = [];
+    const stopAllowed = asMember.watch?.('raid-list', {}, (r) => seenAllowed.push(r.data));
+    push?.({ success: true, data: 'live-1' });
+    push?.({ success: true, data: 'live-2' });
+    expect(seenAllowed).toEqual(['live-1', 'live-2']);
+    stopAllowed?.();
+    expect(unsub).toHaveBeenCalledOnce();
+
+    const seenRefused: CommandResult<unknown>[] = [];
+    asMember.watch?.('member-list', {}, (r) => seenRefused.push(r));
+    await Promise.resolve();
+    expect(seenRefused).toHaveLength(1);
+    expect(seenRefused[0]?.success ? 'OK' : seenRefused[0]?.error?.code).toBe('COMMAND_NOT_FOUND');
+    expect(liveInner.watch).toHaveBeenCalledTimes(1);
+    expect(liveInner.read).not.toHaveBeenCalled();
   });
 });
 

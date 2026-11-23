@@ -44,9 +44,11 @@ schedule wording uses them too.
 - **Data changes are `@command`s.** A component action that changes data is a FAST-AF `@command`
   (`vintage.<server-command>`) that calls the server command through `getCommandClient()` and
   returns its result. Reactive availability is a `<method>CanExecute` getter.
-- **The client is a port.** `CommandClient` (`read` → `commands.read`, `run` → `commands.run`) is
-  stubbed with `createStubClient()` (every call answers `NOT_CONNECTED`) until the Convex adapter
-  lands; tests swap it with `setCommandClient`.
+- **The client is a port.** `CommandClient` (`read` → `commands.read`, `watch` → live
+  `commands.read` via Convex `onUpdate`, `run` → `commands.run`) is stubbed with
+  `createStubClient()` (every call answers `NOT_CONNECTED`) until `@vintage/web-session` installs
+  the Convex client; `watchCommand()` subscribes when `watch` is available and falls back to a
+  single `read` otherwise. Tests swap it with `setCommandClient`.
 - **Every element is in the Custom Elements Manifest.** Give the class a `@tagname` JSDoc tag.
   `pnpm --filter @vintage/ui-kit build` writes `dist/custom-elements.json` (with each element's
   `commands`) and `scripts/check-cem.mjs` fails on a missing element or command. CI runs it.

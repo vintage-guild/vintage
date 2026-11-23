@@ -29,6 +29,8 @@ import {
   type TonightRaid,
   type TonightRecentRaid,
   type TonightSignup,
+  type Unsubscribe,
+  watchCommand,
 } from '@vintage/ui-kit';
 import { formatMonthDay, formatWeekday, preferredTimeZone } from '../dates';
 import { raidHref } from '../raids';
@@ -373,7 +375,7 @@ const template = html<Page>`
               :waiting="${(x) => x.waiting}"
               :recentRaids="${(x) => x.recentRaids}"
               ?loading="${(x) => !x.loaded}"
-              @tonight-changed="${(x) => x.load()}"
+              @tonight-changed="${(x) => x.onTonightChanged()}"
             ></vintage-tonight>
             ${when(
               (x) => x.raid,
@@ -628,6 +630,10 @@ export class Page extends FASTElement {
   @observable rosterLoaded = false;
   /** Bumped per roster read, as the calendar's is. */
   private rosterRead = 0;
+  /** Active live-query subscriptions for Tonight (list + selected raid detail). */
+  private tonightSubs: Unsubscribe[] = [];
+  private tonightDetailSubs: Unsubscribe[] = [];
+  private watchedTonightId = '';
   /**
    * Every calendar command is leader tier, as are Random's pause, resume, run, and repost, and
    * `kill-record`; a preview below that reads them without the buttons.
@@ -682,6 +688,7 @@ export class Page extends FASTElement {
   }
 
   disconnectedCallback(): void {
+    this.stopWatchingTonight();
     super.disconnectedCallback();
     document.removeEventListener('keydown', this.onAssistantKey);
     // Leaving the quarters gives the site its full width back.
@@ -693,7 +700,8 @@ export class Page extends FASTElement {
     if (!this.allowed) return;
     document.addEventListener('keydown', this.onAssistantKey);
     document.documentElement.toggleAttribute('data-assistant-open', this.assistantOpen);
-    void this.load();
+    if (this.tab === 'tonight') this.watchTonight();
+    else void this.load();
     if (this.tab === 'polls') void this.loadPolls();
     if (this.tab === 'recruiting') void this.loadRecruiting();
     if (this.tab === 'applications') void this.loadApplications();
@@ -707,11 +715,14 @@ export class Page extends FASTElement {
   /** Switch tabs and keep the choice in the address, so `/officers?tab=polls` links work. */
   select(id: TabId): void {
     if (!TABS.some((t) => t.id === id && t.ready) || id === this.tab) return;
+    const leavingTonight = this.tab === 'tonight';
     this.tab = id;
     const url = new URL(location.href);
     if (id === 'tonight') url.searchParams.delete('tab');
     else url.searchParams.set('tab', id);
     history.replaceState(history.state, '', url);
+    if (leavingTonight) this.stopWatchingTonight();
+    if (id === 'tonight') this.watchTonight();
     if (id === 'polls') void this.loadPolls();
     if (id === 'recruiting') void this.loadRecruiting();
     if (id === 'applications') void this.loadApplications();
@@ -896,7 +907,147 @@ export class Page extends FASTElement {
 
   pick(eventId: string): void {
     this.selectedId = eventId;
-    void this.load();
+    if (this.tab === 'tonight' && this.$fastController.isConnected) {
+      this.watchTonightDetail(eventId);
+    } else {
+      void this.load();
+    }
+  }
+
+  /** Live clients push Tonight updates automatically; one-shot clients re-read. */
+  onTonightChanged(): void {
+    if (!getCommandClient().watch) void this.load();
+  }
+
+  private stopWatchingTonightDetail(): void {
+    for (const stop of this.tonightDetailSubs) stop();
+    this.tonightDetailSubs = [];
+    this.watchedTonightId = '';
+  }
+
+  private stopWatchingTonight(): void {
+    for (const stop of this.tonightSubs) stop();
+    this.tonightSubs = [];
+    this.stopWatchingTonightDetail();
+  }
+
+  /** Subscribe live to the selected Tonight raid's signups, comp gaps, and non-responders. */
+  private watchTonightDetail(eventId: string): void {
+    this.stopWatchingTonightDetail();
+    this.watchedTonightId = eventId;
+    if (!eventId) {
+      this.signups = [];
+      this.gaps = [];
+      this.waiting = [];
+      return;
+    }
+    const client = getCommandClient();
+    this.tonightDetailSubs = [
+      watchCommand<Signup[]>(
+        client,
+        'signup-list',
+        { eventId },
+        (signups) => {
+          if (this.watchedTonightId !== eventId) return;
+          this.signups = signups.success ? (signups.data ?? []) : [];
+          this.loaded = true;
+        },
+        () => {
+          if (this.watchedTonightId !== eventId) return;
+          this.signups = [];
+          this.loaded = true;
+        },
+      ),
+      watchCommand<CompData>(
+        client,
+        'comp-suggest',
+        { eventId },
+        (comp) => {
+          if (this.watchedTonightId !== eventId) return;
+          this.gaps = comp.success ? (comp.data?.gaps ?? []).map((g) => g.reason) : [];
+        },
+        () => {
+          if (this.watchedTonightId !== eventId) return;
+          this.gaps = [];
+        },
+      ),
+      watchCommand<StatusData>(
+        client,
+        'coordinator-status',
+        {},
+        (status) => {
+          if (this.watchedTonightId !== eventId) return;
+          this.waiting = status.success
+            ? (status.data?.upcoming.find((u) => u.eventId === eventId)?.waiting ?? []).map(
+                (w) => w.displayName,
+              )
+            : [];
+        },
+        () => {
+          if (this.watchedTonightId !== eventId) return;
+          this.waiting = [];
+        },
+      ),
+    ];
+  }
+
+  /** Subscribe live to Tonight's upcoming raids, recent raids, and selected raid detail. */
+  private watchTonight(): void {
+    this.stopWatchingTonight();
+    const client = getCommandClient();
+    const now = Date.now();
+    this.tonightSubs = [
+      watchCommand<RaidRow[]>(
+        client,
+        'raid-list',
+        { to: now + AHEAD_MS },
+        (list) => {
+          if (!list.success) {
+            this.loadError = list.error?.message ?? 'Could not read the calendar';
+            this.loaded = true;
+            return;
+          }
+          this.loadError = '';
+          this.raids = (list.data ?? []).filter(
+            (r) => r.event.status === 'open' || r.event.status === 'locked',
+          );
+          if (!this.raids.some((r) => r.event.id === this.selectedId)) {
+            this.selectedId = this.raids[0]?.event.id ?? '';
+          }
+          if (!this.selectedId) {
+            this.watchTonightDetail('');
+            this.loaded = true;
+          } else if (this.selectedId !== this.watchedTonightId) {
+            this.watchTonightDetail(this.selectedId);
+          }
+        },
+        (err) => {
+          this.loaded = true;
+          this.loadError = err.message || 'Could not read the calendar';
+        },
+      ),
+      watchCommand<RaidRow[]>(
+        client,
+        'raid-list',
+        {
+          from: now - EXPORT_BEHIND_MS,
+          to: now + EXPORT_AHEAD_MS,
+          statuses: ['open', 'locked', 'completed'],
+        },
+        (recent) => {
+          this.recentRaids = recent.success
+            ? (recent.data ?? []).map(({ event }) => ({
+                id: event.id,
+                name: event.name,
+                startsAt: event.startsAt,
+              }))
+            : [];
+        },
+        () => {
+          this.recentRaids = [];
+        },
+      ),
+    ];
   }
 
   /** Read the calendar, then tonight's signups, gaps, and non-responders for the picked raid. */

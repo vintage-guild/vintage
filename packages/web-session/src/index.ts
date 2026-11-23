@@ -1,4 +1,9 @@
-export { type CommandClient, convexCommandClient, type RunOptions } from './commands';
+export {
+  type CommandClient,
+  convexCommandClient,
+  type RunOptions,
+  type Unsubscribe,
+} from './commands';
 export {
   type ConnectOptions,
   connectVintage,

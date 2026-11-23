@@ -4,7 +4,13 @@
 // action is refused so nothing is saved by someone looking through another tier's eyes.
 
 import type { CommandResult, Tier } from '@vintage/guild-kit';
-import { type CommandClient, getCommandClient, setCommandClient } from '@vintage/ui-kit';
+import {
+  type CommandClient,
+  getCommandClient,
+  setCommandClient,
+  type Unsubscribe,
+  watchCommand,
+} from '@vintage/ui-kit';
 import {
   canPreviewAs,
   currentPreview,
@@ -42,18 +48,34 @@ export function previewClient(
   const have: Tier = tier === 'visitor' ? 'public' : tier;
   const order = ['public', 'friend', 'member', 'recruit', 'raider', 'leader', 'officer'];
   const allowed = (name: string) => order.indexOf(have) >= order.indexOf(tiers[name] ?? 'officer');
+  const refused = <T>(name: string): CommandResult<T> => ({
+    success: false,
+    error: {
+      code: 'COMMAND_NOT_FOUND',
+      message: `No command named "${name}" is available to you`,
+      suggestion: 'Use afd-discover to list the commands you can run',
+      retryable: false,
+    },
+  });
   return {
     read<T>(name: string, input?: unknown): Promise<CommandResult<T>> {
       if (allowed(name)) return inner.read<T>(name, input);
-      return Promise.resolve({
-        success: false,
-        error: {
-          code: 'COMMAND_NOT_FOUND',
-          message: `No command named "${name}" is available to you`,
-          suggestion: 'Use afd-discover to list the commands you can run',
-          retryable: false,
-        },
+      return Promise.resolve(refused<T>(name));
+    },
+    watch<T>(
+      name: string,
+      input: unknown,
+      onUpdate: (result: CommandResult<T>) => void,
+      onError?: (error: Error) => void,
+    ): Unsubscribe {
+      if (allowed(name)) return watchCommand<T>(inner, name, input, onUpdate, onError);
+      let active = true;
+      queueMicrotask(() => {
+        if (active) onUpdate(refused<T>(name));
       });
+      return () => {
+        active = false;
+      };
     },
     run<T>(name: string): Promise<CommandResult<T>> {
       return Promise.resolve({

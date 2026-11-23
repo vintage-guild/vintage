@@ -42,7 +42,7 @@ import {
 } from '@vintage/raids/testing';
 import { type SiteDeps, siteCommands } from '@vintage/site/commands';
 import { createMemorySiteStore } from '@vintage/site/testing';
-import type { CommandClient } from '@vintage/ui-kit';
+import type { CommandClient, Unsubscribe } from '@vintage/ui-kit';
 import { createFixtureAgent } from './agent';
 import { createFixtureArmoryClient } from './armory';
 import { FIXTURE_GUILD_ID, FIXTURE_NOW, ROLE_IDS } from './data';
@@ -85,6 +85,8 @@ export interface FixtureHost {
   armoryIdle(): Promise<void>;
   /** How long a fake armory fetch takes, like the real one's round trip (0 while seeding). */
   armoryDelayMs: number;
+  /** Called after any mutating command commits, so `createHostClient().watch` stays live. */
+  onChange(listener: () => void): Unsubscribe;
   system: Caller;
 }
 
@@ -294,31 +296,55 @@ export function createFixtureHost(
       },
     },
   };
+  const allCommands = [
+    ...identityCommands,
+    ...raidsCommands,
+    ...progressCommands,
+    ...pollsCommands,
+    ...coordinatorCommands,
+    ...siteCommands,
+    ...applicationsCommands,
+    ...agentCommands,
+    ...armoryCommands,
+  ];
+  const mutatingCommands = new Set(allCommands.filter((c) => c.mutation).map((c) => c.name));
+  const changeListeners = new Set<() => void>();
+  const notifyChange = () => {
+    for (const listener of [...changeListeners]) listener();
+  };
+
   const registry = createGuildRegistry<FixtureDeps>({
-    commands: [
-      ...identityCommands,
-      ...raidsCommands,
-      ...progressCommands,
-      ...pollsCommands,
-      ...coordinatorCommands,
-      ...siteCommands,
-      ...applicationsCommands,
-      ...agentCommands,
-      ...armoryCommands,
-    ],
+    commands: allCommands,
     confirmSecret: 'development-fixtures',
     now: options.now ?? (() => FIXTURE_NOW),
   });
 
+  const isPreview = (result: CommandResult<unknown>): boolean =>
+    Boolean(result.success && (result.data as { confirmToken?: string } | undefined)?.confirmToken);
+
+  async function execute<T>(
+    caller: Caller,
+    name: string,
+    input: unknown = {},
+    confirmToken?: string,
+  ): Promise<CommandResult<T>> {
+    const result = (await registry.execute(
+      { name, input, caller, confirmToken },
+      deps,
+    )) as CommandResult<T>;
+    if (result.success && mutatingCommands.has(name) && !isPreview(result)) {
+      notifyChange();
+    }
+    return result;
+  }
+
   async function run<T>(caller: Caller, name: string, input: unknown = {}) {
-    const first = await registry.execute({ name, input, caller }, deps);
+    const first = await execute<T>(caller, name, input);
     const token = first.success
       ? (first.data as { confirmToken?: string } | undefined)?.confirmToken
       : undefined;
-    if (!token) return first as CommandResult<T>;
-    return registry.execute({ name, input, caller, confirmToken: token }, deps) as Promise<
-      CommandResult<T>
-    >;
+    if (!token) return first;
+    return execute<T>(caller, name, input, token);
   }
 
   const host: FixtureHost = {
@@ -326,12 +352,15 @@ export function createFixtureHost(
     deps,
     armoryIdle: () => armoryJobs,
     armoryDelayMs: 0,
+    onChange(listener) {
+      changeListeners.add(listener);
+      return () => {
+        changeListeners.delete(listener);
+      };
+    },
     discord,
     run,
-    execute: (caller, name, input = {}, confirmToken) =>
-      registry.execute({ name, input, caller, confirmToken }, deps) as Promise<
-        CommandResult<never>
-      >,
+    execute,
     system,
     callerFor: (member) => ({
       surface: 'web',
@@ -351,11 +380,40 @@ export function createFixtureHost(
 /** A ui-kit command client that runs every call through the host as one caller. */
 /**
  * The pages' client: no auto-confirm, so a destructive command shows its preview and waits for
- * the confirm token, exactly as it will against Convex.
+ * the confirm token, exactly as it will against Convex. `watch` re-reads whenever any mutating
+ * command commits on the host, matching Convex's live `commands:read` subscriptions.
  */
 export function createHostClient(host: FixtureHost, caller: Caller): CommandClient {
   return {
     read: (name, input) => host.execute(caller, name, input ?? {}),
     run: (name, input, options) => host.execute(caller, name, input ?? {}, options?.confirmToken),
+    watch<T>(
+      name: string,
+      input: unknown,
+      onUpdate: (result: CommandResult<T>) => void,
+      onError?: (error: Error) => void,
+    ): Unsubscribe {
+      let active = true;
+      let seq = 0;
+      const pull = () => {
+        const read = ++seq;
+        void host.execute<T>(caller, name, input ?? {}).then(
+          (result) => {
+            if (active && read === seq) onUpdate(result);
+          },
+          (err) => {
+            if (active && read === seq)
+              onError?.(err instanceof Error ? err : new Error(String(err)));
+          },
+        );
+      };
+      const stopListening = host.onChange(pull);
+      pull();
+      return () => {
+        if (!active) return;
+        active = false;
+        stopListening();
+      };
+    },
   };
 }

@@ -6,6 +6,7 @@ import {
   html,
   observable,
   repeat,
+  volatile,
   when,
 } from '@lushly-dev/fast-element';
 import { ROLES, type Role } from '@vintage/wow-data';
@@ -377,6 +378,7 @@ export class VintageRaidRoster extends FASTElement {
   /** Still reading: nothing says "nobody" yet. */
   @attr({ mode: 'boolean' }) loading = false;
 
+  @volatile
   get countRows(): [string, string][] {
     const c = this.counts;
     if (!c) return [];
@@ -390,6 +392,7 @@ export class VintageRaidRoster extends FASTElement {
     return rows;
   }
 
+  @volatile
   get compLine(): string {
     const c = this.comp;
     if (!c) return '';

@@ -1,4 +1,5 @@
-import { css, FASTElement, html, observable, when } from '@lushly-dev/fast-element';
+import { css, FASTElement, html, observable, volatile, when } from '@lushly-dev/fast-element';
+import type { CommandResult } from '@vintage/guild-kit';
 import type { Character } from '@vintage/identity/contract';
 import {
   accessOf,
@@ -8,7 +9,13 @@ import {
   type Signup,
   type SignupGuess,
 } from '@vintage/raids/contract';
-import { getCommandClient, type RaidRosterComp, type RaidRosterCounts } from '@vintage/ui-kit';
+import {
+  getCommandClient,
+  type RaidRosterComp,
+  type RaidRosterCounts,
+  type Unsubscribe,
+  watchCommand,
+} from '@vintage/ui-kit';
 import { characterLabel } from '../characters';
 import { preferredTimeZone } from '../dates';
 import {
@@ -85,7 +92,7 @@ const template = html<Page>`
               :characters="${(x) => (x.signUpAllowed ? x.characters : [])}"
               :needed="${(x) => x.needed}"
               time-zone="${() => preferredTimeZone() ?? ''}"
-              @signup-changed="${(x) => x.load()}"
+              @signup-changed="${(x) => x.onSignupChanged()}"
             >
               ${when(
                 (x) => !x.signUpAllowed,
@@ -171,9 +178,9 @@ const styles = css`
  * `/raids/<eventId>`: one raid for members and up. The raid and its counts from `raid-get`; who
  * is coming from `signup-list` (recruits and up) and the comp from `comp-suggest` (raiders and
  * up), each in a `vintage-raid-roster`; where the member's rank can't read one, the server's
- * refusal becomes a note in its place. The member answers on the same `vintage-signup-card` as
- * the home page, and the page reads again after every answer. Not live yet: another member's
- * answer shows on the next read.
+ * refusal becomes a note in its place. Subscribed live through `watchCommand` (`commands:read`
+ * via Convex `onUpdate` in production), so another member's signup or a roster lock appears
+ * without reloading; falls back to one-shot reads when the client doesn't support `watch`.
  */
 export class Page extends FASTElement {
   readonly view = currentView();
@@ -202,8 +209,13 @@ export class Page extends FASTElement {
   @observable error = '';
   /** Bumped per read, so an older read that finishes last doesn't overwrite a newer one. */
   private reads = 0;
+  /** Active live-query subscriptions for this raid, cleared on unmount or raid change. */
+  private unsubscribers: Unsubscribe[] = [];
+  /** Whether the latest `signup-list` read succeeded (so `needed` knows signups are readable). */
+  private signupsReadable = false;
 
   /** Whether this session may answer this raid (`friend`+ for open raids, `recruit`+ for guild raids). */
+  @volatile
   get signUpAllowed(): boolean {
     return canSignUp(currentSession(), this.event ? accessOf(this.event) : 'guild');
   }
@@ -218,11 +230,13 @@ export class Page extends FASTElement {
   }
 
   /** "signups lock Sat 6:00 PM EST", as the home card says it; empty without `locksAt`. */
+  @volatile
   get lockLine(): string {
     const event = this.event;
     return event ? lockLabel(event.status, this.locksAt, Date.now(), preferredTimeZone()) : '';
   }
 
+  @volatile
   get facts(): string {
     return this.event ? raidFacts(this.event, preferredTimeZone(), this.lockLine) : '';
   }
@@ -230,11 +244,184 @@ export class Page extends FASTElement {
   connectedCallback(): void {
     super.connectedCallback();
     if (!this.allowed) return;
-    void this.load();
-    if (canSignUp(currentSession(), 'open')) void this.loadCharacters();
+    this.subscribe();
   }
 
-  /** The raid, its signups, the comp, and the member's likely character, read together. */
+  disconnectedCallback(): void {
+    this.stopWatching();
+    super.disconnectedCallback();
+  }
+
+  eventIdChanged(): void {
+    if (this.$fastController.isConnected && this.allowed) this.subscribe();
+  }
+
+  /** Live clients push updates automatically; one-shot clients re-read after the member answers. */
+  onSignupChanged(): void {
+    if (!getCommandClient().watch) void this.load();
+  }
+
+  private stopWatching(): void {
+    for (const stop of this.unsubscribers) stop();
+    this.unsubscribers = [];
+  }
+
+  private updateNeeded(): void {
+    this.needed =
+      this.event && this.signupsReadable
+        ? rolesNeeded(
+            this.event,
+            this.signups.filter((s) => s.memberId !== this.meId),
+          )
+        : [];
+  }
+
+  private applyRaid(eventId: string, got: CommandResult<RaidGet>): void {
+    if (!got.success || !got.data) {
+      this.missing = got.error?.code === 'RAID_NOT_FOUND' || !eventId;
+      this.error = this.missing
+        ? ''
+        : `Couldn’t read the raid: ${got.error?.message ?? 'no answer'}.`;
+      this.event = null;
+      this.counts = null;
+      this.locksAt = undefined;
+      this.mine = null;
+      this.needed = [];
+      return;
+    }
+    this.missing = false;
+    this.error = '';
+    this.event = got.data.event;
+    this.counts = got.data.counts;
+    this.locksAt = got.data.locksAt;
+    this.mine = got.data.mine;
+    this.updateNeeded();
+  }
+
+  private applySignups(list: CommandResult<SignupRow[]>): void {
+    this.signupsReadable = list.success;
+    this.signups = list.success ? (list.data ?? []) : [];
+    this.signupsNote = refusedNote(list, SIGNUPS_NOTE, 'the signups');
+    this.updateNeeded();
+  }
+
+  private applyComp(comp: CommandResult<CompSuggest>): void {
+    this.comp = comp.success && comp.data ? rosterComp(comp.data) : null;
+    this.compNote = refusedNote(comp, COMP_NOTE, 'the comp');
+  }
+
+  /** Subscribe live to the raid, its signups, the comp, and the member's character guess. */
+  private subscribe(): void {
+    this.stopWatching();
+    const client = getCommandClient();
+    const eventId = this.eventId;
+    this.loaded = false;
+    let gotRaid = false;
+    let gotSignups = false;
+    let gotComp = false;
+    const markLoaded = () => {
+      if (gotRaid && (this.missing || Boolean(this.error) || (gotSignups && gotComp))) {
+        this.loaded = true;
+      }
+    };
+
+    const subs: Unsubscribe[] = [
+      watchCommand<RaidGet>(
+        client,
+        'raid-get',
+        { eventId },
+        (got) => {
+          if (this.eventId !== eventId) return;
+          this.applyRaid(eventId, got);
+          gotRaid = true;
+          markLoaded();
+        },
+        (err) => {
+          if (this.eventId !== eventId) return;
+          this.missing = false;
+          this.error = `Couldn’t read the raid: ${err.message}.`;
+          this.event = null;
+          this.counts = null;
+          this.locksAt = undefined;
+          this.mine = null;
+          this.needed = [];
+          gotRaid = true;
+          markLoaded();
+        },
+      ),
+      watchCommand<SignupRow[]>(
+        client,
+        'signup-list',
+        { eventId },
+        (list) => {
+          if (this.eventId !== eventId) return;
+          this.applySignups(list);
+          gotSignups = true;
+          markLoaded();
+        },
+        (err) => {
+          if (this.eventId !== eventId) return;
+          this.signupsReadable = false;
+          this.signups = [];
+          this.signupsNote = `Couldn’t read the signups: ${err.message}.`;
+          this.updateNeeded();
+          gotSignups = true;
+          markLoaded();
+        },
+      ),
+      watchCommand<CompSuggest>(
+        client,
+        'comp-suggest',
+        { eventId },
+        (comp) => {
+          if (this.eventId !== eventId) return;
+          this.applyComp(comp);
+          gotComp = true;
+          markLoaded();
+        },
+        (err) => {
+          if (this.eventId !== eventId) return;
+          this.comp = null;
+          this.compNote = `Couldn’t read the comp: ${err.message}.`;
+          gotComp = true;
+          markLoaded();
+        },
+      ),
+    ];
+
+    if (canSignUp(currentSession(), 'open')) {
+      subs.push(
+        watchCommand<SignupGuess | null>(
+          client,
+          'signup-suggest',
+          { eventId },
+          (guess) => {
+            if (this.eventId !== eventId) return;
+            this.guess = guess.success ? (guess.data ?? null) : null;
+          },
+          () => {
+            if (this.eventId !== eventId) return;
+            this.guess = null;
+          },
+        ),
+        watchCommand<Character[]>(
+          client,
+          'character-list',
+          {},
+          (result) => {
+            this.characters = result.success ? (result.data ?? []) : [];
+          },
+          () => {
+            this.characters = [];
+          },
+        ),
+      );
+    }
+
+    this.unsubscribers = subs;
+  }
+
+  /** One-shot read of the raid, its signups, the comp, and the member's likely character. */
   async load(): Promise<void> {
     const read = ++this.reads;
     const client = getCommandClient();
@@ -247,35 +434,13 @@ export class Page extends FASTElement {
         ? client.read<SignupGuess | null>('signup-suggest', { eventId })
         : Promise.resolve(null),
     ]);
-    if (read !== this.reads) return;
+    if (read !== this.reads || this.eventId !== eventId) return;
     this.loaded = true;
-    if (!got.success || !got.data) {
-      this.missing = got.error?.code === 'RAID_NOT_FOUND' || !eventId;
-      this.error = this.missing
-        ? ''
-        : `Couldn’t read the raid: ${got.error?.message ?? 'no answer'}.`;
-      this.event = null;
-      this.counts = null;
-      return;
-    }
-    this.missing = false;
-    this.error = '';
-    this.event = got.data.event;
-    this.counts = got.data.counts;
-    this.locksAt = got.data.locksAt;
-    this.mine = got.data.mine;
-    this.signups = list.success ? (list.data ?? []) : [];
-    this.signupsNote = refusedNote(list, SIGNUPS_NOTE, 'the signups');
-    this.comp = comp.success && comp.data ? rosterComp(comp.data) : null;
-    this.compNote = refusedNote(comp, COMP_NOTE, 'the comp');
+    this.applyRaid(eventId, got);
+    if (!got.success || !got.data) return;
+    this.applySignups(list);
+    this.applyComp(comp);
     this.guess = guess?.success ? (guess.data ?? null) : null;
-    // Members below recruit can't read the signups or answer, so nothing is marked for them.
-    this.needed = list.success
-      ? rolesNeeded(
-          got.data.event,
-          this.signups.filter((s) => s.memberId !== this.meId),
-        )
-      : [];
   }
 
   async loadCharacters(): Promise<void> {

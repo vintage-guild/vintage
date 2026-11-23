@@ -91,6 +91,7 @@ export const interaction = internalMutation({
       signup: (eventId, memberId) => raids.getSignupByMember(GUILD_ID, eventId, memberId),
       run: (caller, name, input) => runCommandAs(ctx, caller, name, input),
       afterChange: () => scheduleCoalescedTick(ctx, GUILD_ID),
+      now: () => Date.now(),
     });
     if (absence) return absence;
 

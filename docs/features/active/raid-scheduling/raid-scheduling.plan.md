@@ -1,9 +1,10 @@
 # Raid scheduling: edit a raid's comp and size, schedules from Discord, a short site link
 
-**Status:** proposed (2026-11-22). Nothing built. All of Bloodfen's technical calls and all of
-TJ's product calls except row 16 (proposed) are settled (2026-11-22). **Owner modules:** raids
-(commands), comp-solver (`groupDraft`), apps/api (Discord), web (quarters, short links),
-coordinator (signup post, party post, leads feed).
+**Status:** active (2026-11-23). Prerequisites (#322, #323, #324, #325) and Phase 1 (edit comp
+and size) landed. All of Bloodfen's technical calls and all of TJ's product calls except row 16
+(proposed) are settled (2026-11-22). **Owner modules:** raids (commands), comp-solver
+(`groupDraft`), apps/api (Discord), web (quarters, short links), coordinator (signup post, party
+post, leads feed).
 
 Three asks from TJ (guild master) on 2026-11-22:
 
@@ -213,12 +214,12 @@ approved seats).
 
 ## Tasks
 
-- [ ] **Prerequisites** (#322, #323, #324): `vintage-signup-card` v2 controls, split melee/ranged
-  targets + `access` in `calendar-forms.ts` and `discord-event-form.ts` (with Length select on
-  preview, row 15), lock/open-seat suggestions, pre-approval comp Standby, and `roster-approve`
-  persisting seats. *(Completed in #325: #320 `tick.ts` `siteUrl` + `TICK_TRIGGERS`, and
-  `/raids/<id>` open-raid access.)*
-- [ ] **Edit comp and size** (raids, comp-solver, coordinator, web): rename `raid-reschedule` →
+- [x] **Prerequisites** (#322, #323, #324): `vintage-signup-card` v2 controls (#332), split melee/ranged
+  targets + `access` in `calendar-forms.ts` and `discord-event-form.ts` (#328), lock/open-seat
+  suggestions, pre-approval comp Standby, and `roster-approve` persisting seats (#339). *(Also
+  completed in #325: #320 `tick.ts` `siteUrl` + `TICK_TRIGGERS`, and `/raids/<id>` open-raid
+  access.)*
+- [x] **Edit comp and size** (raids, comp-solver, coordinator, web): rename `raid-reschedule` →
   `raid-update` (`breaking-contract`) with `size` and `roleTargets`, `updatedAt`/`updatedBy` on
   `RaidEvent`, create checks + completed/cancelled refusal, draft re-seating & out-of-range group
   clearing before approval, `groupDraft()` `outOfRange`/`overflow` + `finalRoster()` keeping

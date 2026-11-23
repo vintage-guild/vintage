@@ -247,13 +247,18 @@ export function finalRoster(
 ): { going: Signup[]; bench: Signup[] } {
   const rostered = tick.signups.filter((s) => s.roster === 'rostered' && s.status !== 'declined');
   const pendingGoing = tick.signups.some((s) => s.roster === 'pending' && GOING.has(s.status));
-  // When a leader has explicitly rostered everyone (no unplaced going signups left), keep every
-  // leader-rostered seat even if it exceeds event.size, and put Standby/benched on bench.
-  if (rostered.length && !pendingGoing) {
+  const approved = tick.event.rosterApprovedAt !== null;
+  // Once leaders approved the roster (with materialized rostered seats) or explicitly rostered
+  // everyone going, keep every non-declined rostered seat even if it exceeds event.size so
+  // shrinking a raid never silently unseats anyone.
+  if (rostered.length && (approved || !pendingGoing)) {
     return {
       going: rostered,
       bench: tick.signups.filter(
-        (s) => s.roster === 'benched' || (s.roster === 'pending' && s.status === 'bench'),
+        (s) =>
+          s.roster === 'benched' ||
+          (s.roster === 'pending' && s.status === 'bench') ||
+          (approved && s.roster === 'pending' && GOING.has(s.status)),
       ),
     };
   }

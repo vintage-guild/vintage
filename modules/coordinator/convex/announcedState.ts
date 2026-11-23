@@ -46,6 +46,14 @@ const announcedRowValidator = v.object({
   updatedAt: v.number(),
   updatedBy: v.union(v.string(), v.null()),
   absenceSummary: v.union(v.string(), v.null()),
+  eventSize: v.optional(v.union(v.number(), v.null())),
+  eventRoleTargets: v.optional(
+    v.union(
+      v.object({ tank: v.number(), healer: v.number(), melee: v.number(), ranged: v.number() }),
+      v.object({ tank: v.number(), healer: v.number(), dps: v.number() }),
+      v.null(),
+    ),
+  ),
   announcedAt: v.number(),
 });
 

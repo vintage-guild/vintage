@@ -178,6 +178,9 @@ export interface AnnouncedMemberState {
   updatedAt: number;
   updatedBy: string | null;
   absenceSummary: string | null;
+  /** For the sentinel `__raid__` metadata row: last announced event size and comp targets. */
+  eventSize?: number | null;
+  eventRoleTargets?: RoleTargets | null;
   announcedAt: number;
 }
 

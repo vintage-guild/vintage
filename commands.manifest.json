@@ -3560,8 +3560,8 @@
       }
     },
     {
-      "name": "raid-reschedule",
-      "description": "Move a raid to a new start time, change its notes (what to bring, when to be on; empty or null clears them), or both. Give at least one. Signups and roster are kept.",
+      "name": "raid-update",
+      "description": "Update a raid after it exists: move its start time, change its notes (what to bring, when to be on; empty or null clears them), change its size (nullable for kind other), or change its comp roleTargets (null resets to the kind default). Give at least one. Allowed while open or locked, including after start; completed and cancelled raids refuse. Signups and approved seats are kept.",
       "tier": "leader",
       "mutation": true,
       "destructive": false,
@@ -3592,6 +3592,85 @@
               {
                 "type": "string",
                 "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "size": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 40
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "roleTargets": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "tank": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "healer": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "melee": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "ranged": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "tank",
+                      "healer",
+                      "melee",
+                      "ranged"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "tank": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "healer": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "dps": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "tank",
+                      "healer",
+                      "dps"
+                    ]
+                  }
+                ]
               },
               {
                 "type": "null"
@@ -4903,7 +4982,7 @@
     },
     {
       "name": "schedule-update",
-      "description": "Change a schedule (time, days, kind, size, timings, comp targets, default notes) or pause it with active: false. Raids already created keep their time and notes; use raid-reschedule for those.",
+      "description": "Change a schedule (time, days, kind, size, timings, comp targets, default notes) or pause it with active: false. Raids already created keep their time, size, comp, and notes; use raid-update for those.",
       "tier": "leader",
       "mutation": true,
       "destructive": false,

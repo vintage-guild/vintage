@@ -248,7 +248,7 @@ describe('raids commands', () => {
       expect(new Date(raid.startsAt).toISOString()).toBe('2026-11-11T01:00:00.000Z');
     });
 
-    it('reschedules keeping signups, and cancels through the confirm flow', async () => {
+    it('updates a raid keeping signups, and cancels through the confirm flow', async () => {
       const raid = await createRaid();
       await ok(
         'signup-set',
@@ -256,11 +256,12 @@ describe('raids commands', () => {
         as('aeryn'),
       );
       const moved = await ok<RaidEvent>(
-        'raid-reschedule',
+        'raid-update',
         { eventId: raid.id, startsAt: raid.startsAt + DAY },
         leader,
       );
       expect(moved.startsAt).toBe(raid.startsAt + DAY);
+      expect(moved.updatedBy).toBe('leader-1');
       expect(await ok<Signup[]>('signup-list', { eventId: raid.id }, as('aeryn'))).toHaveLength(1);
 
       const { preview, result } = await previewAndConfirm(
@@ -271,17 +272,13 @@ describe('raids commands', () => {
       expect(preview).toMatchObject({ success: true, data: { preview: { signups: 1 } } });
       expect(result).toMatchObject({ success: true, data: { cancelled: { status: 'cancelled' } } });
       expect(
-        await run(
-          'raid-reschedule',
-          { eventId: raid.id, startsAt: raid.startsAt + 2 * DAY },
-          leader,
-        ),
+        await run('raid-update', { eventId: raid.id, startsAt: raid.startsAt + 2 * DAY }, leader),
       ).toMatchObject({
         error: { code: 'RAID_CLOSED' },
       });
     });
 
-    it('keeps notes: set on create, changed or cleared on reschedule, capped at 500', async () => {
+    it('keeps notes: set on create, changed or cleared on update, capped at 500', async () => {
       const raid = await createRaid({ notes: '  Fire resist and flasks.\n\nOn at 7:45.  ' });
       expect(raid.notes).toBe('Fire resist and flasks.\n\nOn at 7:45.');
       expect((await createRaid()).notes).toBeNull();
@@ -291,23 +288,23 @@ describe('raids commands', () => {
 
       // Notes alone: the time stays.
       const noted = await ok<RaidEvent>(
-        'raid-reschedule',
+        'raid-update',
         { eventId: raid.id, notes: 'Nature resist instead.' },
         leader,
       );
       expect(noted).toMatchObject({ startsAt: raid.startsAt, notes: 'Nature resist instead.' });
       // Moving it keeps the notes; a blank box clears them.
       const moved = await ok<RaidEvent>(
-        'raid-reschedule',
+        'raid-update',
         { eventId: raid.id, startsAt: raid.startsAt + DAY },
         leader,
       );
       expect(moved.notes).toBe('Nature resist instead.');
       expect(
-        (await ok<RaidEvent>('raid-reschedule', { eventId: raid.id, notes: '   ' }, leader)).notes,
+        (await ok<RaidEvent>('raid-update', { eventId: raid.id, notes: '   ' }, leader)).notes,
       ).toBeNull();
       // Nothing to change is a validation error, not a silent no-op.
-      expect(await run('raid-reschedule', { eventId: raid.id }, leader)).toMatchObject({
+      expect(await run('raid-update', { eventId: raid.id }, leader)).toMatchObject({
         error: { code: 'VALIDATION_ERROR' },
       });
       // Members read the notes; only leaders change them.
@@ -316,8 +313,62 @@ describe('raids commands', () => {
           .event.notes,
       ).toBeNull();
       expect(
-        await run('raid-reschedule', { eventId: raid.id, notes: 'mine' }, as('aeryn')),
+        await run('raid-update', { eventId: raid.id, notes: 'mine' }, as('aeryn')),
       ).toMatchObject({ error: { code: 'COMMAND_NOT_FOUND' } });
+    });
+
+    it('updates size and roleTargets (including after start), clears out-of-range groups before approval, and preserves seats after approval', async () => {
+      const raid = await createRaid({ size: 40 });
+      // Invalid size for raid and targets exceeding size are refused.
+      expect(await run('raid-update', { eventId: raid.id, size: 15 }, leader)).toMatchObject({
+        error: { code: 'SIZE_NOT_ALLOWED' },
+      });
+      expect(
+        await run(
+          'raid-update',
+          { eventId: raid.id, size: 10, roleTargets: { tank: 4, healer: 4, melee: 3, ranged: 3 } },
+          leader,
+        ),
+      ).toMatchObject({ error: { code: 'ROLE_TARGETS_TOO_BIG' } });
+
+      // Before approval: shrinking 40 -> 20 clears manual group 6 (> 4) to null.
+      const aerynSignup = await ok<Signup>(
+        'signup-set',
+        { eventId: raid.id, characterId: 'aeryn', status: 'accepted' },
+        as('aeryn'),
+      );
+      await ok<Signup>('roster-move', { signupId: aerynSignup.id, group: 6 }, leader);
+      const shrunk = await ok<RaidEvent>(
+        'raid-update',
+        { eventId: raid.id, size: 20, roleTargets: { tank: 2, healer: 5, melee: 7, ranged: 6 } },
+        leader,
+      );
+      expect(shrunk.size).toBe(20);
+      expect(shrunk.roleTargets).toEqual({ tank: 2, healer: 5, melee: 7, ranged: 6 });
+      const afterShrink = await ok<Signup[]>('signup-list', { eventId: raid.id }, leader);
+      expect(afterShrink.find((s) => s.id === aerynSignup.id)?.group).toBeNull();
+
+      // After approval: shrinking 20 -> 10 preserves seated player and out-of-range group 4.
+      await ok<Signup>('roster-move', { signupId: aerynSignup.id, group: 4 }, leader);
+      await ok<RaidEvent>('roster-approve', { eventId: raid.id }, leader);
+      await ok<RaidEvent>('raid-update', { eventId: raid.id, size: 10, roleTargets: null }, leader);
+      const afterApprovedShrink = await ok<Signup[]>('signup-list', { eventId: raid.id }, leader);
+      expect(afterApprovedShrink.find((s) => s.id === aerynSignup.id)).toMatchObject({
+        roster: 'rostered',
+        group: 4,
+      });
+
+      // After the raid has started: size/comp/notes can still change; a past startsAt still refuses.
+      clock.advance(raid.startsAt + HOUR - clock.now());
+      const midRaid = await ok<RaidEvent>(
+        'raid-update',
+        { eventId: raid.id, roleTargets: { tank: 2, healer: 3, melee: 3, ranged: 2 } },
+        leader,
+      );
+      expect(midRaid.roleTargets).toEqual({ tank: 2, healer: 3, melee: 3, ranged: 2 });
+      expect(
+        await run('raid-update', { eventId: raid.id, startsAt: raid.startsAt }, leader),
+      ).toMatchObject({ error: { code: 'RAID_IN_PAST' } });
     });
 
     it('lists upcoming raids with counts and my status', async () => {

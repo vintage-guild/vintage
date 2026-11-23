@@ -227,7 +227,7 @@ describe('vintage-calendar-desk actions', () => {
     );
   });
 
-  it('runs a moved raid through raid-reschedule and closes the form', async () => {
+  it('runs a moved raid through raid-update and closes the form', async () => {
     const client = useClient(() => ({ success: true, data: {} }));
     const el = await desk();
     button(el, 'Edit')?.click();
@@ -238,7 +238,7 @@ describe('vintage-calendar-desk actions', () => {
     form.time = '21:00';
     form.shadowRoot?.querySelector('form')?.requestSubmit();
     await vi.waitFor(() =>
-      expect(client.run).toHaveBeenCalledWith('raid-reschedule', {
+      expect(client.run).toHaveBeenCalledWith('raid-update', {
         eventId: 'r1',
         startsAt: Date.UTC(2026, 10, 5, 2),
       }),
@@ -247,8 +247,8 @@ describe('vintage-calendar-desk actions', () => {
     expect($(el, 'vintage-raid-form')).toBeNull();
   });
 
-  it("edits a raid's notes alone, sends only what changed, and refuses no change", async () => {
-    const el = await desk({ raids: [raid({ notes: 'Flasks.' })] });
+  it("edits a raid's notes, size, and comp targets through raid-update, sending only what changed", async () => {
+    const el = await desk({ raids: [raid({ notes: 'Flasks.', size: 40, roleTargets: null })] });
     button(el, 'Edit')?.click();
     await settle();
     const form = $<VintageRaidForm>(el, 'vintage-raid-form');
@@ -257,6 +257,9 @@ describe('vintage-calendar-desk actions', () => {
     const box = form.shadowRoot?.querySelector<HTMLTextAreaElement>('textarea#notes');
     expect(box?.value).toBe('Flasks.');
     expect(box?.maxLength).toBe(500);
+    // Kind is fixed on edit, while size and comp counts are editable.
+    expect(form.shadowRoot?.querySelector('select#kind')).toBeNull();
+    expect(form.shadowRoot?.querySelector('select#size')).not.toBeNull();
     const send = () => form.shadowRoot?.querySelector('form')?.requestSubmit();
     send();
     expect(submitted).not.toHaveBeenCalled();
@@ -265,15 +268,31 @@ describe('vintage-calendar-desk actions', () => {
     box!.dispatchEvent(new Event('input'));
     send();
     expect(submitted).toHaveBeenLastCalledWith({
-      command: 'raid-reschedule',
+      command: 'raid-update',
       input: { eventId: 'r1', notes: 'Flasks and fire resist.\n\nOn at 7:45.' },
     });
     // An emptied box clears them.
     form.notes = ' ';
     send();
     expect(submitted).toHaveBeenLastCalledWith({
-      command: 'raid-reschedule',
+      command: 'raid-update',
       input: { eventId: 'r1', notes: null },
+    });
+    // Changing size and comp sends size + roleTargets.
+    form.notes = 'Flasks.';
+    form.setSize(20);
+    form.setCount('tanks', 2);
+    form.setCount('healers', 6);
+    form.setSplitCount('melee', 6);
+    form.setSplitCount('ranged', 6);
+    send();
+    expect(submitted).toHaveBeenLastCalledWith({
+      command: 'raid-update',
+      input: {
+        eventId: 'r1',
+        size: 20,
+        roleTargets: { tank: 2, healer: 6, melee: 6, ranged: 6 },
+      },
     });
   });
 });

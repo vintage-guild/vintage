@@ -131,6 +131,15 @@ export default defineSchema({
     updatedAt: v.number(),
     updatedBy: v.union(v.string(), v.null()),
     absenceSummary: v.union(v.string(), v.null()),
+    // Optional: set on the sentinel `__raid__` row to diff raid size/comp edits in `#leads`.
+    eventSize: v.optional(v.union(v.number(), v.null())),
+    eventRoleTargets: v.optional(
+      v.union(
+        v.object({ tank: v.number(), healer: v.number(), melee: v.number(), ranged: v.number() }),
+        v.object({ tank: v.number(), healer: v.number(), dps: v.number() }),
+        v.null(),
+      ),
+    ),
     announcedAt: v.number(),
   })
     .index('by_guild_event', ['guildId', 'eventId'])

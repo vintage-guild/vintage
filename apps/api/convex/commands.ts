@@ -40,7 +40,7 @@ const TICK_TRIGGERS = new Set([
   'roster-lock',
   'roster-unlock',
   'raid-create',
-  'raid-reschedule',
+  'raid-update',
   'raid-cancel',
   'raid-export-record',
   'schedule-materialize',

@@ -5,7 +5,7 @@
 //   Standby who match via `alsoRoles`), plus already-seated flex candidates as plain text.
 // - All other seat/Standby/answer/switch/removal/absence changes batch into one post per tick.
 // Pure: data in, diff + MessageData out.
-import { hasSplitDpsTargets, type TargetRole } from '@vintage/comp-solver';
+import { hasSplitDpsTargets, type RoleTargets, type TargetRole } from '@vintage/comp-solver';
 import {
   actionRow,
   ButtonStyle,
@@ -21,6 +21,9 @@ import type { AnnouncedMemberState } from '../contract';
 import type { TickEvent, TickMember } from '../store';
 import { cardTitle, eventTitle } from './kind-words';
 import { compFor, finalRoster } from './render';
+
+/** Sentinel `memberId` in `announcedState` holding a raid's last announced size & comp targets. */
+export const RAID_STATE_MEMBER_ID = '__raid__';
 
 const MAX_SEAT_BUTTONS = 4;
 
@@ -63,7 +66,32 @@ function playingWords(s: { spec: string; class: string }): string {
   return `${titleCase(s.spec)} ${titleCase(s.class)}`;
 }
 
-/** Snapshot every current signup and absence for a raid into `AnnouncedMemberState` rows. */
+function raidMetaRow(guildId: string, tick: TickEvent, now: number): AnnouncedMemberState {
+  return {
+    guildId,
+    eventId: tick.event.id,
+    memberId: RAID_STATE_MEMBER_ID,
+    signupId: null,
+    characterName: tick.event.name,
+    class: null,
+    spec: null,
+    role: null,
+    status: null,
+    lateMinutes: null,
+    note: null,
+    seated: false,
+    group: null,
+    roster: null,
+    updatedAt: tick.event.updatedAt ?? 0,
+    updatedBy: tick.event.updatedBy ?? null,
+    absenceSummary: null,
+    eventSize: tick.event.size,
+    eventRoleTargets: tick.event.roleTargets,
+    announcedAt: now,
+  };
+}
+
+/** Snapshot every current signup, absence, and raid size/comp metadata into `AnnouncedMemberState` rows. */
 export function snapshotForEvent(
   guildId: string,
   tick: TickEvent,
@@ -72,26 +100,29 @@ export function snapshotForEvent(
 ): AnnouncedMemberState[] {
   const { going } = finalRoster(tick, members);
   const seatedIds = new Set(going.map((s) => s.id));
-  const signupRows: AnnouncedMemberState[] = tick.signups.map((s) => ({
-    guildId,
-    eventId: tick.event.id,
-    memberId: s.memberId,
-    signupId: s.id,
-    characterName: s.characterName,
-    class: s.class,
-    spec: s.spec,
-    role: s.role,
-    status: s.status,
-    lateMinutes: s.lateMinutes,
-    note: s.note,
-    seated: seatedIds.has(s.id),
-    group: s.group,
-    roster: s.roster,
-    updatedAt: s.updatedAt,
-    updatedBy: s.updatedBy,
-    absenceSummary: null,
-    announcedAt: now,
-  }));
+  const signupRows: AnnouncedMemberState[] = [
+    raidMetaRow(guildId, tick, now),
+    ...tick.signups.map((s) => ({
+      guildId,
+      eventId: tick.event.id,
+      memberId: s.memberId,
+      signupId: s.id,
+      characterName: s.characterName,
+      class: s.class,
+      spec: s.spec,
+      role: s.role,
+      status: s.status,
+      lateMinutes: s.lateMinutes,
+      note: s.note,
+      seated: seatedIds.has(s.id),
+      group: s.group,
+      roster: s.roster,
+      updatedAt: s.updatedAt,
+      updatedBy: s.updatedBy,
+      absenceSummary: null,
+      announcedAt: now,
+    })),
+  ];
   const seen = new Set(signupRows.map((r) => r.memberId));
   for (const a of tick.away ?? []) {
     if (seen.has(a.memberId)) continue;
@@ -133,6 +164,8 @@ export interface EventChangeDiff {
   lines: string[];
   /** Updated rows to persist to `announcedState` once announced. */
   changedRows: AnnouncedMemberState[];
+  /** True when an approved raid grew to open seats while Standby players are waiting. */
+  openSeatsOpened?: boolean;
 }
 
 function isLeaderAction(curr: AnnouncedMemberState): boolean {
@@ -250,7 +283,8 @@ function collectRemovedChanges(
   out: EventChangeDiff,
 ): void {
   for (const prev of previous) {
-    if (!prev.signupId || currByMember.has(prev.memberId)) continue;
+    if (prev.memberId === RAID_STATE_MEMBER_ID || !prev.signupId || currByMember.has(prev.memberId))
+      continue;
     const cleared = clearedState(prev, now);
     out.changedRows.push(cleared);
     if (isSeatedDropout(prev, undefined)) {
@@ -268,8 +302,97 @@ function collectRemovedChanges(
   }
 }
 
+function targetDiffParts(
+  event: RaidEvent,
+  prevSize: number | null,
+  prevTargets: RoleTargets | null,
+): string[] {
+  const before = targetsOf({ kind: event.kind, size: prevSize, roleTargets: prevTargets });
+  const after = targetsOf(event);
+  const parts: string[] = [];
+  if (after.tank !== before.tank) parts.push(`Tanks ${after.tank}`);
+  if (after.healer !== before.healer) parts.push(`Healers ${after.healer}`);
+  if (hasSplitDpsTargets(after)) {
+    const prevMelee = hasSplitDpsTargets(before) ? before.melee : null;
+    const prevRanged = hasSplitDpsTargets(before) ? before.ranged : null;
+    if (after.melee !== prevMelee) parts.push(`Melee ${after.melee}`);
+    if (after.ranged !== prevRanged) parts.push(`Ranged ${after.ranged}`);
+  } else if (hasSplitDpsTargets(before) || after.dps !== before.dps) {
+    parts.push(`DPS ${after.dps}`);
+  }
+  return parts;
+}
+
+function formatRaidEditParts(
+  event: RaidEvent,
+  prevSize: number | null,
+  prevTargets: RoleTargets | null,
+  sizeChanged: boolean,
+  targetsChanged: boolean,
+): string[] {
+  const parts: string[] = [];
+  if (sizeChanged) {
+    parts.push(event.size === null ? 'open size' : `${event.size} people`);
+  }
+  if (targetsChanged) {
+    const tParts = targetDiffParts(event, prevSize, prevTargets);
+    parts.push(...(tParts.length ? tParts : ['default comp']));
+  }
+  return parts;
+}
+
+function recordApprovedSizeEffects(
+  tick: TickEvent,
+  members: TickMember[],
+  prevSize: number | null,
+  out: EventChangeDiff,
+): void {
+  const { going, bench } = finalRoster(tick, members);
+  if (tick.event.size !== null && going.length > tick.event.size) {
+    const over = going.length - tick.event.size;
+    out.lines.push(
+      `${tick.event.name} is now ${tick.event.size} people with ${going.length} seated. Move ${over} to Standby.`,
+    );
+  }
+  const grew = prevSize !== null && (tick.event.size === null || tick.event.size > prevSize);
+  if (grew && tick.event.size !== null && going.length < tick.event.size && bench.length > 0) {
+    out.openSeatsOpened = true;
+  }
+}
+
+function diffRaidMetaChange(
+  tick: TickEvent,
+  members: TickMember[],
+  memberById: ReadonlyMap<string, TickMember>,
+  prevRaid: AnnouncedMemberState | undefined,
+  currRaid: AnnouncedMemberState,
+  out: EventChangeDiff,
+): void {
+  if (!prevRaid || prevRaid.eventSize === undefined) return;
+  const sizeChanged = prevRaid.eventSize !== tick.event.size;
+  const targetsChanged =
+    JSON.stringify(prevRaid.eventRoleTargets ?? null) !==
+    JSON.stringify(tick.event.roleTargets ?? null);
+  if (!sizeChanged && !targetsChanged) return;
+
+  const parts = formatRaidEditParts(
+    tick.event,
+    prevRaid.eventSize,
+    prevRaid.eventRoleTargets ?? null,
+    sizeChanged,
+    targetsChanged,
+  );
+  const leader = memberDisplayName(memberById, tick.event.updatedBy ?? null);
+  out.lines.push(`**${leader}** set ${tick.event.name} to ${parts.join(', ')}.`);
+  out.changedRows.push(currRaid);
+
+  if (tick.event.rosterApprovedAt !== null && sizeChanged) {
+    recordApprovedSizeEffects(tick, members, prevRaid.eventSize, out);
+  }
+}
+
 /**
- * Diff a raid's current signups against its last `announcedState`.
+ * Diff a raid's current signups and raid size/comp against its last `announcedState`.
  * Returns seated dropouts (each gets its own post with `[Seat X]` buttons) and general change
  * lines (batched into one post).
  */
@@ -286,7 +409,20 @@ export function diffEventChanges(
   const currByMember = new Map(currentRows.map((c) => [c.memberId, c]));
   const out: EventChangeDiff = { dropouts: [], lines: [], changedRows: [] };
 
+  const currRaid = currByMember.get(RAID_STATE_MEMBER_ID);
+  if (currRaid) {
+    diffRaidMetaChange(
+      tick,
+      members,
+      memberById,
+      prevByMember.get(RAID_STATE_MEMBER_ID),
+      currRaid,
+      out,
+    );
+  }
+
   for (const curr of currentRows) {
+    if (curr.memberId === RAID_STATE_MEMBER_ID) continue;
     const prev = prevByMember.get(curr.memberId);
     if (isSeatedDropout(prev, curr)) {
       out.dropouts.push({
@@ -524,7 +660,11 @@ function collectRoleGapLines(
  * open role gap and general Standby candidates with up to 4 Standby-only `[Seat X]` buttons
  * (same pattern as `renderDropoutAlert`).
  */
-export function renderLockOpenSeats(tick: TickEvent, members: TickMember[]): MessageData {
+export function renderLockOpenSeats(
+  tick: TickEvent,
+  members: TickMember[],
+  { reason = 'lock' }: { reason?: 'lock' | 'grew' } = {},
+): MessageData {
   const { going, bench } = finalRoster(tick, members);
   const openSeats = tick.event.size !== null ? Math.max(0, tick.event.size - going.length) : 0;
   const when = discordTimestamp(tick.event.startsAt, TimestampStyle.SHORT_DATE_TIME);
@@ -535,10 +675,11 @@ export function renderLockOpenSeats(tick: TickEvent, members: TickMember[]): Mes
     chosen,
     listedIds,
   } = collectRoleGapLines(tick, going, bench, rankById, members);
-  const lines = [
-    `**${cardTitle(tick.event)}** (${when}) locked with **${openSeats} open ${seatWord}** (${going.length}/${tick.event.size}).`,
-    ...gapLines,
-  ];
+  const headline =
+    reason === 'grew'
+      ? `**${cardTitle(tick.event)}** (${when}) now has **${openSeats} open ${seatWord}** (${going.length}/${tick.event.size}).`
+      : `**${cardTitle(tick.event)}** (${when}) locked with **${openSeats} open ${seatWord}** (${going.length}/${tick.event.size}).`;
+  const lines = [headline, ...gapLines];
 
   const remaining = bench
     .filter((s) => !listedIds.has(s.id))

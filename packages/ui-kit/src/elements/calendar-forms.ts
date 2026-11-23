@@ -45,7 +45,7 @@ import { deskStyles } from './desk-styles';
 
 /** What a form hands the desk: the command to run and its input. */
 export interface CalendarFormSubmit {
-  command: 'schedule-create' | 'schedule-update' | 'raid-create' | 'raid-reschedule';
+  command: 'schedule-create' | 'schedule-update' | 'raid-create' | 'raid-update';
   input: Record<string, unknown>;
 }
 
@@ -148,22 +148,7 @@ const SPLIT_COUNT_FIELDS = [
   ['ranged', 'Ranged'],
 ] as const;
 
-/**
- * Kind and size, then the tank, healer, melee, and ranged counts. Tanks and healers start at the
- * kind's usual comp for the size; melee and ranged stay blank until set, so legacy DPS-only
- * targets and kind defaults keep DPS combined (#323).
- */
-const kindFields = html<KindedForm>`
-  <div class="field">
-    <label for="kind">Kind</label>
-    <select id="kind" :value="${(x) => x.kind}"
-      @change="${(x, c) => x.setKind((c.event.target as HTMLSelectElement).value as EventKind)}">
-      ${repeat(
-        () => EVENT_KINDS,
-        html<EventKind>`<option value="${(k) => k}">${(k) => KIND_LABELS[k]}</option>`,
-      )}
-    </select>
-  </div>
+const sizeAndCompFields = html<KindedForm>`
   <div class="field">
     <label for="size">Size</label>
     ${when(
@@ -212,6 +197,25 @@ const kindFields = html<KindedForm>`
       </div>
     `,
   )}
+`;
+
+/**
+ * Kind and size, then the tank, healer, melee, and ranged counts. Tanks and healers start at the
+ * kind's usual comp for the size; melee and ranged stay blank until set, so legacy DPS-only
+ * targets and kind defaults keep DPS combined (#323).
+ */
+const kindFields = html<KindedForm>`
+  <div class="field">
+    <label for="kind">Kind</label>
+    <select id="kind" :value="${(x) => x.kind}"
+      @change="${(x, c) => x.setKind((c.event.target as HTMLSelectElement).value as EventKind)}">
+      ${repeat(
+        () => EVENT_KINDS,
+        html<EventKind>`<option value="${(k) => k}">${(k) => KIND_LABELS[k]}</option>`,
+      )}
+    </select>
+  </div>
+  ${sizeAndCompFields}
 `;
 
 /** The size box: empty is an open event (null), anything else a number to check. */
@@ -689,7 +693,14 @@ const raidTemplate = html<VintageRaidForm>`
     <h3>${(x) => (x.raid ? `Edit ${x.raid.name}` : 'One-off event')}</h3>
     ${when(
       (x) => x.raid,
-      html<VintageRaidForm>`<p class="note">Now ${(x) => (x.raid ? formatWhen(x.raid.startsAt, x.zone) : '')}. Signups and the roster come along.</p>`,
+      html<VintageRaidForm>`
+        <p class="note">Now ${(x) => (x.raid ? formatWhen(x.raid.startsAt, x.zone) : '')}. Signups and the roster come along.</p>
+        <fieldset>
+          <legend>Size and comp</legend>
+          <div class="grid comp">${sizeAndCompFields}</div>
+          ${countsNote}
+        </fieldset>
+      `,
     )}
     ${when(
       (x) => !x.raid,
@@ -746,8 +757,9 @@ const raidTemplate = html<VintageRaidForm>`
 `;
 
 /**
- * Adds a one-off raid (`raid-create`) or edits one (`raid-reschedule` with its new time, notes,
- * or both: only what changed), reading the date and time in the chosen zone. Raises `form-submit` / `form-cancel` like the schedule form.
+ * Adds a one-off raid (`raid-create`) or edits one (`raid-update` with its new time, notes, size,
+ * or comp targets: only what changed), reading the date and time in the chosen zone. Raises
+ * `form-submit` / `form-cancel` like the schedule form.
  *
  * @tagname vintage-raid-form
  */
@@ -784,8 +796,8 @@ export class VintageRaidForm extends KindedForm {
       this.name = '';
       this.instance = '';
       this.durationMinutes = 180;
-      this.loadKind(null);
     }
+    this.loadKind(r);
     this.notes = r?.notes ?? '';
     this.date = r ? dayKey(r.startsAt, this.zone) : '';
     this.time = r ? timeOfDay(r.startsAt, this.zone) : '20:00';
@@ -807,10 +819,36 @@ export class VintageRaidForm extends KindedForm {
     return '';
   }
 
+  private emitRaidUpdate(
+    raid: CalendarRaid,
+    startsAt: number,
+    moved: boolean,
+    notes: string | null,
+  ) {
+    const nextTargets = this.roleTargets();
+    const prevTargets = raid.roleTargets ?? null;
+    const changed = {
+      ...(moved ? { startsAt } : {}),
+      ...(notes === raid.notes ? {} : { notes }),
+      ...(this.size === raid.size ? {} : { size: this.size }),
+      ...(JSON.stringify(nextTargets) === JSON.stringify(prevTargets)
+        ? {}
+        : { roleTargets: nextTargets }),
+    };
+    if (Object.keys(changed).length === 0) {
+      this.problem = 'Nothing changed.';
+      return;
+    }
+    this.$emit('form-submit', {
+      command: 'raid-update',
+      input: { eventId: raid.id, ...changed },
+    });
+  }
+
   submit(event: Event): void {
     event.preventDefault();
     const zone = this.zone.trim();
-    this.problem = this.raid ? '' : this.oneOffProblem();
+    this.problem = this.raid ? this.kindProblem() : this.oneOffProblem();
     if (this.problem) return;
     if (!isTimeZone(zone)) {
       this.problem = 'Use a time zone from the list, like America/New_York.';
@@ -828,18 +866,7 @@ export class VintageRaidForm extends KindedForm {
     }
     const notes = cleanNotes(this.notes);
     if (this.raid) {
-      const changed = {
-        ...(moved ? { startsAt } : {}),
-        ...(notes === this.raid.notes ? {} : { notes }),
-      };
-      if (Object.keys(changed).length === 0) {
-        this.problem = 'Nothing changed.';
-        return;
-      }
-      this.$emit('form-submit', {
-        command: 'raid-reschedule',
-        input: { eventId: this.raid.id, ...changed },
-      });
+      this.emitRaidUpdate(this.raid, startsAt, moved, notes);
       return;
     }
     this.$emit('form-submit', {

@@ -215,11 +215,13 @@ function removalSummary(s: Partial<TonightSignup> | undefined): string {
 /** Signups that count toward tonight: everyone who hasn't declined. */
 const playing = (s: TonightSignup) => s.status !== 'declined';
 
-const rosterLabel = (s: TonightSignup) =>
+const rosterLabel = (s: TonightSignup, maxGroup: number) =>
   s.roster === 'benched'
     ? 'Standby'
     : s.group !== null
-      ? `group ${s.group}`
+      ? s.group > maxGroup
+        ? `group ${s.group} (over size)`
+        : `group ${s.group}`
       : s.queued
         ? 'queued'
         : 'unplaced';
@@ -269,6 +271,10 @@ const template = html<VintageTonight>`
     </header>
 
     <p class="status ${(x) => x.statusKind}" part="status" role="status" aria-live="polite">${(x) => x.statusText}</p>
+    ${when(
+      (x) => Boolean(x.overSizeWarning),
+      html<VintageTonight>`<p class="status error" part="over-size" role="alert">${(x) => x.overSizeWarning}</p>`,
+    )}
 
     ${when(
       (x) => x.pending,
@@ -461,7 +467,7 @@ const template = html<VintageTonight>`
                       <small>${(s) => titleCase(s.spec)}</small>
                     </span>
                     <span class="answer">${(s) => ANSWER_WORDS[s.status] ?? s.status}${(s) => (s.queued ? ' · queued' : '')}</span>
-                    <span class="place">${(s) => rosterLabel(s)}</span>
+                    <span class="place">${(s, c) => rosterLabel(s, host(c).maxGroup)}</span>
                     <span class="note">${(s) => s.note ?? ''}</span>
                     <span class="controls">
                       <select
@@ -1092,12 +1098,35 @@ export class VintageTonight extends FASTElement {
     return this.signups.filter((s) => !playing(s));
   }
 
+  /** Highest valid group number for this raid's size (1–8). */
+  get maxGroup(): number {
+    const size = this.raid ? (this.raid.size ?? 40) : 5;
+    return Math.max(1, Math.ceil(size / 5));
+  }
+
   /** 1–2 for tens, 1–4 for twenties, 1–8 for forties: five to a group. */
   get groupNumbers(): number[] {
-    // An open event can still be split into groups; offer all eight.
-    const size = this.raid ? (this.raid.size ?? 40) : 5;
-    const groups = Math.max(1, Math.ceil(size / 5));
-    return Array.from({ length: groups }, (_, i) => i + 1);
+    return Array.from({ length: this.maxGroup }, (_, i) => i + 1);
+  }
+
+  /** Warning shown when a shrunk approved raid has more seated players or out-of-range groups. */
+  @volatile
+  get overSizeWarning(): string {
+    if (!this.raid || this.raid.size === null) return '';
+    const rostered = this.signups.filter((s) => s.roster === 'rostered' && playing(s));
+    const parts: string[] = [];
+    if (rostered.length > this.raid.size) {
+      const over = rostered.length - this.raid.size;
+      parts.push(
+        `Over size: ${rostered.length} seated for ${this.raid.size} seats — move ${over} to Standby.`,
+      );
+    }
+    const outOfRange = rostered.filter((s) => s.group !== null && s.group > this.maxGroup);
+    if (outOfRange.length > 0) {
+      const names = outOfRange.map((s) => `${s.characterName} (group ${s.group})`).join(', ');
+      parts.push(`Out of range: ${names} — move to groups 1–${this.maxGroup} or bench.`);
+    }
+    return parts.join(' ');
   }
 
   @command('vintage.roster-approve', {

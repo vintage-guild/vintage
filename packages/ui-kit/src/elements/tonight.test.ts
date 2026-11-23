@@ -627,3 +627,29 @@ describe('vintage-tonight while loading', () => {
     expect(text(el, 'gaps')).toBe('Comp No gaps.');
   });
 });
+
+describe('vintage-tonight over-size and out-of-range groups', () => {
+  it('flags seated overflow and out-of-range groups after shrinking an approved raid', async () => {
+    const el = await tonight();
+    el.raid = { ...el.raid!, size: 10, rosterApprovedAt: Date.UTC(2026, 9, 28) };
+    el.signups = Array.from({ length: 12 }, (_, i) => ({
+      id: `s${i}`,
+      characterName: `Raider${i}`,
+      class: 'warrior',
+      spec: 'fury',
+      role: 'melee',
+      status: 'accepted',
+      queued: false,
+      note: null,
+      roster: 'rostered',
+      group: i < 10 ? Math.floor(i / 5) + 1 : 4,
+    }));
+    await settle();
+    const banner = text(el, 'over-size');
+    expect(banner).toContain('Over size: 12 seated for 10 seats — move 2 to Standby.');
+    expect(banner).toContain('Out of range: Raider10 (group 4), Raider11 (group 4)');
+    expect(text(el, 'roster')).toContain('group 4 (over size)');
+    // Destination group picker stays bounded to valid groups 1..2.
+    expect(el.groupNumbers).toEqual([1, 2]);
+  });
+});

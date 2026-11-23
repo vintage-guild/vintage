@@ -158,6 +158,10 @@ export interface RaidEvent {
   rosterApprovedAt: number | null;
   /** Member or discord id of the leader who approved the party roster; null before approval. */
   rosterApprovedBy: string | null;
+  /** Last time a leader edited this raid via `raid-update` (epoch ms); absent/null on older rows. */
+  updatedAt?: number | null;
+  /** Member or discord id of the leader who last edited this raid; absent/null on older rows. */
+  updatedBy?: string | null;
   configVersion: number;
 }
 
@@ -448,7 +452,7 @@ export const RAIDS_COMMANDS = [
   'schedule-list',
   'schedule-materialize',
   'raid-create',
-  'raid-reschedule',
+  'raid-update',
   'raid-cancel',
   'raid-complete',
   'raid-get',

@@ -23,6 +23,8 @@ export interface CalendarRaid {
   /** Guild raid or open to pugs; missing reads as `guild`. */
   access?: CalendarRaidAccess;
   size: CalendarRaidSize;
+  /** The raid's own comp; null means the kind's default for the size. */
+  roleTargets?: RoleTargets | null;
   /** Epoch ms. */
   startsAt: number;
   durationMinutes: number;

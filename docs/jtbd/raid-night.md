@@ -116,7 +116,7 @@ when we pull, and when signups lock, **so I can** get ready without hunting thro
 - [ ] What to bring: Rook writes the raid's notes on the quarters' Calendar tab (Edit on the
   agenda, or a schedule's default notes that each new raid copies). The card shows them under the
   instance, a paragraph per blank line, and the Discord signup post is edited to quote them. A
-  raider can read them but `raid-reschedule` answers `COMMAND_NOT_FOUND`.
+  raider can read them but `raid-update` answers `COMMAND_NOT_FOUND`.
 
 ### J24 · Keep the calendar right from the quarters
 **When** plans change, **I (raid leader) want** to add, move, pause, and close out raids on the
@@ -474,3 +474,18 @@ open-raid channel where Members, Flex Raiders, and Friends sign up in full with 
 Accept to sync me on the spot and sign me up.
 - [x] Clicking Accept on an open raid syncs an unknown Discord member from `interaction.member.roles`
   and signs them up immediately.
+
+### J71 · Add a healer to a raid that's already up
+**When** tonight's raid needs a different comp than the schedule defaulted to, **I (leader) want**
+to change this raid's role targets without changing the schedule.
+- [x] `raid-update` updates `roleTargets` on the raid while leaving the schedule untouched; the
+  signup post updates its role header within a tick; a raider calling `raid-update` gets
+  `COMMAND_NOT_FOUND`.
+
+### J72 · Grow or shrink a raid before and after approval
+**When** a raid's size changes before or after roster approval, **I (leader) want** the draft to
+re-seat before approval and never unseat anyone after approval.
+- [x] Before approval: growing seats overflow Standby; shrinking clears out-of-range manual groups.
+- [x] After approval: shrinking below seated count saves without unseating anyone, `#leads` warns
+  how many to move to Standby, and the party post / quarters show overflow and out-of-range groups;
+  growing opens seats and posts Standby-only `[Seat X]` buttons to `#leads`.

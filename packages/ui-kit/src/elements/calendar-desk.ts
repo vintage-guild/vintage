@@ -666,7 +666,7 @@ export class VintageCalendarDesk extends FASTElement {
       'schedule-create': 'Schedule added. Random creates its raids as their signups come due',
       'schedule-update': 'Schedule saved. Raids already created keep their time',
       'raid-create': `${KIND_LABELS[kind]} added and open for signups`,
-      'raid-reschedule': 'Raid saved. Signups and the roster came along',
+      'raid-update': 'Raid saved. Signups and the roster came along',
     };
     const result = await this.change(submit.command, submit.input, done[submit.command]);
     if (result.success) this.editing = null;
@@ -717,21 +717,29 @@ export class VintageCalendarDesk extends FASTElement {
     );
   }
 
-  @command('vintage.raid-reschedule', {
-    label: 'Move a raid',
-    description: 'Move a raid to a new start time; signups and the roster are kept.',
+  @command('vintage.raid-update', {
+    label: 'Update a raid',
+    description:
+      'Update a raid after it exists: move its start time, edit notes, resize, or change comp targets; signups and approved seats are kept.',
     category: 'Officers',
     parameters: {
       type: 'object',
-      properties: { eventId: { type: 'string' }, startsAt: { type: 'number' } },
-      required: ['eventId', 'startsAt'],
+      properties: {
+        eventId: { type: 'string' },
+        startsAt: { type: 'number', description: 'Epoch ms' },
+        notes: { type: ['string', 'null'] },
+        size: { type: ['integer', 'null'], minimum: 1, maximum: 40 },
+        roleTargets: { type: ['object', 'null'] },
+      },
+      required: ['eventId'],
     },
   })
-  async reschedule(eventId: unknown, startsAt: unknown): Promise<ElementResult<unknown>> {
-    if (typeof eventId !== 'string' || typeof startsAt !== 'number') {
-      return failure({ code: 'INVALID_PARAMETERS', message: 'Give a raid and a start time' });
+  async updateRaid(input: unknown): Promise<ElementResult<unknown>> {
+    const data = input as Record<string, unknown> | null;
+    if (!data || typeof data.eventId !== 'string') {
+      return failure({ code: 'INVALID_PARAMETERS', message: 'Give a raid to update' });
     }
-    return this.change('raid-reschedule', { eventId, startsAt }, 'Raid moved');
+    return this.change('raid-update', data, 'Raid saved');
   }
 
   @command('vintage.raid-complete', {

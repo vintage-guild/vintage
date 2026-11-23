@@ -1,7 +1,7 @@
 import { absenceAdd, absenceList, absenceRemove, absenceWeeklySet } from './absence';
 import { compSuggest } from './comp';
 import { attendanceList, raidExportCheck, raidExportRecord } from './export';
-import { raidCancel, raidComplete, raidCreate, raidGet, raidList, raidReschedule } from './raid';
+import { raidCancel, raidComplete, raidCreate, raidGet, raidList, raidUpdate } from './raid';
 import {
   rosterApprove,
   rosterBench,
@@ -29,7 +29,7 @@ export const raidsCommands = [
   scheduleList,
   scheduleMaterialize,
   raidCreate,
-  raidReschedule,
+  raidUpdate,
   raidCancel,
   raidComplete,
   raidGet,

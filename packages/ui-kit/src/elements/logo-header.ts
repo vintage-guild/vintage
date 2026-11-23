@@ -225,6 +225,13 @@ const styles = css`
     .context {
       display: none;
     }
+
+    /* The nav regularly overflows at this width; fade its trailing edge so scrolling for more
+       reads as an affordance, not a cut-off link. */
+    .nav {
+      mask-image: linear-gradient(to right, black calc(100% - 1.5rem), transparent);
+      -webkit-mask-image: linear-gradient(to right, black calc(100% - 1.5rem), transparent);
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {

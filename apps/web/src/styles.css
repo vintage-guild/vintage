@@ -237,6 +237,14 @@ main:focus {
   inset-block-start: var(--space-sm);
 }
 
+/* The seam in the header nav between jump-to-a-section links and real page links, so a click's
+   behavior is predictable at a glance (docs/features/active/role-aware-views). */
+vintage-logo-header .nav-sep {
+  align-self: stretch;
+  inline-size: var(--border-width-thin);
+  background: var(--color-border-default);
+}
+
 /* Signed out: the header's sign-in button, beside where the member menu goes. */
 .sign-in {
   font: var(--font-weight-medium) var(--font-size-sm) var(--font-family-sans);

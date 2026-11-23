@@ -766,6 +766,11 @@ export function insightsStore(ctx: Ctx): InsightsStore {
         runId,
         at,
       }) as Promise<InsightRun>,
+    deleteRun: (guildId, runId) =>
+      writable(ctx).runMutation(insights.insights.deleteRun, {
+        guildId,
+        runId,
+      }) as Promise<{ run: InsightRun; deletedFindings: number } | null>,
     insertFindings: async (findings) => {
       await writable(ctx).runMutation(insights.insights.insertFindings, { findings });
     },

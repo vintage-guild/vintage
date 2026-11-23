@@ -3807,6 +3807,30 @@
       }
     },
     {
+      "name": "run-delete",
+      "description": "Remove an imported run and its findings, freeing its run_key to be imported again. Refuses runs whose DMs were already sent unless allowSent is true (sent Discord DMs are not unsent). Shows a preview first; confirm to delete. Officers only.",
+      "tier": "officer",
+      "mutation": true,
+      "destructive": true,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "allowSent": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "runId"
+        ]
+      }
+    },
+    {
       "name": "run-import",
       "description": "Import one Farsight Crawler run summary (the `farsight.run` v1 upload, never the raw log). Vintage keeps the run, finds what each raider could do better with the evidence, and links characters to members by name. Importing the same run again does nothing.",
       "tier": "raider",

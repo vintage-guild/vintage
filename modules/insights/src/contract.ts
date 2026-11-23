@@ -44,6 +44,7 @@ export interface InsightOptIn {
 
 export const INSIGHTS_COMMANDS = [
   'run-import',
+  'run-delete',
   'insights-runs',
   'insights-get',
   'insights-optin-set',

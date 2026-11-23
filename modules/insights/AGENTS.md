@@ -13,14 +13,16 @@ the notes, and raiders who opted in get one private DM. Maturity: **labs**.
 | `src/store.ts` | `InsightsStore`, `CharacterOwners` (identity characters by name), `InsightsEffects` (send), `InsightsDeps` |
 | `src/domain/findings.ts` | Pure: `findingsFor(run)`: deaths, the spell that killed you twice or more, interrupts that missed, damage taken well above an even share for non-tanks |
 | `src/domain/gate.ts` | The DM gate (a Decisions predicate per finding), `DM_INSTRUCTIONS` for the wording, `plainDm` (the fallback) |
-| `src/commands/` | `run-import` (raider), `insights-runs`, `insights-get`, `insights-optin-set` (member), `insights-send` (officer, destructive) |
+| `src/commands/` | `run-import` (raider), `run-delete` (officer, destructive), `insights-runs`, `insights-get`, `insights-optin-set` (member), `insights-send` (officer, destructive) |
 | `convex/` | The `insights` component: `runs`, `findings`, `optins` |
 
 ## Rules
 
 - **Summaries, never logs.** `run-import` accepts only the `farsight.run` v1 envelope and keeps the
   run's facts and derived findings, not the summary. Importing the same `run_key` again does
-  nothing.
+  nothing. Officers can remove a bad or wrong import (and its findings) with `run-delete`, freeing
+  its `run_key` to be imported again; runs whose DMs were already sent are refused unless
+  `allowSent: true` is passed (with a warning in the preview, since sent DMs are not unsent).
 - **Upload text is untrusted.** A raider may import only a run one of their characters is on
   (officers any). `UPLOAD_LIMITS` caps sizes, and `clean` strips everything but what WoW names
   use from names, spells, and zones before anyone reads them, so no link, markdown, or mention

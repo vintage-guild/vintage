@@ -64,6 +64,9 @@ Live checklist:
       everyone's.
 - [ ] With `insights-optin-set dms:true`, an officer's `insights-send` previews me as a recipient,
       and after Confirm I get one DM; without the opt-in I get none.
+- [ ] An officer can remove a wrong import and its findings with `run-delete` (preview, then
+      confirm), freeing its `run_key` to be imported again; already-sent runs refuse unless
+      `allowSent: true`.
 
 ### J31 · Find out what I can do, for my rank
 

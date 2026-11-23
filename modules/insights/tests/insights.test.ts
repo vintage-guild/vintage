@@ -233,6 +233,143 @@ describe('insights-send', () => {
   });
 });
 
+describe('run-delete', () => {
+  it('previews without mutating, then deletes the run and its findings and frees the run_key', async () => {
+    const older = data<{ runId: string }>(
+      await run('run-import', { upload: upload(summary({ run_key: 'older-run' })) }, kol),
+    );
+    const bad = data<{ runId: string }>(
+      await run(
+        'run-import',
+        { upload: upload(summary({ run_key: 'bad-run', zone_name: 'Blackwing Lair' })) },
+        kol,
+      ),
+    );
+    const findingsBefore = harness.deps.insights.findings.length;
+    const badFindings = (await harness.deps.insights.listFindings(officer.guildId, bad.runId))
+      .length;
+    expect(badFindings).toBeGreaterThan(0);
+
+    // Non-officers cannot see or run run-delete.
+    expect(code(await run('run-delete', { runId: bad.runId }, kol))).toBe('COMMAND_NOT_FOUND');
+    expect(code(await run('run-delete', { runId: bad.runId }, makeCaller('leader')))).toBe(
+      'COMMAND_NOT_FOUND',
+    );
+
+    // Dry-run preview reports details and leaves store untouched.
+    const dry = await run('run-delete', { runId: bad.runId }, officer);
+    expect(dry.success).toBe(true);
+    const preview = (
+      dry as {
+        data: {
+          confirmToken: string;
+          preview: {
+            willDelete: { id: string; zoneName: string; runKey: string; sentAt: number | null };
+            findings: number;
+            alreadySent: boolean;
+            warning: string | null;
+          };
+        };
+      }
+    ).data;
+    expect(preview.preview).toMatchObject({
+      willDelete: { id: bad.runId, zoneName: 'Blackwing Lair', runKey: 'bad-run', sentAt: null },
+      findings: badFindings,
+      alreadySent: false,
+      warning: null,
+    });
+    expect(harness.deps.insights.runs.size).toBe(2);
+    expect(harness.deps.insights.findings.length).toBe(findingsBefore);
+
+    // Confirming removes the run and only its findings.
+    const confirmed = await registry.execute(
+      {
+        name: 'run-delete',
+        input: { runId: bad.runId },
+        caller: officer,
+        confirmToken: preview.confirmToken,
+      },
+      harness.deps,
+    );
+    expect(data<{ deletedFindings: number; alreadySent: boolean }>(confirmed)).toMatchObject({
+      deletedFindings: badFindings,
+      alreadySent: false,
+    });
+    expect(harness.deps.insights.runs.size).toBe(1);
+    expect(harness.deps.insights.findings.length).toBe(findingsBefore - badFindings);
+    expect(code(await run('insights-get', { runId: bad.runId }, officer))).toBe('RUN_NOT_FOUND');
+
+    // insights-get without runId falls back to the remaining older run.
+    const latest = data<{ run: { id: string } }>(await run('insights-get', {}, officer));
+    expect(latest.run.id).toBe(older.runId);
+
+    // The freed run_key can be imported again cleanly.
+    const reimported = data<{ runId: string; imported: boolean }>(
+      await run('run-import', { upload: upload(summary({ run_key: 'bad-run' })) }, kol),
+    );
+    expect(reimported.imported).toBe(true);
+    expect(reimported.runId).not.toBe(bad.runId);
+  });
+
+  it('refuses an already-sent run by default, and allows removal with allowSent and a warning', async () => {
+    const { runId } = data<{ runId: string }>(await run('run-import', { upload: upload() }, kol));
+    await run('insights-optin-set', { dms: true }, kol);
+    await previewAndConfirm(
+      registry,
+      { name: 'insights-send', input: { runId }, caller: officer },
+      harness.deps,
+    );
+
+    expect(code(await run('run-delete', { runId }, officer))).toBe('ALREADY_SENT');
+    expect(harness.deps.insights.runs.size).toBe(1);
+
+    const { preview, result } = await previewAndConfirm(
+      registry,
+      { name: 'run-delete', input: { runId, allowSent: true }, caller: officer },
+      harness.deps,
+    );
+    const shown = (
+      preview as {
+        data: { preview: { alreadySent: boolean; warning: string | null } };
+      }
+    ).data.preview;
+    expect(shown.alreadySent).toBe(true);
+    expect(shown.warning).toMatch(/already sent/i);
+    expect(data<{ alreadySent: boolean }>(result).alreadySent).toBe(true);
+    expect(harness.deps.insights.runs.size).toBe(0);
+    expect(harness.deps.insights.findings).toHaveLength(0);
+    expect(data<null>(await run('insights-get', {}, officer))).toBeNull();
+  });
+
+  it('refuses confirmation if the run was sent after the default preview was issued', async () => {
+    const { runId } = data<{ runId: string }>(await run('run-import', { upload: upload() }, kol));
+    const dry = await run('run-delete', { runId }, officer);
+    const confirmToken = (dry as { data: { confirmToken: string } }).data.confirmToken;
+
+    await previewAndConfirm(
+      registry,
+      { name: 'insights-send', input: { runId }, caller: officer },
+      harness.deps,
+    );
+
+    const confirmed = await registry.execute(
+      { name: 'run-delete', input: { runId }, caller: officer, confirmToken },
+      harness.deps,
+    );
+    expect(code(confirmed)).toBe('ALREADY_SENT');
+    expect(harness.deps.insights.runs.size).toBe(1);
+  });
+
+  it('returns RUN_NOT_FOUND for unknown runs and isolates across guilds', async () => {
+    const { runId } = data<{ runId: string }>(await run('run-import', { upload: upload() }, kol));
+    expect(code(await run('run-delete', { runId: 'run-missing' }, officer))).toBe('RUN_NOT_FOUND');
+
+    const otherOfficer = makeCaller('officer', { guildId: 'other-guild' });
+    expect(code(await run('run-delete', { runId }, otherOfficer))).toBe('RUN_NOT_FOUND');
+    expect(harness.deps.insights.runs.size).toBe(1);
+  });
+});
+
 describe('the DM gate', () => {
   const findings = findingsFor(summary())
     .filter((f) => f.character === 'Kol')

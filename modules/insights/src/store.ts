@@ -9,6 +9,11 @@ export interface InsightsStore {
   /** Newest first. */
   listRuns(guildId: string, limit: number): Promise<InsightRun[]>;
   markSent(guildId: string, runId: string, at: number): Promise<InsightRun>;
+  /** Remove a run and all of its findings, or null if not found in this guild. */
+  deleteRun(
+    guildId: string,
+    runId: string,
+  ): Promise<{ run: InsightRun; deletedFindings: number } | null>;
   insertFindings(findings: Omit<InsightFinding, 'id'>[]): Promise<void>;
   listFindings(guildId: string, runId: string): Promise<InsightFinding[]>;
   getOptIn(guildId: string, memberId: string): Promise<InsightOptIn | null>;

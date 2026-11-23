@@ -11,13 +11,27 @@ import {
 } from '@lushly-dev/fast-element';
 import { command, failure } from '@lushly-dev/fast-element/command.js';
 import { SIGNUP_STATUSES, type SignupStatus } from '@vintage/comp-solver';
-import { CLASSES, ROLES, type Role, type WowClass } from '@vintage/wow-data';
+import {
+  CLASSES,
+  classRoles,
+  cleanAlsoRoles,
+  ROLES,
+  type Role,
+  type WowClass,
+} from '@vintage/wow-data';
 import { getCommandClient } from '../client';
 import { isRole, roleLabel, titleCase } from '../labels';
 import '../primitives';
 import { describeError, type ElementResult, toElementResult } from '../result';
 
 export { SIGNUP_STATUSES, type SignupStatus };
+
+/** Minutes late a member can pick when answering Late (more than 30 is Absent). */
+export const LATE_MINUTES = [5, 15, 30] as const;
+export type LateMinutes = (typeof LATE_MINUTES)[number];
+
+const isLateMinutes = (value: unknown): value is LateMinutes =>
+  typeof value === 'number' && (LATE_MINUTES as readonly number[]).includes(value);
 
 /** A character the member can bring (a row of `character-list`). */
 export interface SignupCharacter {
@@ -27,6 +41,8 @@ export interface SignupCharacter {
   spec: string;
   role: Role;
   isMain: boolean;
+  /** Other roles the character can flex to (from `character-list`). */
+  alsoRoles?: Role[];
 }
 
 /** A comp role the raid is short of (raids `rolesNeeded`). */
@@ -52,25 +68,32 @@ interface Choice {
   spec: string;
   playRole: string;
   reason: string;
+  alsoRoles: Role[];
+  alsoRolesTouched: boolean;
 }
 
 type FieldElement = HTMLElement & { value: string };
 const fieldValue = (event: Event) => (event.currentTarget as FieldElement).value;
 
-/** How a member answers from the card; bench is a leader's decision, not an answer. */
+/** How a member can answer from the card (including Standby). */
 export const ANSWERS = [
   'accepted',
   'late',
   'tentative',
+  'bench',
   'declined',
 ] as const satisfies readonly SignupStatus[];
 export type Answer = (typeof ANSWERS)[number];
+
+/** Flex Raiders on guild raids start on Standby rather than Going. */
+const FLEX_ANSWERS: readonly Answer[] = ['bench', 'late', 'tentative', 'declined'];
 
 export const ANSWER_LABELS: Record<Answer, string> = {
   accepted: 'Going',
   late: 'Late',
   tentative: 'Tentative',
-  declined: "Can't",
+  bench: 'Standby',
+  declined: 'Absent',
 };
 
 const STATUS_LABELS: Record<SignupStatus | 'none', string> = {
@@ -107,6 +130,14 @@ export const EMPTY_COUNTS: SignupCounts = {
   queued: 0,
 };
 
+/** Optional extra values when answering through `answer(...)`. */
+export interface AnswerOptions {
+  /** Required when status is `late` (`5`, `15`, or `30`). Pass `null` to clear on `accepted`. */
+  lateMinutes?: LateMinutes | null;
+  /** Optional reason for `tentative` only (max 200 chars). */
+  note?: string | null;
+}
+
 const isStatus = (value: string): value is SignupStatus =>
   (SIGNUP_STATUSES as readonly string[]).includes(value);
 const isAnswer = (value: unknown): value is Answer =>
@@ -131,18 +162,37 @@ const template = html<VintageSignupCard>`
     </div>
     <div class="answer" part="answer">
       <span class="eyebrow">Your answer</span>
+      ${when(
+        (x) => x.coverageLine,
+        html<VintageSignupCard>`
+          <div class="coverage" part="coverage">
+            <p>${(x) => x.coverageLine}</p>
+            ${when(
+              (x) => x.showOnTimeButton,
+              html<VintageSignupCard>`
+                <button
+                  type="button"
+                  class="chip"
+                  ?disabled="${(x) => !x.answerCanExecute}"
+                  @click="${(x) => x.markOnTime()}"
+                >On time this week</button>
+              `,
+            )}
+          </div>
+        `,
+      )}
       <div class="row">
         <div class="seg" role="group" aria-label="Your answer">
           ${repeat(
-            () => ANSWERS,
+            (x) => x.visibleAnswers,
             html<Answer, VintageSignupCard>`
               <button
                 type="button"
                 class="${(a) => a}"
                 aria-pressed="${(a, c) => String(c.parent.statusKey === a)}"
                 ?disabled="${(_, c) => !c.parent.answerCanExecute}"
-                @click="${(a, c) => c.parent.answer(a)}"
-              >${(a) => ANSWER_LABELS[a]}</button>
+                @click="${(a, c) => c.parent.pickAnswer(a)}"
+              >${(a, c) => c.parent.answerButtonLabel(a)}</button>
             `,
           )}
         </div>
@@ -151,6 +201,64 @@ const template = html<VintageSignupCard>`
           html<VintageSignupCard>`<span class="as">as <b part="character">${(x) => x.asLabel}</b></span>`,
         )}
       </div>
+      ${when(
+        (x) => x.picking === 'late',
+        html<VintageSignupCard>`
+          <div class="subrow late-picker" part="late-picker" role="group" aria-label="How late?">
+            <span class="sublabel">How late?</span>
+            <div class="chips">
+              ${repeat(
+                () => LATE_MINUTES,
+                html<LateMinutes, VintageSignupCard>`
+                  <button
+                    type="button"
+                    class="chip ${(m, c) => (c.parent.weeklyLateMinutes === m ? 'usual' : '')}"
+                    aria-pressed="${(m, c) => String(c.parent.statusKey === 'late' && c.parent.lateMinutes === m)}"
+                    ?disabled="${(_, c) => !c.parent.answerCanExecute}"
+                    @click="${(m, c) => c.parent.answer('late', { lateMinutes: m })}"
+                  >${(m, c) => (c.parent.weeklyLateMinutes === m ? `${m} min (usual)` : `${m} min`)}</button>
+                `,
+              )}
+              <button type="button" class="link" @click="${(x) => x.cancelPick()}">Cancel</button>
+            </div>
+            <small class="hint">Later than 30 minutes? Pick Absent instead.</small>
+          </div>
+        `,
+      )}
+      ${when(
+        (x) => x.picking === 'tentative',
+        html<VintageSignupCard>`
+          <form class="subrow tentative-picker" part="tentative-picker" @submit="${(x, c) => x.submitTentative(c.event)}">
+            <label class="sublabel" for="tentative-note">Tentative reason (optional)</label>
+            <div class="chips">
+              <input
+                id="tentative-note"
+                type="text"
+                maxlength="200"
+                placeholder="e.g. depends on work"
+                :value="${(x) => x.draftNote}"
+                @input="${(x, c) => x.setDraftNote((c.event.target as HTMLInputElement).value)}"
+              />
+              <button type="submit" class="chip primary" ?disabled="${(x) => !x.answerCanExecute}">
+                Save Tentative
+              </button>
+              <button type="button" class="link" @click="${(x) => x.cancelPick()}">Cancel</button>
+            </div>
+          </form>
+        `,
+      )}
+      ${when(
+        (x) => x.statusKey === 'tentative' && x.note && x.picking !== 'tentative',
+        html<VintageSignupCard>`<p class="reason" part="note">Reason: ${(x) => x.note}</p>`,
+      )}
+      ${when(
+        (x) => x.standbyLine,
+        html<VintageSignupCard>`<p class="standby" part="standby">${(x) => x.standbyLine}</p>`,
+      )}
+      ${when(
+        (x) => x.flexStandbyOnly && !x.standbyLine,
+        html<VintageSignupCard>`<p class="reason" part="flex-note">Flex Raiders start on Standby for guild raids; leaders seat you where the comp needs you.</p>`,
+      )}
       ${when(
         (x) => x.queueLine,
         html<VintageSignupCard>`<p class="queue" part="queue">${(x) => x.queueLine}</p>`,
@@ -211,6 +319,30 @@ const template = html<VintageSignupCard>`
                 >`<violet-option value="${(o) => o[0]}">${(o) => o[1]}</violet-option>`,
               )}
             </violet-select>
+          </div>
+        `,
+      )}
+      ${when(
+        (x) => x.otherRoleChoices.length > 0,
+        html<VintageSignupCard>`
+          <div class="also-roles" part="also-roles" role="group" aria-label="Can also play">
+            <span class="sublabel">Can also play</span>
+            <div class="chips">
+              ${repeat(
+                (x) => x.otherRoleChoices,
+                html<Role, VintageSignupCard>`
+                  <label class="role-toggle">
+                    <input
+                      type="checkbox"
+                      :checked="${(r, c) => c.parent.effectiveAlsoRoles.includes(r)}"
+                      ?disabled="${(_, c) => !c.parent.changeSpecCanExecute}"
+                      @change="${(r, c) => c.parent.toggleAlsoRole(r, (c.event.target as HTMLInputElement).checked)}"
+                    />
+                    ${(r) => roleLabel(r)}
+                  </label>
+                `,
+              )}
+            </div>
           </div>
         `,
       )}
@@ -291,7 +423,8 @@ const styles = css`
     color: var(--color-text-secondary);
   }
 
-  .counts .queued b {
+  .counts .queued b,
+  .counts .bench b {
     color: var(--color-signup-bench);
   }
 
@@ -305,6 +438,24 @@ const styles = css`
     box-shadow: var(--shadow-edge);
   }
 
+  .coverage {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-xs);
+    padding: var(--space-xs) var(--space-sm);
+    border-radius: 0.25rem;
+    border: var(--border-width-thin) solid var(--color-border-default);
+    background: var(--color-surface-raised);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-primary);
+  }
+
+  .coverage p {
+    margin: 0;
+  }
+
   .row {
     display: flex;
     flex-wrap: wrap;
@@ -314,6 +465,7 @@ const styles = css`
 
   .seg {
     display: inline-flex;
+    flex-wrap: wrap;
     border: var(--border-width-thin) solid var(--color-border-strong);
     border-radius: 0.25rem;
     overflow: hidden;
@@ -357,21 +509,116 @@ const styles = css`
     color: var(--color-accent-contrast);
   }
 
+  .seg button.bench[aria-pressed='true'] {
+    background: var(--color-signup-bench);
+    color: var(--color-accent-contrast);
+  }
+
   .seg button.declined[aria-pressed='true'] {
     background: var(--color-feedback-danger);
     color: var(--color-accent-contrast);
   }
 
-  .seg button:focus-visible {
+  .seg button:focus-visible,
+  .chip:focus-visible,
+  .link:focus-visible {
     outline: var(--border-width-thin) solid var(--color-focus-ring);
     outline-offset: calc(-1 * var(--border-width-thick));
+  }
+
+  .subrow {
+    display: grid;
+    gap: 0.35rem;
+    padding: var(--space-xs) var(--space-sm);
+    border-radius: 0.25rem;
+    border: var(--border-width-thin) solid var(--color-border-default);
+    background: var(--color-surface-raised);
+  }
+
+  .sublabel {
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xs);
+    letter-spacing: var(--font-tracking-wider);
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+  }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-xs);
+  }
+
+  .chips input[type='text'] {
+    flex: 1 1 12rem;
+    min-inline-size: 0;
+    padding: 0.4rem 0.6rem;
+    font: var(--font-weight-regular) var(--font-size-sm) var(--font-family-sans);
+    color: var(--color-text-primary);
+    background: var(--color-surface-canvas);
+    border: var(--border-width-thin) solid var(--color-border-strong);
+    border-radius: 0.25rem;
+  }
+
+  .chip {
+    font: var(--font-weight-medium) var(--font-size-sm) var(--font-family-sans);
+    padding: 0.35rem 0.7rem;
+    border-radius: 0.25rem;
+    border: var(--border-width-thin) solid var(--color-border-strong);
+    background: var(--color-surface-canvas);
+    color: var(--color-text-primary);
+    cursor: pointer;
+  }
+
+  .chip.usual,
+  .chip.primary,
+  .chip[aria-pressed='true'] {
+    background: var(--color-accent-primary);
+    border-color: var(--color-accent-primary);
+    color: var(--color-accent-contrast);
+  }
+
+  .chip:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  .link {
+    font: var(--font-weight-regular) var(--font-size-xs) var(--font-family-sans);
+    padding: 0.25rem 0.4rem;
+    border: 0;
+    background: transparent;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
+  .hint {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+  }
+
+  .also-roles {
+    display: grid;
+    gap: 0.25rem;
+  }
+
+  .role-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-primary);
+    cursor: pointer;
   }
 
   .as b {
     color: var(--color-text-primary);
   }
 
-  .queue {
+  .queue,
+  .standby {
     margin: 0;
     font-size: var(--font-size-sm);
     color: var(--color-text-accent);
@@ -406,13 +653,13 @@ const styles = css`
 /**
  * One raid, its signup counts, and the member's own answer. Clicking an answer runs the
  * `vintage.signup-set` component command, which calls the server's `signup-set` with the
- * member's character; the server applies the lock, queue, and tier rules and answers with
+ * member's character; the server applies the lock, Standby, and tier rules and answers with
  * the stored signup.
  *
  * @tagname vintage-signup-card
  * @summary A raid's signups and the member's answer, backed by `signup-set`.
- * @fires signup-changed - The server accepted the answer, character, spec, or role; `detail`
- *   is the stored signup.
+ * @fires signup-changed - The server accepted the answer, character, spec, role, or flex roles;
+ *   `detail` is the stored signup.
  * @slot - Extra content between the time and the counts, such as the raid's notes.
  * @csspart card - The surface.
  * @csspart eyebrow - The label above the title.
@@ -420,10 +667,15 @@ const styles = css`
  * @csspart when - The start time and lock note.
  * @csspart counts - The counts grid.
  * @csspart answer - The member's answer block.
+ * @csspart coverage - Active absence or weekly-late coverage banner.
+ * @csspart late-picker - Inline 5 / 15 / 30 minute late picker.
+ * @csspart tentative-picker - Inline optional Tentative reason form.
+ * @csspart standby - Private explanation of why the member is on Standby.
  * @csspart character - The character the answer is for.
  * @csspart queue - Where the member is in line when the raid is full.
  * @csspart reason - Why that character was guessed.
  * @csspart switch - The Switch character, Change spec and Role menus.
+ * @csspart also-roles - Can also play flex-role toggles for hybrid classes.
  * @csspart status - The result line (`role="status"`).
  */
 export class VintageSignupCard extends FASTElement {
@@ -446,6 +698,12 @@ export class VintageSignupCard extends FASTElement {
     | null = null;
   /** The member's current signup status, or `none`. */
   @attr status = 'none';
+  /** Minutes late (5, 15, or 30) on the member's current signup, or null. */
+  @attr({ attribute: 'late-minutes', converter: nullableNumberConverter }) lateMinutes:
+    | number
+    | null = null;
+  /** The member's Tentative reason note, if any. */
+  @attr note = '';
   /** The character the member answers with; empty disables answering. */
   @attr({ attribute: 'character-id' }) characterId = '';
   /** How that character is shown, e.g. "Bloodfen · Protection". */
@@ -461,15 +719,96 @@ export class VintageSignupCard extends FASTElement {
    * `role`: that's the host's ARIA role.)
    */
   @attr({ attribute: 'play-role' }) playRole = '';
+  /** Roster state of the member's signup (`pending`, `rostered`, `benched`, or empty). */
+  @attr({ attribute: 'roster-state' }) rosterState = '';
+  /** True when the member is a Flex Raider on a guild raid (starts on Standby). */
+  @attr({ attribute: 'flex-standby-only', mode: 'boolean' }) flexStandbyOnly = false;
+  /** True once a raid leader has approved the party roster. */
+  @attr({ attribute: 'roster-approved', mode: 'boolean' }) rosterApproved = false;
+  /** Custom private Standby explanation; overrides the derived message when set. */
+  @attr({ attribute: 'standby-reason' }) standbyReason = '';
+  /** Active absence coverage for this raid: `away`, `late`, or empty. */
+  @attr({ attribute: 'absence-coverage' }) absenceCoverage = '';
+  /** Reason on the active `away` absence covering this raid, if any. */
+  @attr({ attribute: 'absence-reason' }) absenceReason = '';
+  /** Minutes late from a weekly late rule covering this raid (`5`, `15`, or `30`), or null. */
+  @attr({ attribute: 'weekly-late-minutes', converter: nullableNumberConverter })
+  weeklyLateMinutes: number | null = null;
 
   /** The member's characters. With them the card offers Switch character and Change spec. */
   @observable characters: SignupCharacter[] = [];
+  /** Other roles the member can flex to for this raid (`signup.alsoRoles`). */
+  @observable alsoRoles: Role[] = [];
   /** Roles the raid is short of; the menus mark characters and specs that fill one. */
   @observable needed: NeededRole[] = [];
   @observable counts: SignupCounts = EMPTY_COUNTS;
   @observable busy = false;
   @observable statusText = '';
   @observable statusKind: 'idle' | 'error' | 'success' = 'idle';
+  /** Which inline sub-picker is currently open (`late` or `tentative`), or null. */
+  @observable picking: 'late' | 'tentative' | null = null;
+  @observable draftNote = '';
+  private alsoRolesTouched = false;
+
+  /** Buttons shown in the segmented answer bar. */
+  @volatile
+  get visibleAnswers(): readonly Answer[] {
+    return this.flexStandbyOnly ? FLEX_ANSWERS : ANSWERS;
+  }
+
+  /** Button label, showing minutes on Late when the member is currently Late. */
+  answerButtonLabel(a: Answer): string {
+    if (a === 'late' && this.statusKey === 'late' && isLateMinutes(this.lateMinutes)) {
+      return `Late (${this.lateMinutes}m)`;
+    }
+    return ANSWER_LABELS[a];
+  }
+
+  /** Private explanation when the member is on Standby, or empty. */
+  @volatile
+  get standbyLine(): string {
+    if (this.standbyReason) return this.standbyReason;
+    if (this.statusKey !== 'bench' && this.rosterState !== 'benched') return '';
+    if (this.flexStandbyOnly) {
+      return 'You’re on Standby because Flex Raiders start on Standby for guild raids; leaders seat you where the comp needs you.';
+    }
+    if (this.rosterApproved) {
+      return 'You’re on Standby because parties are already approved; leaders will seat you if a spot opens.';
+    }
+    return 'You’re on Standby; leaders will seat you if a spot opens.';
+  }
+
+  /** Banner describing active absence or weekly-late coverage for this raid, or empty. */
+  @volatile
+  get coverageLine(): string {
+    if (this.absenceCoverage === 'away') {
+      const why = this.absenceReason ? `: ${this.absenceReason}` : '';
+      return `Covered by your absence${why}. Answer below if your plans changed.`;
+    }
+    if (
+      (this.absenceCoverage === 'late' || isLateMinutes(this.weeklyLateMinutes)) &&
+      isLateMinutes(this.weeklyLateMinutes)
+    ) {
+      if (this.statusKey === 'late') {
+        return `Marked ${this.lateMinutes ?? this.weeklyLateMinutes} min late from your weekly rule.`;
+      }
+      if (this.statusKey === 'none') {
+        return `Your weekly rule marks you ${this.weeklyLateMinutes} min late for this night.`;
+      }
+    }
+    return '';
+  }
+
+  /** Show "On time this week" when covered by a weekly late rule and not already marked Going. */
+  @volatile
+  get showOnTimeButton(): boolean {
+    return (
+      !this.flexStandbyOnly &&
+      isLateMinutes(this.weeklyLateMinutes) &&
+      this.absenceCoverage !== 'away' &&
+      (this.statusKey === 'late' || this.statusKey === 'none')
+    );
+  }
 
   /** "You're next in line…", or how many are ahead; empty when not queued. */
   @volatile
@@ -510,7 +849,7 @@ export class VintageSignupCard extends FASTElement {
 
   /**
    * The counts as [label, value, class] rows: who is going and the comp, then the secondary
-   * states (late, tentative, queued) only when someone is in them, so zeros don't crowd the row.
+   * states (late, tentative, standby, queued) only when someone is in them.
    */
   get countRows(): [string, number, string][] {
     const c = this.counts;
@@ -522,6 +861,7 @@ export class VintageSignupCard extends FASTElement {
     ];
     if (c.late) rows.push(['Late', c.late, 'late']);
     if (c.tentative) rows.push(['Tentative', c.tentative, 'tentative']);
+    if (c.bench) rows.push(['Standby', c.bench, 'bench']);
     if (c.queued) rows.push(['Queued', c.queued, 'queued']);
     return rows;
   }
@@ -560,6 +900,24 @@ export class VintageSignupCard extends FASTElement {
   @volatile
   get activeRole(): Role | '' {
     return isRole(this.playRole) ? this.playRole : this.specRole;
+  }
+
+  /** Other roles the active character's class can play, excluding its active role. */
+  @volatile
+  get otherRoleChoices(): Role[] {
+    const c = this.current;
+    if (!c || !this.activeRole) return [];
+    return classRoles(c.class).filter((r) => r !== this.activeRole);
+  }
+
+  /** Active `alsoRoles`, falling back to the character's defaults when unanswered. */
+  @volatile
+  get effectiveAlsoRoles(): Role[] {
+    const c = this.current;
+    if (!c || !this.activeRole) return [];
+    const source =
+      this.alsoRolesTouched || this.answered !== null ? this.alsoRoles : (c.alsoRoles ?? []);
+    return cleanAlsoRoles(c.class, this.activeRole, source).alsoRoles;
   }
 
   /** "Aerbark · Feral Druid · Tank", or the `character-label` attribute without characters. */
@@ -617,6 +975,47 @@ export class VintageSignupCard extends FASTElement {
     return this.statusKey === 'none' ? null : this.statusKey;
   }
 
+  /** Handle a button press in the answer bar: Late and Tentative open inline pickers. */
+  pickAnswer(answer: Answer): void {
+    if (answer === 'late') {
+      this.picking = this.picking === 'late' ? null : 'late';
+      return;
+    }
+    if (answer === 'tentative') {
+      this.draftNote = this.note;
+      this.picking = this.picking === 'tentative' ? null : 'tentative';
+      return;
+    }
+    this.picking = null;
+    void this.answer(answer);
+  }
+
+  cancelPick(): void {
+    this.picking = null;
+  }
+
+  setDraftNote(value: string): void {
+    this.draftNote = value;
+  }
+
+  submitTentative(event: Event): void {
+    event.preventDefault();
+    const cleaned = this.draftNote.trim();
+    void this.answer('tentative', { note: cleaned || null });
+  }
+
+  /** Override a weekly late rule for this raid night. */
+  markOnTime(): Promise<ElementResult<unknown>> {
+    this.picking = null;
+    return this.answer('accepted', { lateMinutes: null });
+  }
+
+  toggleAlsoRole(role: Role, checked: boolean): void {
+    const current = this.effectiveAlsoRoles;
+    const next = checked ? [...current, role] : current.filter((r) => r !== role);
+    void this.changeAlsoRoles(next);
+  }
+
   @command('vintage.signup-switch-character', {
     label: 'Switch character',
     description:
@@ -642,6 +1041,8 @@ export class VintageSignupCard extends FASTElement {
     this.spec = '';
     this.playRole = '';
     this.reason = '';
+    this.alsoRoles = [...(next.alsoRoles ?? [])];
+    this.alsoRolesTouched = false;
     return this.resend({ characterId: next.id }, before);
   }
 
@@ -652,6 +1053,8 @@ export class VintageSignupCard extends FASTElement {
       spec: this.spec,
       playRole: this.playRole,
       reason: this.reason,
+      alsoRoles: [...this.alsoRoles],
+      alsoRolesTouched: this.alsoRolesTouched,
     };
   }
 
@@ -697,12 +1100,47 @@ export class VintageSignupCard extends FASTElement {
     return this.resend({ characterId: c.id, role: isRole(role) ? role : null }, before);
   }
 
+  @command('vintage.signup-change-also-roles', {
+    label: 'Can also play',
+    description: 'Set other roles your character can flex to for this raid only.',
+    category: 'Raids',
+    parameters: {
+      type: 'object',
+      properties: { roles: { type: 'array', items: { type: 'string' } } },
+      required: ['roles'],
+    },
+  })
+  async changeAlsoRoles(roles: unknown): Promise<ElementResult<unknown>> {
+    const c = this.current;
+    const mainRole = this.activeRole;
+    if (!c || !mainRole || !Array.isArray(roles) || roles.some((r) => !isRole(r))) {
+      return failure({
+        code: 'INVALID_PARAMETERS',
+        message: 'Pick roles your class can flex to',
+      });
+    }
+    const cleaned = cleanAlsoRoles(c.class, mainRole, roles as Role[]);
+    if (cleaned.rejected.length > 0) {
+      return failure({
+        code: 'INVALID_PARAMETERS',
+        message: `${titleCase(c.class)} cannot play ${cleaned.rejected.map(roleLabel).join(', ')}`,
+      });
+    }
+    if (!this.changeSpecCanExecute) {
+      return failure({ code: 'COMMAND_DISABLED', message: 'Already sending an answer' });
+    }
+    const before = this.choice;
+    this.alsoRoles = cleaned.alsoRoles;
+    this.alsoRolesTouched = true;
+    return this.resend({ characterId: c.id, alsoRoles: cleaned.alsoRoles }, before);
+  }
+
   /**
    * After a switch: unanswered, the choice waits for the answer; answered, `signup-set` stores
    * it now with the same status. A refusal puts the previous choice back.
    */
   private async resend(
-    input: { characterId: string; spec?: string; role?: Role | null },
+    input: { characterId: string; spec?: string; role?: Role | null; alsoRoles?: Role[] },
     before: Choice,
   ): Promise<ElementResult<unknown>> {
     const status = this.answered;
@@ -710,7 +1148,14 @@ export class VintageSignupCard extends FASTElement {
     this.busy = true;
     try {
       const result = toElementResult(
-        await getCommandClient().run('signup-set', { eventId: this.eventId, ...input, status }),
+        await getCommandClient().run('signup-set', {
+          eventId: this.eventId,
+          ...input,
+          status,
+          ...(status === 'late' && isLateMinutes(this.lateMinutes)
+            ? { lateMinutes: this.lateMinutes }
+            : {}),
+        }),
       );
       if (!result.success) Object.assign(this, before);
       this.report(result, status);
@@ -723,19 +1168,33 @@ export class VintageSignupCard extends FASTElement {
   @command('vintage.signup-set', {
     label: 'Answer a raid',
     description:
-      'Sign up for the raid, or change your answer: accepted, late, tentative, or declined.',
+      'Sign up for the raid, or change your answer: accepted, late (with 5, 15, or 30 minutes), ' +
+      'tentative (optional note), bench (Standby), or declined (Absent).',
     category: 'Raids',
     parameters: {
       type: 'object',
-      properties: { status: { type: 'string', enum: [...ANSWERS] } },
+      properties: {
+        status: { type: 'string', enum: [...ANSWERS] },
+        lateMinutes: { type: 'number', enum: [...LATE_MINUTES] },
+        note: { type: 'string' },
+      },
       required: ['status'],
     },
   })
-  async answer(status: unknown): Promise<ElementResult<unknown>> {
-    if (!isAnswer(status)) {
+  async answer(statusOrInput: unknown, options?: AnswerOptions): Promise<ElementResult<unknown>> {
+    const req = parseAnswerRequest(statusOrInput, options);
+    if (!isAnswer(req.status)) {
       return failure({
         code: 'INVALID_PARAMETERS',
         message: `Answer with one of ${ANSWERS.join(', ')}`,
+      });
+    }
+    const status = req.status;
+    const lateMinutes = this.resolveLateInput(status, req.lateMinutes);
+    if (status === 'late' && lateMinutes === undefined) {
+      return failure({
+        code: 'INVALID_PARAMETERS',
+        message: 'Pick how late you will be: 5, 15, or 30 minutes',
       });
     }
     if (!this.answerCanExecute) {
@@ -746,34 +1205,114 @@ export class VintageSignupCard extends FASTElement {
     }
     this.busy = true;
     try {
-      const result = toElementResult(
-        await getCommandClient().run('signup-set', {
-          eventId: this.eventId,
-          characterId: this.characterId,
-          status,
-          ...(status === 'late' ? { lateMinutes: 15 } : {}),
-          ...(this.spec ? { spec: this.spec } : {}),
-          ...(isRole(this.playRole) ? { role: this.playRole } : {}),
-        }),
-      );
-      this.report(result, status);
+      const payload = this.buildAnswerInput(status, lateMinutes, req.note);
+      const result = toElementResult(await getCommandClient().run('signup-set', payload));
+      this.report(result, status, lateMinutes ?? null, status === 'tentative' ? req.note : null);
       return result;
     } finally {
       this.busy = false;
     }
   }
 
-  private report(result: ElementResult<unknown>, status: SignupStatus): void {
+  private buildAnswerInput(
+    status: Answer,
+    lateMinutes: LateMinutes | null | undefined,
+    note: string | null | undefined,
+  ): Record<string, unknown> {
+    return {
+      eventId: this.eventId,
+      characterId: this.characterId,
+      status,
+      ...(lateMinutes !== undefined ? { lateMinutes } : {}),
+      ...(status === 'tentative' && note !== undefined ? { note } : {}),
+      ...(this.spec ? { spec: this.spec } : {}),
+      ...(isRole(this.playRole) ? { role: this.playRole } : {}),
+      ...(this.alsoRolesTouched ? { alsoRoles: this.effectiveAlsoRoles } : {}),
+    };
+  }
+
+  private resolveLateInput(
+    status: Answer,
+    given: LateMinutes | null | undefined,
+  ): LateMinutes | null | undefined {
+    if (status === 'late') {
+      if (isLateMinutes(given)) return given;
+      if (this.statusKey === 'late' && isLateMinutes(this.lateMinutes)) return this.lateMinutes;
+      return undefined;
+    }
+    return given === null ? null : undefined;
+  }
+
+  private report(
+    result: ElementResult<unknown>,
+    status: SignupStatus,
+    sentLate?: LateMinutes | null,
+    sentNote?: string | null,
+  ): void {
     if (!result.success) {
       this.statusKind = 'error';
       this.statusText = describeError(result);
       return;
     }
-    this.status = status;
+    const storedStatus = this.applyStoredSignup(result.data, status, sentLate, sentNote);
+    this.picking = null;
+    this.alsoRolesTouched = false;
     this.statusKind = 'success';
-    this.statusText = String(result.metadata?.reasoning ?? STATUS_LABELS[status]);
+    this.statusText = String(result.metadata?.reasoning ?? STATUS_LABELS[storedStatus]);
     this.$emit('signup-changed', result.data);
   }
+
+  private applyStoredSignup(
+    raw: unknown,
+    fallbackStatus: SignupStatus,
+    sentLate?: LateMinutes | null,
+    sentNote?: string | null,
+  ): SignupStatus {
+    const data = (raw && typeof raw === 'object' ? raw : null) as StoredSignupPayload | null;
+    const next = data?.status && isStatus(data.status) ? data.status : fallbackStatus;
+    this.status = next;
+    this.lateMinutes = resolvedLate(data, next, sentLate);
+    this.note = resolvedNote(data, next, sentNote);
+    if (Array.isArray(data?.alsoRoles)) this.alsoRoles = data.alsoRoles;
+    if (typeof data?.roster === 'string') this.rosterState = data.roster;
+    return next;
+  }
+}
+
+interface StoredSignupPayload {
+  status?: SignupStatus;
+  lateMinutes?: number | null;
+  note?: string | null;
+  alsoRoles?: Role[];
+  roster?: string;
+}
+
+function parseAnswerRequest(
+  statusOrInput: unknown,
+  options?: AnswerOptions,
+): { status?: unknown } & AnswerOptions {
+  if (statusOrInput && typeof statusOrInput === 'object') {
+    return statusOrInput as { status?: unknown } & AnswerOptions;
+  }
+  return { status: statusOrInput, ...options };
+}
+
+function resolvedLate(
+  data: StoredSignupPayload | null,
+  status: SignupStatus,
+  sentLate?: LateMinutes | null,
+): number | null {
+  if (data && 'lateMinutes' in data) return data.lateMinutes ?? null;
+  return status === 'late' && isLateMinutes(sentLate) ? sentLate : null;
+}
+
+function resolvedNote(
+  data: StoredSignupPayload | null,
+  status: SignupStatus,
+  sentNote?: string | null,
+): string {
+  if (data && 'note' in data) return data.note ?? '';
+  return status === 'tentative' && sentNote !== undefined ? (sentNote ?? '') : '';
 }
 
 if (!customElements.get('vintage-signup-card')) {

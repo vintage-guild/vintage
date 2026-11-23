@@ -251,4 +251,41 @@ describe('tools and calls on the real registry', () => {
       result: { success: false, error: { code: 'COMMAND_NOT_FOUND' } },
     });
   });
+
+  it('stops a rate-limited caller before running the command, and never charges a refused token', async () => {
+    const g = await guild();
+    let ran = false;
+    let charged = false;
+    const limited = await callFor(
+      { caller: g.raider },
+      { name: 'member-me', input: {} },
+      async () => {
+        ran = true;
+        return { success: true };
+      },
+      async () => {
+        charged = true;
+        return {
+          success: false,
+          error: { code: 'RATE_LIMITED', message: 'slow down', retryable: true },
+        };
+      },
+    );
+    expect(limited).toMatchObject({ result: { success: false, error: { code: 'RATE_LIMITED' } } });
+    expect(ran).toBe(false);
+    expect(charged).toBe(true);
+
+    charged = false;
+    const refused = await callFor(
+      { refused: 'expired' },
+      { name: 'member-me', input: {} },
+      g.execute,
+      async () => {
+        charged = true;
+        return null;
+      },
+    );
+    expect(refused).toEqual({ refused: 'expired' });
+    expect(charged).toBe(false);
+  });
 });

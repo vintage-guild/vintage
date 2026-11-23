@@ -88,6 +88,8 @@ describe('/raids/<id>', () => {
     // Bloodfen is a Flex Raider, so on a guild raid their answer lands on Standby (bench).
     expect(page.mine).toMatchObject({ status: 'bench', queued: false });
     expect(card(page)?.status).toBe('bench');
+    expect(card(page)?.flexStandbyOnly).toBe(true);
+    expect(card(page)?.standbyLine).toContain('Flex Raiders start on Standby');
   });
 
   it('gives a recruit the signups and a note where the comp would be', async () => {

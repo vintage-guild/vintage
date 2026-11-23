@@ -24,4 +24,11 @@ export default defineSchema({
     lastSentAt: v.number(),
     lastError: v.string(),
   }).index('by_guild_key', ['guildId', 'key']),
+  /** Fixed-window per-member call buckets for /mcp (#175, #9). */
+  mcpRateLimits: defineTable({
+    guildId: v.string(),
+    subject: v.string(),
+    windowStart: v.number(),
+    count: v.number(),
+  }).index('by_guild_subject', ['guildId', 'subject']),
 });

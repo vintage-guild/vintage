@@ -17,10 +17,13 @@ import {
   RAIDS_OPEN_ON,
 } from '@vintage/progress/contract';
 import {
+  type Absence,
+  accessOf,
   type CompRole,
   KIND_LABELS,
   kindOf,
   type RaidEvent,
+  resolveAbsenceCoverage,
   rolesNeeded,
   type Schedule,
   type Signup,
@@ -235,11 +238,20 @@ const template = html<Page>`
                   lock-label="${(x) => x.lockLabel}"
                   queue-position="${(x) => x.mySignup?.queuePosition ?? null}"
                   status="${(x) => x.next?.myStatus ?? 'none'}"
+                  late-minutes="${(x) => x.mySignup?.lateMinutes ?? null}"
+                  note="${(x) => x.mySignup?.note ?? ''}"
+                  roster-state="${(x) => x.mySignup?.roster ?? ''}"
+                  ?flex-standby-only="${(x) => x.flexStandbyOnly}"
+                  ?roster-approved="${(x) => x.next?.event.rosterApprovedAt != null}"
+                  absence-coverage="${(x) => x.absenceCoverage}"
+                  absence-reason="${(x) => x.absenceReason}"
+                  weekly-late-minutes="${(x) => x.weeklyLateMinutes}"
                   character-id="${(x) => (x.signUpAllowed ? (x.guess?.characterId ?? x.main?.id ?? '') : '')}"
                   character-label="${(x) => x.mainLabel}"
                   spec="${(x) => x.guess?.spec ?? ''}"
                   reason="${(x) => x.guess?.reason ?? ''}"
                   play-role="${(x) => (x.mySignup?.rolePicked ? x.mySignup.role : '')}"
+                  :alsoRoles="${(x) => x.mySignup?.alsoRoles ?? []}"
                   :characters="${(x) => (x.signUpAllowed ? x.characters : [])}"
                   :needed="${(x) => x.nextNeeded}"
                   time-zone="${() => preferredTimeZone() ?? ''}"
@@ -1257,18 +1269,61 @@ export class Page extends FASTElement {
     state: 'unknown',
     detail: '',
   };
+  /** Active absences for the signed-in member, to show coverage / weekly-late controls. */
+  @observable absences: Absence[] = [];
   /** Who the page is composed for, from the session (src/view.ts). Fixed for the page's life. */
   readonly view: View = currentView();
-  /** Whether this member may answer signups (`signup-set` is recruit tier). */
-  readonly signUpAllowed = canSignUp(currentSession());
   /** The sections this session sees; the rest aren't rendered (src/view.ts HOME_SECTIONS). */
   readonly sections = sectionsFor(currentSession());
+
+  /** Whether this session may answer the next raid (`friend`+ on open raids, `recruit`+ on guild). */
+  @volatile
+  get signUpAllowed(): boolean {
+    const next = this.next;
+    return canSignUp(currentSession(), next ? accessOf(next.event) : 'guild');
+  }
+
+  /** Flex Raiders start on Standby for guild raids. */
+  @volatile
+  get flexStandbyOnly(): boolean {
+    const e = this.next?.event;
+    return (
+      Boolean(e) &&
+      kindOf(e!) === 'raid' &&
+      accessOf(e!) === 'guild' &&
+      currentSession()?.rank === 'flex-raider'
+    );
+  }
+
+  private get nextCoverage() {
+    const e = this.next?.event;
+    return e ? resolveAbsenceCoverage(this.absences, e.startsAt) : null;
+  }
+
+  @volatile
+  get absenceCoverage(): '' | 'away' | 'late' {
+    const cov = this.nextCoverage?.coverage;
+    if (cov === 'away') return 'away';
+    return cov ? 'late' : '';
+  }
+
+  @volatile
+  get absenceReason(): string {
+    return this.nextCoverage?.coverage === 'away' ? (this.nextCoverage.absence?.reason ?? '') : '';
+  }
+
+  @volatile
+  get weeklyLateMinutes(): number | null {
+    const cov = this.nextCoverage?.coverage;
+    return cov && cov !== 'away' ? cov.lateMinutes : null;
+  }
 
   shows(section: HomeSection): boolean {
     return this.sections.has(section);
   }
   private stopWatching: (() => void) | null = null;
   private raidListSub: Unsubscribe | null = null;
+  private absenceSub: Unsubscribe | null = null;
   private nextRaidSubs: Unsubscribe[] = [];
   private watchedNextId: string | null = null;
   private nextSignups: SignupRow[] = [];
@@ -1500,6 +1555,8 @@ export class Page extends FASTElement {
   private stopWatchingRaids(): void {
     this.raidListSub?.();
     this.raidListSub = null;
+    this.absenceSub?.();
+    this.absenceSub = null;
     this.stopWatchingNextRaid();
   }
 
@@ -1530,6 +1587,19 @@ export class Page extends FASTElement {
     const client = getCommandClient();
     const to = Date.now() + CALENDAR_DAYS * DAY_MS;
     let firstList = true;
+    if (canSignUp(currentSession(), 'guild')) {
+      this.absenceSub = watchCommand<{ absences: Absence[] }>(
+        client,
+        'absence-list',
+        {},
+        (result) => {
+          this.absences = result.success ? (result.data?.absences ?? []) : [];
+        },
+        () => {
+          this.absences = [];
+        },
+      );
+    }
     this.raidListSub = watchCommand<RaidRow[]>(
       client,
       'raid-list',
@@ -1776,13 +1846,17 @@ export class Page extends FASTElement {
       this.nextNeeded = [];
       return;
     }
-    const [signups, guess] = await Promise.all([
+    const [signups, guess, absences] = await Promise.all([
       client.read<SignupRow[]>('signup-list', { eventId: next.event.id }),
       this.signUpAllowed
         ? client.read<SignupGuess | null>('signup-suggest', { eventId: next.event.id })
         : null,
+      canSignUp(currentSession(), 'guild')
+        ? client.read<{ absences: Absence[] }>('absence-list')
+        : null,
     ]);
     this.guess = guess?.success ? (guess.data ?? null) : null;
+    this.absences = absences?.success ? (absences.data?.absences ?? []) : [];
     const rows = signups.success ? (signups.data ?? []) : [];
     this.mySignup = rows.find((s) => s.memberId === this.meId) ?? null;
     this.nextNeeded = rolesNeeded(

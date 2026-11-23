@@ -14,7 +14,10 @@
     "set-bot-profile": "tsx scripts/set-bot-profile.ts"
   },
   "dependencies": {
-    "@vintage/discord-kit": "workspace:*"
+    "@lushly-dev/afd-core": "catalog:",
+    "@lushly-dev/afd-server": "catalog:",
+    "@vintage/discord-kit": "workspace:*",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@types/node": "^24.10.0",

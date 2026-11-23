@@ -16,12 +16,15 @@ import {
   type InteractionResponse,
   InteractionType,
   interactionUser,
+  label,
+  labelledTextInput,
   modal,
+  modalSelections,
   modalValues,
   reply,
+  type SelectOption,
+  stringSelect,
   subcommandPath,
-  TextInputStyle,
-  textInput,
   updateMessage,
 } from '@vintage/discord-kit';
 import { type Caller, type CommandResult, tierAllows } from '@vintage/guild-kit';
@@ -29,8 +32,11 @@ import type { Character, Member } from '@vintage/identity/contract';
 import {
   type Absence,
   type AbsenceCoverage,
+  FALLBACK_TIME_ZONE,
   LATE_MINUTES,
   type LateMinutes,
+  resolveGuildClock,
+  type Schedule,
   WEEKDAYS,
   type Weekday,
   type WeeklyNight,
@@ -42,6 +48,7 @@ import {
   type MemberPorts,
   SLASH_COMMAND,
 } from './discord-common';
+import { dateOptions } from './discord-event-form';
 
 export const ABSENCE_GROUP = 'absence';
 
@@ -93,6 +100,8 @@ export interface AbsencePorts extends MemberPorts {
   signup(eventId: string, memberId: string): Promise<{ characterId: string } | null>;
   run(caller: Caller, name: string, input: unknown): Promise<CommandResult<unknown>>;
   afterChange(): Promise<void>;
+  /** Clock for building date pickers in the guild's time zone; defaults to `Date.now`. */
+  now?: () => number;
 }
 
 function shortDate(iso: string): string {
@@ -132,71 +141,111 @@ function absenceErrorText(result: CommandResult<unknown>): string {
   }
 }
 
-function absenceAddModal(targetMemberId?: string): InteractionResponse {
+async function absenceZone(ports: AbsencePorts, caller: Caller): Promise<string> {
+  const res = await ports.run(caller, 'schedule-list', { includeInactive: true });
+  const list = res.success && Array.isArray(res.data) ? (res.data as Schedule[]) : [];
+  return list.length ? resolveGuildClock(list).zone : FALLBACK_TIME_ZONE;
+}
+
+const WEEKDAY_SINGULAR: Record<Weekday, string> = {
+  sun: 'Sunday',
+  mon: 'Monday',
+  tue: 'Tuesday',
+  wed: 'Wednesday',
+  thu: 'Thursday',
+  fri: 'Friday',
+  sat: 'Saturday',
+};
+
+function weekdayOptions(selected: readonly Weekday[]): SelectOption[] {
+  return WEEKDAYS.map((day) => ({
+    label: WEEKDAY_SINGULAR[day],
+    value: day,
+    ...(selected.includes(day) ? { default: true } : {}),
+  }));
+}
+
+function absenceAddModal(zone: string, now: number, targetMemberId?: string): InteractionResponse {
   const id = targetMemberId ? `absence-add-modal:${targetMemberId}` : 'absence-add-modal';
+  const dates = dateOptions(zone, now);
   return modal(
     id,
     'Mark yourself absent',
-    textInput('from', 'First day out (YYYY-MM-DD)', {
-      style: TextInputStyle.SHORT,
-      required: true,
-      max_length: 10,
-      placeholder: '2026-12-03',
-    }),
-    textInput('to', 'Last day out (YYYY-MM-DD, optional)', {
-      style: TextInputStyle.SHORT,
-      required: false,
-      max_length: 10,
-      placeholder: '2026-12-07',
-    }),
-    textInput('reason', 'Reason (optional, leaders only)', {
-      style: TextInputStyle.SHORT,
-      required: false,
-      max_length: 200,
-      placeholder: 'Work trip',
-    }),
+    label(
+      'First day out',
+      stringSelect('from', dates, { placeholder: 'Pick the first day out', required: true }),
+      'Further ahead? Type it: /vintage absence add from:',
+    ),
+    label(
+      'Last day out',
+      stringSelect('to', dates, { placeholder: 'Same as first day (optional)', required: false }),
+      'Leave empty for a single day.',
+    ),
+    label(
+      'Reason',
+      labelledTextInput('reason', {
+        required: false,
+        max_length: 200,
+        placeholder: 'Work trip',
+      }),
+      'Optional; only raid leaders and officers see it.',
+    ),
   );
 }
 
 function weeklyModal(current: Absence | undefined): InteractionResponse {
-  const awayDefault = (current?.nights ?? [])
-    .filter((n) => n.type === 'away')
-    .map((n) => n.day)
-    .join(', ');
+  const awayDays = (current?.nights ?? []).filter((n) => n.type === 'away').map((n) => n.day);
   const lateNights = (current?.nights ?? []).filter((n) => n.type === 'late');
-  const lateDefault = lateNights.map((n) => n.day).join(', ');
-  const minsDefault = lateNights[0]?.lateMinutes ? String(lateNights[0].lateMinutes) : '';
+  const lateDays = lateNights.map((n) => n.day);
+  const minsDefault = lateNights[0]?.lateMinutes ?? null;
+  const lateMinuteOpts: SelectOption[] = LATE_MINUTES.map((m) => ({
+    label: `${m} minutes`,
+    value: String(m),
+    ...(m === minsDefault ? { default: true } : {}),
+  }));
   return modal(
     'absence-weekly-modal',
     'Weekly raid nights',
-    textInput('absent_days', 'Absent nights (e.g. wed, fri; blank for none)', {
-      style: TextInputStyle.SHORT,
-      required: false,
-      max_length: 60,
-      value: awayDefault,
-      placeholder: 'wed',
-    }),
-    textInput('late_days', 'Late nights (e.g. thu; blank for none)', {
-      style: TextInputStyle.SHORT,
-      required: false,
-      max_length: 60,
-      value: lateDefault,
-      placeholder: 'thu',
-    }),
-    textInput('late_minutes', 'How late on late nights (5, 15, or 30)', {
-      style: TextInputStyle.SHORT,
-      required: false,
-      max_length: 2,
-      value: minsDefault,
-      placeholder: '15',
-    }),
-    textInput('reason', 'Reason for absent nights (optional)', {
-      style: TextInputStyle.SHORT,
-      required: false,
-      max_length: 200,
-      value: current?.reason ?? '',
-      placeholder: 'Work schedule',
-    }),
+    label(
+      'Absent nights',
+      stringSelect('absent_days', weekdayOptions(awayDays), {
+        placeholder: 'Pick absent nights (none to clear)',
+        min_values: 0,
+        max_values: WEEKDAYS.length,
+        required: false,
+      }),
+      'Every raid on these nights shows you as Absent.',
+    ),
+    label(
+      'Late nights',
+      stringSelect('late_days', weekdayOptions(lateDays), {
+        placeholder: 'Pick late nights (none to clear)',
+        min_values: 0,
+        max_values: WEEKDAYS.length,
+        required: false,
+      }),
+      'Pressing Accept on these nights marks you Late.',
+    ),
+    label(
+      'How late on late nights',
+      stringSelect('late_minutes', lateMinuteOpts, {
+        placeholder: '5, 15, or 30 minutes',
+        min_values: 0,
+        max_values: 1,
+        required: false,
+      }),
+      'Needed for late nights. Later than 30 min? Pick Absent.',
+    ),
+    label(
+      'Reason for absent nights',
+      labelledTextInput('reason', {
+        required: false,
+        max_length: 200,
+        value: current?.reason ?? '',
+        placeholder: 'Work schedule',
+      }),
+      'Optional; only raid leaders and officers see it.',
+    ),
   );
 }
 
@@ -294,18 +343,35 @@ async function runAbsenceAdd(
   );
 }
 
+function parseDaysList(
+  selected: string[] | undefined,
+  rawText: string | undefined,
+): { days: Weekday[] } | { invalid: string } {
+  if (selected !== undefined) {
+    const out: Weekday[] = [];
+    for (const token of selected) {
+      const day = DAY_ALIASES[token.toLowerCase()];
+      if (!day) return { invalid: token };
+      if (!out.includes(day)) out.push(day);
+    }
+    return { days: out };
+  }
+  return parseDays(rawText ?? '');
+}
+
 function parseWeeklyInput(
   vals: Record<string, string | undefined>,
+  selections: Record<string, string[] | undefined>,
 ):
   | { nights: WeeklyNight[]; awayCount: number; lateMinutes: LateMinutes | null; reason?: string }
   | { error: string } {
-  const parsedAway = parseDays(vals.absent_days ?? '');
+  const parsedAway = parseDaysList(selections.absent_days, vals.absent_days);
   if ('invalid' in parsedAway) {
     return {
       error: `I didn't recognize "${parsedAway.invalid}". Use weekdays like mon, wed, thu.`,
     };
   }
-  const parsedLate = parseDays(vals.late_days ?? '');
+  const parsedLate = parseDaysList(selections.late_days, vals.late_days);
   if ('invalid' in parsedLate) {
     return {
       error: `I didn't recognize "${parsedLate.invalid}". Use weekdays like mon, wed, thu.`,
@@ -316,7 +382,8 @@ function parseWeeklyInput(
     return { error: `Pick ${DAY_FULL[overlap].slice(0, -1)} as absent or late, not both.` };
   let lateMinutes: LateMinutes | null = null;
   if (parsedLate.days.length) {
-    const m = Number((vals.late_minutes ?? '').trim());
+    const rawMins = selections.late_minutes?.[0] ?? vals.late_minutes ?? '';
+    const m = Number(rawMins.trim());
     if (!(LATE_MINUTES as readonly number[]).includes(m)) {
       return { error: 'Pick how late: 5, 15, or 30 minutes (more than 30 is absent).' };
     }
@@ -373,7 +440,7 @@ async function handleWeeklySubmit(
   caller: Caller,
   interaction: Interaction,
 ): Promise<InteractionResponse> {
-  const parsed = parseWeeklyInput(modalValues(interaction));
+  const parsed = parseWeeklyInput(modalValues(interaction), modalSelections(interaction));
   if ('error' in parsed) return ephemeral(parsed.error);
   const res = (await ports.run(caller, 'absence-weekly-set', {
     nights: parsed.nights,
@@ -454,7 +521,10 @@ async function handleSlashAdd(
     targetMemberId = target.id;
   }
   const from = typeof opts.from === 'string' ? opts.from.trim() : '';
-  if (!from) return absenceAddModal(targetMemberId);
+  if (!from) {
+    const zone = await absenceZone(ports, caller);
+    return absenceAddModal(zone, (ports.now ?? Date.now)(), targetMemberId);
+  }
   const to = typeof opts.to === 'string' ? opts.to.trim() || undefined : undefined;
   const reason = typeof opts.reason === 'string' ? opts.reason.trim() || undefined : undefined;
   return runAbsenceAdd(ports, caller, { from, to, reason, memberId: targetMemberId });
@@ -542,9 +612,10 @@ function handleAbsenceModal(
   if (customId === 'absence-weekly-modal') return handleWeeklySubmit(ports, caller, interaction);
   const [, targetMemberId] = customId.split(':');
   const vals = modalValues(interaction);
+  const picked = modalSelections(interaction);
   return runAbsenceAdd(ports, caller, {
-    from: (vals.from ?? '').trim(),
-    to: (vals.to ?? '').trim() || undefined,
+    from: (picked.from?.[0] ?? vals.from ?? '').trim(),
+    to: (picked.to?.[0] ?? vals.to ?? '').trim() || undefined,
     reason: (vals.reason ?? '').trim() || undefined,
     memberId: targetMemberId || undefined,
   });
@@ -561,7 +632,10 @@ export async function handleAbsenceInteraction(
   if (kind === 'slash') return handleSlash(interaction, ports, who.member, who.caller);
   const customId = interaction.data?.custom_id ?? '';
   if (kind === 'modal') return handleAbsenceModal(interaction, ports, who.caller, customId);
-  if (customId === 'absence-more-days') return absenceAddModal();
+  if (customId === 'absence-more-days') {
+    const zone = await absenceZone(ports, who.caller);
+    return absenceAddModal(zone, (ports.now ?? Date.now)());
+  }
   const [, mode, ids] = customId.split(':');
   return handleMarkButton(ports, who.caller, who.member, mode ?? 'absent', ids ?? '');
 }

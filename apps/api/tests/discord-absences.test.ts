@@ -259,20 +259,20 @@ describe('discord-absences (/vintage absence, Mark absent, autocomplete)', () =>
         custom_id: 'absence-weekly-modal',
         components: [
           {
-            type: 1,
-            components: [{ type: 4, custom_id: 'absent_days', value: 'wed' }],
+            type: 18,
+            component: { type: 3, custom_id: 'absent_days', values: ['wed'] },
           },
           {
-            type: 1,
-            components: [{ type: 4, custom_id: 'late_days', value: 'thu' }],
+            type: 18,
+            component: { type: 3, custom_id: 'late_days', values: ['thu'] },
           },
           {
-            type: 1,
-            components: [{ type: 4, custom_id: 'late_minutes', value: '15' }],
+            type: 18,
+            component: { type: 3, custom_id: 'late_minutes', values: ['15'] },
           },
           {
-            type: 1,
-            components: [{ type: 4, custom_id: 'reason', value: '' }],
+            type: 18,
+            component: { type: 4, custom_id: 'reason', value: '' },
           },
         ],
       },
@@ -282,6 +282,187 @@ describe('discord-absences (/vintage absence, Mark absent, autocomplete)', () =>
     expect(json).toContain('absence-mark:absent:evt_wed');
     expect(json).toContain('absence-mark:late-15:evt_thu');
     expect(json).not.toContain('absence-mark:absent:evt_wed,evt_thu');
+  });
+
+  it('opens the Absence modal with 25-day date selects and submits selected dates (#321)', async () => {
+    const { ports, ran } = makePorts();
+    // Mon 26 Oct 2026 16:00 UTC = Mon 26 Oct 2026 12:00 America/New_York
+    ports.now = () => Date.UTC(2026, 9, 26, 16);
+    const opened = await handleAbsenceInteraction(slash('add', []), ports);
+    const modalData = (
+      opened as {
+        type: number;
+        data: {
+          custom_id: string;
+          components: {
+            type: number;
+            label: string;
+            component: {
+              type: number;
+              custom_id: string;
+              required?: boolean;
+              options?: { label: string; value: string }[];
+            };
+          }[];
+        };
+      }
+    ).data;
+    expect(modalData.custom_id).toBe('absence-add-modal');
+    expect(modalData.components.map((f) => f.label)).toEqual([
+      'First day out',
+      'Last day out',
+      'Reason',
+    ]);
+    const fromSelect = modalData.components[0]!.component;
+    const toSelect = modalData.components[1]!.component;
+    expect(fromSelect.type).toBe(3);
+    expect(fromSelect.required).toBe(true);
+    expect(fromSelect.options).toHaveLength(25);
+    expect(fromSelect.options?.[0]).toMatchObject({ label: 'Today', value: '2026-10-26' });
+    expect(toSelect.type).toBe(3);
+    expect(toSelect.required).toBe(false);
+    expect(toSelect.options).toHaveLength(25);
+
+    // Clicking "Absent more days" opens the same date-picker modal.
+    const more = await handleAbsenceInteraction(
+      {
+        id: 'i_more',
+        application_id: 'app1',
+        token: 'tok1',
+        type: InteractionType.MESSAGE_COMPONENT,
+        guild_id: 'dg1',
+        member: { user: { id: RAIDER.discordId, username: 'Cade' }, roles: [] },
+        data: { custom_id: 'absence-more-days', component_type: 2 },
+      },
+      ports,
+    );
+    expect((more as { data: { custom_id: string } }).data.custom_id).toBe('absence-add-modal');
+
+    // Submitting selected dates forwards them cleanly to absence-add.
+    const submitted = await handleAbsenceInteraction(
+      {
+        id: 'i_add_sub',
+        application_id: 'app1',
+        token: 'tok1',
+        type: InteractionType.MODAL_SUBMIT,
+        guild_id: 'dg1',
+        member: { user: { id: RAIDER.discordId, username: 'Cade' }, roles: [] },
+        data: {
+          custom_id: 'absence-add-modal',
+          components: [
+            { type: 18, component: { type: 3, custom_id: 'from', values: ['2026-10-28'] } },
+            { type: 18, component: { type: 3, custom_id: 'to', values: ['2026-10-30'] } },
+            { type: 18, component: { type: 4, custom_id: 'reason', value: 'Out of town' } },
+          ],
+        },
+      },
+      ports,
+    );
+    expect(ran.at(-1)).toEqual({
+      name: 'absence-add',
+      input: { from: '2026-10-28', to: '2026-10-30', reason: 'Out of town', memberId: undefined },
+    });
+    expect(replyText(submitted)).toContain("You're absent");
+  });
+
+  it('opens the Weekly modal with weekday and late-minutes selects pre-filled from current rule (#321)', async () => {
+    const { ports, ran } = makePorts();
+    ports.absences = async () => [
+      {
+        ...WEEKLY_LATE,
+        nights: [
+          { day: 'wed', type: 'away', lateMinutes: null },
+          { day: 'thu', type: 'late', lateMinutes: 15 },
+        ],
+        reason: 'Work shift',
+      },
+    ];
+    const opened = await handleAbsenceInteraction(slash('weekly', []), ports);
+    const fields = (
+      opened as {
+        data: {
+          custom_id: string;
+          components: {
+            label: string;
+            component: {
+              type: number;
+              custom_id: string;
+              value?: string;
+              options?: { label: string; value: string; default?: boolean }[];
+            };
+          }[];
+        };
+      }
+    ).data.components;
+    expect(fields.map((f) => f.label)).toEqual([
+      'Absent nights',
+      'Late nights',
+      'How late on late nights',
+      'Reason for absent nights',
+    ]);
+    expect(fields[0]!.component.type).toBe(3);
+    expect(fields[0]!.component.options).toHaveLength(7);
+    expect(fields[0]!.component.options?.filter((o) => o.default).map((o) => o.value)).toEqual([
+      'wed',
+    ]);
+    expect(fields[1]!.component.options?.filter((o) => o.default).map((o) => o.value)).toEqual([
+      'thu',
+    ]);
+    expect(fields[2]!.component.type).toBe(3);
+    expect(fields[2]!.component.options?.map((o) => o.value)).toEqual(['5', '15', '30']);
+    expect(fields[2]!.component.options?.find((o) => o.default)?.value).toBe('15');
+    expect(fields[3]!.component.value).toBe('Work shift');
+
+    // Picking the same weekday in both selects is refused.
+    const dup = await handleAbsenceInteraction(
+      {
+        id: 'i_dup',
+        application_id: 'app1',
+        token: 'tok1',
+        type: InteractionType.MODAL_SUBMIT,
+        guild_id: 'dg1',
+        member: { user: { id: RAIDER.discordId, username: 'Cade' }, roles: [] },
+        data: {
+          custom_id: 'absence-weekly-modal',
+          components: [
+            { type: 18, component: { type: 3, custom_id: 'absent_days', values: ['wed'] } },
+            { type: 18, component: { type: 3, custom_id: 'late_days', values: ['wed'] } },
+            { type: 18, component: { type: 3, custom_id: 'late_minutes', values: ['15'] } },
+            { type: 18, component: { type: 4, custom_id: 'reason', value: '' } },
+          ],
+        },
+      },
+      ports,
+    );
+    expect(replyText(dup)).toContain('Pick Wednesday as absent or late, not both.');
+
+    // Submitting with empty selects clears the weekly rule.
+    ports.run = async (_caller, name, input) => {
+      ran.push({ name, input });
+      return success({ absence: null, stillSignedUp: [] });
+    };
+    const cleared = await handleAbsenceInteraction(
+      {
+        id: 'i_clr',
+        application_id: 'app1',
+        token: 'tok1',
+        type: InteractionType.MODAL_SUBMIT,
+        guild_id: 'dg1',
+        member: { user: { id: RAIDER.discordId, username: 'Cade' }, roles: [] },
+        data: {
+          custom_id: 'absence-weekly-modal',
+          components: [
+            { type: 18, component: { type: 3, custom_id: 'absent_days', values: [] } },
+            { type: 18, component: { type: 3, custom_id: 'late_days', values: [] } },
+            { type: 18, component: { type: 3, custom_id: 'late_minutes', values: [] } },
+            { type: 18, component: { type: 4, custom_id: 'reason', value: '' } },
+          ],
+        },
+      },
+      ports,
+    );
+    expect(ran.at(-1)).toEqual({ name: 'absence-weekly-set', input: { nights: [] } });
+    expect(replyText(cleared)).toBe('No weekly nights set.');
   });
 
   it('keeps Mark absent button custom_id within 100 chars and labels honestly when truncated (#321)', async () => {

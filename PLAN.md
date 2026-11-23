@@ -715,7 +715,7 @@ Phase 0 has about ten days and one maintainer, so it is cut to the minimum that 
 ### Phase 1 — Raid coordinator (2026-11-04 → ~11-25)
 
 - [x] `raids`: schedules, events, signups, roster, `comp-suggest` via `libs/comp-solver` (#14)
-- [ ] `coordinator`: materialize events, post signups, button flow, T-72h/T-24h reminders, officer digest, lock + final roster, `CoordinatorAction` log, `#vintage-ops` errors (the button flow is built, tested, and live in the test server through the gateway; `#vintage-ops` error routing is still to do)
+- [x] `coordinator`: materialize events, post signups, button flow, T-72h/T-24h reminders, officer digest, lock + final roster, `CoordinatorAction` log, `#vintage-ops` errors (#262: tick, poll sweep, and role sync failures post hourly-deduplicated errors to `opsChannelId`)
 - [x] `libs/discord-kit`: signature verification, embeds, components, timestamps Landed early in Phase 0 (#43).
 - [x] `libs/comp-solver`: selected roster, bench, and gaps with reasons (part of #15; `comp-suggest` lands with `raids`)
 - [ ] Member prefs (DM opt-out, default character, timezone); live roster board on the website
@@ -735,7 +735,7 @@ Phase 0 has about ten days and one maintainer, so it is cut to the minimum that 
 - [ ] `loot` host module + `libs/loot-core`; first two methods (likely soft-reserve + council, per Q5)
 - [ ] `wishlist` module; wishlists feed council candidates
 - [ ] Addon loot popup showing precomputed candidates
-- [ ] Post-raid: paste export → attendance + loot recorded → bot posts raid summary. The read-only first step is in: `raid-export-check` reads an export and matches it to the raid on the site, in Discord, and over MCP (J44, 2026-10-27); recording is in too: `raid-export-record` (officers) stores attendance in raids and drops in a new `loot` module, and completes the raid (J46, 2026-10-29; [post-raid-record](docs/features/active/post-raid-record/post-raid-record.plan.md)); the boss kills it carries go on the progress ledger and Random posts the raid summary to the signup channel (J47, #221, 2026-10-30); the website and Discord buttons are next
+- [x] Post-raid: paste export → attendance + loot recorded → bot posts raid summary (#29: `raid-export-check` J44, `raid-export-record` + `loot` module J46, first kills on the progress ledger + raid summary post J47/#221, standby credit #235, and website recording in `/officers` Tonight tab + attendance/loot report on `/raids/<id>`)
 
 **Done when:** the end-to-end loop works for a real raid: coordinator → roster → addon forms raid → loot recorded under the chosen method → summary posted.
 

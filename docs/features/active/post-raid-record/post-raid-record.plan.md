@@ -49,10 +49,13 @@ not seen), what will be stored, whether it completes the raid, and the record it
   A different export edits it in place (officer call, 2026-10-30: the signup channel). J47.
 - [x] **First kills on the progress ledger** (#221): `raid-export-record` runs progress's
   `kill-record` for each boss killed, matched by name until the Forever encounter ids are known.
-- [ ] **Website UI:** a **Record** button next to **Check an export** in the officers' quarters
-  (Tonight tab), showing the preview and confirming; attendance and loot on the raid page.
+- [x] **Website UI:** a **Record export** button next to **Check export** in the officers'
+  quarters (Tonight tab, officers only via `can-record`), showing the preview with warnings and
+  ledger kills and confirming with `confirmToken`; recorded attendance, standby credit, bosses,
+  and loot on `/raids/<id>` (`attendance-list`, `loot-list`).
 - [ ] **Discord:** `/random event record-export` for officers, mirroring `check-export`.
-- [ ] **Standby credit** once #222 adds `standby` to the export (D2).
+- [x] **Standby credit** (#222, #235): bench players confirmed by the leader are recorded as
+  attended (`stoodBy: true`, full credit).
 - [ ] **Loot methods** (#26): awards with `methodId`, `methodVersion`, `configVersion` built on the
   recorded drops; `onRaidCompleted` from the recorded attendance.
 - [ ] A live JTBD run of J46 on the local backend.

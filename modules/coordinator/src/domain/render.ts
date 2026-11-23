@@ -1,9 +1,9 @@
 // Discord messages the coordinator sends. Pure: data in, discord-kit MessageData out. Times use
 // Discord timestamp markup so everyone sees their own local time (PLAN §6.2).
 import { BENCH_MAX, type BenchReason, encodeBridge } from '@vintage/bridge-format';
-import { type CompResult, compRoleOf, solveComp } from '@vintage/comp-solver';
+import { type CompResult, compRoleOf } from '@vintage/comp-solver';
 import { discordTimestamp, type MessageData, TimestampStyle } from '@vintage/discord-kit';
-import { compSize, eventTemplate, RANK_PRIORITY, type Signup } from '@vintage/raids/contract';
+import { type Signup, solveEventComp } from '@vintage/raids/contract';
 import type { TickEvent, TickMember } from '../store';
 import { countOf, eventTitle, noun } from './kind-words';
 import type { NoteInput, NoteLabel } from './notes';
@@ -36,36 +36,8 @@ export function compFor(
   members: TickMember[],
   { goingOnly = true }: { goingOnly?: boolean } = {},
 ): CompResult {
-  const rank = new Map(members.map((m) => [m.memberId, m.rank]));
-  const compSignups = tick.signups.map((s) => {
-    const r = rank.get(s.memberId);
-    return {
-      id: s.id,
-      name: s.characterName,
-      class: s.class,
-      spec: s.spec,
-      role: s.role,
-      status:
-        s.roster === 'benched'
-          ? ('bench' as const)
-          : s.roster === 'rostered' && s.status !== 'declined'
-            ? ('accepted' as const)
-            : s.status,
-      priority: s.roster === 'rostered' ? 100 : r ? RANK_PRIORITY[r] : 0,
-      signedUpAt: s.signedUpAt,
-    };
-  });
-  const goingCount = compSignups.filter((s) =>
-    goingOnly ? GOING.has(s.status) : s.status !== 'declined',
-  ).length;
-  return solveComp({
-    // An open event (no size) plays everyone going; nobody sits for size.
-    raidSize: compSize(tick.event, goingCount),
-    // The kind's targets, and raid buffs only for raids.
-    template: eventTemplate(tick.event),
-    signups: compSignups,
-    goingOnly,
-  });
+  const ranks = new Map(members.map((m) => [m.memberId, m.rank]));
+  return solveEventComp(tick.event, tick.signups, ranks, { goingOnly });
 }
 
 const gapLine = (comp: CompResult) =>

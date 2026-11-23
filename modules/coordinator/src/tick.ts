@@ -22,7 +22,12 @@ import {
   renderPartyPost,
   renderSignupPost,
 } from './domain/card';
-import { renderChangeBatch, renderDropoutAlert, snapshotForEvent } from './domain/changes';
+import {
+  renderChangeBatch,
+  renderDropoutAlert,
+  renderLockOpenSeats,
+  snapshotForEvent,
+} from './domain/changes';
 import { triageNotes } from './domain/notes';
 import { type PlannedAction, planTick } from './domain/plan';
 import {
@@ -202,6 +207,8 @@ async function perform(
         content: `Groups weren't approved before lock for **${tick.event.name}**; posted the 4-column final roster instead.`,
         allowed_mentions: { parse: [] },
       });
+    case 'open-seats':
+      return send(renderLockOpenSeats(tick, state.members));
     case 'lock':
       await ports.raids.lock(state.guildId, tick.event.id);
       return { status: 'sent' };

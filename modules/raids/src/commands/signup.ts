@@ -405,8 +405,8 @@ export const signupGet = command({
 export const signupList = command({
   name: 'signup-list',
   description:
-    'Everyone signed up for a raid, best answer first (accepted before tentative). A queued ' +
-    'signup carries its place in line (queuePosition, 1 is next); everyone else has null.',
+    'Everyone signed up for a raid, best answer first (accepted before tentative). Seating is ' +
+    'comp-based; legacy queuePosition is always null.',
   tier: 'friend',
   input: z.object({
     eventId: z.string().min(1),

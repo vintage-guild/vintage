@@ -29,6 +29,7 @@ import {
 } from '@vintage/discord-kit';
 import type { GuildRank } from '@vintage/identity/contract';
 import {
+  DEFAULT_TIMINGS,
   hasRoleTargets,
   kindOf,
   MAX_EVENT_SIZE,
@@ -63,9 +64,6 @@ const BLANK = String.fromCharCode(0x200b);
 
 const FIELD_MAX = 1024;
 const GROUP_SIZE = 5;
-
-const GOING = new Set(['accepted', 'late']);
-const inRaid = (s: Signup) => GOING.has(s.status) && s.roster !== 'benched';
 
 /** `<:name:id>` for one of the app's emoji, or '' when it isn't uploaded. */
 export function emoji(name: string): string {
@@ -188,15 +186,38 @@ function missing(event: RaidEvent, gaps: CompGap[]): string {
     .join(' · ');
 }
 
+/** Partition signups into comp-seated `going`, comp/explicit `standby`, and unseated `maybe`. */
+function partitionSignups(
+  tick: TickEvent,
+  members: TickMember[],
+  ranks: ReadonlyMap<string, GuildRank | null>,
+): { going: Signup[]; standby: Signup[]; maybe: Signup[] } {
+  const { going, bench } = finalRoster(tick, members);
+  const standby = [...bench].sort(byStandbyOrder(ranks));
+  const maybe = tick.signups
+    .filter((s) => s.status === 'tentative' && s.roster !== 'rostered')
+    .sort(byClassThenName);
+  return { going, standby, maybe };
+}
+
 /** "<icon> **12** going  <icon> **2** late  …  <icon> **1** absent". */
-function statusLine(signups: Signup[], awayCount = 0): string {
-  const n = (pred: (s: Signup) => boolean) => signups.filter(pred).length;
+function statusLine(
+  going: readonly Signup[],
+  standby: readonly Signup[],
+  maybe: readonly Signup[],
+  signups: readonly Signup[],
+  awayCount = 0,
+): string {
   const parts = [
-    [emoji('status_going'), n((s) => s.status === 'accepted' && s.roster !== 'benched'), 'going'],
-    [emoji('status_late'), n((s) => s.status === 'late' && s.roster !== 'benched'), 'late'],
-    [emoji('status_tentative'), n((s) => s.status === 'tentative'), 'tentative'],
-    [emoji('status_standby'), n((s) => s.status === 'bench' || s.roster === 'benched'), 'standby'],
-    [emoji('status_out'), n((s) => s.status === 'declined') + awayCount, 'absent'],
+    [emoji('status_going'), going.filter((s) => s.status !== 'late').length, 'going'],
+    [emoji('status_late'), going.filter((s) => s.status === 'late').length, 'late'],
+    [emoji('status_tentative'), maybe.length, 'tentative'],
+    [emoji('status_standby'), standby.length, 'standby'],
+    [
+      emoji('status_out'),
+      signups.filter((s) => s.status === 'declined').length + awayCount,
+      'absent',
+    ],
   ] as const;
   return parts.map(([icon, count, label]) => `${icon} **${count}** ${label}`.trim()).join(GAP);
 }
@@ -307,11 +328,7 @@ export function renderSignupPost(
   const locked = event.status === 'locked';
   const targets = targetsOf(event);
   const ranks = rankMap(members);
-  const going = signups.filter(inRaid);
-  const standby = signups
-    .filter((s) => s.status === 'bench' || s.roster === 'benched')
-    .sort(byStandbyOrder(ranks));
-  const maybe = signups.filter((s) => s.status === 'tentative').sort(byClassThenName);
+  const { going, standby, maybe } = partitionSignups(tick, members, ranks);
 
   const lock = locked
     ? `${emoji('info_locked')} Signups locked`
@@ -367,7 +384,7 @@ export function renderSignupPost(
           `-# ${lock} · ${sizeWords(event)}`,
           ...notesLines(event),
           '',
-          statusLine(signups, awayCount),
+          statusLine(going, standby, maybe, signups, awayCount),
           BLANK,
         ].join('\n'),
         color: locked
@@ -392,12 +409,9 @@ export function renderSignupPost(
 export function cardHidesSomeone(tick: TickEvent, members: TickMember[] = []): boolean {
   const targets = targetsOf(tick.event);
   const ranks = rankMap(members);
-  const going = tick.signups.filter(inRaid);
+  const { going, standby, maybe } = partitionSignups(tick, members, ranks);
   const { hidden } = buildRoleColumns(going, targets, ranks, tick.event);
   if (hidden > 0) return true;
-  const standby = tick.signups
-    .filter((s) => s.status === 'bench' || s.roster === 'benched')
-    .sort(byStandbyOrder(ranks));
   if (
     standby.length &&
     fitLines(
@@ -409,7 +423,6 @@ export function cardHidesSomeone(tick: TickEvent, members: TickMember[] = []): b
   ) {
     return true;
   }
-  const maybe = tick.signups.filter((s) => s.status === 'tentative').sort(byClassThenName);
   if (
     maybe.length &&
     fitLines(
@@ -454,7 +467,11 @@ export function renderRosterReply(
   away: readonly Pick<TickAway, 'displayName'>[] = [],
 ): MessageData {
   const ranks = rankMap(members);
-  const going = signups.filter(inRaid);
+  const { going, standby, maybe } = partitionSignups(
+    { event, timings: DEFAULT_TIMINGS, signups },
+    members,
+    ranks,
+  );
   const fields = ALL_ROLES.flatMap(([role, label]) => {
     const inRole = going.filter((s) => s.role === role).sort(byClassThenName);
     return chunkFields(
@@ -481,13 +498,8 @@ export function renderRosterReply(
     .map((a) => a.displayName);
   const absentLines = [...declinedLines, ...awayLines];
   fields.push(
-    ...group(
-      'Standby',
-      signups
-        .filter((s) => s.status === 'bench' || s.roster === 'benched')
-        .sort(byStandbyOrder(ranks)),
-    ),
-    ...group('Tentative', signups.filter((s) => s.status === 'tentative').sort(byClassThenName)),
+    ...group('Standby', standby),
+    ...group('Tentative', maybe),
     ...(absentLines.length
       ? chunkFields(`Absent (${absentLines.length})`, absentLines, false)
       : []),
@@ -496,7 +508,7 @@ export function renderRosterReply(
     embeds: [
       embed({
         title: `Roster · ${eventTitle(event)}`,
-        description: `${emoji('info_calendar')} ${when(event.startsAt)}\n\n${statusLine(signups, away.length)}\n${BLANK}`,
+        description: `${emoji('info_calendar')} ${when(event.startsAt)}\n\n${statusLine(going, standby, maybe, signups, away.length)}\n${BLANK}`,
         fields: fields.slice(0, 25),
       }),
     ],
@@ -655,12 +667,14 @@ export function renderFinalRoster(tick: TickEvent, members: TickMember[]): Messa
   const content = standbyUsers.length
     ? `${standbyUsers.map((id) => `<@${id}>`).join(' ')} You're on standby tonight. Stay close in case a seat opens.`
     : undefined;
+  const open = tick.event.size !== null ? Math.max(0, tick.event.size - going.length) : 0;
+  const openSuffix = open > 0 ? ` · ${open} open` : '';
   return {
     ...(content ? { content } : {}),
     embeds: [
       embed({
         title: `Final roster · ${eventTitle(tick.event)}`,
-        description: `${emoji('info_calendar')} ${when(tick.event.startsAt)}  ${emoji('info_locked')} Signups locked · ${countOf(going.length, tick.event)}`,
+        description: `${emoji('info_calendar')} ${when(tick.event.startsAt)}  ${emoji('info_locked')} Signups locked · ${countOf(going.length, tick.event)}${openSuffix}`,
         color: discordColor('color.border.strong'),
         fields,
       }),

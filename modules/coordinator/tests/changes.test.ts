@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   diffEventChanges,
   renderDropoutAlert,
+  renderLockOpenSeats,
   seatCandidatesFor,
   snapshotForEvent,
 } from '../src/domain/changes';
@@ -405,5 +406,100 @@ describe('#leads post-digest change feed (changes.ts + runTick)', () => {
     // T-19h: No new changes -> nothing posted again.
     await runTick(ports, 'g1', RAID_START - 19 * HOUR);
     expect(leadsPosts().length).toBe(afterLeads.length);
+  });
+
+  it('posts lock-time open-seat suggestions with Standby-only Seat buttons to #leads once (#324)', async () => {
+    const store = createMemoryCoordinatorStore();
+    await store.setConfig(
+      'g1',
+      { signupChannelId: 'ch_signups', leadsChannelId: 'ch_leads', opsChannelId: 'ch_ops' },
+      0,
+    );
+    const discord = createFakeDiscord();
+    let event = makeEvent({
+      size: 10,
+      roleTargets: { tank: 2, healer: 2, melee: 3, ranged: 3 },
+      rosterApprovedAt: RAID_START - 20 * HOUR,
+      rosterApprovedBy: 'm_rook',
+    });
+    const raids = createFakeRaids(() => {
+      event = { ...event, status: 'locked' };
+    });
+    const polls = createFakePolls();
+    const signups: Signup[] = [
+      makeSignup({
+        id: 's_aeryn',
+        memberId: 'm_aeryn',
+        characterName: 'Aeryn',
+        role: 'tank',
+        roster: 'rostered',
+        group: 1,
+      }),
+      makeSignup({
+        id: 's_thor',
+        memberId: 'm_thorgrim',
+        characterName: 'Thorgrim',
+        class: 'warrior',
+        spec: 'fury',
+        role: 'melee',
+        alsoRoles: ['tank'],
+        roster: 'rostered',
+        group: 1,
+      }),
+      makeSignup({
+        id: 's_iron',
+        memberId: 'm_ironhide',
+        characterName: 'Ironhide',
+        role: 'tank',
+        status: 'bench',
+      }),
+      makeSignup({
+        id: 's_moon',
+        memberId: 'm_moon',
+        characterName: 'Moonglade',
+        class: 'druid',
+        spec: 'restoration',
+        role: 'healer',
+        alsoRoles: ['tank'],
+        status: 'bench',
+      }),
+    ];
+
+    const preview = renderLockOpenSeats({ event, timings: DEFAULT_TIMINGS, signups }, MEMBERS);
+    const previewText = messageText(preview);
+    expect(previewText).toContain('locked with **8 open seats** (2/10)');
+    expect(previewText).toContain(
+      'Standby who could tank: Ironhide (flex raider), Moonglade (can also tank).',
+    );
+    expect(previewText).toContain('Already seated who can tank: Thorgrim.');
+    expect(buttonLabels(preview)).toEqual(['Seat Ironhide', 'Seat Moonglade']);
+    const row = preview.components?.[0] as { components: { custom_id: string }[] };
+    expect(row.components.map((b) => b.custom_id)).toEqual([
+      'seat:evt_mc:s_iron:tank:0',
+      'seat:evt_mc:s_moon:tank:0',
+    ]);
+
+    const source = createStateSource(
+      () => ({
+        guildId: 'g1',
+        events: [{ event, timings: DEFAULT_TIMINGS, signups }],
+        members: MEMBERS,
+      }),
+      store,
+    );
+    const ports = { store, source, raids, discord, polls };
+
+    await runTick(ports, 'g1', RAID_START - 48 * HOUR);
+    await runTick(ports, 'g1', RAID_START - 2 * HOUR);
+    const openSeatPosts = () =>
+      discord.sent.filter(
+        (m) => m.to === 'ch_leads' && m.kind === 'post' && m.message.content?.includes('open seat'),
+      );
+    expect(openSeatPosts()).toHaveLength(1);
+    expect(buttonLabels(openSeatPosts()[0]!.message)).toEqual(['Seat Ironhide', 'Seat Moonglade']);
+
+    // Re-running after lock does not duplicate the open-seat post.
+    await runTick(ports, 'g1', RAID_START - 1 * HOUR);
+    expect(openSeatPosts()).toHaveLength(1);
   });
 });

@@ -11,6 +11,7 @@ directly. Maturity: **core**.
 | `src/contract.ts` | Public types (`Schedule`, `RaidEvent`, `Signup`), command names, events. The only import other modules may use |
 | `src/domain/recurrence.ts` | Pure: a weekly recurrence in an IANA zone → start times (DST-safe) |
 | `src/domain/clock.ts` | Pure: `resolveGuildClock` (first active schedule's zone and start time, else first schedule's, else New York / 20:00) |
+| `src/domain/comp.ts` | Pure: `RANK_PRIORITY` and `solveEventComp` (shared by `comp-suggest`, `roster-approve`, coordinator cards/lock, and Discord signup replies) |
 | `src/domain/absence.ts` | Pure: `absenceCovers`, `resolveAbsenceCoverage` (`away` beats `late`), `excusedAtLock`, calendar date validation |
 | `src/domain/export-check.ts` | Pure: an addon export (`@vintage/bridge-format` `raid-export`) matched to a raid's signups by name, with or without the realm |
 | `src/domain/export-record.ts` | Pure: the attendance, drops, kills (matched to progress bosses), and boss tally `raid-export-record` stores from a checked export |
@@ -31,8 +32,8 @@ directly. Maturity: **core**.
   `@vintage/comp-solver` (`kinds.ts`) so the card and the site share them; the contract
   re-exports them.
 - **`other` is the catch-all** (a levelling group anyone can join): `size` and `instance` are
-  optional. No size (`null`) means open: no cap, so `queuePositions` queues nobody, and
-  `comp-suggest` plays everyone going (`compSize`). No instance is stored as `''`. Zod is the
+  optional. No size (`null`) means open: no cap, so `comp-suggest` and `solveEventComp` play
+  everyone going (`compSize`). No instance is stored as `''`. Zod is the
   source of truth on create (`kindRules` in `commands/shared.ts`: every other kind needs both);
   `schedule-update` checks the merged schedule (`SIZE_NOT_ALLOWED`, `INSTANCE_REQUIRED`).
 - **Times are UTC epoch ms**, computed from the schedule's local time and zone. Never store
@@ -41,18 +42,19 @@ directly. Maturity: **core**.
   an event, including a cancelled one, so cancelling a night sticks. Keep it that way: the
   coordinator runs it on a cron.
 - **One signup per member per raid.** Changing your character, or switching between accepted
-  and late, keeps `signedUpAt` (your place in line). Stepping down to tentative, bench, or
-  declined resets it to now, so you go to the back. Swapping characters or declining drops the
-  roster spot.
-- **The queue** (`domain/queue.ts`): when more people are going (accepted or late) than the raid
-  holds, the earliest are in and the rest are `queued`. Every signup change and removal re-runs
-  `syncQueue`; a queued person whose turn comes gets `promotedAt` and a `signup-promoted` event.
-  `signup-list` gives each queued row its `queuePosition` (1 is next), counted over every
-  signup so a status filter never renumbers the line; surfaces show it, never recompute it.
+  and late, keeps `signedUpAt` as a tie-breaker record. Stepping down to tentative, bench, or
+  declined resets it to now. Swapping characters or declining drops the roster spot.
+- **Comp-based seating and Standby** (`domain/comp.ts`): first-come auto-queuing is retired
+  (`queued` stays `false`, `promotedAt` stays `null`, and `signup-list`'s legacy `queuePosition`
+  is always `null`). Before approval, `solveEventComp` seats going signups by comp requirements,
+  role targets, and rank priority (`RANK_PRIORITY`: raiders/leaders/officers > recruits > flex
+  raiders > members > friends); overflow and Flex Raiders on guild raids sit on Standby.
+  `roster-approve` materializes the drafted comp and `groupDraft` party groups onto `signups`
+  (`roster: 'rostered'` + `group` for seated players, `roster: 'benched'` + `group: null` for
+  Standby/overflow); after approval, new signups land on Standby until a leader seats them.
 - **When signups lock** (`domain/timings.ts`): `locksAt` = start minus the schedule's
   `lockHours`, or `DEFAULT_TIMINGS` for a one-off, the same rule the coordinator's tick source
   uses. `raid-list` rows and `raid-get` carry it.
-  Queued people count as bench in `comp-suggest`.
 - **Raid notes** ("what to bring", J19): `notes` on events and schedules, at most
   `RAID_NOTES_MAX` (500) characters, trimmed, blank or null for none (`notesSchema`). Set by
   `raid-create`, changed by `raid-reschedule` (`startsAt`, `notes`, or both; at least one), and a
@@ -116,9 +118,11 @@ directly. Maturity: **core**.
 - **Leaders override** (tier `leader`): signing up anyone's character, changing locked raids,
   and every `roster-*` command. `raid-cancel` and `roster-remove` are destructive (confirm flow).
 - **Events:** `signup-changed` on every real change (not on a no-op re-answer) and on removal
-  (`to: null`), then `signup-promoted` for anyone it moved up; `raid-completed` with attendance
-  from `raid-complete`, or from `raid-export-record` when it completes the raid; `raid-recorded` on
-  every record (`replaced` when it replaced one).
-- **Comp priority comes from guild rank** (`RANK_PRIORITY` in `comp.ts`): raiders and above,
-  then flex raiders, then recruits. Gate on tier, rank only orders.
+  (`to: null`); `roster-approved` when a leader approves the party roster; `raid-completed` with
+  attendance from `raid-complete`, or from `raid-export-record` when it completes the raid;
+  `raid-recorded` on every record (`replaced` when it replaced one); `absence-changed` on
+  advance absence or weekly rule changes.
+- **Comp priority comes from guild rank** (`RANK_PRIORITY` in `domain/comp.ts`): raiders and
+  above, then recruits, then flex raiders, then members, then friends. Gate on tier; rank only
+  orders.
 - Nullable fields use `null`, not `undefined`, so Convex patches can clear them.

@@ -302,6 +302,70 @@ describe('raid cards', () => {
     expect(emoji('status_going')).toMatch(/^<:status_going:\d+>$/);
     expect(emoji('not_an_emoji')).toBe('');
   });
+
+  it('places comp-solver overflow into Standby on pre-approval cards and Roster replies (#324)', () => {
+    const base = fullRaid();
+    // 10-person raid with 12 accepted raiders (all pending): comp solver seats 10 and benches 2.
+    const smallEvent: RaidEvent = {
+      ...event,
+      size: 10,
+      roleTargets: { tank: 2, healer: 2, melee: 3, ranged: 3 },
+    };
+    const signups: Signup[] = Array.from({ length: 12 }, (_, i) => {
+      const [cls, spec, role] = ROTATION[i % ROTATION.length]!;
+      return {
+        ...base.signups[0]!,
+        id: `ov-${i}`,
+        memberId: `ovm-${i}`,
+        characterId: `ovc-${i}`,
+        characterName: `Player${String(i).padStart(2, '0')}`,
+        class: cls,
+        spec,
+        role,
+        status: 'accepted',
+        roster: 'pending',
+        signedUpAt: i,
+        updatedAt: i,
+        queued: false,
+      };
+    });
+    const members = signups.map((s, i) => ({
+      memberId: s.memberId,
+      discordId: `200000000000009${String(i).padStart(3, '0')}`,
+      displayName: s.characterName,
+      rank: (i < 10 ? 'raider' : 'recruit') as 'raider' | 'recruit',
+      dmOptOut: false,
+    }));
+
+    const post = renderSignupPost(
+      { event: smallEvent, timings: DEFAULT_TIMINGS, signups },
+      members,
+    );
+    const card = post.embeds![0] as Embed;
+    expect(card.description).toContain('**10** going');
+    expect(card.description).toContain('**2** standby');
+    const standbyField = card.fields!.find((f) => f.value.includes('**Standby**'));
+    expect(standbyField).toBeDefined();
+    // Player11 fills an open melee slot (target 3); Player09 (extra healer) & Player10 (recruit ranged) overflow to Standby.
+    expect(standbyField!.value).toContain('Player09');
+    expect(standbyField!.value).toContain('Player10');
+    // Overflowed players must not also appear in the 4 role columns.
+    const roleFieldsText = card
+      .fields!.slice(0, 6)
+      .map((f) => f.value)
+      .join('\n');
+    expect(roleFieldsText).not.toContain('Player09');
+    expect(roleFieldsText).not.toContain('Player10');
+
+    const rosterReply = renderRosterReply(smallEvent, signups, members);
+    const rosterEmbed = rosterReply.embeds![0] as Embed;
+    expect(rosterEmbed.description).toContain('**10** going');
+    expect(rosterEmbed.description).toContain('**2** standby');
+    const rosterStandby = rosterEmbed.fields!.find((f) => f.name.startsWith('Standby'));
+    expect(rosterStandby?.name).toBe('Standby (2)');
+    expect(rosterStandby?.value).toContain('Player09');
+    expect(rosterStandby?.value).toContain('Player10');
+  });
 });
 
 describe('event kinds on the card', () => {

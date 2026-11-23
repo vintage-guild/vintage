@@ -1,7 +1,7 @@
 # Raid scheduling: edit a raid's comp and size, schedules from Discord, a short site link
 
-**Status:** proposed (2026-11-22). Nothing built. Bloodfen's technical calls are settled
-(2026-11-22); TJ's open product calls are listed under Open questions. **Owner modules:** raids
+**Status:** proposed (2026-11-22). Nothing built. TJ's product calls and most of Bloodfen's
+technical calls are settled (2026-11-22); the rest are under Open questions. **Owner modules:** raids
 (commands), apps/api (Discord), web (quarters, short links), coordinator (signup post, leads
 feed).
 
@@ -43,10 +43,9 @@ other) stays as created.
   required. `TICK_TRIGGERS` in `apps/api/convex/commands.ts` triggers a coalesced immediate tick
   on `raid-update` (#320).
 - **Checks:** the same as `raid-create`: the size must fit the kind (`SIZE_NOT_ALLOWED`) and the
-  targets must fit the size (`ROLE_TARGETS_TOO_BIG`). Allowed until the raid starts, locked or
-  not, as leaders can change locked raids today. A started (`RAID_STARTED`), completed or
-  cancelled raid refuses (open question below on whether pushing `startsAt` back after start
-  should still be allowed).
+  targets must fit the size (`ROLE_TARGETS_TOO_BIG`). Allowed locked or not, as leaders can
+  change locked raids today, and after the raid starts too: time, notes, size and comp can all
+  still change (TJ, 2026-11-22). Only a completed or cancelled raid refuses.
 - **This raid only.** The raid's schedule doesn't change; editing the schedule still changes
   only the raids it makes later, as today.
 - **Before leaders approve the roster** (signup improvements §1a): the bot's draft re-seats
@@ -56,10 +55,13 @@ other) stays as created.
   the new `groupCount(event)` (`Math.ceil(size / 5)`) back to `null` (Bloodfen, 2026-11-22).
 - **After approval, seats are the leaders'.** A bigger raid opens seats and the leads channel
   gets the open-seat suggestions with Seat buttons (uses the shared rule from #324). A smaller
-  raid can't drop below the people seated (unified with `finalRoster()` / `roster-approve` from
-  #324): "18 are seated. Move 2 to Standby first." It also refuses if anyone is placed in a party
-  group above the new group count (e.g., Group 6 when shrinking 40 → 20). The bot never unseats
-  anyone.
+  raid is allowed even with more people seated than it now holds (TJ, 2026-11-22). Leaders pick
+  who stays in the group and who moves to Standby, the same as any raid with more signups than
+  seats. The bot never unseats anyone. The leads channel gets one line, "Molten Core is now 20
+  people with 24 seated. Move 4 to Standby.", and the leads draft and quarters roster desk show
+  the overflow and anyone in a party group past the new group count (Group 6 after 40 → 20) for
+  leaders to move. How `groupDraft`, `roster-move` and `finalRoster()` carry an over-full or
+  out-of-range roster until then is Bloodfen's call (row 11).
 - **What updates:** the signup post (headers like "Healers 3/4", Missing, the size line) and the
   party post refresh on the next tick, and so does the Discord server event's description when
   server events are on.
@@ -83,7 +85,7 @@ Every reply is private.
 
 | Subcommand | Runs | Notes |
 |---|---|---|
-| `schedule create` | `schedule-create` | Opens a **New schedule** form reusing `discord-event-form.ts` pieces: Stage 1 (5/5 modal fields) has Name, Kind, Where, Nights (weekday `stringSelect`, `max_values: 7`) and Time (half hours in the guild clock). Preview adds an **Open to pugs** toggle button, **Set up schedule** (Stage 2 modal: Size, Tanks, Healers, DPS, Length — 5/5 modal fields), and **Create schedule** |
+| `schedule create` | `schedule-create` | Opens a **New schedule** form reusing `discord-event-form.ts` pieces: Stage 1 (5/5 modal fields) has Name, Kind, Where, Nights (weekday `stringSelect`, `max_values: 7`) and Time (half hours in the guild clock). Preview adds an **Open to pugs** toggle button, **Set up schedule** (Stage 2 modal), and **Create schedule**. Stage 2 keeps melee and ranged apart, as the site does (TJ, 2026-11-22): Size, Tanks, Healers, Melee, Ranged is 5/5, so Length needs another home, such as a select on the preview next to Open to pugs (row 15) |
 | `schedule list` | `schedule-list` | Every schedule, paused ones marked, with its nights, time and next raid. `schedule-list` (or a raids contract helper) provides `nextStartsAt` so Discord stays thin |
 | `schedule edit [schedule]` | `schedule-update` | Autocomplete from the guild's schedules; opens the same forms filled in. Sends only changed fields so unshown schedule settings (`timeZone`, `access`, `timings`, `notes`, `lootMethodId`) are preserved (Bloodfen, 2026-11-22). Changes reach raids made from now on; raids already made keep theirs |
 | `schedule pause [schedule]` and `schedule resume [schedule]` | `schedule-update` with `active` | Paused schedules make no new raids; resumed ones trigger `afterChange()` so upcoming raids materialize and post shortly |
@@ -133,6 +135,8 @@ Decided: each Discord signup post carries a short link to that raid's signup on 
   the Discord server event's description (`renderServerEvent`) use the same short link, so every
   place a raid shows has one way to the site. (`tick.ts` passes `{ siteUrl: ports.links?.siteUrl }`
   to all card/party/roster renderers — fixed in #320.)
+- **Reminder DMs keep the Discord link** (TJ, 2026-11-22): they jump to the signup post, where
+  the answer buttons are. The server event moves off `signupLink()` to the short link.
 - **Setup:** links need `VINTAGE_SITE_URL` in the Convex environment. Without it, the post shows
   no link and no button. Note: the reason signup posts had no Raid page button before #320 was
   `tick.ts` omitting `siteUrl`, not necessarily a missing env var (still verify `VINTAGE_SITE_URL`
@@ -148,8 +152,8 @@ Added to [raid-night.md](../../../jtbd/raid-night.md) when the work lands.
   `raid-update` with `roleTargets` gets `COMMAND_NOT_FOUND`.
 - **J72 · Grow a raid from 20 to 40.** Before the roster is approved, Rook changes Zul'Gurub's
   size to 40: raiders the draft had on Standby for size are seated, and the post shows the new
-  counts. After approval, shrinking it below the people seated is refused with how many to
-  move first.
+  counts. After approval, Rook shrinks it back to 20 with 24 seated: the change saves, nobody
+  is unseated, and the leads channel says to move 4 to Standby.
 - **J73 · Two raid nights from Discord.** Rook runs `/vintage schedule create` for Monday's
   Molten Core and again for Wednesday's Blackwing Lair. Both weeks' signup posts go up within
   seconds. `/vintage schedule list` shows both; pausing Wednesday's stops new Wednesday raids
@@ -170,36 +174,25 @@ TJ decides how it behaves; Bloodfen makes the technical calls. Dated rows are de
 | 2 | That edit is on the site only for now | The quarters already edit raids | TJ, 2026-11-22 |
 | 3 | Recurring raids can be set up from Discord too: create, list, edit, pause, resume | Leaders work from Discord | TJ, 2026-11-22 |
 | 4 | Rename `raid-reschedule` to `raid-update` (`breaking-contract`), with optional `size` (nullable for `other`) and `roleTargets` (nullable to reset defaults) | Matches `schedule-update` / `character-update` and keeps AFD discovery clear before `/mcp` ships | Bloodfen, 2026-11-22 |
-| 5 | After roster approval, a smaller size can't drop below the people seated; the bot never unseats | Seats are the leaders' call (signup improvements §3) | TJ (proposed) |
+| 5 | After roster approval, a smaller size is allowed with more people seated than it holds; leaders pick who moves to Standby, as with any raid that has more signups than seats; the bot never unseats | Seats are the leaders' call (signup improvements §3) | TJ, 2026-11-22 |
 | 6 | The New schedule form reuses `discord-event-form.ts` pieces within Discord's 5-field modal limit (weekday multi-select in stage 1; `Open to pugs` toggle on preview; `schedule edit` preserves unshown fields) | One way to make events and schedules without hitting Discord's 5-component modal ceiling | Bloodfen, 2026-11-22 |
 | 7 | Every signup post carries a short link to the raid's signup on the site | Members who'd rather answer on the site get there in one click | TJ, 2026-11-22 |
-| 8 | The link is visible text at the end of the subtext line, and the party post, final roster and server event use it too | A button can't be copied or shared; one link everywhere | TJ (proposed) |
+| 8 | The link is visible text at the end of the subtext line, and the party post, final roster and server event use it too | A button can't be copied or shared; one link everywhere | TJ, 2026-11-22 |
 | 9 | A six-character `shortCode` (excluding `0/o/1/l/i`) on raids with `by_guild_short_code` index, `raid-get` accepting `shortCode`, `/r/<code>` route, masked markdown link in Discord embeds, and a backfill | Short to read and type, indexed, and keeps access checks inside the AFD command | Bloodfen, 2026-11-22 |
 | 10 | Track `updatedAt` / `updatedBy` on `RaidEvent` and raid-level metadata in `announcedState` for `#leads` edit lines | `announcedState` currently only diffs member signups/absences | Bloodfen, 2026-11-22 |
-| 11 | Shrinking a raid checks party group bounds (`group > Math.ceil(size / 5)`): clear out-of-range groups before approval, refuse after approval | Prevents orphaned groups 5–8 breaking `roster-move` and `groupDraft` when shrinking 40 → 20 | Bloodfen, 2026-11-22 |
+| 11 | Shrinking a raid checks party group bounds (`group > Math.ceil(size / 5)`): clear out-of-range groups before approval. After approval nothing is refused (row 5): how `groupDraft`, `roster-move` and `finalRoster()` carry an over-full or out-of-range roster until leaders move people | Prevents orphaned groups 5–8 breaking `roster-move` and `groupDraft` when shrinking 40 → 20 | Bloodfen (before approval, 2026-11-22; after approval proposed) |
+| 12 | Reminder DMs keep linking to the Discord signup post; the server event uses the short link | The DM's job is getting an answer, and the buttons are on the post | TJ, 2026-11-22 |
+| 13 | `raid-update` allows every edit after the raid starts (time, notes, size, comp); only completed and cancelled raids refuse | Nights change mid-raid too | TJ, 2026-11-22 |
+| 14 | Discord forms keep melee and ranged apart, for schedules and for `/vintage event create` (#323) | Same targets as the site | TJ, 2026-11-22 |
+| 15 | Where Length goes once Stage 2 holds Size, Tanks, Healers, Melee and Ranged (a select on the preview, or a third stage) | Discord modals hold 5 fields | Bloodfen (proposed) |
+| 16 | `/vintage schedule create` is form-only, like the event form, with no inline slash options | One way in, and the form checks every field | TJ (proposed) |
 
 ## Open questions
 
-For TJ:
+For TJ: row 16.
 
-1. **Row 5 (post-approval shrink & group bounds):** Confirm that after approval, shrinking below
-   the seated count is refused (*"18 are seated. Move 2 to Standby first."*), and confirm whether
-   shrinking when someone is still placed in an out-of-range group (e.g., Group 6 when shrinking
-   40 → 20) should also refuse until moved.
-2. **Row 8 (short link placement):** Confirm visible link at the end of the subtext line plus
-   party post, final roster, and Discord server event.
-3. **Reminder DMs vs. server events:** Today both share `signupLink()` (which links straight to
-   the Discord signup message). Should reminder DMs keep jumping to the Discord signup post while
-   server events switch to `vintageguild.gg/r/<code>`, or should reminder DMs switch too?
-4. **Editing a raid after start:** Should `raid-update` refuse *all* edits once `startsAt <= now()`,
-   or still allow pushing `startsAt` back (e.g., delaying a late pull) while blocking `size` and
-   `roleTargets` changes after start?
-5. **Discord schedule form scope:** Since Discord modals cap at 5 fields (Stage 2 already holds
-   Size, Tanks, Healers, DPS, Length), is single `DPS` fine in Discord modals (with split melee
-   and ranged on the site), and should `/vintage schedule create` be modal-only (like
-   `/vintage absence weekly`) or also accept inline slash options?
-
-For Bloodfen: none (rows 4, 6, 9, 10, 11 decided; prerequisites tracked in #320, #322, #323, #324).
+For Bloodfen: row 11 (after approval) and row 15. Prerequisites are tracked in #320, #322, #323
+and #324.
 
 ## Tasks
 
@@ -208,8 +201,9 @@ For Bloodfen: none (rows 4, 6, 9, 10, 11 decided; prerequisites tracked in #320,
   `calendar-forms.ts`, lock/open-seat suggestions & pre-approval comp Standby.
 - [ ] **Edit comp and size** (raids, coordinator, web): rename `raid-reschedule` → `raid-update`
   (`breaking-contract`) with `size` and `roleTargets`, `updatedAt`/`updatedBy` on `RaidEvent`,
-  create checks + started-raid refusal, draft re-seating & out-of-range group handling before
-  approval, seated-count + group-bounds check after approval, raid-level `announcedState` diff
+  create checks + completed/cancelled refusal, draft re-seating & out-of-range group handling
+  before approval, the over-full line in the leads channel and overflow shown for leaders after
+  approval, raid-level `announcedState` diff
   for the leads feed line, quarters raid Edit form fields, manifest. Jobs J71 and J72.
 - [ ] **Schedules from Discord** (gateway, apps/api, raids): `/vintage schedule` group (`create`,
   `list`, `edit`, `pause`, `resume`, `help`), `FORWARDED_GROUPS` / `AUTOCOMPLETED_GROUPS` /

@@ -10,12 +10,15 @@ import {
 import type { Character } from '@vintage/identity/contract';
 import type { LootDrop } from '@vintage/loot/contract';
 import {
+  type Absence,
   accessOf,
   type CompRole,
+  kindOf,
   type RaidAttendance,
   type RaidEvent,
   type RaidRecord,
   type RecordBosses,
+  resolveAbsenceCoverage,
   rolesNeeded,
   type Signup,
   type SignupGuess,
@@ -100,12 +103,21 @@ const template = html<Page>`
               starts-at="${(x) => x.event?.startsAt}"
               lock-label="${(x) => x.lockLine || (x.event ? statusWords(x.event.status) : '')}"
               status="${(x) => x.mine?.status ?? 'none'}"
+              late-minutes="${(x) => x.mine?.lateMinutes ?? null}"
+              note="${(x) => x.mine?.note ?? ''}"
+              roster-state="${(x) => x.mine?.roster ?? ''}"
+              ?flex-standby-only="${(x) => x.flexStandbyOnly}"
+              ?roster-approved="${(x) => x.event?.rosterApprovedAt != null}"
+              absence-coverage="${(x) => x.absenceCoverage}"
+              absence-reason="${(x) => x.absenceReason}"
+              weekly-late-minutes="${(x) => x.weeklyLateMinutes}"
               queue-position="${(x) => x.myRow?.queuePosition ?? null}"
               character-id="${(x) => (x.signUpAllowed ? (x.guess?.characterId ?? x.main?.id ?? '') : '')}"
               character-label="${(x) => (x.main ? characterLabel(x.main) : '')}"
               spec="${(x) => x.guess?.spec ?? ''}"
               reason="${(x) => x.guess?.reason ?? ''}"
               play-role="${(x) => (x.mine?.rolePicked ? x.mine.role : '')}"
+              :alsoRoles="${(x) => x.mine?.alsoRoles ?? []}"
               :characters="${(x) => (x.signUpAllowed ? x.characters : [])}"
               :needed="${(x) => x.needed}"
               time-zone="${() => preferredTimeZone() ?? ''}"
@@ -335,6 +347,8 @@ export class Page extends FASTElement {
   @observable guess: SignupGuess | null = null;
   /** Roles the raid is short of, not counting the member (the card marks them). */
   @observable needed: CompRole[] = [];
+  /** Active absences for the signed-in member, to show coverage / weekly-late controls. */
+  @observable absences: Absence[] = [];
   @observable loaded = false;
   /** `raid-get` found no such raid. */
   @observable missing = false;
@@ -348,8 +362,43 @@ export class Page extends FASTElement {
   private reads = 0;
 
   /** Whether this session may answer this raid (`friend`+ for open raids, `recruit`+ for guild raids). */
+  @volatile
   get signUpAllowed(): boolean {
     return canSignUp(currentSession(), this.event ? accessOf(this.event) : 'guild');
+  }
+
+  /** Flex Raiders start on Standby for guild raids. */
+  @volatile
+  get flexStandbyOnly(): boolean {
+    const e = this.event;
+    return (
+      Boolean(e) &&
+      kindOf(e!) === 'raid' &&
+      accessOf(e!) === 'guild' &&
+      currentSession()?.rank === 'flex-raider'
+    );
+  }
+
+  private get myCoverage() {
+    return this.event ? resolveAbsenceCoverage(this.absences, this.event.startsAt) : null;
+  }
+
+  @volatile
+  get absenceCoverage(): '' | 'away' | 'late' {
+    const cov = this.myCoverage?.coverage;
+    if (cov === 'away') return 'away';
+    return cov ? 'late' : '';
+  }
+
+  @volatile
+  get absenceReason(): string {
+    return this.myCoverage?.coverage === 'away' ? (this.myCoverage.absence?.reason ?? '') : '';
+  }
+
+  @volatile
+  get weeklyLateMinutes(): number | null {
+    const cov = this.myCoverage?.coverage;
+    return cov && cov !== 'away' ? cov.lateMinutes : null;
   }
 
   get main(): Character | null {
@@ -424,12 +473,16 @@ export class Page extends FASTElement {
     const read = ++this.reads;
     const client = getCommandClient();
     const eventId = this.eventId;
-    const [got, list, comp, guess] = await Promise.all([
+    const session = currentSession();
+    const [got, list, comp, guess, absences] = await Promise.all([
       client.read<RaidGet>('raid-get', { eventId }),
       client.read<SignupRow[]>('signup-list', { eventId }),
       client.read<CompSuggest>('comp-suggest', { eventId }),
-      canSignUp(currentSession(), 'open')
+      canSignUp(session, 'open')
         ? client.read<SignupGuess | null>('signup-suggest', { eventId })
+        : Promise.resolve(null),
+      canSignUp(session, 'guild')
+        ? client.read<{ absences: Absence[] }>('absence-list')
         : Promise.resolve(null),
     ]);
     if (read !== this.reads) return;
@@ -438,29 +491,42 @@ export class Page extends FASTElement {
       this.applyMissing(eventId, got.error);
       return;
     }
-    this.missing = false;
-    this.error = '';
-    this.event = got.data.event;
-    this.counts = got.data.counts;
-    this.locksAt = got.data.locksAt;
-    this.mine = got.data.mine;
-    this.signups = list.success ? (list.data ?? []) : [];
-    this.signupsNote = refusedNote(list, SIGNUPS_NOTE, 'the signups');
-    this.comp = comp.success && comp.data ? rosterComp(comp.data) : null;
-    this.compNote = refusedNote(comp, COMP_NOTE, 'the comp');
-    this.guess = guess?.success ? (guess.data ?? null) : null;
-    // Members below recruit can't read the signups or answer, so nothing is marked for them.
-    this.needed = list.success
-      ? rolesNeeded(
-          got.data.event,
-          this.signups.filter((s) => s.memberId !== this.meId),
-        )
-      : [];
+    this.applyRaid(got.data, list, comp, guess, absences);
     if (got.data.event.status === 'completed') {
       await this.loadReport(eventId, read);
     } else {
       this.clearReport();
     }
+  }
+
+  private applyRaid(
+    data: RaidGet,
+    list: Awaited<ReturnType<ReturnType<typeof getCommandClient>['read']>>,
+    comp: Awaited<ReturnType<ReturnType<typeof getCommandClient>['read']>>,
+    guess: Awaited<ReturnType<ReturnType<typeof getCommandClient>['read']>> | null,
+    absences: Awaited<ReturnType<ReturnType<typeof getCommandClient>['read']>> | null,
+  ): void {
+    this.missing = false;
+    this.error = '';
+    this.event = data.event;
+    this.counts = data.counts;
+    this.locksAt = data.locksAt;
+    this.mine = data.mine;
+    this.absences = absences?.success
+      ? ((absences.data as { absences?: Absence[] } | null)?.absences ?? [])
+      : [];
+    this.signups = list.success ? ((list.data as SignupRow[] | null) ?? []) : [];
+    this.signupsNote = refusedNote(list, SIGNUPS_NOTE, 'the signups');
+    this.comp = comp.success && comp.data ? rosterComp(comp.data as CompSuggest) : null;
+    this.compNote = refusedNote(comp, COMP_NOTE, 'the comp');
+    this.guess = guess?.success ? ((guess.data as SignupGuess | null) ?? null) : null;
+    // Members below recruit can't read the signups or answer, so nothing is marked for them.
+    this.needed = list.success
+      ? rolesNeeded(
+          data.event,
+          this.signups.filter((s) => s.memberId !== this.meId),
+        )
+      : [];
   }
 
   private applyMissing(eventId: string, err?: { code?: string; message?: string }): void {

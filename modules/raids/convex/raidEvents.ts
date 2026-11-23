@@ -5,8 +5,18 @@ import { mutation, query } from './_generated/server';
 import { eventFields, raidStatus } from './schema';
 
 const toEvent = (doc: Doc<'raidEvents'>) => {
-  const { _id, _creationTime, kind, access, notes, rosterApprovedAt, rosterApprovedBy, ...rest } =
-    doc;
+  const {
+    _id,
+    _creationTime,
+    kind,
+    access,
+    notes,
+    rosterApprovedAt,
+    rosterApprovedBy,
+    updatedAt,
+    updatedBy,
+    ...rest
+  } = doc;
   return {
     id: _id as string,
     ...rest,
@@ -15,6 +25,8 @@ const toEvent = (doc: Doc<'raidEvents'>) => {
     notes: notes ?? null,
     rosterApprovedAt: rosterApprovedAt ?? null,
     rosterApprovedBy: rosterApprovedBy ?? null,
+    updatedAt: updatedAt ?? null,
+    updatedBy: updatedBy ?? null,
   };
 };
 

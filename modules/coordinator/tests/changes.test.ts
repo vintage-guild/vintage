@@ -381,11 +381,11 @@ describe('#leads post-digest change feed (changes.ts + runTick)', () => {
     await runTick(ports, 'g1', RAID_START - 40 * HOUR);
     expect(discord.sent.filter((m) => m.to === 'ch_leads')).toHaveLength(0);
 
-    // T-24h: digest + party-draft post, seeding announcedState (no change feed on the digest tick).
+    // T-24h: digest + party-draft post, seeding announcedState (2 members + 1 __raid__ meta row).
     await runTick(ports, 'g1', RAID_START - 24 * HOUR);
     const leadsAtDigest = discord.sent.filter((m) => m.to === 'ch_leads');
     expect(leadsAtDigest.length).toBeGreaterThanOrEqual(1);
-    expect(store.announcedState.size).toBe(2);
+    expect(store.announcedState.size).toBe(3);
 
     // T-20h: Gorrak changes to Late 15m -> one change-feed post in #leads.
     signups[1] = {
@@ -501,5 +501,112 @@ describe('#leads post-digest change feed (changes.ts + runTick)', () => {
     // Re-running after lock does not duplicate the open-seat post.
     await runTick(ports, 'g1', RAID_START - 1 * HOUR);
     expect(openSeatPosts()).toHaveLength(1);
+  });
+
+  it('announces size/comp edits in #leads, warns when an approved raid shrinks below seated count, and suggests Standby when it grows', async () => {
+    const store = createMemoryCoordinatorStore();
+    await store.setConfig(
+      'g1',
+      { signupChannelId: 'ch_signups', leadsChannelId: 'ch_leads', opsChannelId: 'ch_ops' },
+      0,
+    );
+    const discord = createFakeDiscord();
+    const raids = createFakeRaids();
+    const polls = createFakePolls();
+    let event = makeEvent({
+      size: 20,
+      roleTargets: { tank: 2, healer: 4, melee: 7, ranged: 7 },
+      rosterApprovedAt: RAID_START - 26 * HOUR,
+      rosterApprovedBy: 'm_rook',
+    });
+    // 12 seated players (including two in group 4) + 1 Standby player.
+    const seatSpec = (i: number): Pick<Signup, 'class' | 'spec' | 'role'> =>
+      i < 2
+        ? { class: 'warrior', spec: 'protection', role: 'tank' }
+        : i < 5
+          ? { class: 'priest', spec: 'holy', role: 'healer' }
+          : { class: 'rogue', spec: 'combat', role: 'melee' };
+    const seatedSignups: Signup[] = Array.from({ length: 12 }, (_, i) =>
+      makeSignup({
+        id: `s_seat_${i}`,
+        memberId: `m_seat_${i}`,
+        characterName: `Seated${i}`,
+        ...seatSpec(i),
+        roster: 'rostered',
+        group: i < 10 ? Math.floor(i / 5) + 1 : 4,
+      }),
+    );
+    const standbySignup = makeSignup({
+      id: 's_iron',
+      memberId: 'm_ironhide',
+      characterName: 'Ironhide',
+      role: 'tank',
+      status: 'bench',
+      roster: 'benched',
+    });
+    const signups = [...seatedSignups, standbySignup];
+    const allMembers: TickMember[] = [
+      ...MEMBERS,
+      ...seatedSignups.map((s) => ({
+        memberId: s.memberId,
+        discordId: `d_${s.id}`,
+        displayName: s.characterName,
+        rank: 'raider' as const,
+        dmOptOut: false,
+      })),
+    ];
+    const source = createStateSource(
+      () => ({
+        guildId: 'g1',
+        events: [{ event, timings: DEFAULT_TIMINGS, signups }],
+        members: allMembers,
+      }),
+      store,
+    );
+    const ports = { store, source, raids, discord, polls };
+
+    await runTick(ports, 'g1', RAID_START - 48 * HOUR);
+    await runTick(ports, 'g1', RAID_START - 24 * HOUR); // seeds __raid__ metadata
+
+    // Rook shrinks approved 20 -> 10 with 12 seated and updates healers target.
+    event = {
+      ...event,
+      size: 10,
+      roleTargets: { tank: 2, healer: 3, melee: 3, ranged: 2 },
+      updatedAt: RAID_START - 20 * HOUR,
+      updatedBy: 'm_rook',
+    };
+    await runTick(ports, 'g1', RAID_START - 20 * HOUR);
+    const leadsPosts = () => discord.sent.filter((m) => m.to === 'ch_leads' && m.kind === 'post');
+    const shrinkPost = messageText(leadsPosts().at(-1)!.message);
+    expect(shrinkPost).toContain(
+      '**Rook** set Raid night to 10 people, Healers 3, Melee 3, Ranged 2.',
+    );
+    expect(shrinkPost).toContain('Raid night is now 10 people with 12 seated. Move 2 to Standby.');
+
+    // Approved party post preserves Group 4 as "(over size)" without dropping anyone.
+    const partyEdit = discord.sent
+      .filter((m) => m.to === 'ch_signups' && m.kind === 'edit')
+      .map((m) => messageText(m.message))
+      .find((t) => t.includes('Group 4 (over size)'));
+    expect(partyEdit).toBeDefined();
+
+    // Rook grows approved raid 10 -> 20 -> opens seats and posts Standby-only Seat button to #leads.
+    event = {
+      ...event,
+      size: 20,
+      roleTargets: { tank: 3, healer: 4, melee: 7, ranged: 6 },
+      updatedAt: RAID_START - 18 * HOUR,
+      updatedBy: 'm_rook',
+    };
+    await runTick(ports, 'g1', RAID_START - 18 * HOUR);
+    const grewPost = discord.sent.find(
+      (m) =>
+        m.to === 'ch_leads' &&
+        m.kind === 'post' &&
+        m.message.content?.includes('now has **8 open seats**'),
+    );
+    expect(grewPost).toBeDefined();
+    expect(buttonLabels(grewPost!.message)).toEqual(['Seat Ironhide']);
   });
 });

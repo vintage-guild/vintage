@@ -88,7 +88,13 @@ export type PlannedAction =
       locked: boolean;
     }
   | { kind: 'unapproved-notice'; tick: TickEvent; rule: 'unapproved-notice'; target: string }
-  | { kind: 'open-seats'; tick: TickEvent; rule: 'lock-open-seats'; target: string }
+  | {
+      kind: 'open-seats';
+      tick: TickEvent;
+      rule: string;
+      target: string;
+      reason?: 'lock' | 'grew';
+    }
   | { kind: 'lock'; tick: TickEvent; rule: 'lock'; target: string }
   | { kind: 'final-roster'; tick: TickEvent; rule: 'final-roster'; target: string }
   | { kind: 'import-string'; tick: TickEvent; rule: 'import-string'; target: string }
@@ -293,6 +299,12 @@ function planChanges(
         lines: diff.lines,
         changedRows: diff.changedRows.filter((r) => !dropoutMembers.has(r.memberId)),
       });
+    }
+  }
+  if (diff.openSeatsOpened) {
+    const rule = `open-seats-${hashJson({ size: tick.event.size, u: tick.event.updatedAt ?? 0 })}`;
+    if (!done.has(`${rule}|${leads}`)) {
+      out.push({ kind: 'open-seats', tick, rule, target: leads, reason: 'grew' });
     }
   }
   return out;

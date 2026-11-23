@@ -5,6 +5,7 @@ import {
   accessOf,
   RAID_ACCESS,
   RAID_STATUSES,
+  type RaidEvent,
   type Schedule,
   type Signup,
   sizeLabel,
@@ -90,11 +91,48 @@ export const raidCreate = command({
   },
 });
 
-export const raidReschedule = command({
-  name: 'raid-reschedule',
+const GROUP_SIZE = 5;
+
+async function clearOutOfRangeGroups(
+  deps: {
+    raids: {
+      listSignups: (g: string, e: string) => Promise<Signup[]>;
+      updateSignup: (g: string, id: string, p: { group: null }) => Promise<unknown>;
+    };
+  },
+  guildId: string,
+  eventId: string,
+  nextSize: number,
+) {
+  const maxGroup = Math.max(1, Math.ceil(nextSize / GROUP_SIZE));
+  const signups = await deps.raids.listSignups(guildId, eventId);
+  for (const s of signups) {
+    if (s.group !== null && s.group > maxGroup) {
+      await deps.raids.updateSignup(guildId, s.id, { group: null });
+    }
+  }
+}
+
+function raidUpdateReasoning(
+  updated: { name: string; kind: RaidEvent['kind']; size: number | null },
+  input: { startsAt?: number; notes?: string | null; size?: number | null; roleTargets?: unknown },
+): string {
+  const what = [
+    input.startsAt === undefined ? null : 'moved',
+    input.notes === undefined ? null : 'notes saved',
+    input.size === undefined ? null : `resized (${sizeLabel(updated.kind, updated.size)})`,
+    input.roleTargets === undefined ? null : 'comp updated',
+  ];
+  return `${updated.name} ${what.filter(Boolean).join(', ')}; signups kept`;
+}
+
+export const raidUpdate = command({
+  name: 'raid-update',
   description:
-    'Move a raid to a new start time, change its notes (what to bring, when to be on; empty or ' +
-    'null clears them), or both. Give at least one. Signups and roster are kept.',
+    'Update a raid after it exists: move its start time, change its notes (what to bring, when to ' +
+    'be on; empty or null clears them), change its size (nullable for kind other), or change its ' +
+    'comp roleTargets (null resets to the kind default). Give at least one. Allowed while open or ' +
+    'locked, including after start; completed and cancelled raids refuse. Signups and approved seats are kept.',
   tier: 'leader',
   mutation: true,
   input: z
@@ -102,26 +140,46 @@ export const raidReschedule = command({
       eventId: z.string().min(1),
       startsAt: instantSchema.optional(),
       notes: notesSchema.optional(),
+      size: optionalSizeSchema.optional(),
+      roleTargets: roleTargetsSchema.nullable().optional(),
     })
-    .refine((i) => i.startsAt !== undefined || i.notes !== undefined, {
-      message: 'Give a new startsAt, notes, or both',
-    }),
-  handler: async ({ eventId, startsAt, notes }, { guildId, deps, now }) => {
+    .refine(
+      (i) =>
+        i.startsAt !== undefined ||
+        i.notes !== undefined ||
+        i.size !== undefined ||
+        i.roleTargets !== undefined,
+      {
+        message: 'Give at least one of startsAt, notes, size, or roleTargets',
+      },
+    ),
+  handler: async (input, { caller, guildId, deps, now }) => {
+    const { eventId, startsAt, notes, size, roleTargets } = input;
     const event = await deps.raids.getEvent(guildId, eventId);
     if (!event) return eventNotFound();
     if (!isLive(event)) return raidClosed(event);
     if (startsAt !== undefined && startsAt <= now()) return inPast();
+    const nextSize = size === undefined ? event.size : size;
+    const nextTargets = roleTargets === undefined ? event.roleTargets : roleTargets;
+    const invalid = sizeForKind(event.kind, nextSize) ?? targetsTooBig(nextSize, nextTargets);
+    if (invalid) return invalid;
+
     const updated = await deps.raids.updateEvent(guildId, eventId, {
       ...(startsAt === undefined ? {} : { startsAt }),
       ...(notes === undefined ? {} : { notes }),
+      ...(size === undefined ? {} : { size }),
+      ...(roleTargets === undefined ? {} : { roleTargets }),
+      updatedAt: now(),
+      updatedBy: caller.memberId ?? caller.discordId ?? null,
     });
-    const what = [
-      startsAt === undefined ? null : 'moved',
-      notes === undefined ? null : 'notes saved',
-    ];
-    return success(updated, {
-      reasoning: `${updated.name} ${what.filter(Boolean).join(' and ')}; signups kept`,
-    });
+
+    // Before approval, shrinking a raid clears manual group numbers above the new group count.
+    // After approval, seats and groups stay for leaders to move or bench.
+    if (event.rosterApprovedAt === null && size !== undefined && nextSize !== null) {
+      await clearOutOfRangeGroups(deps, guildId, eventId, nextSize);
+    }
+
+    return success(updated, { reasoning: raidUpdateReasoning(updated, input) });
   },
 });
 

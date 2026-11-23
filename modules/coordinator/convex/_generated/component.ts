@@ -86,6 +86,11 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             characterName: string | null;
             class: string | null;
             eventId: string;
+            eventRoleTargets?:
+              | { healer: number; melee: number; ranged: number; tank: number }
+              | { dps: number; healer: number; tank: number }
+              | null;
+            eventSize?: number | null;
             group: number | null;
             guildId: string;
             lateMinutes: 5 | 15 | 30 | null;

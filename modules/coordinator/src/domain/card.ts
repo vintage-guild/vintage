@@ -535,6 +535,24 @@ function partyFields(
     for (let i = 0; i < open; i++) lines.push('— open —');
     return { name: `Group ${g.group}`, value: fitLines(lines).text, inline: true };
   });
+  for (const g of draft.outOfRange) {
+    const lines = g.ids.map((id) => line(byId.get(id)!, ranks));
+    fields.push({
+      name: `Group ${g.group} (over size)`,
+      value: fitLines(lines).text,
+      inline: true,
+    });
+  }
+  if (draft.overflow.length) {
+    fields.push({
+      name: `Over size (move to Standby) (${draft.overflow.length})`,
+      value: fitLines(
+        draft.overflow.map((id) => line(byId.get(id)!, ranks)),
+        FIELD_MAX,
+        ' · ',
+      ).text,
+    });
+  }
   if (bench.length) {
     const sortedBench = [...bench].sort(byStandbyOrder(ranks));
     fields.push({

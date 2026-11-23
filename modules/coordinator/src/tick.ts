@@ -208,7 +208,7 @@ async function perform(
         allowed_mentions: { parse: [] },
       });
     case 'open-seats':
-      return send(renderLockOpenSeats(tick, state.members));
+      return send(renderLockOpenSeats(tick, state.members, { reason: action.reason }));
     case 'lock':
       await ports.raids.lock(state.guildId, tick.event.id);
       return { status: 'sent' };

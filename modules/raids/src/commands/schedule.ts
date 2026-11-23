@@ -57,7 +57,7 @@ const scheduleFields = {
   lockHours: z.number().int().min(0).max(72),
   roleTargets: roleTargetsSchema.nullable(),
   lootMethodId: z.string().min(1).nullable(),
-  /** Default notes: each raid copies them when it is created; edit one raid with raid-reschedule. */
+  /** Default notes: each raid copies them when it is created; edit one raid with raid-update. */
   notes: notesSchema,
 };
 
@@ -167,8 +167,8 @@ export const scheduleUpdate = command({
   name: 'schedule-update',
   description:
     'Change a schedule (time, days, kind, size, timings, comp targets, default notes) or pause it ' +
-    'with active: false. Raids already created keep their time and notes; use raid-reschedule ' +
-    'for those.',
+    'with active: false. Raids already created keep their time, size, comp, and notes; use ' +
+    'raid-update for those.',
   tier: 'leader',
   mutation: true,
   input: z.object({

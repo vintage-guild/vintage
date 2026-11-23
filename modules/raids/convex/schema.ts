@@ -106,6 +106,9 @@ export const eventFields = {
   // Optional so rows written before party approval existed stay valid; read as null.
   rosterApprovedAt: v.optional(v.union(v.number(), v.null())),
   rosterApprovedBy: v.optional(v.union(v.string(), v.null())),
+  // Optional so rows written before raid-update tracking existed stay valid; read as null.
+  updatedAt: v.optional(v.union(v.number(), v.null())),
+  updatedBy: v.optional(v.union(v.string(), v.null())),
   configVersion: v.number(),
 };
 

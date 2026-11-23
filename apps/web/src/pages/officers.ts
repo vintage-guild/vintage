@@ -103,6 +103,7 @@ export function calendarRaid({ event, counts }: RaidRow): CalendarRaid {
     kind: event.kind,
     access: accessOf(event),
     size: event.size,
+    roleTargets: event.roleTargets,
     startsAt: event.startsAt,
     durationMinutes: event.durationMinutes,
     status: event.status,

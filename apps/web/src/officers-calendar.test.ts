@@ -65,6 +65,7 @@ describe('the Calendar tab’s reads', () => {
       kind: 'raid',
       access: 'guild',
       size: 40,
+      roleTargets: null,
       startsAt: Date.UTC(2026, 10, 5, 1),
       durationMinutes: 180,
       status: 'open',

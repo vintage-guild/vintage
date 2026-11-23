@@ -706,7 +706,7 @@ describe('JTBD: raid night', () => {
     // What to bring: Rook writes the raid's notes; the card the site reads carries them, and the
     // Discord post is edited to show them.
     const notes = 'Fire resist and flasks.\n\nOn at 7:45 for buffs.';
-    await g.host.ok(g.rook, 'raid-reschedule', { eventId: wed.id, notes });
+    await g.host.ok(g.rook, 'raid-update', { eventId: wed.id, notes });
     const [noted] = await g.host.ok<{ event: RaidEvent }[]>(g.aeryn, 'raid-list', {});
     expect(noted?.event).toMatchObject({ id: wed.id, startsAt: wed.startsAt, notes });
     const editsBefore = g.host.editsTo(SIGNUP_CHANNEL).length;
@@ -717,7 +717,7 @@ describe('JTBD: raid night', () => {
     expect(card).toContain('> Fire resist and flasks.\n\n> On at 7:45 for buffs.');
     // A raider can read the notes but not change them.
     expect(
-      await g.host.run(g.aeryn, 'raid-reschedule', { eventId: wed.id, notes: 'mine' }),
+      await g.host.run(g.aeryn, 'raid-update', { eventId: wed.id, notes: 'mine' }),
     ).toMatchObject({ error: { code: 'COMMAND_NOT_FOUND' } });
 
     // A full dungeon: the sixth and seventh to answer wait in line, and the list says where.
@@ -1575,7 +1575,7 @@ describe('JTBD: raid night', () => {
       startsAt: saturday,
     });
     await answer(g, g.aeryn, 'aeryn', alt.id, 'accepted');
-    await g.host.ok(g.rook, 'raid-reschedule', { eventId: alt.id, startsAt: saturday + HOUR });
+    await g.host.ok(g.rook, 'raid-update', { eventId: alt.id, startsAt: saturday + HOUR });
     const moved = await g.host.ok<{ event: RaidEvent }>(g.aeryn, 'raid-get', { eventId: alt.id });
     expect(moved.event.startsAt).toBe(saturday + HOUR);
     expect((await g.host.ok<Signup>(g.aeryn, 'signup-get', { eventId: alt.id })).status).toBe(
@@ -1596,7 +1596,7 @@ describe('JTBD: raid night', () => {
       },
     });
     expect(serverEvent('Raid night')).toBeDefined();
-    await g.host.ok(g.rook, 'raid-reschedule', { eventId: alt.id, startsAt: saturday + 2 * HOUR });
+    await g.host.ok(g.rook, 'raid-update', { eventId: alt.id, startsAt: saturday + 2 * HOUR });
     await g.host.tick();
     expect(serverEvent('Alt run')!.data.scheduled_start_time).toBe(
       new Date(saturday + 2 * HOUR).toISOString(),
@@ -1632,5 +1632,86 @@ describe('JTBD: raid night', () => {
       startsAt: saturday + DAY,
     });
     expect(refused).toMatchObject({ success: false, error: { code: 'COMMAND_NOT_FOUND' } });
+  });
+
+  it("J71 · add a healer to a raid that's already up without changing its schedule", async () => {
+    const { wed } = await scheduleRaidNights(g);
+    await g.host.configureCoordinator();
+    await g.host.tick(); // post the initial signup card
+    const beforeSchedules = await g.host.ok<{ id: string; roleTargets: unknown }[]>(
+      g.rook,
+      'schedule-list',
+      {},
+    );
+    const scheduleId = beforeSchedules[0]!.id;
+    // Rook raises Healers from 3 to 4 on this raid only.
+    await g.host.ok(g.rook, 'raid-update', {
+      eventId: wed.id,
+      roleTargets: { tank: 2, healer: 4, melee: 2, ranged: 2 },
+    });
+    await g.host.tick();
+    const edited = messageText(g.host.editsTo(SIGNUP_CHANNEL).at(-1)!.message);
+    expect(edited).toMatch(/Healers 0\/4/);
+
+    // The schedule keeps its default targets (null) for future materialized raids.
+    const schedules = await g.host.ok<{ id: string; roleTargets: unknown }[]>(
+      g.rook,
+      'schedule-list',
+      {},
+    );
+    expect(schedules.find((s) => s.id === scheduleId)?.roleTargets).toBeNull();
+
+    // A raider cannot call raid-update.
+    expect(
+      await g.host.run(g.aeryn, 'raid-update', {
+        eventId: wed.id,
+        roleTargets: { tank: 2, healer: 3, melee: 3, ranged: 2 },
+      }),
+    ).toMatchObject({ success: false, error: { code: 'COMMAND_NOT_FOUND' } });
+  });
+
+  it('J72 · grow a raid before approval and shrink after approval without unseating anyone', async () => {
+    await g.host.configureCoordinator();
+    const startsAt = WED;
+    const zg = await g.host.ok<RaidEvent>(g.rook, 'raid-create', {
+      name: "Zul'Gurub",
+      instance: "Zul'Gurub",
+      kind: 'other',
+      size: 2,
+      roleTargets: { tank: 1, healer: 1, dps: 0 },
+      startsAt,
+    });
+    await answer(g, g.aeryn, 'aeryn', zg.id, 'accepted');
+    await answer(g, g.ana, 'ana', zg.id, 'accepted');
+    await answer(g, g.cade, 'cade', zg.id, 'accepted');
+    await g.host.tick();
+    const beforeGrow = messageText(
+      g.host
+        .sentTo(SIGNUP_CHANNEL)
+        .find((m) => m.message.embeds?.[0]?.title?.includes("Zul'Gurub"))!.message,
+    );
+    expect(beforeGrow).toMatch(/\*\*2\*\* going/);
+    expect(beforeGrow).toMatch(/\*\*1\*\* standby/);
+
+    // Before approval: growing 2 -> 4 seats the overflow player on the next tick.
+    await g.host.ok(g.rook, 'raid-update', {
+      eventId: zg.id,
+      size: 4,
+      roleTargets: { tank: 1, healer: 1, dps: 2 },
+    });
+    await g.host.tick();
+    const afterGrow = messageText(g.host.editsTo(SIGNUP_CHANNEL).at(-1)!.message);
+    expect(afterGrow).toMatch(/\*\*3\*\* going/);
+    expect(afterGrow).toMatch(/\*\*0\*\* standby/);
+
+    // Approve the roster (materializes 3 seated), then shrink 4 -> 2: nobody is unseated.
+    await g.host.ok(g.rook, 'roster-approve', { eventId: zg.id });
+    await g.host.ok(g.rook, 'raid-update', {
+      eventId: zg.id,
+      size: 2,
+      roleTargets: { tank: 1, healer: 1, dps: 0 },
+    });
+    const rows = await g.host.ok<Signup[]>(g.rook, 'signup-list', { eventId: zg.id });
+    expect(rows.filter((s) => s.roster === 'rostered')).toHaveLength(3);
   });
 });

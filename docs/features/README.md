@@ -26,4 +26,4 @@ when they affect every contributor, in the Decisions table in [AGENTS.md](../../
 | Recipe search: who in the guild can craft what | active | [recipe-search](active/recipe-search/recipe-search.plan.md) |
 | Absences: absent by date range, weekly nights, and late nights | active | [absences](active/absences/absences.plan.md) |
 | Signup improvements: card layout, Standby, late minutes, change alerts, other roles | active | [signup-improvements](active/signup-improvements/signup-improvements.plan.md) |
-| Raid scheduling: edit a raid's comp and size, schedules from Discord, short site links | proposed | [raid-scheduling](proposed/raid-scheduling/raid-scheduling.plan.md) |
+| Raid scheduling: edit a raid's comp and size, schedules from Discord, short site links | active | [raid-scheduling](active/raid-scheduling/raid-scheduling.plan.md) |

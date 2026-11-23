@@ -55,12 +55,16 @@ directly. Maturity: **core**.
 - **When signups lock** (`domain/timings.ts`): `locksAt` = start minus the schedule's
   `lockHours`, or `DEFAULT_TIMINGS` for a one-off, the same rule the coordinator's tick source
   uses. `raid-list` rows and `raid-get` carry it.
-- **Raid notes** ("what to bring", J19): `notes` on events and schedules, at most
-  `RAID_NOTES_MAX` (500) characters, trimmed, blank or null for none (`notesSchema`). Set by
-  `raid-create`, changed by `raid-reschedule` (`startsAt`, `notes`, or both; at least one), and a
-  schedule's `notes` are the default `schedule-materialize` copies to each new raid. Editing a
-  schedule's notes leaves raids already created alone. Rows from before notes read as null (the
-  field is optional in the schema; the mappers fill it). Surfaces split paragraphs on blank lines.
+- **Raid notes and post-creation edits** ("what to bring", J19, J71, J72): `notes` on events and
+  schedules, at most `RAID_NOTES_MAX` (500) characters, trimmed, blank or null for none
+  (`notesSchema`). Set by `raid-create`, changed by `raid-update` (`startsAt`, `notes`, `size`,
+  `roleTargets`; at least one; allowed open or locked, including after start; only completed or
+  cancelled raids refuse; records `updatedAt`/`updatedBy`), and a schedule's `notes` are the
+  default `schedule-materialize` copies to each new raid. Editing a raid's size or comp leaves
+  its schedule untouched; before approval, shrinking clears manual `group > Math.ceil(size / 5)`
+  to `null`; after approval, shrinking never unseats anyone. Editing a schedule leaves raids
+  already created alone. Rows from before notes read as null (the field is optional in the
+  schema; the mappers fill it). Surfaces split paragraphs on blank lines.
 - **Identity is read through `RaidsMembers`** (`getCharacter`, `listCharacters`, `getMember`),
   never its tables. Signups snapshot the character's name, class, spec, and role at signup time.
 - **A spec for one raid** (#148): `signup-set`'s optional `spec` must be one of the character's

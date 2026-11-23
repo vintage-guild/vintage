@@ -100,6 +100,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           size: number | null;
           startsAt: number;
           status: "open" | "locked" | "cancelled" | "completed";
+          updatedAt?: number | null;
+          updatedBy?: string | null;
         },
         any,
         Name
@@ -142,6 +144,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             size?: number | null;
             startsAt?: number;
             status?: "open" | "locked" | "cancelled" | "completed";
+            updatedAt?: number | null;
+            updatedBy?: string | null;
           };
         },
         any,

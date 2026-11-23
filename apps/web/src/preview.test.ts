@@ -44,7 +44,7 @@ describe('the previewed session', () => {
     expect(currentPreview()).toBe('raider');
     expect(currentSession()).toMatchObject({ displayName: 'Ana', tier: 'raider', rank: 'raider' });
     expect(viewFor(currentSession())).toBe('member');
-    expect(sectionsFor(currentSession()).has('roster')).toBe(true);
+    expect(sectionsFor(currentSession()).has('news')).toBe(true);
     expect(realSession()?.tier).toBe('officer');
   });
 

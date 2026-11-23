@@ -59,6 +59,22 @@ export const markSent = mutation({
   },
 });
 
+export const deleteRun = mutation({
+  args: { guildId: v.string(), runId: v.string() },
+  handler: async (ctx, { guildId, runId }) => {
+    const id = ctx.db.normalizeId('runs', runId);
+    const doc = id ? await ctx.db.get(id) : null;
+    if (!id || !doc || doc.guildId !== guildId) return null;
+    const findings = await ctx.db
+      .query('findings')
+      .withIndex('by_guild_run', (q) => q.eq('guildId', guildId).eq('runId', id as string))
+      .collect();
+    for (const f of findings) await ctx.db.delete(f._id);
+    await ctx.db.delete(id);
+    return { run: toRun(doc), deletedFindings: findings.length };
+  },
+});
+
 export const insertFindings = mutation({
   args: { findings: v.array(v.object(findingFields)) },
   handler: async (ctx, { findings }) => {

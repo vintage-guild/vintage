@@ -24,6 +24,13 @@ import type { FunctionReference } from "convex/server";
 export type ComponentApi<Name extends string | undefined = string | undefined> =
   {
     insights: {
+      deleteRun: FunctionReference<
+        "mutation",
+        "internal",
+        { guildId: string; runId: string },
+        any,
+        Name
+      >;
       getOptIn: FunctionReference<
         "query",
         "internal",

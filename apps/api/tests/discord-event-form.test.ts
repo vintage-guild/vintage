@@ -23,6 +23,7 @@ import {
   encodeDraft,
   FORM_IDS,
   handleEventFormInteraction,
+  hoursOptions,
   isEventFormInteraction,
   OLD_DRAFT,
   timeOptions,
@@ -107,7 +108,7 @@ const base = (who: string, guildId = DISCORD_GUILD) => ({
 const T = ApplicationCommandOptionType;
 const slash = (
   who: string,
-  options: Record<string, string | number> = {},
+  options: Record<string, string | number | boolean> = {},
   guildId = DISCORD_GUILD,
 ): Interaction => ({
   ...base(who, guildId),
@@ -125,7 +126,12 @@ const slash = (
             options: Object.entries(options).map(([name, value]) => ({
               name,
               value,
-              type: typeof value === 'number' ? T.NUMBER : T.STRING,
+              type:
+                typeof value === 'boolean'
+                  ? T.BOOLEAN
+                  : typeof value === 'number'
+                    ? T.NUMBER
+                    : T.STRING,
             })),
           },
         ],
@@ -170,6 +176,18 @@ const click = (who: string, customId: string, message: Message): Interaction => 
   message,
 });
 
+const choose = (
+  who: string,
+  customId: string,
+  values: string[],
+  message: Message,
+): Interaction => ({
+  ...base(who),
+  type: InteractionType.MESSAGE_COMPONENT,
+  data: { custom_id: customId, component_type: 3, values },
+  message,
+});
+
 // ── Reading what came back ────────────────────────────────────────────────────────────────────
 
 interface Option {
@@ -191,10 +209,13 @@ interface Field {
     options?: Option[];
   };
 }
-interface ButtonSeen {
+interface RowItem {
+  type?: number;
   custom_id: string;
-  label: string;
+  label?: string;
+  style?: number;
   disabled?: boolean;
+  options?: Option[];
 }
 interface Data {
   content?: string;
@@ -202,7 +223,7 @@ interface Data {
   custom_id?: string;
   title?: string;
   embeds?: Embed[];
-  components?: (Field | { components: ButtonSeen[] })[];
+  components?: (Field | { components: RowItem[] })[];
 }
 const typeOf = (r: unknown) => (r as { type: number }).type;
 const dataOf = (r: unknown) => (r as { data: Data }).data;
@@ -210,9 +231,12 @@ const fields = (r: unknown) => (dataOf(r).components ?? []) as Field[];
 const field = (r: unknown, id: string) => fields(r).find((f) => f.component.custom_id === id);
 const options = (r: unknown, id: string) => field(r, id)?.component.options ?? [];
 const picked = (r: unknown, id: string) => options(r, id).find((o) => o.default)?.value;
-const buttons = (r: unknown) =>
-  ((dataOf(r).components ?? []) as { components: ButtonSeen[] }[]).flatMap((row) => row.components);
+const rowItems = (r: unknown) =>
+  ((dataOf(r).components ?? []) as { components: RowItem[] }[]).flatMap((row) => row.components);
+const buttons = (r: unknown) => rowItems(r).filter((c) => c.type === 2);
 const labels = (r: unknown) => buttons(r).map((b) => b.label);
+const selectMenu = (r: unknown, id: string) =>
+  rowItems(r).find((c) => c.type === 3 && c.custom_id === id);
 const card = (r: unknown) => dataOf(r).embeds?.[0];
 const fieldValue = (r: unknown, name: string) =>
   card(r)?.fields?.find((f) => f.name === name)?.value;
@@ -298,18 +322,20 @@ describe('a bare /vintage event create', () => {
     expect(picked(r, 'time')).toBe('19:45');
   });
 
-  it('prefills what was typed and carries size, counts and length in its custom id', async () => {
+  it('prefills what was typed and carries size, counts, length, and open in its custom id', async () => {
     const r = await run(
       slash('rook', {
         name: 'Cathedral run',
         kind: 'dungeon',
         size: 5,
         tanks: 1,
-        dps: 3,
+        melee: 1,
+        ranged: 2,
         hours: 2.5,
+        open: true,
       }),
     );
-    expect(dataOf(r).custom_id).toBe('evform:new:5:1::3:2.5');
+    expect(dataOf(r).custom_id).toBe('evform:new:5:1::1:2:2.5:1');
     expect(field(r, 'name')?.component.value).toBe('Cathedral run');
     expect(picked(r, 'kind')).toBe('dungeon');
     const preview = await run(submit('rook', dataOf(r).custom_id!, STAGE_1));
@@ -317,10 +343,14 @@ describe('a bare /vintage event create', () => {
       size: '5',
       tanks: '1',
       healers: '',
-      dps: '3',
+      melee: '1',
+      ranged: '2',
       hours: '2.5',
+      access: 'open',
     });
     expect(fieldValue(preview, 'Length')).toBe('2.5 hours');
+    expect(fieldValue(preview, 'Access')).toBe('Open to pugs');
+    expect(fieldValue(preview, 'Roles')).toBe('1 tank · 1 healer · 1 melee · 2 ranged');
   });
 
   it('a typed start more than 25 days ahead leads the dates, picked, so it is kept', async () => {
@@ -422,10 +452,34 @@ describe('the time picker', () => {
   });
 });
 
+describe('the length picker', () => {
+  it('offers 0.5h to 8h in half-hour steps, defaulting to 3 hours', () => {
+    const lengths = hoursOptions();
+    expect(lengths).toHaveLength(16);
+    expect(lengths[0]).toEqual({ label: 'Length: 0.5 hours', value: '0.5' });
+    expect(lengths.find((o) => o.default)).toEqual({
+      label: 'Length: 3 hours',
+      value: '3',
+      default: true,
+    });
+    expect(lengths.at(-1)).toEqual({ label: 'Length: 8 hours', value: '8' });
+  });
+
+  it('keeps an off-grid valid length typed via slash option in order', () => {
+    const lengths = hoursOptions('1.25');
+    expect(lengths).toHaveLength(17);
+    expect(lengths.find((o) => o.default)).toEqual({
+      label: 'Length: 1.25 hours',
+      value: '1.25',
+      default: true,
+    });
+  });
+});
+
 // ── Stage 1 → the first preview ──────────────────────────────────────────────────────────────
 
 describe('stage 1', () => {
-  it('replies privately with the draft so far and Set up event', async () => {
+  it('replies privately with the draft so far, Set up event, Open to pugs toggle, and Length select', async () => {
     const r = await stageOne();
     expect(typeOf(r)).toBe(InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE);
     expect(dataOf(r).flags).toBe(MessageFlags.EPHEMERAL);
@@ -436,11 +490,15 @@ describe('stage 1', () => {
     expect(fieldValue(r, 'Size')).toBe('5-player dungeon');
     expect(fieldValue(r, 'Roles')).toBe('1 tank · 1 healer · 3 DPS (the usual comp)');
     expect(fieldValue(r, 'Length')).toBe('3 hours');
-    expect(labels(r)).toEqual(['Set up event', 'Edit details', 'Cancel']);
+    expect(fieldValue(r, 'Access')).toBe('Guild only');
+    expect(labels(r)).toEqual(['Set up event', 'Edit details', 'Open to pugs: Off', 'Cancel']);
+    expect(selectMenu(r, FORM_IDS.hours)?.options).toHaveLength(16);
+    expect(selectMenu(r, FORM_IDS.hours)?.options?.find((o) => o.default)?.value).toBe('3');
     expect(problems(r)).toBe('');
     expect(draftIn(r)).toMatchObject({
       user: 'd-rook',
       kind: 'dungeon',
+      access: 'guild',
       date: '2026-11-10',
       time: '20:00',
       step: 1,
@@ -488,50 +546,47 @@ const stageTwoForm = async (kind: string) => {
 };
 
 describe('stage 2', () => {
-  it('a dungeon names its one size and asks for the counts and the length', async () => {
+  it('a dungeon names its one size and asks for tanks, healers, melee, and ranged (4 fields)', async () => {
     const { form } = await stageTwoForm('dungeon');
     expect(typeOf(form)).toBe(InteractionResponseType.MODAL);
     expect(dataOf(form)).toMatchObject({
       custom_id: 'evform:kind:dungeon',
       title: 'Dungeon details (5 players)',
     });
-    expect(fields(form).map((f) => f.label)).toEqual([
-      'Tanks',
-      'Healers',
-      'DPS',
-      'Length in hours',
-    ]);
-    expect(field(form, 'hours')?.description).toContain('Submit to preview, then Post event.');
-    expect(field(form, 'hours')?.component.value).toBe('3');
-    expect(['tanks', 'healers', 'dps'].map((c) => field(form, c)?.component.value)).toEqual([
-      '1',
-      '1',
-      '3',
+    expect(fields(form).map((f) => f.label)).toEqual(['Tanks', 'Healers', 'Melee', 'Ranged']);
+    expect(field(form, 'ranged')?.description).toContain('Submit to preview, then Post event.');
+    expect(field(form, 'hours')).toBeUndefined();
+    expect(['tanks', 'healers'].map((c) => field(form, c)?.component.value)).toEqual(['1', '1']);
+    expect(['melee', 'ranged'].map((c) => field(form, c)?.component.value)).toEqual([
+      undefined,
+      undefined,
     ]);
   });
 
-  it('a raid offers 10, 20 and 40 as radio; a battleground 10, 15 and 40 with no tanks', async () => {
+  it('a raid offers 10, 20 and 40 with 5 fields; a battleground 10, 15 and 40 with no tanks (4 fields)', async () => {
     const raid = (await stageTwoForm('raid')).form;
     expect(fields(raid).map((f) => f.label)).toEqual([
       'Size',
       'Tanks',
       'Healers',
-      'DPS',
-      'Length in hours',
+      'Melee',
+      'Ranged',
     ]);
     expect(field(raid, 'size')?.component.type).toBe(21);
     expect(field(raid, 'size')?.description).toBe('Submit to preview, then Post event.');
     expect(options(raid, 'size').map((o) => o.value)).toEqual(['10', '20', '40']);
     expect(picked(raid, 'size')).toBe('40');
     expect(field(raid, 'tanks')?.component.value).toBe('4');
+    expect(field(raid, 'melee')?.component.value).toBeUndefined();
+    expect(field(raid, 'hours')).toBeUndefined();
     const bg = (await stageTwoForm('battleground')).form;
     expect(dataOf(bg).title).toBe('Battleground details');
     expect(options(bg, 'size').map((o) => o.value)).toEqual(['10', '15', '40']);
     expect(field(bg, 'tanks')).toBeUndefined();
-    expect(fields(bg).map((f) => f.label)).toEqual(['Size', 'Healers', 'DPS', 'Length in hours']);
+    expect(fields(bg).map((f) => f.label)).toEqual(['Size', 'Healers', 'Melee', 'Ranged']);
   });
 
-  it('an Event takes a size box, empty for open, and optional counts', async () => {
+  it('an Event takes a size box, empty for open, and optional counts (5 fields)', async () => {
     const { form } = await stageTwoForm('other');
     expect(dataOf(form).title).toBe('Event details');
     expect(field(form, 'size')?.component.options).toBeUndefined();
@@ -540,21 +595,14 @@ describe('stage 2', () => {
     expect(fields(form)).toHaveLength(5);
   });
 
-  it('takes a length in hours like 2.5 or 2h, and says when it is out of range', async () => {
+  it('changes Length from the preview select and rejects out-of-range lengths', async () => {
     const { preview } = await stageTwoForm('dungeon');
-    const length = (hours: string) =>
-      run(
-        submit(
-          'rook',
-          'evform:kind:dungeon',
-          { tanks: '1', healers: '1', dps: '3', hours },
-          messageOf(preview),
-        ),
-      );
-    expect(fieldValue(await length('2.5'), 'Length')).toBe('2.5 hours');
-    expect(fieldValue(await length('2h'), 'Length')).toBe('2 hours');
-    expect(fieldValue(await length(''), 'Length')).toBe('3 hours');
-    expect(problems(await length('9'))).toContain('half an hour to 8 hours');
+    const changed = await run(choose('rook', FORM_IDS.hours, ['2.5'], messageOf(preview)));
+    expect(typeOf(changed)).toBe(InteractionResponseType.UPDATE_MESSAGE);
+    expect(fieldValue(changed, 'Length')).toBe('2.5 hours');
+    expect(selectMenu(changed, FORM_IDS.hours)?.options?.find((o) => o.default)?.value).toBe('2.5');
+    const bad = checkDraft({ ...DRAFT, hours: '9' }, NY, NOW);
+    expect(bad.problems.join(' ')).toContain('half an hour to 8 hours');
   });
 
   it('usual counts follow the size picked; changing one takes all of them as typed', async () => {
@@ -563,7 +611,7 @@ describe('stage 2', () => {
       submit(
         'rook',
         'evform:kind:raid',
-        { size: radio('20'), tanks: '4', healers: '10', dps: '26', hours: '3' },
+        { size: radio('20'), tanks: '4', healers: '10', melee: '', ranged: '' },
         messageOf(preview),
       ),
     );
@@ -571,18 +619,24 @@ describe('stage 2', () => {
     expect(fieldValue(twenty, 'Size')).toBe('20-player raid');
     expect(fieldValue(twenty, 'Roles')).toContain('(the usual comp)');
     expect(fieldValue(twenty, 'Roles')).not.toContain('26 DPS');
-    expect(labels(twenty)).toEqual(['Post event', 'Edit details', 'Edit size and comp', 'Cancel']);
+    expect(labels(twenty)).toEqual([
+      'Post event',
+      'Edit details',
+      'Edit size and comp',
+      'Open to pugs: Off',
+      'Cancel',
+    ]);
     expect(buttons(twenty)[0]?.disabled).toBe(false);
 
     const typed = await run(
       submit(
         'rook',
         'evform:kind:raid',
-        { size: radio('20'), tanks: '2', healers: '6', dps: '12', hours: '3' },
+        { size: radio('20'), tanks: '2', healers: '6', melee: '5', ranged: '7' },
         messageOf(twenty),
       ),
     );
-    expect(fieldValue(typed, 'Roles')).toBe('2 tanks · 6 healers · 12 DPS');
+    expect(fieldValue(typed, 'Roles')).toBe('2 tanks · 6 healers · 5 melee · 7 ranged');
   });
 
   it('counts set by hand stay when only the size changes, and the form says so', async () => {
@@ -591,7 +645,7 @@ describe('stage 2', () => {
       submit(
         'rook',
         'evform:kind:raid',
-        { size: radio('40'), tanks: '4', healers: '9', dps: '26', hours: '3' },
+        { size: radio('40'), tanks: '4', healers: '9', melee: '12', ranged: '14' },
         messageOf(preview),
       ),
     );
@@ -601,7 +655,7 @@ describe('stage 2', () => {
       submit(
         'rook',
         'evform:kind:raid',
-        { size: radio('20'), tanks: '4', healers: '9', dps: '26', hours: '3' },
+        { size: radio('20'), tanks: '4', healers: '9', melee: '12', ranged: '14' },
         messageOf(typed),
       ),
     );
@@ -618,7 +672,7 @@ describe('stage 2', () => {
       submit(
         'rook',
         'evform:kind:dungeon',
-        { tanks: '2', healers: '2', dps: '3', hours: '3' },
+        { tanks: '2', healers: '2', melee: '2', ranged: '1' },
         messageOf(preview),
       ),
     );
@@ -628,7 +682,7 @@ describe('stage 2', () => {
       submit(
         'rook',
         'evform:kind:dungeon',
-        { tanks: 'x', healers: '1', dps: '3', hours: '3' },
+        { tanks: 'x', healers: '1', melee: '1', ranged: '2' },
         messageOf(preview),
       ),
     );
@@ -641,7 +695,7 @@ describe('stage 2', () => {
       submit(
         'rook',
         'evform:kind:other',
-        { size: '50', tanks: '', healers: '', dps: '', hours: '3' },
+        { size: '50', tanks: '', healers: '', melee: '', ranged: '' },
         messageOf(preview),
       ),
     );
@@ -651,7 +705,7 @@ describe('stage 2', () => {
       submit(
         'rook',
         'evform:kind:raid',
-        { size: radio('7'), tanks: '1', healers: '1', dps: '3', hours: '3' },
+        { size: radio('7'), tanks: '1', healers: '1', melee: '1', ranged: '2' },
         messageOf(raid),
       ),
     );
@@ -668,7 +722,7 @@ async function ready() {
     submit(
       'rook',
       'evform:kind:dungeon',
-      { tanks: '1', healers: '1', dps: '3', hours: '3' },
+      { tanks: '1', healers: '1', melee: '', ranged: '' },
       messageOf(preview),
     ),
   );
@@ -756,20 +810,33 @@ describe('the preview', () => {
     expect(options(form, 'date')).toHaveLength(25);
   });
 
-  it('Edit size and comp reopens stage 2 with the counts and length set', async () => {
+  it('Edit size and comp reopens stage 2 with the split counts set', async () => {
     const { preview } = await stageTwoForm('dungeon');
     const typed = await run(
       submit(
         'rook',
         'evform:kind:dungeon',
-        { tanks: '2', healers: '1', dps: '2', hours: '2' },
+        { tanks: '1', healers: '1', melee: '1', ranged: '2' },
         messageOf(preview),
       ),
     );
     const form = await run(click('rook', FORM_IDS.editKind, messageOf(typed)));
-    expect(field(form, 'tanks')?.component.value).toBe('2');
-    expect(field(form, 'dps')?.component.value).toBe('2');
-    expect(field(form, 'hours')?.component.value).toBe('2');
+    expect(field(form, 'tanks')?.component.value).toBe('1');
+    expect(field(form, 'melee')?.component.value).toBe('1');
+    expect(field(form, 'ranged')?.component.value).toBe('2');
+  });
+
+  it('toggling Open to pugs and choosing Length on the preview carries into raid-create', async () => {
+    const basePreview = await ready();
+    const opened = await run(click('rook', FORM_IDS.access, messageOf(basePreview)));
+    expect(fieldValue(opened, 'Access')).toBe('Open to pugs');
+    expect(labels(opened)).toContain('Open to pugs: On');
+    const shorter = await run(choose('rook', FORM_IDS.hours, ['2'], messageOf(opened)));
+    expect(fieldValue(shorter, 'Length')).toBe('2 hours');
+    expect(fieldValue(shorter, 'Access')).toBe('Open to pugs');
+    await run(click('rook', FORM_IDS.post, messageOf(shorter)));
+    const [raid] = await deps.raids.listEvents(GUILD);
+    expect(raid).toMatchObject({ access: 'open', durationMinutes: 120 });
   });
 
   it('Cancel says nothing was made', async () => {
@@ -785,6 +852,7 @@ const DRAFT: Draft = {
   user: 'd-rook',
   name: 'Zul’Gurub · ✨',
   kind: 'raid',
+  access: 'guild',
   where: 'Zul’Gurub',
   date: '2026-11-10',
   time: '20:00',
@@ -792,7 +860,8 @@ const DRAFT: Draft = {
   size: '20',
   tanks: '',
   healers: '',
-  dps: '',
+  melee: '',
+  ranged: '',
   step: 2,
 };
 const withFooter = (text: string): Message => ({ id: 'm1', embeds: [{ footer: { text } }] });
@@ -801,7 +870,7 @@ const encode = (value: unknown) =>
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
     .replace(/=+$/, '');
-const raw = (value: unknown) => `v2.${encode(value)}`;
+const raw = (value: unknown) => `v3.${encode(value)}`;
 
 describe('the draft', () => {
   it('round-trips through the footer, any characters included', () => {
@@ -811,6 +880,7 @@ describe('the draft', () => {
   it('refuses anything a member could not have picked or typed', () => {
     expect(decodeDraft(raw({ ...DRAFT, name: 'x'.repeat(61) }))).toBeNull();
     expect(decodeDraft(raw({ ...DRAFT, kind: 'arena' }))).toBeNull();
+    expect(decodeDraft(raw({ ...DRAFT, access: 'public' }))).toBeNull();
     expect(decodeDraft(raw({ ...DRAFT, size: '400' }))).toBeNull();
     expect(decodeDraft(raw({ ...DRAFT, roleTargets: { tank: 1 } }))).toBeNull();
     expect(decodeDraft(raw({ ...DRAFT, step: 3 }))).toBeNull();
@@ -818,19 +888,22 @@ describe('the draft', () => {
     expect(decodeDraft(raw({ ...DRAFT, date: 'next tuesday' }))).toBeNull();
     expect(decodeDraft(raw({ ...DRAFT, time: '24:00' }))).toBeNull();
     expect(decodeDraft(raw({ ...DRAFT, start: '2026-11-10 8pm' }))).toBeNull();
-    expect(decodeDraft('v2.not-base64!')).toBeNull();
-    expect(decodeDraft('v2.e30')).toBeNull();
+    expect(decodeDraft('v3.not-base64!')).toBeNull();
+    expect(decodeDraft('v3.e30')).toBeNull();
     expect(decodeDraft(undefined)).toBeNull();
   });
 
-  it('a v1 draft from before the pickers asks to start again, politely, and makes nothing', async () => {
+  it('v1 and v2 drafts from earlier versions ask to start again, politely, and make nothing', async () => {
     const { date: _d, time: _t, ...rest } = DRAFT;
     const v1 = withFooter(
       `Only you can see this draft. v1.${encode({ ...rest, start: '2026-11-10 8pm' })}`,
     );
-    for (const id of [FORM_IDS.post, FORM_IDS.next, FORM_IDS.edit, FORM_IDS.editKind]) {
-      const r = await run(click('rook', id, v1));
-      expect(dataOf(r)).toMatchObject({ content: OLD_DRAFT, embeds: [], components: [] });
+    const v2 = withFooter(`Only you can see this draft. v2.${encode({ ...DRAFT, dps: '' })}`);
+    for (const oldMsg of [v1, v2]) {
+      for (const id of [FORM_IDS.post, FORM_IDS.next, FORM_IDS.edit, FORM_IDS.editKind]) {
+        const r = await run(click('rook', id, oldMsg));
+        expect(dataOf(r)).toMatchObject({ content: OLD_DRAFT, embeds: [], components: [] });
+      }
     }
     // A stage 2 opened from that preview before the deploy and submitted after it.
     const late = await run(
@@ -844,7 +917,7 @@ describe('the draft', () => {
   it('a click on someone else’s draft is refused, and an unreadable one makes nothing', async () => {
     const theirs = await run(click('vex', FORM_IDS.post, withFooter(encodeDraft(DRAFT))));
     expect(dataOf(theirs).content).toContain('belongs to someone else');
-    const broken = await run(click('rook', FORM_IDS.post, withFooter('v2.garbage')));
+    const broken = await run(click('rook', FORM_IDS.post, withFooter('v3.garbage')));
     expect(dataOf(broken).content).toContain('Start again');
     expect(await deps.raids.listEvents(GUILD)).toEqual([]);
   });
@@ -871,11 +944,13 @@ describe('the draft', () => {
         size: 40,
         tanks: 40,
         healers: 40,
-        dps: 40,
+        melee: 40,
+        ranged: 40,
         hours: 7.75,
+        open: true,
       }),
     );
-    expect(dataOf(opened).custom_id).toBe('evform:new:40:40:40:40:7.75');
+    expect(dataOf(opened).custom_id).toBe('evform:new:40:40:40:40:40:7.75:1');
     expect(dataOf(opened).custom_id!.length).toBeLessThanOrEqual(100);
     for (const id of Object.values(FORM_IDS)) expect(id.length).toBeLessThan(100);
   });

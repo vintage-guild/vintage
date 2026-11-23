@@ -63,6 +63,7 @@ describe('the Calendar tab’s reads', () => {
       name: 'Raid night',
       instance: "Onyxia's Lair",
       kind: 'raid',
+      access: 'guild',
       size: 40,
       startsAt: Date.UTC(2026, 10, 5, 1),
       durationMinutes: 180,
@@ -70,8 +71,11 @@ describe('the Calendar tab’s reads', () => {
       notes: 'Flasks.',
       counts: { accepted: 3, late: 1, tentative: 2, bench: 0 },
     });
+    expect(calendarRaid({ event: event({ access: 'open' }) }).access).toBe('open');
     expect(calendarRaid({ event: event() }).counts).toBeNull();
     expect(calendarSchedule(schedule)).not.toHaveProperty('guildId');
+    expect(calendarSchedule(schedule).access).toBe('guild');
+    expect(calendarSchedule({ ...schedule, access: 'open' }).access).toBe('open');
     expect(calendarSchedule(schedule).recurrence.weekdays).toEqual(['wed', 'thu']);
     expect(calendarSchedule({ ...schedule, notes: 'On at 7:45.' }).notes).toBe('On at 7:45.');
   });

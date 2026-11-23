@@ -5,6 +5,8 @@ import { type EventKind, KIND_LABELS, RAID_SIZES, type RoleTargets } from '@vint
 import { offsetMinutes, type WallWeekday, wallClock } from '../zoned';
 
 export type CalendarRaidStatus = 'open' | 'locked' | 'cancelled' | 'completed';
+/** Guild raid or open to pugs (Friends and Members can sign up). */
+export type CalendarRaidAccess = 'guild' | 'open';
 /** Players in an event: 1 to 40, allowed per kind (`sizeFits` in comp-solver); null is open. */
 export type CalendarRaidSize = number | null;
 /** A raid's sizes; other kinds have their own (`KIND_SIZES`). */
@@ -18,6 +20,8 @@ export interface CalendarRaid {
   name: string;
   instance: string;
   kind: EventKind;
+  /** Guild raid or open to pugs; missing reads as `guild`. */
+  access?: CalendarRaidAccess;
   size: CalendarRaidSize;
   /** Epoch ms. */
   startsAt: number;
@@ -34,6 +38,8 @@ export interface CalendarSchedule {
   name: string;
   instance: string;
   kind: EventKind;
+  /** Guild raid or open to pugs; missing reads as `guild`. */
+  access?: CalendarRaidAccess;
   size: CalendarRaidSize;
   /** The schedule's own comp; null means the kind's default for the size. */
   roleTargets: RoleTargets | null;

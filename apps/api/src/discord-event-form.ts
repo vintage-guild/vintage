@@ -3,30 +3,32 @@
 //   /vintage event create (bare)   → stage 1 modal `evform:new`: name, kind (radio), where, a date
 //                                   (the next 25 days in the guild's clock) and a time (half-hour
 //                                   steps, starting on the guild's usual raid time). Options typed
-//                                   so far prefill it; size, counts and length ride in its custom
-//                                   id (`evform:new:<size>:<tanks>:<healers>:<dps>:<hours>`).
+//                                   so far prefill it; size, counts, length, and open ride in its
+//                                   custom id (`evform:new:<size>:<t>:<h>:<m>:<r>:<hours>:<open>`).
 //   modal  evform:new             → a private preview of the draft, with Set up event, Edit
-//                                   details, and Cancel
+//                                   details, Open to pugs toggle, Cancel, and a Length select
 //   button evform:next            → stage 2 modal `evform:kind:<kind>`, built for the kind: a size
 //                                   (radio for the kind's sizes, none for a dungeon's one size, a
-//                                   box for Event where empty is open), the tank, healer and DPS
-//                                   counts (no tanks for battlegrounds), and the length
+//                                   box for Event where empty is open), and the tank, healer,
+//                                   melee, and ranged counts (no tanks for battlegrounds)
 //   modal  evform:kind:<kind>     → the preview again, with Post event, Edit details, Edit size
-//                                   and comp, and Cancel
+//                                   and comp, Open to pugs toggle, Cancel, and the Length select
+//   button evform:access          → toggles Open to pugs on the preview
+//   select evform:hours           → changes Length (0.5h–8h) on the preview
 //   button evform:edit            → stage 1 again, prefilled
 //   button evform:edit-kind       → stage 2 again, prefilled
 //   button evform:post            → raid-create as the member, then a tick (afterChange); the
 //                                   preview becomes the "Made **X** …" line
 //   button evform:cancel          → "Cancelled, nothing was made."
 //
-// No draft is stored. It rides in the preview's embed footer as base64url JSON (`v2.…`), and
+// No draft is stored. It rides in the preview's embed footer as base64url JSON (`v3.…`), and
 // Discord sends that message back with every click and with a modal opened from it. The draft is
 // read as untrusted: a strict schema caps each field at what the form lets a member pick or type,
 // the member who opened the form must be the one clicking, and every step re-reads the guild
 // clock, re-checks the tier, and re-validates the whole draft against raid-create's own input
 // schema. Post event runs raid-create through the registry, which checks the Raid Leader tier and
-// every rule again; the preview's checks only say early what the command would refuse. A `v1.`
-// draft (the typed-date form, before pickers) gets a "start again" line instead of an error.
+// every rule again; the preview's checks only say early what the command would refuse. Older `v1.`
+// and `v2.` drafts get a "start again" line instead of an error.
 import {
   actionRow,
   ButtonStyle,
@@ -56,7 +58,6 @@ import { raidsCommands, wallClock } from '@vintage/raids/commands';
 import {
   AKind,
   defaultRoleTargets,
-  dpsTargetOf,
   EVENT_KINDS,
   type EventKind,
   hasSplitDpsTargets,
@@ -65,6 +66,8 @@ import {
   KIND_SIZES,
   kindNoun,
   MAX_EVENT_SIZE,
+  RAID_ACCESS,
+  type RaidAccess,
   type RaidEvent,
   type RoleTargets,
   sizeFits,
@@ -104,6 +107,8 @@ export const FORM_IDS = {
   next: `${FORM_PREFIX}:next`,
   edit: `${FORM_PREFIX}:edit`,
   editKind: `${FORM_PREFIX}:edit-kind`,
+  access: `${FORM_PREFIX}:access`,
+  hours: `${FORM_PREFIX}:hours`,
   post: `${FORM_PREFIX}:post`,
   cancel: `${FORM_PREFIX}:cancel`,
 } as const;
@@ -114,7 +119,7 @@ export const CANCELLED = 'Cancelled, nothing was made.';
 export const OLD_DRAFT =
   'That draft is from an older version; run `/vintage event create` again. Nothing was made.';
 /** Before the draft in the footer, so a reader finds it and nothing else. */
-const DRAFT_TAG = 'v2.';
+const DRAFT_TAG = 'v3.';
 
 /** How many days the date picker offers, today first (Discord shows at most 25 options). */
 export const DATE_DAYS = 25;
@@ -123,9 +128,14 @@ const MAX_OPTIONS = 25;
 /** The most each box takes; the draft schema caps each field at the same, so it holds no more. */
 const MAX = { name: 60, where: 60, hours: 4, count: 2 } as const;
 
-const COUNTS = ['tanks', 'healers', 'dps'] as const;
+const COUNTS = ['tanks', 'healers', 'melee', 'ranged'] as const;
 type Count = (typeof COUNTS)[number];
-const COUNT_LABELS: Record<Count, string> = { tanks: 'Tanks', healers: 'Healers', dps: 'DPS' };
+const COUNT_LABELS: Record<Count, string> = {
+  tanks: 'Tanks',
+  healers: 'Healers',
+  melee: 'Melee',
+  ranged: 'Ranged',
+};
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const HH_MM = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -146,6 +156,8 @@ const draftSchema = z
     user: z.string().min(1).max(32),
     name: z.string().max(MAX.name),
     kind: z.enum(EVENT_KINDS),
+    /** Guild raid or open to pugs (Friends and Members can sign up). */
+    access: z.enum(RAID_ACCESS),
     where: z.string().max(MAX.where),
     /** The day, in the guild's clock: `2026-11-04`. */
     date: z.string().regex(ISO_DATE).refine(isRealDate),
@@ -154,10 +166,11 @@ const draftSchema = z
     hours: z.string().max(MAX.hours),
     /** Empty: the kind's usual size, or open for Event. */
     size: z.string().max(MAX.count),
-    /** Empty: the kind's usual count for the size. */
+    /** Empty: the kind's usual count for the size (melee/ranged blank keeps combined DPS). */
     tanks: z.string().max(MAX.count),
     healers: z.string().max(MAX.count),
-    dps: z.string().max(MAX.count),
+    melee: z.string().max(MAX.count),
+    ranged: z.string().max(MAX.count),
     /** 1 until the size and comp step has been submitted. */
     step: z.union([z.literal(1), z.literal(2)]),
   })
@@ -182,7 +195,7 @@ export const encodeDraft = (draft: Draft) => `${DRAFT_TAG}${toBase64Url(JSON.str
 
 /** The draft a footer carries, or null when it carries none or anything that isn't one. */
 export function decodeDraft(footer: string | undefined): Draft | null {
-  const match = /(?:^|\s)v2\.([A-Za-z0-9_-]{1,1500})$/.exec(footer ?? '');
+  const match = /(?:^|\s)v3\.([A-Za-z0-9_-]{1,1500})$/.exec(footer ?? '');
   if (!match) return null;
   try {
     const parsed = draftSchema.safeParse(JSON.parse(fromBase64Url(match[1]!)));
@@ -192,9 +205,9 @@ export function decodeDraft(footer: string | undefined): Draft | null {
   }
 }
 
-/** A footer from the typed-date form (`v1.`): a preview posted before the pickers shipped. */
+/** A footer from an earlier version (`v1.` or `v2.`): a preview posted before the schema changed. */
 export const isOldDraft = (footer: string | undefined) =>
-  /(?:^|\s)v1\.[A-Za-z0-9_-]{1,1500}$/.test(footer ?? '');
+  /(?:^|\s)v[12]\.[A-Za-z0-9_-]{1,1500}$/.test(footer ?? '');
 
 const footerOf = (interaction: Interaction) => interaction.message?.embeds?.[0]?.footer?.text;
 
@@ -344,12 +357,38 @@ const sameTargets = (a: RoleTargets, b: RoleTargets) => {
 };
 
 /** Length in hours: "3", "2.5", "3h". Empty is the usual 3. */
-function minutesOf(draft: Draft): number | null {
+function minutesOf(draft: Pick<Draft, 'hours'>): number | null {
   const typed = draft.hours.trim().toLowerCase().replace(/\s*h$/, '');
   if (!typed) return DEFAULT_RAID_HOURS * 60;
   if (!/^\d+(\.\d+)?$/.test(typed)) return null;
   const minutes = Math.round(Number(typed) * 60);
   return minutes >= 30 && minutes <= 8 * 60 ? minutes : null;
+}
+
+/** Half-hour lengths from 30 minutes to 8 hours (16 options, well under Discord's 25-option cap). */
+const HOURS_GRID = Array.from({ length: 16 }, (_, i) => (i + 1) * 30);
+
+const hoursValue = (minutes: number) => String(Number((minutes / 60).toFixed(2)));
+
+const hoursText = (minutes: number) => {
+  const hours = Number((minutes / 60).toFixed(2));
+  return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+};
+
+/**
+ * The length picker on the preview: half-hour steps from 0.5h to 8h, picked on the draft's
+ * length (default 3h). An off-grid valid length typed via slash option is kept in order.
+ */
+export function hoursOptions(picked?: string): SelectOption[] {
+  const minutes = minutesOf({ hours: picked ?? '' }) ?? DEFAULT_RAID_HOURS * 60;
+  const steps = HOURS_GRID.includes(minutes)
+    ? HOURS_GRID
+    : [...HOURS_GRID, minutes].sort((a, b) => a - b);
+  return steps.map((m) => ({
+    label: `Length: ${hoursText(m)}`,
+    value: hoursValue(m),
+    ...(m === minutes ? { default: true } : {}),
+  }));
 }
 
 const RAID_CREATE = raidsCommands.find((c) => c.name === 'raid-create')!;
@@ -403,7 +442,7 @@ function compProblems(draft: Draft, size: number | null, targets: RoleTargets) {
     );
   }
   if (COUNTS.some((c) => draft[c].trim() && !isWhole(draft[c].trim()))) {
-    problems.push('Tank, healer, and DPS counts are whole numbers, 0 or more.');
+    problems.push('Tank, healer, melee, and ranged counts are whole numbers, 0 or more.');
   }
   if (size !== null && !Number.isNaN(size) && totalRoleTargets(targets) > size) {
     problems.push(`The counts add up to more than ${size} players.`);
@@ -444,6 +483,7 @@ export function checkDraft(draft: Draft, zone: string, now: number): DraftCheck 
     name: draft.name.trim(),
     instance: draft.where.trim(),
     kind: draft.kind,
+    ...(draft.access === 'open' ? { access: 'open' as const } : {}),
     size,
     startsAt,
     durationMinutes: minutes,
@@ -520,15 +560,20 @@ export function detailsForm(
 
 const HINT_STAGE_2 = 'Submit to preview, then Post event.';
 
-/** The counts the stage 2 form shows: what was typed, else the usual comp for the size. */
+/**
+ * The counts the stage 2 form shows: tanks and healers default to the usual comp, while melee and
+ * ranged stay blank until set so legacy/default comps keep DPS combined (#323).
+ */
 function shownCounts(draft: Draft): Record<Count, string> {
   const size = sizeOf(draft);
   const targets = targetsOfDraft(draft, Number.isInteger(size) ? size : null);
-  const shown = { tanks: targets.tank, healers: targets.healer, dps: dpsTargetOf(targets) };
-  return Object.fromEntries(COUNTS.map((c) => [c, draft[c].trim() || String(shown[c])])) as Record<
-    Count,
-    string
-  >;
+  const split = hasSplitDpsTargets(targets);
+  return {
+    tanks: draft.tanks.trim() || String(targets.tank),
+    healers: draft.healers.trim() || String(targets.healer),
+    melee: draft.melee.trim() || (split ? String(targets.melee) : ''),
+    ranged: draft.ranged.trim() || (split ? String(targets.ranged) : ''),
+  };
 }
 
 /** The note on the first count: what leaving the counts alone does. */
@@ -544,7 +589,7 @@ function countsHint(draft: Draft): string {
 
 /** Which counts the kind asks for: battlegrounds have no tanks. */
 const countsFor = (kind: EventKind): readonly Count[] =>
-  kind === 'battleground' ? ['healers', 'dps'] : COUNTS;
+  kind === 'battleground' ? ['healers', 'melee', 'ranged'] : COUNTS;
 
 /** A kind with one size (a dungeon) asks for none: the form's title says it. */
 const onlySize = (kind: EventKind) =>
@@ -581,38 +626,33 @@ function sizeField(draft: Draft): Label | null {
 
 /**
  * Stage 2, built for the kind: its sizes (a box for Event, where empty is open; none for a
- * dungeon's one size), the counts, prefilled, and the length. Counts left as they were follow
- * the size picked here (see `readKindForm`).
+ * dungeon's one size) and the tank, healer, melee, and ranged counts (5 fields for raid/other, 4
+ * for dungeon/battleground). Length lives on the preview's second action row (#323).
  */
 export function kindForm(draft: Draft): InteractionResponse {
   const { kind } = draft;
   const size = sizeField(draft);
   const single = onlySize(kind);
   const shown = shownCounts(draft);
-  const counts = countsFor(kind).map((c, i) =>
-    label(
+  const asked = countsFor(kind);
+  const counts = asked.map((c, i) => {
+    const isSplit = c === 'melee' || c === 'ranged';
+    const prefill = kind === 'other' && !draft[c].trim() ? '' : shown[c];
+    const hint =
+      i === 0 ? countsHint(draft) : !size && i === asked.length - 1 ? HINT_STAGE_2 : undefined;
+    return label(
       COUNT_LABELS[c],
       labelledTextInput(c, {
         required: false,
         max_length: MAX.count,
-        placeholder: kind === 'other' ? '0' : shown[c],
-        ...value(kind === 'other' && !draft[c].trim() ? '' : shown[c]),
+        placeholder: kind === 'other' ? '0' : isSplit ? 'Optional (split DPS)' : shown[c],
+        ...value(prefill),
       }),
-      i > 0 ? undefined : countsHint(draft),
-    ),
-  );
-  const length = label(
-    'Length in hours',
-    labelledTextInput('hours', {
-      required: false,
-      max_length: MAX.hours,
-      placeholder: String(DEFAULT_RAID_HOURS),
-      value: draft.hours || String(DEFAULT_RAID_HOURS),
-    }),
-    size ? 'Half an hour to 8 hours' : `Half an hour to 8 hours. ${HINT_STAGE_2}`,
-  );
+      hint,
+    );
+  });
   const title = `${KIND_LABELS[kind]} details${single ? ` (${single} players)` : ''}`;
-  const fields = size ? [size, ...counts, length] : [...counts, length];
+  const fields = size ? [size, ...counts] : counts;
   return modal(`${FORM_IDS.kind}:${kind}`, title, ...fields);
 }
 
@@ -635,7 +675,6 @@ export function readKindForm(draft: Draft, interaction: Interaction): Draft {
   const next: Draft = {
     ...draft,
     size: size.trim().slice(0, MAX.count),
-    hours: (text.hours ?? draft.hours).trim().slice(0, MAX.hours),
     step: 2,
   };
   const asked = countsFor(draft.kind);
@@ -658,7 +697,7 @@ function readDetailsForm(
   interaction: Interaction,
   user: string,
   earlier: Draft | null,
-  extras: Pick<Draft, 'size' | 'hours' | Count>,
+  extras: Pick<Draft, 'size' | 'hours' | 'access' | Count>,
 ): Draft | 'old' | null {
   const text = modalValues(interaction);
   const picked = modalSelections(interaction);
@@ -669,14 +708,27 @@ function readDetailsForm(
     user,
     name: (text.name ?? '').trim(),
     kind,
+    access: earlier ? earlier.access : extras.access,
     where: (text.where ?? '').trim(),
     date: picked.date?.[0],
     time: picked.time?.[0],
     hours: earlier ? earlier.hours : extras.hours,
     // A new kind starts its size and comp over; the same kind keeps them.
     ...(same
-      ? { size: earlier.size, tanks: earlier.tanks, healers: earlier.healers, dps: earlier.dps }
-      : { size: extras.size, tanks: extras.tanks, healers: extras.healers, dps: extras.dps }),
+      ? {
+          size: earlier.size,
+          tanks: earlier.tanks,
+          healers: earlier.healers,
+          melee: earlier.melee,
+          ranged: earlier.ranged,
+        }
+      : {
+          size: extras.size,
+          tanks: extras.tanks,
+          healers: extras.healers,
+          melee: extras.melee,
+          ranged: extras.ranged,
+        }),
     step: same ? earlier.step : 1,
   });
   return parsed.success ? parsed.data : null;
@@ -684,10 +736,12 @@ function readDetailsForm(
 
 // ── The preview ──────────────────────────────────────────────────────────────────────────────
 
-const hoursText = (minutes: number) => {
-  const hours = minutes / 60;
-  return `${Number.isInteger(hours) ? hours : hours.toFixed(1).replace(/\.0$/, '')} ${hours === 1 ? 'hour' : 'hours'}`;
-};
+const accessButton = (access: RaidAccess) =>
+  button(
+    FORM_IDS.access,
+    access === 'open' ? 'Open to pugs: On' : 'Open to pugs: Off',
+    access === 'open' ? ButtonStyle.PRIMARY : ButtonStyle.SECONDARY,
+  );
 
 /** The draft as a private message: what it would make, what's wrong, and the next buttons. */
 export function previewMessage(
@@ -719,6 +773,11 @@ export function previewMessage(
       value: check.minutes === null ? 'Not readable yet' : hoursText(check.minutes),
       inline: true,
     },
+    {
+      name: 'Access',
+      value: draft.access === 'open' ? 'Open to pugs' : 'Guild only',
+      inline: true,
+    },
     { name: 'Roles', value: roles, inline: false },
     ...(problems.length
       ? [{ name: 'Fix before posting', value: problems.map((p) => `• ${p}`).join('\n') }]
@@ -729,26 +788,36 @@ export function previewMessage(
     ? problems.length
       ? 'Fix what’s below, then **Post event**.'
       : 'Check it, then **Post event**. Its signup card goes up in the signup channel.'
-    : '**Set up event** next for its size, comp, and length.';
+    : '**Set up event** next for its size and comp.';
   const card: Embed = embed({
     title: draft.name.trim() || `New ${kindNoun(draft.kind)}`,
     description,
     fields,
     footer: { text: `Only you can see this draft. ${encodeDraft(draft)}` },
   });
+  const toggle = accessButton(draft.access);
   const buttons = stage2
     ? [
         button(FORM_IDS.post, POST_LABEL, ButtonStyle.SUCCESS, { disabled: problems.length > 0 }),
         button(FORM_IDS.edit, 'Edit details'),
         button(FORM_IDS.editKind, 'Edit size and comp'),
+        toggle,
         button(FORM_IDS.cancel, 'Cancel'),
       ]
     : [
         button(FORM_IDS.next, SET_UP_LABEL, ButtonStyle.PRIMARY),
         button(FORM_IDS.edit, 'Edit details'),
+        toggle,
         button(FORM_IDS.cancel, 'Cancel'),
       ];
-  return { embeds: [card], components: [actionRow(...buttons)], allowed_mentions: { parse: [] } };
+  return {
+    embeds: [card],
+    components: [
+      actionRow(...buttons),
+      actionRow(stringSelect(FORM_IDS.hours, hoursOptions(draft.hours), { placeholder: 'Length' })),
+    ],
+    allowed_mentions: { parse: [] },
+  };
 }
 
 // ── Routing ──────────────────────────────────────────────────────────────────────────────────
@@ -783,10 +852,11 @@ export function isEventFormInteraction(interaction: Interaction): boolean {
 }
 
 /**
- * Size, counts and length typed as slash options, carried in the stage 1 custom id until it
- * comes back. The length part is optional so a stage 1 opened before it existed still routes.
+ * Size, counts, length, and open flag typed as slash options, carried in the stage 1 custom id
+ * until it comes back: `evform:new:<size>:<tanks>:<healers>:<melee>:<ranged>:<hours>:<open>`.
  */
-const EXTRAS_SHAPE = /^evform:new(?::(\d{0,2}):(\d{0,2}):(\d{0,2}):(\d{0,2})(?::([\d.]{0,4}))?)?$/;
+const EXTRAS_SHAPE =
+  /^evform:new(?::(\d{0,2}):(\d{0,2}):(\d{0,2}):(\d{0,2}):(\d{0,2}):([\d.]{0,4}):(1?))?$/;
 
 function extrasId(values: OptionValues): string {
   const part = (v: unknown) =>
@@ -795,9 +865,10 @@ function extrasId(values: OptionValues): string {
     typeof values.hours === 'number' && values.hours > 0
       ? String(values.hours).slice(0, MAX.hours)
       : '';
-  const parts = [values.size, values.tanks, values.healers, values.dps].map(part);
-  return [...parts, hours].some(Boolean)
-    ? `${FORM_IDS.details}:${parts.join(':')}:${hours}`
+  const open = values.open === true ? '1' : '';
+  const parts = [values.size, values.tanks, values.healers, values.melee, values.ranged].map(part);
+  return [...parts, hours, open].some(Boolean)
+    ? `${FORM_IDS.details}:${parts.join(':')}:${hours}:${open}`
     : FORM_IDS.details;
 }
 
@@ -871,10 +942,20 @@ interface Step {
 /** A form came back: stage 1 (new or edited) or stage 2. Either way, the preview. */
 async function submitted({ interaction, ports, caller, user, id, earlier }: Step) {
   const zone = await guildTimeZone(ports, caller);
-  const extras = EXTRAS_SHAPE.exec(id);
-  if (extras) {
-    const [, size = '', tanks = '', healers = '', dps = '', hours = ''] = extras;
-    const draft = readDetailsForm(interaction, user, earlier, { size, tanks, healers, dps, hours });
+  if (id === FORM_IDS.details || id.startsWith(`${FORM_IDS.details}:`)) {
+    const extras = EXTRAS_SHAPE.exec(id);
+    if (!extras) return ephemeral(OLD_DRAFT);
+    const [, size = '', tanks = '', healers = '', melee = '', ranged = '', hours = '', open = ''] =
+      extras;
+    const draft = readDetailsForm(interaction, user, earlier, {
+      size,
+      tanks,
+      healers,
+      melee,
+      ranged,
+      hours,
+      access: open === '1' ? 'open' : 'guild',
+    });
     if (draft === 'old') return ephemeral(OLD_DRAFT);
     if (!draft) return ephemeral(EXPIRED);
     const preview = previewMessage(draft, zone, ports.now());
@@ -888,13 +969,22 @@ async function submitted({ interaction, ports, caller, user, id, earlier }: Step
   return updateMessage(previewMessage(draft, zone, ports.now()));
 }
 
-/** A button on the preview. */
-async function clicked({ ports, caller, id, earlier }: Step) {
+/** A button or select on the preview. */
+async function clicked({ interaction, ports, caller, id, earlier }: Step) {
   if (id === FORM_IDS.cancel) return done(CANCELLED);
   if (!earlier) return done(EXPIRED);
   if (id === FORM_IDS.next || id === FORM_IDS.editKind) return kindForm(earlier);
   if (id === FORM_IDS.edit) {
     return detailsForm(earlier, await guildClock(ports, caller), ports.now());
+  }
+  if (id === FORM_IDS.access) {
+    const next: Draft = { ...earlier, access: earlier.access === 'open' ? 'guild' : 'open' };
+    return updateMessage(previewMessage(next, await guildTimeZone(ports, caller), ports.now()));
+  }
+  if (id === FORM_IDS.hours) {
+    const hours = (interaction.data?.values?.[0] ?? '').trim().slice(0, MAX.hours);
+    const next: Draft = { ...earlier, hours: hours || earlier.hours };
+    return updateMessage(previewMessage(next, await guildTimeZone(ports, caller), ports.now()));
   }
   if (id === FORM_IDS.post) return post(ports, caller, earlier);
   return null;

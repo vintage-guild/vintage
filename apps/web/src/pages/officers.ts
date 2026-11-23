@@ -10,7 +10,7 @@ import {
 import type { CoordinatorAction } from '@vintage/coordinator/contract';
 import { type Tier, tierAllows } from '@vintage/guild-kit';
 import type { Progress } from '@vintage/progress/contract';
-import type { RaidEvent, Schedule, Signup } from '@vintage/raids/contract';
+import { accessOf, type RaidEvent, type Schedule, type Signup } from '@vintage/raids/contract';
 import type { GuildProfile, Recruiting } from '@vintage/site/contract';
 import {
   type AgentPanelContext,
@@ -99,6 +99,7 @@ export function calendarRaid({ event, counts }: RaidRow): CalendarRaid {
     name: event.name,
     instance: event.instance,
     kind: event.kind,
+    access: accessOf(event),
     size: event.size,
     startsAt: event.startsAt,
     durationMinutes: event.durationMinutes,
@@ -122,6 +123,7 @@ export function calendarSchedule(s: Schedule): CalendarSchedule {
     name: s.name,
     instance: s.instance,
     kind: s.kind,
+    access: accessOf(s),
     size: s.size,
     roleTargets: s.roleTargets,
     recurrence: { ...s.recurrence, weekdays: [...s.recurrence.weekdays] },

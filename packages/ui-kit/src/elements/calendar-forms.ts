@@ -11,9 +11,9 @@ import {
 import {
   AKind,
   defaultRoleTargets,
-  dpsTargetOf,
   EVENT_KINDS,
   type EventKind,
+  hasSplitDpsTargets,
   instanceOptional,
   KIND_LABELS,
   KIND_SIZES,
@@ -23,6 +23,7 @@ import {
   sizeFits,
   sizeLabel,
   sizesText,
+  totalRoleTargets,
 } from '@vintage/comp-solver';
 import {
   browserTimeZone,
@@ -34,6 +35,7 @@ import {
 } from '../zoned';
 import {
   type CalendarRaid,
+  type CalendarRaidAccess,
   type CalendarRaidSize,
   type CalendarSchedule,
   formatWhen,
@@ -99,11 +101,16 @@ const formStyles = css`
     gap: var(--space-xs) var(--space-md);
   }
 
-  .days label {
+  .days label,
+  .toggle {
     display: inline-flex;
     align-items: center;
     gap: 0.3rem;
     font-weight: var(--font-weight-regular);
+  }
+
+  .toggle {
+    margin-top: var(--space-xs);
   }
 
   input,
@@ -131,15 +138,20 @@ const zoneField = html<VintageScheduleForm | VintageRaidForm>`
   </div>
 `;
 
-const COUNT_FIELDS = [
+const REQUIRED_COUNT_FIELDS = [
   ['tanks', 'Tanks'],
   ['healers', 'Healers'],
-  ['dps', 'DPS'],
+] as const;
+
+const SPLIT_COUNT_FIELDS = [
+  ['melee', 'Melee'],
+  ['ranged', 'Ranged'],
 ] as const;
 
 /**
- * Kind and size, then the tank, healer and DPS counts. The counts start at the kind's usual comp
- * for the size and follow kind and size changes until the officer types one (#151).
+ * Kind and size, then the tank, healer, melee, and ranged counts. Tanks and healers start at the
+ * kind's usual comp for the size; melee and ranged stay blank until set, so legacy DPS-only
+ * targets and kind defaults keep DPS combined (#323).
  */
 const kindFields = html<KindedForm>`
   <div class="field">
@@ -178,8 +190,8 @@ const kindFields = html<KindedForm>`
     )}
   </div>
   ${repeat(
-    () => COUNT_FIELDS,
-    html<(typeof COUNT_FIELDS)[number], KindedForm>`
+    () => REQUIRED_COUNT_FIELDS,
+    html<(typeof REQUIRED_COUNT_FIELDS)[number], KindedForm>`
       <div class="field">
         <label for="${(f) => f[0]}">${(f) => f[1]}</label>
         <input id="${(f) => f[0]}" type="number" min="0" max="${MAX_EVENT_SIZE}" step="1" required
@@ -188,28 +200,57 @@ const kindFields = html<KindedForm>`
       </div>
     `,
   )}
+  ${repeat(
+    () => SPLIT_COUNT_FIELDS,
+    html<(typeof SPLIT_COUNT_FIELDS)[number], KindedForm>`
+      <div class="field">
+        <label for="${(f) => f[0]}">${(f) => f[1]}</label>
+        <input id="${(f) => f[0]}" type="number" min="0" max="${MAX_EVENT_SIZE}" step="1"
+          placeholder="Any"
+          :value="${(f, c) => (c.parent[f[0]] === null ? '' : String(c.parent[f[0]]))}"
+          @input="${(f, c) => c.parent.setSplitCount(f[0], countFromInput((c.event.target as HTMLInputElement).value))}" />
+      </div>
+    `,
+  )}
 `;
 
 /** The size box: empty is an open event (null), anything else a number to check. */
 const sizeFromInput = (value: string): number | null => (value.trim() ? Number(value) : null);
 
+/** Optional melee/ranged box: empty means unsplit / leave to the rest (null). */
+const countFromInput = (value: string): number | null => (value.trim() ? Number(value) : null);
+
 const countsNote = html<KindedForm>`
   <small class="counts-note">${(x) => x.countsNote()}</small>
 `;
 
+const accessField = html<KindedForm>`
+  <label class="toggle">
+    <input id="access" type="checkbox"
+      :checked="${(x) => x.access === 'open'}"
+      @change="${(x, c) => x.setAccess((c.event.target as HTMLInputElement).checked)}" />
+    Open to pugs <small>(Friends and Members can sign up)</small>
+  </label>
+`;
+
 /**
- * What both forms share: the event's kind, its size, and its tank/healer/DPS counts. Commands
- * keep "null means the kind's default", so the counts go out as roleTargets only when they differ
- * from that default.
+ * What both forms share: the event's kind, its size, its tank/healer/melee/ranged counts, and
+ * whether pugs can sign up. Commands keep "null means the kind's default", so the counts go out
+ * as roleTargets only when they differ from that default.
  */
 export abstract class KindedForm extends FASTElement {
   @observable kind: EventKind = 'raid';
   @observable size: CalendarRaidSize = 40;
+  @observable access: CalendarRaidAccess = 'guild';
   @observable tanks = 0;
   @observable healers = 0;
-  @observable dps = 0;
+  /** Blank (null) until split targets are set, so legacy DPS-only targets stay combined. */
+  @observable melee: number | null = null;
+  @observable ranged: number | null = null;
   /** True once the officer typed a count; then kind and size changes leave the counts alone. */
   @observable countsTouched = false;
+  /** Preserves a loaded legacy combined-DPS target until the officer edits counts or size. */
+  private legacyDps: number | null = null;
 
   kindChanged(): void {
     this.syncSelects();
@@ -240,17 +281,32 @@ export abstract class KindedForm extends FASTElement {
     return this.kind === 'other' ? [] : KIND_SIZES[this.kind];
   }
 
-  /** Kind, size, and counts from a stored event or schedule, or the defaults for a new one. */
+  /** Kind, access, size, and counts from a stored event or schedule, or the defaults for a new one. */
   loadKind(
-    from: { kind: EventKind; size: number | null; roleTargets?: RoleTargets | null } | null,
+    from: {
+      kind: EventKind;
+      access?: CalendarRaidAccess;
+      size: number | null;
+      roleTargets?: RoleTargets | null;
+    } | null,
   ): void {
     this.kind = from?.kind ?? 'raid';
+    this.access = from?.access ?? 'guild';
     this.size = from ? from.size : 40;
-    const targets = from?.roleTargets ?? defaultRoleTargets(this.kind, this.size);
+    const saved = from?.roleTargets ?? null;
+    const targets = saved ?? defaultRoleTargets(this.kind, this.size);
     this.tanks = targets.tank;
     this.healers = targets.healer;
-    this.dps = dpsTargetOf(targets);
-    this.countsTouched = !!from?.roleTargets;
+    if (saved && hasSplitDpsTargets(saved)) {
+      this.melee = saved.melee;
+      this.ranged = saved.ranged;
+      this.legacyDps = null;
+    } else {
+      this.melee = null;
+      this.ranged = null;
+      this.legacyDps = saved ? saved.dps : null;
+    }
+    this.countsTouched = !!saved;
     this.syncSelects();
   }
 
@@ -261,18 +317,33 @@ export abstract class KindedForm extends FASTElement {
     if (!sizeFits(kind, this.size)) {
       this.size = kind === 'other' ? this.size : KIND_SIZES[kind][0]!;
     }
+    this.legacyDps = null;
     this.refillCounts();
     this.changed();
   }
 
   setSize(size: number | null): void {
     this.size = size;
+    this.legacyDps = null;
     this.refillCounts();
     this.changed();
   }
 
-  setCount(field: 'tanks' | 'healers' | 'dps', value: number): void {
+  setAccess(open: boolean): void {
+    this.access = open ? 'open' : 'guild';
+    this.changed();
+  }
+
+  setCount(field: 'tanks' | 'healers', value: number): void {
     this[field] = value;
+    this.legacyDps = null;
+    this.countsTouched = true;
+    this.changed();
+  }
+
+  setSplitCount(field: 'melee' | 'ranged', value: number | null): void {
+    this[field] = value;
+    this.legacyDps = null;
     this.countsTouched = true;
     this.changed();
   }
@@ -291,7 +362,8 @@ export abstract class KindedForm extends FASTElement {
     const targets = defaultRoleTargets(this.kind, this.size);
     this.tanks = targets.tank;
     this.healers = targets.healer;
-    this.dps = dpsTargetOf(targets);
+    this.melee = null;
+    this.ranged = null;
   }
 
   /** "Instance", or a free-text "where or what" for `other`, where it's optional. */
@@ -299,7 +371,7 @@ export abstract class KindedForm extends FASTElement {
     return instanceOptional(this.kind) ? 'Where or what (optional)' : 'Instance';
   }
 
-  /** Called after any kind/size/count change, to clear the form's problem line. */
+  /** Called after any kind/size/count/access change, to clear the form's problem line. */
   protected abstract changed(): void;
 
   /** What's wrong with kind, size, or counts, or empty. */
@@ -309,20 +381,41 @@ export abstract class KindedForm extends FASTElement {
         ? `An event is 1 to ${MAX_EVENT_SIZE} players, or leave the size empty for an open one.`
         : `${AKind(this.kind)} is ${sizesText(this.kind)} players.`;
     }
-    const counts = [this.tanks, this.healers, this.dps];
-    if (counts.some((n) => !Number.isInteger(n) || n < 0)) {
-      return 'Tank, healer, and DPS counts are whole numbers, 0 or more.';
+    const required = [this.tanks, this.healers];
+    const optional = [this.melee, this.ranged].filter((n): n is number => n !== null);
+    if ([...required, ...optional].some((n) => !Number.isInteger(n) || n < 0)) {
+      return 'Tank, healer, melee, and ranged counts are whole numbers, 0 or more.';
     }
-    if (this.size !== null && counts.reduce((a, b) => a + b, 0) > this.size) {
-      return `The counts add up to more than ${this.size} players.`;
+    if (this.size !== null) {
+      const total =
+        this.melee !== null || this.ranged !== null
+          ? this.tanks + this.healers + (this.melee ?? 0) + (this.ranged ?? 0)
+          : this.tanks + this.healers + (this.legacyDps ?? 0);
+      if (total > this.size) {
+        return `The counts add up to more than ${this.size} players.`;
+      }
     }
     return '';
   }
 
   /** The counts as roleTargets, or null when they are the kind's default (the command's null). */
   roleTargets(): RoleTargets | null {
-    const typed = { tank: this.tanks, healer: this.healers, dps: this.dps };
     const usual = defaultRoleTargets(this.kind, this.size);
+    if (this.melee !== null || this.ranged !== null) {
+      const rest = this.size === null ? 0 : Math.max(0, this.size - this.tanks - this.healers);
+      const melee = this.melee ?? Math.max(0, rest - (this.ranged ?? 0));
+      const ranged = this.ranged ?? Math.max(0, rest - melee);
+      const typed: RoleTargets = { tank: this.tanks, healer: this.healers, melee, ranged };
+      return totalRoleTargets(typed) === 0 && totalRoleTargets(usual) === 0 ? null : typed;
+    }
+    if (!this.countsTouched) return null;
+    const dps =
+      this.legacyDps !== null
+        ? this.legacyDps
+        : this.size === null
+          ? 0
+          : Math.max(0, this.size - this.tanks - this.healers);
+    const typed: RoleTargets = { tank: this.tanks, healer: this.healers, dps };
     return JSON.stringify(typed) === JSON.stringify(usual) ? null : typed;
   }
 }
@@ -371,6 +464,7 @@ const scheduleTemplate = html<VintageScheduleForm>`
       <legend>Kind and comp</legend>
       <div class="grid comp">${kindFields}</div>
       ${countsNote}
+      ${accessField}
     </fieldset>
 
     <fieldset>
@@ -536,6 +630,7 @@ export class VintageScheduleForm extends KindedForm {
       name: this.name.trim(),
       instance: this.instance.trim(),
       kind: this.kind,
+      access: this.access,
       size: this.size,
       roleTargets: this.roleTargets(),
       weekdays: [...this.weekdays].sort((a, b) => order.indexOf(a) - order.indexOf(b)),
@@ -563,6 +658,7 @@ export class VintageScheduleForm extends KindedForm {
       name: s.name,
       instance: s.instance,
       kind: s.kind,
+      access: s.access ?? 'guild',
       size: s.size,
       roleTargets: s.roleTargets,
       weekdays: WEEK.map((w) => w.day).filter((d) => s.recurrence.weekdays.includes(d)),
@@ -617,6 +713,7 @@ const raidTemplate = html<VintageRaidForm>`
           <legend>Kind and comp</legend>
           <div class="grid comp">${kindFields}</div>
           ${countsNote}
+          ${accessField}
         </fieldset>
       `,
     )}
@@ -687,6 +784,7 @@ export class VintageRaidForm extends KindedForm {
       this.name = '';
       this.instance = '';
       this.durationMinutes = 180;
+      this.loadKind(null);
     }
     this.notes = r?.notes ?? '';
     this.date = r ? dayKey(r.startsAt, this.zone) : '';
@@ -750,6 +848,7 @@ export class VintageRaidForm extends KindedForm {
         name: this.name.trim(),
         instance: this.instance.trim(),
         kind: this.kind,
+        access: this.access,
         size: this.size,
         roleTargets: this.roleTargets(),
         startsAt,

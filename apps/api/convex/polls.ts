@@ -1,13 +1,16 @@
 // Scheduled polls work: runs `poll-sweep` from crons.ts every 5 minutes, as the system caller
 // through the same registry every surface uses (#61), then re-renders Discord posts (#62). The
 // refresh also catches votes cast on the website or over MCP, whose posts nothing else updates.
+// Failures are caught and posted (deduplicated per hour) to the coordinator's ops channel (#262).
 //   npx convex run polls:sweep
+import { runPollSweepWithAlerts } from '../src/ops-alerts';
 import { internal } from './_generated/api';
-import { internalMutation } from './_generated/server';
+import { internalAction, internalMutation } from './_generated/server';
 import { GUILD_ID, runSystemCommand } from './commands';
+import { reportCronFailure } from './opsAlerts';
 import { pollsStore } from './stores';
 
-export const sweep = internalMutation({
+export const runSweep = internalMutation({
   args: {},
   handler: async (ctx) => {
     const result = await runSystemCommand(ctx, 'poll-sweep', {});
@@ -19,4 +22,13 @@ export const sweep = internalMutation({
     }
     return { opened, closed };
   },
+});
+
+export const sweep = internalAction({
+  args: {},
+  handler: async (ctx): Promise<{ opened: string[]; closed: string[] } | { failed: string }> =>
+    runPollSweepWithAlerts(
+      () => ctx.runMutation(internal.polls.runSweep, {}),
+      (alert, at) => reportCronFailure(ctx, alert, at),
+    ),
 });

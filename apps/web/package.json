@@ -24,6 +24,7 @@
     "@vintage/design-tokens": "workspace:*",
     "@vintage/guild-kit": "workspace:*",
     "@vintage/identity": "workspace:*",
+    "@vintage/loot": "workspace:*",
     "@vintage/polls": "workspace:*",
     "@vintage/progress": "workspace:*",
     "@vintage/raids": "workspace:*",

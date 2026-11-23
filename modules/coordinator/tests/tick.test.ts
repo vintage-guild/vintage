@@ -576,4 +576,161 @@ describe('runTick', () => {
     );
     expect(buttonLabels(draft.message)).toContain('Edit in the quarters');
   });
+
+  it('catches materialize failure, alerts ops, and still posts and locks existing raids (#262)', async () => {
+    const alerts: { key: string; step: string; error: string }[] = [];
+    ports.opsAlert = {
+      report: async (f) => {
+        alerts.push({ key: f.key, step: f.step, error: f.error });
+      },
+    };
+    raids.materialize = async () => {
+      throw new Error('schedule-materialize failed: bad recurrence');
+    };
+
+    const report = await tick(START - 100 * HOUR);
+    expect(report.outcomes).toContainEqual(
+      expect.objectContaining({
+        rule: 'schedule-materialize',
+        status: 'failed',
+        detail: 'schedule-materialize failed: bad recurrence',
+      }),
+    );
+    expect(alerts).toContainEqual({
+      key: 'coordinator:schedule-materialize',
+      step: 'schedule-materialize',
+      error: 'schedule-materialize failed: bad recurrence',
+    });
+    // Existing raid still posted even though materialize threw.
+    expect(discord.sent.find((s) => s.kind === 'post' && s.to === SIGNUPS)).toBeDefined();
+  });
+
+  it('alerts ops when raid-night creation, roster-lock, or post refresh fails (#262)', async () => {
+    const alerts: { key: string; step: string; subject?: string; error: string }[] = [];
+    ports.opsAlert = {
+      report: async (f) => {
+        alerts.push({ key: f.key, step: f.step, subject: f.subject, error: f.error });
+      },
+    };
+
+    // 1. raid-night creation failure (raid-create throws).
+    const fakePolls = createFakePolls();
+    ports.polls = fakePolls;
+    const poll = {
+      id: 'poll-1',
+      guildId: G,
+      question: 'When?',
+      description: null,
+      options: [{ id: 'o1', label: 'Wed', emoji: null, value: String(START) }],
+      method: 'single' as const,
+      maxChoices: null,
+      eligibleTier: 'raider' as const,
+      anonymous: false,
+      resultsVisible: 'live' as const,
+      quorum: null,
+      status: 'closed' as const,
+      opensAt: null,
+      closesAt: START - 101 * HOUR,
+      createdBy: 'm1',
+      closedBy: 'system',
+      createdAt: 0,
+      closedAt: START - 101 * HOUR,
+      tags: ['raid-night'],
+      configVersion: 1,
+      results: {
+        method: 'single' as const,
+        ballots: 5,
+        quorumMet: true,
+        options: [],
+        winners: ['o1'],
+        rounds: null,
+      },
+    };
+    fakePolls.polls.set(poll.id, poll);
+    await store.insertRaidNight({
+      guildId: G,
+      pollId: 'poll-1',
+      name: 'BWL night',
+      instance: 'Blackwing Lair',
+      kind: 'raid',
+      access: 'guild',
+      size: 40,
+      roleTargets: null,
+      durationMinutes: 180,
+      createdBy: 'm1',
+      createdAt: 0,
+      outcome: 'pending',
+      raidEventId: null,
+      detail: null,
+    });
+    raids.createForRaidNight = async () => {
+      throw new Error('raid-create failed: invalid size');
+    };
+
+    // 2. roster-lock failure.
+    raids.lock = async () => {
+      throw new Error('roster-lock failed: already locked');
+    };
+
+    await tick(START - 100 * HOUR); // posts raid-1, fails raid-night
+    expect(alerts).toContainEqual(
+      expect.objectContaining({
+        key: 'coordinator:raid-night:poll-1',
+        step: 'raid-night',
+        subject: '**BWL night**',
+        error: 'raid-create failed: invalid size',
+      }),
+    );
+
+    // 3. refresh failure (non-10008).
+    signups = [...signups, signup('bram', { class: 'priest', spec: 'holy', role: 'healer' })];
+    discord.edit = async () => {
+      throw new Error('Discord 502');
+    };
+    await tick(START - 2 * HOUR); // tries refresh + lock; both fail and report to opsAlert
+    expect(alerts).toContainEqual(
+      expect.objectContaining({
+        key: 'coordinator:refresh:raid-1',
+        step: 'refresh',
+        subject: 'MC nights',
+        error: 'Discord 502',
+      }),
+    );
+    expect(alerts).toContainEqual(
+      expect.objectContaining({
+        key: 'coordinator:lock:raid-1',
+        step: 'lock',
+        subject: 'MC nights',
+        error: 'roster-lock failed: already locked',
+      }),
+    );
+  });
+
+  it('catches source.load failure and reports it to ops instead of throwing (#262)', async () => {
+    const alerts: { key: string; step: string; error: string }[] = [];
+    ports.opsAlert = {
+      report: async (f) => {
+        alerts.push({ key: f.key, step: f.step, error: f.error });
+      },
+    };
+    ports.source = {
+      load: async () => {
+        throw new Error('Convex query timeout');
+      },
+    };
+
+    const report = await tick(START - 100 * HOUR);
+    expect(report.outcomes).toContainEqual(
+      expect.objectContaining({
+        rule: 'source-load',
+        status: 'failed',
+        detail: 'Convex query timeout',
+      }),
+    );
+    expect(alerts).toContainEqual({
+      key: 'coordinator:source-load',
+      step: 'source-load',
+      error: 'Convex query timeout',
+    });
+  });
 });

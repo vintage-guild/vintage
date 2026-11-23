@@ -30,7 +30,7 @@ import {
   siteDeps,
 } from './stores';
 
-/** Mutations that affect raid cards, party drafts, or `#leads` change alerts (coalesced ~12s). */
+/** Mutations that affect raid cards, party drafts, summaries, or `#leads` change alerts (coalesced ~12s). */
 const TICK_TRIGGERS = new Set([
   'signup-set',
   'roster-move',
@@ -42,6 +42,7 @@ const TICK_TRIGGERS = new Set([
   'raid-create',
   'raid-reschedule',
   'raid-cancel',
+  'raid-export-record',
   'schedule-materialize',
   'absence-add',
   'absence-weekly-set',
@@ -115,7 +116,12 @@ const requestArgsValidator = v.object(requestArgs);
 async function runAs(ctx: Ctx, caller: Caller, { name, input, confirmToken }: RunArgs) {
   const request = confirmToken ? { name, input, caller, confirmToken } : { name, input, caller };
   const result = await registry().execute(request, deps(ctx));
-  if (result.success && TICK_TRIGGERS.has(name) && 'runMutation' in ctx) {
+  const isPreview =
+    result.success &&
+    typeof result.data === 'object' &&
+    result.data !== null &&
+    'confirmToken' in result.data;
+  if (result.success && !isPreview && TICK_TRIGGERS.has(name) && 'runMutation' in ctx) {
     await scheduleCoalescedTick(ctx, caller.guildId);
   }
   return toConvex(result);

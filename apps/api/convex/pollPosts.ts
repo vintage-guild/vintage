@@ -6,9 +6,11 @@
 import { createDiscordRest } from '@vintage/discord-kit';
 import { buildPollCard, renderKey, renderPollPost } from '@vintage/polls/commands';
 import { v } from 'convex/values';
+import { runPollRefreshWithAlerts } from '../src/ops-alerts';
 import { internal } from './_generated/api';
 import { internalAction, internalMutation, internalQuery } from './_generated/server';
 import { GUILD_ID } from './commands';
+import { reportCronFailure } from './opsAlerts';
 import { identityStore, pollsStore } from './stores';
 
 /** Debounce: votes in quick succession share one edit. */
@@ -80,23 +82,31 @@ export const post = internalAction({
 /** Edit every post of a poll whose rendered key is out of date. A no-op when nothing changed. */
 export const refresh = internalAction({
   args: { pollId: v.string() },
-  handler: async (ctx, { pollId }) => {
-    const discord = rest();
-    if (!discord) return { skipped: 'DISCORD_BOT_TOKEN is not set' };
-    const now = await ctx.runQuery(internal.pollPosts.card, { pollId });
-    if (!now) return { skipped: 'no such poll' };
-    let edited = 0;
-    for (const p of now.posts) {
-      if (p.renderedKey === now.key) continue;
-      await discord.request('PATCH', `/channels/${p.channelId}/messages/${p.messageId}`, {
-        body: now.message,
-      });
-      await ctx.runMutation(internal.pollPosts.setRenderedKey, {
-        postId: p.id,
-        renderedKey: now.key,
-      });
-      edited++;
-    }
-    return { edited };
-  },
+  handler: async (
+    ctx,
+    { pollId },
+  ): Promise<{ edited: number } | { skipped: string } | { failed: string }> =>
+    runPollRefreshWithAlerts(
+      pollId,
+      async () => {
+        const discord = rest();
+        if (!discord) return { skipped: 'DISCORD_BOT_TOKEN is not set' };
+        const now = await ctx.runQuery(internal.pollPosts.card, { pollId });
+        if (!now) return { skipped: 'no such poll' };
+        let edited = 0;
+        for (const p of now.posts) {
+          if (p.renderedKey === now.key) continue;
+          await discord.request('PATCH', `/channels/${p.channelId}/messages/${p.messageId}`, {
+            body: now.message,
+          });
+          await ctx.runMutation(internal.pollPosts.setRenderedKey, {
+            postId: p.id,
+            renderedKey: now.key,
+          });
+          edited++;
+        }
+        return { edited };
+      },
+      (alert, at) => reportCronFailure(ctx, alert, at),
+    ),
 });

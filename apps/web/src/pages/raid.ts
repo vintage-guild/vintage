@@ -1,9 +1,21 @@
-import { css, FASTElement, html, observable, when } from '@lushly-dev/fast-element';
+import {
+  css,
+  FASTElement,
+  html,
+  observable,
+  repeat,
+  volatile,
+  when,
+} from '@lushly-dev/fast-element';
 import type { Character } from '@vintage/identity/contract';
+import type { LootDrop } from '@vintage/loot/contract';
 import {
   accessOf,
   type CompRole,
+  type RaidAttendance,
   type RaidEvent,
+  type RaidRecord,
+  type RecordBosses,
   rolesNeeded,
   type Signup,
   type SignupGuess,
@@ -33,6 +45,18 @@ export const SIGNUPS_NOTE =
   'Who’s signed up opens to recruits and up. Ask an officer about raiding with us.';
 /** Said in place of the comp below `raider` tier (`comp-suggest` is raider tier). */
 export const COMP_NOTE = 'The comp and its gaps are for raiders and up.';
+
+/** "Bosses: 6/8, 14 wipes, 2h 41m" or "Bosses: 3 killed, 1 wipe, 45m". */
+function bossesSummary(bosses: RecordBosses): string {
+  const killed =
+    bosses.total === null ? `${bosses.killed} killed` : `${bosses.killed}/${bosses.total}`;
+  const wipes = `${bosses.wipes} wipe${bosses.wipes === 1 ? '' : 's'}`;
+  const minutes = Math.round(Math.max(0, bosses.lastEndAt - bosses.firstPullAt) / 60_000);
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  const duration = h ? (m ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
+  return `Bosses: ${killed}, ${wipes}, ${duration}`;
+}
 
 const template = html<Page>`
   <div class="page">
@@ -96,6 +120,66 @@ const template = html<Page>`
         )}
 
         ${when(
+          (x) => !x.missing && x.hasReport,
+          html<Page>`
+            <section class="report" aria-labelledby="report-title">
+              <div class="report-head">
+                <h2 id="report-title">Raid report</h2>
+                ${when(
+                  (x) => x.reportMeta,
+                  html<Page>`<p class="report-meta">${(x) => x.reportMeta}</p>`,
+                )}
+              </div>
+              <div class="report-grid">
+                ${when(
+                  (x) => x.record,
+                  html<Page>`
+                    <div class="report-card">
+                      <span class="eyebrow">Attended · ${(x) => x.attended.length}</span>
+                      ${when(
+                        (x) => x.attended.length === 0,
+                        html`<p class="note">No one recorded.</p>`,
+                      )}
+                      ${when(
+                        (x) => x.attended.length > 0,
+                        html<Page>`<p class="report-names">${(x) => x.attendedLine}</p>`,
+                      )}
+                      ${when(
+                        (x) => x.stoodBy.length > 0,
+                        html<Page>`
+                          <span class="eyebrow sub">Stood by · ${(x) => x.stoodBy.length}</span>
+                          <p class="report-names">${(x) => x.stoodByLine}</p>
+                        `,
+                      )}
+                    </div>
+                  `,
+                )}
+                <div class="report-card">
+                  <span class="eyebrow">Loot · ${(x) => x.drops.length}</span>
+                  ${when((x) => x.drops.length === 0, html`<p class="note">No drops recorded.</p>`)}
+                  ${when(
+                    (x) => x.drops.length > 0,
+                    html<Page>`
+                      <ul class="drops">
+                        ${repeat(
+                          (x) => x.drops,
+                          html<LootDrop>`
+                            <li>
+                              <b>${(d) => d.itemName ?? `Item #${d.itemId}`}</b>${(d) => (d.count > 1 ? ` ×${d.count}` : '')}
+                              <span class="arrow">→</span> ${(d) => d.looter}${(d) => (d.source ? ` (${d.source})` : '')}
+                            </li>
+                          `,
+                        )}
+                      </ul>
+                    `,
+                  )}
+                </div>
+              </div>
+            </section>
+          `,
+        )}
+
+        ${when(
           (x) => !x.missing,
           html<Page>`
             <section class="who" aria-labelledby="who-title">
@@ -151,6 +235,61 @@ const styles = css`
     gap: var(--space-sm);
   }
 
+  .report {
+    display: grid;
+    gap: var(--space-sm);
+  }
+
+  .report-head {
+    display: grid;
+    gap: 0.2rem;
+  }
+
+  .report-meta {
+    margin: 0;
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+  }
+
+  .report-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: var(--space-md);
+  }
+
+  .report-card {
+    display: grid;
+    align-content: start;
+    gap: var(--space-xs);
+    padding: var(--space-md);
+    border: var(--border-width-thin) solid var(--color-border-default);
+    border-radius: 0.5rem;
+    background: var(--color-surface-raised);
+  }
+
+  .report-card .sub {
+    margin-block-start: var(--space-xs);
+  }
+
+  .report-names {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    line-height: 1.5;
+  }
+
+  .drops {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 0.35rem;
+    font-size: var(--font-size-sm);
+  }
+
+  .drops .arrow {
+    color: var(--color-text-secondary);
+  }
+
   /* The roster below shows the counts, so the card keeps to the member's own answer. */
   vintage-signup-card::part(counts) {
     display: none;
@@ -200,6 +339,11 @@ export class Page extends FASTElement {
   /** `raid-get` found no such raid. */
   @observable missing = false;
   @observable error = '';
+  /** Recorded addon export summary (`attendance-list`), when completed and recorded. */
+  @observable record: RaidRecord | null = null;
+  @observable attendance: RaidAttendance[] = [];
+  /** Recorded loot drops (`loot-list`), when completed and recorded. */
+  @observable drops: LootDrop[] = [];
   /** Bumped per read, so an older read that finishes last doesn't overwrite a newer one. */
   private reads = 0;
 
@@ -227,6 +371,47 @@ export class Page extends FASTElement {
     return this.event ? raidFacts(this.event, preferredTimeZone(), this.lockLine) : '';
   }
 
+  @volatile
+  get hasReport(): boolean {
+    return this.record !== null || this.drops.length > 0;
+  }
+
+  @volatile
+  get attended(): RaidAttendance[] {
+    return this.attendance.filter((a) => !a.stoodBy).sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  @volatile
+  get stoodBy(): RaidAttendance[] {
+    return this.attendance
+      .filter((a) => Boolean(a.stoodBy))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  @volatile
+  get attendedLine(): string {
+    const total = this.record?.snapshots ?? 0;
+    return this.attended
+      .map((a) => (total > 0 ? `${a.name} (${a.snapshots}/${total})` : a.name))
+      .join(', ');
+  }
+
+  @volatile
+  get stoodByLine(): string {
+    return this.stoodBy.map((a) => a.name).join(', ');
+  }
+
+  @volatile
+  get reportMeta(): string {
+    const rec = this.record;
+    if (!rec) return '';
+    const parts: string[] = [];
+    if (rec.bosses) parts.push(bossesSummary(rec.bosses));
+    parts.push(`${rec.snapshots} snapshot${rec.snapshots === 1 ? '' : 's'}`);
+    parts.push(`from ${rec.exporter}’s export`);
+    return parts.join(' · ');
+  }
+
   connectedCallback(): void {
     super.connectedCallback();
     if (!this.allowed) return;
@@ -250,12 +435,7 @@ export class Page extends FASTElement {
     if (read !== this.reads) return;
     this.loaded = true;
     if (!got.success || !got.data) {
-      this.missing = got.error?.code === 'RAID_NOT_FOUND' || !eventId;
-      this.error = this.missing
-        ? ''
-        : `Couldn’t read the raid: ${got.error?.message ?? 'no answer'}.`;
-      this.event = null;
-      this.counts = null;
+      this.applyMissing(eventId, got.error);
       return;
     }
     this.missing = false;
@@ -276,6 +456,39 @@ export class Page extends FASTElement {
           this.signups.filter((s) => s.memberId !== this.meId),
         )
       : [];
+    if (got.data.event.status === 'completed') {
+      await this.loadReport(eventId, read);
+    } else {
+      this.clearReport();
+    }
+  }
+
+  private applyMissing(eventId: string, err?: { code?: string; message?: string }): void {
+    this.missing = err?.code === 'RAID_NOT_FOUND' || !eventId;
+    this.error = this.missing ? '' : `Couldn’t read the raid: ${err?.message ?? 'no answer'}.`;
+    this.event = null;
+    this.counts = null;
+    this.clearReport();
+  }
+
+  private clearReport(): void {
+    this.record = null;
+    this.attendance = [];
+    this.drops = [];
+  }
+
+  private async loadReport(eventId: string, read: number): Promise<void> {
+    const client = getCommandClient();
+    const [att, loot] = await Promise.all([
+      client.read<{ record: RaidRecord | null; attendance: RaidAttendance[] }>('attendance-list', {
+        eventId,
+      }),
+      client.read<LootDrop[]>('loot-list', { eventId }),
+    ]);
+    if (read !== this.reads) return;
+    this.record = att.success ? (att.data?.record ?? null) : null;
+    this.attendance = att.success ? (att.data?.attendance ?? []) : [];
+    this.drops = loot.success ? (loot.data ?? []) : [];
   }
 
   async loadCharacters(): Promise<void> {

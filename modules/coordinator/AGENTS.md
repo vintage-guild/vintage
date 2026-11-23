@@ -47,8 +47,11 @@ and posts the final roster and addon import string. Maturity: **core**.
   schedule (`leadDays`, `reminderHours`, `lockHours`); channels, expected ranks, and DMs from
   `coordinator-config-set`.
 - **Non-responders** are members whose rank is in `expectedRanks` and who have no signup.
-- **Failures** are logged as `failed`, reported to the ops channel once, and retried next tick.
-  A member who doesn't accept DMs (Discord 50007) is logged as skipped.
+- **Failures** are logged as `failed`, reported to the ops channel (deduplicated per failure kind
+  per hour via `TickPorts.opsAlert` in `apps/api/convex/opsAlerts.ts`, #262), and retried next
+  tick. Tick-level step failures (`schedule-materialize`, `raid-night`, `source-load`, and post/event
+  edits) are caught and reported to ops too, so a broken schedule does not block tonight's raid
+  from posting or locking. A member who doesn't accept DMs (Discord 50007) is logged as skipped.
 - Raids work goes through raids **commands** with the system caller (`schedule-materialize`,
   `roster-lock`, `raid-create`), never raids tables.
 - **Raid-night polls (#64).** `raid-night-poll` (leader) makes the poll through the

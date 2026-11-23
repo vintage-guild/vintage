@@ -81,6 +81,9 @@ type Logged = Exclude<PlannedAction, Unlogged>;
 /** Discord 50013: the bot lacks a permission. For server events that is CREATE_EVENTS. */
 const MISSING_PERMISSIONS = 50013;
 
+/** Card options shared across post, refresh, and party draft renders. */
+const cardOptions = (ports: TickPorts) => ({ siteUrl: ports.links?.siteUrl ?? null });
+
 /** The server event a raid should have, linking to its signup post. */
 function serverEventFor(tick: TickEvent, post: CoordinatorAction, ports: TickPorts) {
   return renderServerEvent(
@@ -130,7 +133,7 @@ async function perform(
     ({ status: 'sent', messageId: (await ports.discord.post(action.target, message)).id }) as const;
   switch (action.kind) {
     case 'post': {
-      const message = renderSignupPost(tick, state.members);
+      const message = renderSignupPost(tick, state.members, cardOptions(ports));
       const sent = await send(message);
       if (previousMessageId) {
         // A repost: clear the old card so the channel has one live post per raid.
@@ -185,7 +188,7 @@ async function perform(
       return sent;
     }
     case 'party-draft': {
-      const message = renderPartyDraft(tick, state.members);
+      const message = renderPartyDraft(tick, state.members, cardOptions(ports));
       return { ...(await send(message)), renderHash: hashMessage(message) };
     }
     case 'party-post': {
@@ -229,7 +232,13 @@ function refresh(
   ports: TickPorts,
 ): Promise<TickOutcome> {
   const { tick, post } = action;
-  return editPost('refresh', post, renderSignupPost(tick, state.members), state, ports);
+  return editPost(
+    'refresh',
+    post,
+    renderSignupPost(tick, state.members, cardOptions(ports)),
+    state,
+    ports,
+  );
 }
 
 /** Edit a raid's summary when a different export replaced its record. */
@@ -477,10 +486,10 @@ export async function runTick(ports: TickPorts, guildId: string, now: number): P
   const plan = planTick(
     state,
     now,
-    (tick) => hashMessage(renderSignupPost(tick, state.members)),
+    (tick) => hashMessage(renderSignupPost(tick, state.members, cardOptions(ports))),
     (tick, post) => hashServerEvent(serverEventFor(tick, post, ports)),
     (recorded) => hashMessage(renderRaidSummary(recorded)),
-    (tick) => hashMessage(renderPartyDraft(tick, state.members)),
+    (tick) => hashMessage(renderPartyDraft(tick, state.members, cardOptions(ports))),
     (tick, locked) => hashMessage(renderPartyPost(tick, state.members, { locked })),
   );
   const outcomes: TickOutcome[] = [...settled];
@@ -509,7 +518,7 @@ function runPlannedAction(
       return editPost(
         'party-draft-update',
         action.draft,
-        renderPartyDraft(action.tick, state.members),
+        renderPartyDraft(action.tick, state.members, cardOptions(ports)),
         state,
         ports,
       );

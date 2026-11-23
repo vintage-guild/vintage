@@ -552,4 +552,28 @@ describe('runTick', () => {
     const notices = discord.sent.filter((m) => m.message.content?.includes('a spot opened up'));
     expect(notices).toHaveLength(0);
   });
+
+  it('passes siteUrl to signup posts and party drafts for Raid page and quarters buttons (#320)', async () => {
+    ports = {
+      ...ports,
+      links: { discordGuildId: '600000000000000001', siteUrl: 'https://vintageguild.gg/' },
+    };
+    await tick(START - 100 * HOUR);
+    await tick(START - 99 * HOUR); // repeat tick: render hash matches, no spurious edit
+    expect(discord.sent.filter((s) => s.kind === 'edit')).toHaveLength(0);
+    const post = discord.sent.find((s) => s.kind === 'post' && s.to === SIGNUPS)!;
+    expect(JSON.stringify(post.message.components)).toContain(
+      'https://vintageguild.gg/raids/raid-1',
+    );
+    expect(buttonLabels(post.message)).toContain('Raid page');
+
+    await tick(START - 24 * HOUR);
+    const draft = discord.sent.find(
+      (s) => s.to === OPS && s.message.embeds?.[0]?.title?.startsWith('Party draft'),
+    )!;
+    expect(JSON.stringify(draft.message.components)).toContain(
+      'https://vintageguild.gg/officers/roster',
+    );
+    expect(buttonLabels(draft.message)).toContain('Edit in the quarters');
+  });
 });

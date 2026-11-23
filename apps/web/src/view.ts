@@ -62,7 +62,18 @@ export function sectionsFor(session: Session | null): Set<HomeSection> {
   );
 }
 
-/** Whether the session's tier can answer signups (`signup-set` is recruit tier). */
-export function canSignUp(session: Session | null): boolean {
-  return ['recruit', 'raider', 'leader', 'officer'].includes(session?.tier ?? '');
+/** Whether the session's tier can view raid pages (`raid-get` is friend tier; guild raids still filter). */
+export function canViewRaids(session: Session | null): boolean {
+  const raw = session?.tier ?? '';
+  return (TIERS as readonly string[]).includes(raw) && tierAllows(raw as Tier, 'friend');
+}
+
+/**
+ * Whether the session's tier can answer signups: `recruit`+ for guild raids (default),
+ * `friend`+ for open raids (`signup-set`, signup-improvements row 23).
+ */
+export function canSignUp(session: Session | null, access: 'guild' | 'open' = 'guild'): boolean {
+  const raw = session?.tier ?? '';
+  if (!(TIERS as readonly string[]).includes(raw)) return false;
+  return tierAllows(raw as Tier, access === 'open' ? 'friend' : 'recruit');
 }

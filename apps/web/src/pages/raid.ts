@@ -1,6 +1,7 @@
 import { css, FASTElement, html, observable, when } from '@lushly-dev/fast-element';
 import type { Character } from '@vintage/identity/contract';
 import {
+  accessOf,
   type CompRole,
   type RaidEvent,
   rolesNeeded,
@@ -24,7 +25,7 @@ import {
 } from '../raids';
 import { lockLabel } from '../schedules';
 import { canSignIn, currentSession } from '../session';
-import { canSignUp, currentView } from '../view';
+import { canSignUp, canViewRaids, currentView } from '../view';
 import { pageStyles } from './page-styles';
 
 /** Said in place of the signups for `member` tier (`signup-list` is recruit tier). */
@@ -176,10 +177,8 @@ const styles = css`
  */
 export class Page extends FASTElement {
   readonly view = currentView();
-  /** Members and up: visitors get the sign-in card. */
-  readonly allowed = this.view !== 'visitor';
-  /** Whether this member may answer (`signup-set` is recruit tier). */
-  readonly signUpAllowed = canSignUp(currentSession());
+  /** Signed-in Friends and up: visitors get the sign-in card; guild raids return not-found to Friends. */
+  readonly allowed = canViewRaids(currentSession());
   readonly meId = currentSession()?.memberId ?? '';
   @observable eventId = raidIdFromPath(location.pathname);
   @observable event: RaidEvent | null = null;
@@ -204,6 +203,11 @@ export class Page extends FASTElement {
   /** Bumped per read, so an older read that finishes last doesn't overwrite a newer one. */
   private reads = 0;
 
+  /** Whether this session may answer this raid (`friend`+ for open raids, `recruit`+ for guild raids). */
+  get signUpAllowed(): boolean {
+    return canSignUp(currentSession(), this.event ? accessOf(this.event) : 'guild');
+  }
+
   get main(): Character | null {
     return this.characters.find((c) => c.isMain) ?? this.characters[0] ?? null;
   }
@@ -227,7 +231,7 @@ export class Page extends FASTElement {
     super.connectedCallback();
     if (!this.allowed) return;
     void this.load();
-    if (this.signUpAllowed) void this.loadCharacters();
+    if (canSignUp(currentSession(), 'open')) void this.loadCharacters();
   }
 
   /** The raid, its signups, the comp, and the member's likely character, read together. */
@@ -239,7 +243,7 @@ export class Page extends FASTElement {
       client.read<RaidGet>('raid-get', { eventId }),
       client.read<SignupRow[]>('signup-list', { eventId }),
       client.read<CompSuggest>('comp-suggest', { eventId }),
-      this.signUpAllowed
+      canSignUp(currentSession(), 'open')
         ? client.read<SignupGuess | null>('signup-suggest', { eventId })
         : Promise.resolve(null),
     ]);

@@ -162,10 +162,21 @@ describe('discord-absences (/vintage absence, Mark absent, autocomplete)', () =>
       run: async (_caller, name, input) => {
         ran.push({ name, input });
         if (name === 'absence-add') {
-          return success({ absence: DATE_ABSENCE, stillSignedUp: [EVENT] });
+          return success({
+            absence: DATE_ABSENCE,
+            stillSignedUp: [
+              {
+                eventId: EVENT.id,
+                name: EVENT.name,
+                startsAt: EVENT.startsAt,
+                status: 'accepted',
+                coverage: 'away',
+              },
+            ],
+          });
         }
-        if (name === 'absence-list') return success([DATE_ABSENCE, WEEKLY_LATE]);
-        if (name === 'absence-remove') return success(DATE_ABSENCE);
+        if (name === 'absence-list') return success({ absences: [DATE_ABSENCE, WEEKLY_LATE] });
+        if (name === 'absence-remove') return success({ removed: DATE_ABSENCE });
         return success({});
       },
       afterChange: async () => {},
@@ -189,6 +200,115 @@ describe('discord-absences (/vintage absence, Mark absent, autocomplete)', () =>
     });
     expect(replyText(res)).toContain("You're absent Dec 3 to Dec 7.");
     expect(replyText(res)).toContain('still signed up for Raid night');
+    expect(JSON.stringify(res)).toContain(`absence-mark:absent:${EVENT.id}`);
+  });
+
+  it('lists and removes absences from wrapped command responses (#321)', async () => {
+    const { ports } = makePorts();
+    const listed = await handleAbsenceInteraction(slash('list', []), ports);
+    expect(replyText(listed)).toContain('Dec 3 to Dec 7 · work trip');
+    expect(replyText(listed)).toContain('15m late Thursdays');
+
+    const removed = await handleAbsenceInteraction(
+      slash('remove', [{ name: 'absence', value: 'abs_1' }]),
+      ports,
+    );
+    expect(replyText(removed)).toBe('Removed Dec 3 to Dec 7.');
+  });
+
+  it('splits Mark absent and Mark late buttons when a weekly rule mixes away and late nights (#321)', async () => {
+    const { ports } = makePorts();
+    ports.run = async (_caller, name) => {
+      if (name === 'absence-weekly-set') {
+        return success({
+          absence: {
+            ...WEEKLY_LATE,
+            nights: [
+              { day: 'wed', type: 'away', lateMinutes: null },
+              { day: 'thu', type: 'late', lateMinutes: 15 },
+            ],
+          },
+          stillSignedUp: [
+            {
+              eventId: 'evt_wed',
+              name: 'Wed MC',
+              startsAt: EVENT.startsAt - 86_400_000,
+              status: 'accepted',
+              coverage: 'away',
+            },
+            {
+              eventId: 'evt_thu',
+              name: 'Thu BWL',
+              startsAt: EVENT.startsAt,
+              status: 'accepted',
+              coverage: { type: 'late', lateMinutes: 15 },
+            },
+          ],
+        });
+      }
+      return success({});
+    };
+    const submit: Interaction = {
+      id: 'i_wk',
+      application_id: 'app1',
+      token: 'tok1',
+      type: InteractionType.MODAL_SUBMIT,
+      guild_id: 'dg1',
+      member: { user: { id: RAIDER.discordId, username: 'Cade' }, roles: [] },
+      data: {
+        custom_id: 'absence-weekly-modal',
+        components: [
+          {
+            type: 1,
+            components: [{ type: 4, custom_id: 'absent_days', value: 'wed' }],
+          },
+          {
+            type: 1,
+            components: [{ type: 4, custom_id: 'late_days', value: 'thu' }],
+          },
+          {
+            type: 1,
+            components: [{ type: 4, custom_id: 'late_minutes', value: '15' }],
+          },
+          {
+            type: 1,
+            components: [{ type: 4, custom_id: 'reason', value: '' }],
+          },
+        ],
+      },
+    };
+    const res = await handleAbsenceInteraction(submit, ports);
+    const json = JSON.stringify(res);
+    expect(json).toContain('absence-mark:absent:evt_wed');
+    expect(json).toContain('absence-mark:late-15:evt_thu');
+    expect(json).not.toContain('absence-mark:absent:evt_wed,evt_thu');
+  });
+
+  it('keeps Mark absent button custom_id within 100 chars and labels honestly when truncated (#321)', async () => {
+    const { ports } = makePorts();
+    const longIds = ['a'.repeat(32), 'b'.repeat(32), 'c'.repeat(32)];
+    ports.run = async () =>
+      success({
+        absence: DATE_ABSENCE,
+        stillSignedUp: longIds.map((eventId, i) => ({
+          eventId,
+          name: `Raid ${i + 1}`,
+          startsAt: EVENT.startsAt + i * 86_400_000,
+          status: 'accepted',
+          coverage: 'away',
+        })),
+      });
+    const res = await handleAbsenceInteraction(
+      slash('add', [{ name: 'from', value: '2026-12-03' }]),
+      ports,
+    );
+    const rows = (
+      res as { data?: { components?: { components?: { custom_id?: string; label?: string }[] }[] } }
+    )?.data?.components;
+    const btn = rows?.[0]?.components?.[0];
+    expect(btn?.custom_id?.length).toBeLessThanOrEqual(100);
+    expect(btn?.custom_id).toBe(`absence-mark:absent:${longIds[0]},${longIds[1]}`);
+    expect(btn?.label).toBe('Mark 2 of 3 absent');
   });
 
   it('refuses a raider using member: on /vintage absence add (J54)', async () => {

@@ -147,6 +147,10 @@ export {
 export { VintageThemeSwitch } from './elements/theme-switch';
 export {
   type TonightExportCheck,
+  type TonightExportKill,
+  type TonightExportRecorded,
+  type TonightExportRecordPreview,
+  type TonightLedgerKill,
   type TonightRaid,
   type TonightRecentRaid,
   type TonightSignup,

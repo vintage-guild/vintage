@@ -39,10 +39,11 @@ import {
   renderImportString,
   renderPromotion,
   renderReminder,
+  renderStepFailure,
 } from './domain/render';
 import { hashServerEvent, renderServerEvent, signupLink } from './domain/server-event';
 import { renderRaidSummary } from './domain/summary';
-import type { TickEvent, TickPorts, TickState } from './store';
+import type { TickEvent, TickFailure, TickPorts, TickState } from './store';
 
 /** A claim older than this is treated as abandoned (the tick that took it crashed). */
 export const CLAIM_STALE_MS = 10 * 60 * 1000;
@@ -230,14 +231,17 @@ function refresh(
   action: Extract<PlannedAction, { kind: 'refresh' }>,
   state: TickState,
   ports: TickPorts,
+  now: number,
 ): Promise<TickOutcome> {
   const { tick, post } = action;
   return editPost(
     'refresh',
+    tick,
     post,
     renderSignupPost(tick, state.members, cardOptions(ports)),
     state,
     ports,
+    now,
   );
 }
 
@@ -246,13 +250,16 @@ function updateSummary(
   action: Extract<PlannedAction, { kind: 'summary-update' }>,
   state: TickState,
   ports: TickPorts,
+  now: number,
 ): Promise<TickOutcome> {
   return editPost(
     'summary-update',
+    action.tick,
     action.summary,
     renderRaidSummary(action.recorded),
     state,
     ports,
+    now,
   );
 }
 
@@ -262,10 +269,12 @@ function updateSummary(
  */
 async function editPost(
   rule: string,
+  tick: TickEvent,
   post: CoordinatorAction,
   message: MessageData,
   state: TickState,
   ports: TickPorts,
+  now: number,
 ): Promise<TickOutcome> {
   const base = { eventId: post.eventId, rule, target: post.target };
   if (!post.discordMessageId)
@@ -281,11 +290,26 @@ async function editPost(
         state.guildId,
         post.id,
         { status: 'failed', detail: 'the post was deleted in Discord; reposting' },
-        Date.now(),
+        now,
       );
       return { ...base, status: 'failed', detail: 'post deleted; it will be reposted' };
     }
-    return { ...base, status: 'failed', detail: describe(err) };
+    const detail = describe(err);
+    if (post.target !== state.config.opsChannelId) {
+      await reportTickFailure(
+        state.config,
+        ports,
+        {
+          key: `coordinator:${rule}:${post.eventId}`,
+          step: rule,
+          subject: tick.event.name,
+          error: detail,
+          message: renderFailure(tick, rule, detail),
+        },
+        now,
+      );
+    }
+    return { ...base, status: 'failed', detail };
   }
 }
 
@@ -294,6 +318,7 @@ async function updateServerEvent(
   action: Extract<PlannedAction, { kind: 'server-event-update' }>,
   state: TickState,
   ports: TickPorts,
+  now: number,
 ): Promise<TickOutcome> {
   const { tick, serverEvent, post } = action;
   const base = { eventId: tick.event.id, rule: 'server-event-update', target: serverEvent.target };
@@ -312,36 +337,50 @@ async function updateServerEvent(
         state.guildId,
         serverEvent.id,
         { status: 'failed', detail: 'the server event was deleted in Discord; recreating' },
-        Date.now(),
+        now,
       );
       return { ...base, status: 'failed', detail: 'server event deleted; it will be recreated' };
     }
-    return { ...base, status: 'failed', detail: describe(err) };
+    const detail = describe(err);
+    await reportTickFailure(
+      state.config,
+      ports,
+      {
+        key: `coordinator:server-event-update:${tick.event.id}`,
+        step: 'server-event-update',
+        subject: tick.event.name,
+        error: detail,
+        message: renderFailure(tick, 'server-event-update', detail),
+      },
+      now,
+    );
+    return { ...base, status: 'failed', detail };
   }
 }
 
 const describe = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
-async function reportFailure(
-  state: TickState,
+async function reportTickFailure(
+  config: CoordinatorConfig,
   ports: TickPorts,
-  action: PlannedAction,
-  error: string,
+  failure: TickFailure,
+  now: number,
 ) {
-  const ops = state.config.opsChannelId;
-  if (
-    !ops ||
-    action.kind === 'refresh' ||
-    action.kind === 'server-event-update' ||
-    action.kind === 'summary-update' ||
-    action.kind === 'party-draft-update' ||
-    action.kind === 'party-post-update' ||
-    action.target === ops
-  ) {
+  if (ports.opsAlert) {
+    try {
+      await ports.opsAlert.report(failure, now);
+    } catch {
+      // Never let error reporting abort the tick.
+    }
     return;
   }
+  const ops = config.opsChannelId;
+  if (!ops) return;
   try {
-    await ports.discord.post(ops, renderFailure(action.tick, action.rule, error));
+    await ports.discord.post(
+      ops,
+      failure.message ?? renderStepFailure(failure.step, failure.error, failure.subject),
+    );
   } catch {
     // The ops channel itself is failing; the action log still records the failure.
   }
@@ -375,8 +414,21 @@ async function execute(
   } catch (err) {
     const detail = describe(err);
     await ports.store.completeAction(guildId, claimed.action.id, { status: 'failed', detail }, now);
-    // Report the first failure only; retries on later ticks stay quiet.
-    if (!claimed.retry) await reportFailure(state, ports, action, detail);
+    // With opsAlert, hourly deduplication decides when to re-report; without it, report the first failure only.
+    if (action.target !== state.config.opsChannelId && (ports.opsAlert || !claimed.retry)) {
+      await reportTickFailure(
+        state.config,
+        ports,
+        {
+          key: `coordinator:${action.rule}:${action.tick.event.id}`,
+          step: action.rule,
+          subject: action.tick.event.name,
+          error: detail,
+          message: renderFailure(action.tick, action.rule, detail),
+        },
+        now,
+      );
+    }
     return { ...key, status: 'failed', detail };
   }
 }
@@ -468,6 +520,19 @@ async function resolveRaidNights(
         { status: 'failed', detail },
         now,
       );
+      if (ports.opsAlert || !claimed.retry) {
+        await reportTickFailure(
+          config,
+          ports,
+          {
+            key: `coordinator:raid-night:${night.pollId}`,
+            step: 'raid-night',
+            subject: `**${night.name}**`,
+            error: detail,
+          },
+          now,
+        );
+      }
       outcomes.push({ ...key, status: 'failed', detail });
     }
   }
@@ -479,10 +544,64 @@ export async function runTick(ports: TickPorts, guildId: string, now: number): P
   if (config.paused) return { skipped: 'paused', outcomes: [] };
   if (!config.signupChannelId) return { skipped: 'no signup channel configured', outcomes: [] };
 
+  const outcomes: TickOutcome[] = [];
   // Raid nights first, so a raid made from a poll gets its signup post in this same tick.
-  const settled = await resolveRaidNights(ports, config, now);
-  await ports.raids.materialize(guildId);
-  const state = await ports.source.load(guildId, now);
+  try {
+    outcomes.push(...(await resolveRaidNights(ports, config, now)));
+  } catch (err) {
+    const detail = describe(err);
+    outcomes.push({
+      eventId: 'raid-nights',
+      rule: 'raid-night',
+      target: guildId,
+      status: 'failed',
+      detail,
+    });
+    await reportTickFailure(
+      config,
+      ports,
+      { key: 'coordinator:raid-nights', step: 'raid-night', error: detail },
+      now,
+    );
+  }
+  try {
+    await ports.raids.materialize(guildId);
+  } catch (err) {
+    const detail = describe(err);
+    outcomes.push({
+      eventId: 'materialize',
+      rule: 'schedule-materialize',
+      target: guildId,
+      status: 'failed',
+      detail,
+    });
+    await reportTickFailure(
+      config,
+      ports,
+      { key: 'coordinator:schedule-materialize', step: 'schedule-materialize', error: detail },
+      now,
+    );
+  }
+  let state: TickState;
+  try {
+    state = await ports.source.load(guildId, now);
+  } catch (err) {
+    const detail = describe(err);
+    outcomes.push({
+      eventId: 'tick',
+      rule: 'source-load',
+      target: guildId,
+      status: 'failed',
+      detail,
+    });
+    await reportTickFailure(
+      config,
+      ports,
+      { key: 'coordinator:source-load', step: 'source-load', error: detail },
+      now,
+    );
+    return { outcomes };
+  }
   const plan = planTick(
     state,
     now,
@@ -492,7 +611,6 @@ export async function runTick(ports: TickPorts, guildId: string, now: number): P
     (tick) => hashMessage(renderPartyDraft(tick, state.members, cardOptions(ports))),
     (tick, locked) => hashMessage(renderPartyPost(tick, state.members, { locked })),
   );
-  const outcomes: TickOutcome[] = [...settled];
   // In order: a raid's post goes out before its reminders, the lock before the final roster.
   for (const action of plan) {
     outcomes.push(await runPlannedAction(action, state, ports, now));
@@ -509,26 +627,30 @@ function runPlannedAction(
 ): Promise<TickOutcome> {
   switch (action.kind) {
     case 'refresh':
-      return refresh(action, state, ports);
+      return refresh(action, state, ports, now);
     case 'server-event-update':
-      return updateServerEvent(action, state, ports);
+      return updateServerEvent(action, state, ports, now);
     case 'summary-update':
-      return updateSummary(action, state, ports);
+      return updateSummary(action, state, ports, now);
     case 'party-draft-update':
       return editPost(
         'party-draft-update',
+        action.tick,
         action.draft,
         renderPartyDraft(action.tick, state.members, cardOptions(ports)),
         state,
         ports,
+        now,
       );
     case 'party-post-update':
       return editPost(
         'party-post-update',
+        action.tick,
         action.partyPost,
         renderPartyPost(action.tick, state.members, { locked: action.locked }),
         state,
         ports,
+        now,
       );
     default:
       return execute(action, state, ports, now);

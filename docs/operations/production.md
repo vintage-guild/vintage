@@ -66,9 +66,14 @@ scheduled backups) is still open (PLAN.md §8, Phase 0).
 
 ## Watching it
 
-- **Convex:** dashboard → Logs for function errors, Schedules for cron runs. Cron failures
-  (coordinator tick, poll sweep, role sync) only throw into these logs today; nobody is notified.
-  Routing them to the ops channel is still to do (PLAN.md Phase 1, coordinator).
+- **Convex:** dashboard → Logs for function errors, Schedules for cron runs.
+- **Ops channel (`#vintage-ops`):** cron failures in the coordinator tick (including
+  `schedule-materialize`, `raid-night` / `raid-create`, `roster-lock`, post/reminder/DM/summary
+  delivery, and edits), poll sweep (and poll post refresh), and role sync (including partial
+  member-sync failures) are caught and posted to the coordinator's `opsChannelId`, deduplicated
+  to at most once per failure kind per hour (`apps/api/convex/opsAlerts.ts`, #262). The full
+  error still prints to Convex Logs. Set `opsChannelId` via `coordinator-config-set` (or the
+  Random tab in `/officers`).
 - **Vercel:** each project's Logs for the gateway's interaction errors and 401s.
 - **Discord:** Random answers in the test server. A slash command that times out usually means
   the gateway can't reach Convex: check `VINTAGE_CONVEX_SITE_URL` and `VINTAGE_GATEWAY_SECRET`.

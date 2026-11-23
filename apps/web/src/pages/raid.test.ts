@@ -323,4 +323,181 @@ describe('/raids/<id> without fixtures', () => {
     await older;
     expect(page.event?.name).toBe('new');
   });
+
+  it('shows recorded attendance, standby, bosses, and loot on a completed raid (#29)', async () => {
+    const completedEvent = {
+      id: 'r_done',
+      name: 'Barrow Deeps',
+      instance: 'Barrow Deeps',
+      kind: 'raid',
+      access: 'guild',
+      size: 10,
+      status: 'completed',
+      startsAt: Date.UTC(2026, 10, 5, 1),
+    };
+    const counts = { accepted: 2, late: 0, tentative: 0, bench: 1, declined: 0 };
+    restore = setCommandClient({
+      read: (async (name: string) => {
+        if (name === 'raid-get')
+          return { success: true, data: { event: completedEvent, counts, mine: null } };
+        if (name === 'signup-list') return { success: true, data: [] };
+        if (name === 'comp-suggest')
+          return { success: false, error: { code: 'COMMAND_NOT_FOUND', message: 'no' } };
+        if (name === 'attendance-list') {
+          return {
+            success: true,
+            data: {
+              eventId: 'r_done',
+              record: {
+                id: 'rec1',
+                guildId: 'g',
+                eventId: 'r_done',
+                exportKey: 'k1',
+                exporter: 'Aeryn',
+                exportedAt: Date.UTC(2026, 10, 5, 4),
+                addonVersion: '0.1.0',
+                snapshots: 3,
+                attended: 3,
+                drops: 1,
+                recordedAt: Date.UTC(2026, 10, 5, 4),
+                recordedBy: 'm1',
+                bosses: {
+                  killed: 2,
+                  total: 8,
+                  wipes: 3,
+                  firstPullAt: Date.UTC(2026, 10, 5, 1, 0),
+                  lastEndAt: Date.UTC(2026, 10, 5, 2, 24),
+                },
+              },
+              attendance: [
+                {
+                  id: 'a1',
+                  guildId: 'g',
+                  eventId: 'r_done',
+                  name: 'Aeryn',
+                  class: 'warrior',
+                  characterId: 'c1',
+                  memberId: 'm1',
+                  snapshots: 3,
+                  labels: ['start', 'Chillhowl', 'end'],
+                  firstSeenAt: 1,
+                  lastSeenAt: 3,
+                },
+                {
+                  id: 'a2',
+                  guildId: 'g',
+                  eventId: 'r_done',
+                  name: 'Bram',
+                  class: 'priest',
+                  characterId: 'c2',
+                  memberId: 'm2',
+                  snapshots: 0,
+                  labels: [],
+                  firstSeenAt: 1,
+                  lastSeenAt: 1,
+                  stoodBy: true,
+                },
+              ],
+            },
+          };
+        }
+        if (name === 'loot-list') {
+          return {
+            success: true,
+            data: [
+              {
+                id: 'd1',
+                guildId: 'g',
+                eventId: 'r_done',
+                itemId: 17011,
+                itemName: 'Arcanist Boots',
+                count: 1,
+                looter: 'Aeryn',
+                characterId: 'c1',
+                memberId: 'm1',
+                at: 2,
+                source: 'Chillhowl',
+                lootMethodId: null,
+                recordedAt: 4,
+              },
+            ],
+          };
+        }
+        return { success: false, error: { code: 'COMMAND_NOT_FOUND', message: 'no' } };
+      }) as never,
+      run: async () => ({ success: true }),
+    });
+    setSession({ memberId: 'm1', displayName: 'Aeryn', tier: 'raider', rank: 'raider' });
+    history.replaceState(null, '', '/raids/r_done');
+    await import('./raid');
+    document.body.innerHTML = '<vintage-raid-page></vintage-raid-page>';
+    const page = document.querySelector('vintage-raid-page') as Page;
+    await until(() => page.loaded && page.hasReport);
+
+    const reportText = page.shadowRoot!.querySelector('.report')!.textContent!.replace(/\s+/g, ' ');
+    expect(reportText).toContain('Raid report');
+    expect(reportText).toContain('Bosses: 2/8, 3 wipes, 1h 24m');
+    expect(reportText).toContain('3 snapshots · from Aeryn’s export');
+    expect(reportText).toContain('Attended · 1');
+    expect(reportText).toContain('Aeryn (3/3)');
+    expect(reportText).toContain('Stood by · 1');
+    expect(reportText).toContain('Bram');
+    expect(reportText).toContain('Loot · 1');
+    expect(reportText).toContain('Arcanist Boots → Aeryn (Chillhowl)');
+  });
+
+  it('shows recorded loot to a member when attendance-list is unavailable', async () => {
+    const completedEvent = {
+      id: 'r_done',
+      name: 'Barrow Deeps',
+      instance: 'Barrow Deeps',
+      kind: 'raid',
+      access: 'guild',
+      size: 10,
+      status: 'completed',
+      startsAt: Date.UTC(2026, 10, 5, 1),
+    };
+    const counts = { accepted: 2, late: 0, tentative: 0, bench: 0, declined: 0 };
+    restore = setCommandClient({
+      read: (async (name: string) => {
+        if (name === 'raid-get')
+          return { success: true, data: { event: completedEvent, counts, mine: null } };
+        if (name === 'loot-list') {
+          return {
+            success: true,
+            data: [
+              {
+                id: 'd1',
+                guildId: 'g',
+                eventId: 'r_done',
+                itemId: 17011,
+                itemName: 'Lava Core',
+                count: 2,
+                looter: 'Doran',
+                characterId: null,
+                memberId: null,
+                at: 2,
+                source: null,
+                lootMethodId: null,
+                recordedAt: 4,
+              },
+            ],
+          };
+        }
+        return { success: false, error: { code: 'COMMAND_NOT_FOUND', message: 'no' } };
+      }) as never,
+      run: async () => ({ success: true }),
+    });
+    setSession({ memberId: 'm9', displayName: 'Gwendolyn', tier: 'member', rank: 'member' });
+    history.replaceState(null, '', '/raids/r_done');
+    await import('./raid');
+    document.body.innerHTML = '<vintage-raid-page></vintage-raid-page>';
+    const page = document.querySelector('vintage-raid-page') as Page;
+    await until(() => page.loaded && page.hasReport);
+
+    const reportText = page.shadowRoot!.querySelector('.report')!.textContent!.replace(/\s+/g, ' ');
+    expect(reportText).not.toContain('Attended');
+    expect(reportText).toContain('Loot · 1');
+    expect(reportText).toContain('Lava Core ×2 → Doran');
+  });
 });

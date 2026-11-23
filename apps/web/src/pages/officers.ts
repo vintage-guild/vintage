@@ -369,6 +369,7 @@ const template = html<Page>`
           html<Page>`
             <vintage-tonight
               time-zone="${() => preferredTimeZone() ?? ''}"
+              ?can-record="${(x) => x.canEditRecruiting}"
               :raid="${(x) => x.raid}"
               :signups="${(x) => x.signups}"
               :gaps="${(x) => x.gaps}"
@@ -640,9 +641,9 @@ export class Page extends FASTElement {
    */
   readonly canLead = tierAllows((currentSession()?.tier ?? 'public') as Tier, 'leader');
   /**
-   * `recruiting-set`, `guild-profile-set`, `coordinator-config-set`, and `guild-roles-set` are
-   * officer tier; raid leaders read the band, the profile, Random's settings, and the role map
-   * here but can't save them.
+   * `recruiting-set`, `guild-profile-set`, `coordinator-config-set`, `guild-roles-set`, and
+   * `raid-export-record` are officer tier; raid leaders read the band, the profile, Random's
+   * settings, and the role map, and can check exports here, but can't save or record them.
    */
   readonly canEditRecruiting = tierAllows((currentSession()?.tier ?? 'public') as Tier, 'officer');
 

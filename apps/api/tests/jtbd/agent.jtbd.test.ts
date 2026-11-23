@@ -361,5 +361,34 @@ describe('Raid insights', () => {
     expect((await host.run(officer, 'insights-send', { runId: imported.runId })).error?.code).toBe(
       'ALREADY_SENT',
     );
+
+    // An officer can remove a wrong import before sending; already-sent runs refuse unless allowSent.
+    const wrong = await host.ok<{ runId: string; imported: boolean }>(aeryn, 'run-import', {
+      upload: { ...upload, run: { ...upload.run, run_key: 'wrong-upload:1' } },
+    });
+    expect(wrong.imported).toBe(true);
+    const delPreview = await host.preview<{
+      willDelete: { id: string; runKey: string };
+      alreadySent: boolean;
+      warning: string | null;
+    }>(officer, 'run-delete', { runId: wrong.runId });
+    expect(delPreview.willDelete).toMatchObject({ id: wrong.runId, runKey: 'wrong-upload:1' });
+    expect(delPreview.alreadySent).toBe(false);
+    expect(delPreview.warning).toBeNull();
+    await host.ok(officer, 'run-delete', { runId: wrong.runId });
+    expect((await host.run(officer, 'insights-get', { runId: wrong.runId })).error?.code).toBe(
+      'RUN_NOT_FOUND',
+    );
+    // The freed run_key can be re-imported, while the already-sent run refuses default delete.
+    expect(
+      (
+        await host.ok<{ imported: boolean }>(aeryn, 'run-import', {
+          upload: { ...upload, run: { ...upload.run, run_key: 'wrong-upload:1' } },
+        })
+      ).imported,
+    ).toBe(true);
+    expect((await host.run(officer, 'run-delete', { runId: imported.runId })).error?.code).toBe(
+      'ALREADY_SENT',
+    );
   });
 });

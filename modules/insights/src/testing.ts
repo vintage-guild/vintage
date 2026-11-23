@@ -43,6 +43,20 @@ export function createMemoryInsightsStore(): InsightsStore & {
       runs.set(runId, saved);
       return clone(saved);
     },
+    async deleteRun(guildId, runId) {
+      const found = runs.get(runId);
+      if (!found || found.guildId !== guildId) return null;
+      runs.delete(runId);
+      let deletedFindings = 0;
+      for (let i = findings.length - 1; i >= 0; i--) {
+        const f = findings[i];
+        if (f && f.guildId === guildId && f.runId === runId) {
+          findings.splice(i, 1);
+          deletedFindings++;
+        }
+      }
+      return { run: clone(found), deletedFindings };
+    },
     async insertFindings(list) {
       for (const f of list) findings.push({ ...clone(f), id: `finding-${nextFinding++}` });
     },

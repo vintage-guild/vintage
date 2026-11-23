@@ -306,8 +306,9 @@ keep who attended and what dropped, under the raid's loot method, and close the 
   shows Arcanist Boots → Bramble and Lava Core ×2 → Doran-Stonemaul; `raid-get` says completed.
 - [ ] Recording the same string again changes nothing and says it's already recorded. A different
   export for the raid replaces the first after its own preview.
-- The website button comes later (#29); until then, run it over `/mcp` or
-  `npx convex run commands:runAsSystem`. The summary post is J47.
+- On the website, officers see **Record export** beside **Check export** in the quarters' Tonight
+  tab (preview, then confirm), and `/raids/<id>` shows the recorded attendance, standby credit,
+  and loot once completed. The summary post is J47.
 
 ### J47 · The night's first kills land on the ledger, and Random posts the raid summary
 **When** an officer records an export that carries boss attempts (#221), **I (raider) want** the

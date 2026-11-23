@@ -79,6 +79,54 @@ export interface TonightExportCheck {
   unknownNames: string[];
   absent: { characterId: string; characterName: string; status: string }[];
   declinedButSeen?: string[];
+  standby?: { characterId: string; name: string; reason: string }[];
+  bosses?: { name: string; attempts: number; kills: number; wipes: number }[];
+  warnings?: { code: string; message: string }[];
+}
+
+/** A boss kill matched (or not) to the progress ledger in a `raid-export-record` preview. */
+export interface TonightExportKill {
+  name: string;
+  raidId: string | null;
+  bossId: string | null;
+}
+
+/** What `raid-export-record` did with one boss kill on the progress ledger. */
+export interface TonightLedgerKill extends TonightExportKill {
+  outcome: 'first' | 'again' | 'duplicate' | 'unmatched' | 'refused';
+  detail: string | null;
+}
+
+/** The dryRun preview `raid-export-record` returns before confirmation. */
+export interface TonightExportRecordPreview {
+  event: { id: string; name: string; startsAt: number; status: string };
+  unchanged: boolean;
+  replaces?: { exporter: string; exportedAt: number; attended: number; drops: number } | null;
+  completes?: boolean;
+  attendance?: { name: string; snapshots: number; stoodBy?: boolean }[];
+  drops?: { itemId: number; itemName: string | null; count: number; looter: string }[];
+  kills?: TonightExportKill[];
+  check?: TonightExportCheck;
+}
+
+/** What `raid-export-record` returns once confirmed (or when unchanged). */
+export interface TonightExportRecorded {
+  event: { id: string; name: string; startsAt: number; status: string };
+  unchanged: boolean;
+  record: {
+    attended: number;
+    drops: number;
+    snapshots: number;
+    exporter: string;
+    bosses?: {
+      killed: number;
+      total: number | null;
+      wipes: number;
+      firstPullAt: number;
+      lastEndAt: number;
+    } | null;
+  };
+  ledger?: TonightLedgerKill[];
   warnings?: { code: string; message: string }[];
 }
 
@@ -88,6 +136,58 @@ interface PendingRemoval {
   name: string;
   token: string;
   summary: string;
+}
+
+/** A `raid-export-record` preview, waiting for the officer to confirm or cancel. */
+interface PendingExportRecord {
+  exportString: string;
+  eventId: string;
+  token: string;
+  preview: TonightExportRecordPreview;
+  summary: string;
+}
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+/** Summarize a `raid-export-record` dryRun preview in plain officer-facing text. */
+function recordPreviewSummary(preview: TonightExportRecordPreview): string {
+  const attendance = preview.attendance ?? [];
+  const stoodBy = attendance.filter((a) => a.stoodBy).length;
+  const drops = preview.drops?.length ?? 0;
+  const parts: string[] = [
+    `${attendance.length} attended${stoodBy ? ` (${stoodBy} stood by)` : ''}, ${plural(drops, 'drop')}`,
+  ];
+  if (preview.replaces) parts.push('replaces the export recorded earlier');
+  if (preview.completes) parts.push(`completes ${preview.event.name}`);
+  const kills = preview.kills ?? [];
+  const matched = kills.filter((k) => k.bossId !== null).length;
+  const unmatched = kills.filter((k) => k.bossId === null).map((k) => k.name);
+  if (matched) parts.push(`${plural(matched, 'kill')} for the progress ledger`);
+  if (unmatched.length) {
+    parts.push(`${plural(unmatched.length, 'kill')} matched no boss (${unmatched.join(', ')})`);
+  }
+  return parts.join(' · ');
+}
+
+/** Summarize recorded progress-ledger outcomes, or empty string when there were no kills. */
+function ledgerOutcomeLine(ledger: TonightLedgerKill[]): string {
+  if (!ledger.length) return '';
+  const named = (outcome: TonightLedgerKill['outcome']) =>
+    ledger.filter((k) => k.outcome === outcome).map((k) => k.name);
+  const parts: string[] = [];
+  const first = named('first');
+  if (first.length) parts.push(`First kills: ${first.join(', ')}`);
+  const again = named('again');
+  if (again.length) parts.push(`Repeat kills: ${again.join(', ')}`);
+  const unmatched = named('unmatched');
+  if (unmatched.length) parts.push(`Matched no boss: ${unmatched.join(', ')}`);
+  const refused = ledger.filter((k) => k.outcome === 'refused');
+  if (refused.length) {
+    parts.push(
+      `Not recorded: ${refused.map((k) => `${k.name}${k.detail ? ` (${k.detail})` : ''}`).join(', ')}`,
+    );
+  }
+  return parts.join(' · ');
 }
 
 const ROLE_HEADINGS: Record<Role, string> = {
@@ -164,7 +264,7 @@ const template = html<VintageTonight>`
           aria-expanded="${(x) => String(x.exportOpen)}"
           ?disabled="${(x) => x.busy}"
           @click="${(x) => x.toggleExport()}"
-        >Check an export</button>
+        >${(x) => (x.canRecord ? 'Check or record export' : 'Check an export')}</button>
       </div>
     </header>
 
@@ -199,7 +299,10 @@ const template = html<VintageTonight>`
       html<VintageTonight>`
         <div class="export" part="export">
           <label class="import">
-            <span>Raid export from the addon (starts with !VIN:). Nothing is saved.</span>
+            <span>${(x) =>
+              x.canRecord
+                ? 'Raid export from the addon (starts with !VIN:). Check reads without saving; Record previews before saving.'
+                : 'Raid export from the addon (starts with !VIN:). Nothing is saved.'}</span>
             <textarea
               rows="3"
               spellcheck="false"
@@ -231,7 +334,47 @@ const template = html<VintageTonight>`
               ?disabled="${(x) => x.busy || !x.exportText.trim()}"
               @click="${(x) => x.checkExport()}"
             >Check export</button>
+            ${when(
+              (x) => x.canRecord,
+              html<VintageTonight>`
+                <button
+                  class="btn"
+                  ?disabled="${(x) => x.busy || !x.exportText.trim()}"
+                  @click="${(x) => x.recordExport()}"
+                >Record export</button>
+              `,
+            )}
           </div>
+          ${when(
+            (x) => x.pendingRecord,
+            html<VintageTonight>`
+              <div class="confirm" part="export-confirm" role="alertdialog" aria-labelledby="record-confirm-text">
+                <p id="record-confirm-text">
+                  Record export for <b>${(x) => x.pendingRecord?.preview.event.name}</b>?
+                  <span>${(x) => x.pendingRecord?.summary}</span>
+                </p>
+                <button class="btn primary" ?disabled="${(x) => x.busy}" @click="${(x) => x.confirmRecord()}">Record</button>
+                <button class="btn" ?disabled="${(x) => x.busy}" @click="${(x) => x.cancelRecord()}">Cancel</button>
+              </div>
+            `,
+          )}
+          ${when(
+            (x) => x.exportRecorded,
+            html<VintageTonight>`
+              <div class="card export-result" part="export-recorded">
+                <span class="eyebrow">Recorded · ${(x) => x.exportRecorded?.event.name}</span>
+                <p>${(x) => x.exportRecordedSummary}</p>
+                ${when(
+                  (x) => x.exportRecordedLedgerLine,
+                  html<VintageTonight>`<p class="names"><b>Progress ledger</b> ${(x) => x.exportRecordedLedgerLine}</p>`,
+                )}
+                ${when(
+                  (x) => !x.exportRecorded?.unchanged,
+                  html<VintageTonight>`<p class="names">Random posts the raid summary in Discord on the next tick.</p>`,
+                )}
+              </div>
+            `,
+          )}
           ${when(
             (x) => x.exportCheck,
             html<VintageTonight>`
@@ -242,10 +385,18 @@ const template = html<VintageTonight>`
                   (x) => x.exportCheck?.warnings ?? [],
                   html<{ message: string }>`<p class="warn" role="note">${(w) => w.message}</p>`,
                 )}
+                ${when(
+                  (x) => x.exportBossesLine,
+                  html<VintageTonight>`<p class="names"><b>Bosses</b> ${(x) => x.exportBossesLine}</p>`,
+                )}
                 <p class="names"><b>Snapshots</b> ${(x) => x.exportSnapshotsLine}</p>
                 ${when(
                   (x) => (x.exportCheck?.attendees.length ?? 0) > 0,
                   html<VintageTonight>`<p class="names"><b>Seen</b> ${(x) => x.exportSeenLine}</p>`,
+                )}
+                ${when(
+                  (x) => x.exportStandbyLine,
+                  html<VintageTonight>`<p class="names"><b>Stood by</b> ${(x) => x.exportStandbyLine}</p>`,
                 )}
                 ${when(
                   (x) => x.exportCheck?.event && x.exportCheck.unknownNames.length,
@@ -717,14 +868,16 @@ const styles = css`
  *
  * @tagname vintage-tonight
  * @summary The raid-night view for leaders: roster, gaps, non-responders, and actions.
- * @fires tonight-changed - After a lock, unlock, move, bench, or removal succeeds.
+ * @fires tonight-changed - After a lock, unlock, move, bench, removal, or export record succeeds.
  * @csspart tonight - The whole view.
  * @csspart header - Raid, counts, and the raid-wide actions.
  * @csspart actions - Lock or unlock, and copy the import.
  * @csspart status - The line that says what happened.
  * @csspart confirm - A removal waiting for confirmation.
  * @csspart import - The import string, when copied.
- * @csspart export - The export check: paste box and its actions.
+ * @csspart export - The export panel: paste box and its check/record actions.
+ * @csspart export-confirm - A `raid-export-record` preview waiting for officer confirmation.
+ * @csspart export-recorded - Summary of a recorded export.
  * @csspart export-result - What the check found.
  * @csspart gaps - The comp gaps.
  * @csspart waiting - Who hasn't answered.
@@ -743,6 +896,8 @@ export class VintageTonight extends FASTElement {
   @attr({ attribute: 'time-zone' }) timeZone = '';
   /** Still reading: the title and the cards say so instead of "no raid" or "no gaps". */
   @attr({ mode: 'boolean' }) loading = false;
+  /** Officers can record an export (`raid-export-record`); raid leaders only check it. */
+  @attr({ attribute: 'can-record', mode: 'boolean' }) canRecord = false;
 
   @observable busy = false;
   @observable statusText = '';
@@ -750,13 +905,19 @@ export class VintageTonight extends FASTElement {
   @observable pending: PendingRemoval | null = null;
   @observable importString = '';
   @observable importNote = '';
-  /** The export check panel is open. */
+  /** The export panel is open. */
   @observable exportOpen = false;
   @observable exportText = '';
-  /** The last `raid-export-check` result, or null before a check. */
+  /** The last `raid-export-check` result (or the check from a record preview), or null. */
   @observable exportCheck: TonightExportCheck | null = null;
   /** The check's own one-line summary (its reasoning). */
   @observable exportSummary = '';
+  /** A `raid-export-record` preview waiting for confirmation, or null. */
+  @observable pendingRecord: PendingExportRecord | null = null;
+  /** The last recorded export result, or null. */
+  @observable exportRecorded: TonightExportRecorded | null = null;
+  /** The record command's reasoning line. */
+  @observable exportRecordedSummary = '';
   /**
    * Raids an export can be checked against (the page reads the last week and the next day).
    * Tonight's `raid` is the next one, which is the wrong raid once it's over.
@@ -840,6 +1001,27 @@ export class VintageTonight extends FASTElement {
           (l.source ? ` (${l.source})` : ''),
       )
       .join(' · ');
+  }
+
+  @volatile
+  get exportStandbyLine(): string {
+    return (this.exportCheck?.standby ?? []).map((s) => s.name).join(', ');
+  }
+
+  @volatile
+  get exportBossesLine(): string {
+    return (this.exportCheck?.bosses ?? [])
+      .map((b) => {
+        const result =
+          b.kills > 0 ? (b.wipes > 0 ? `killed (${b.wipes}w)` : 'killed') : `${b.wipes}w`;
+        return `${b.name} ${result}`;
+      })
+      .join(' · ');
+  }
+
+  @volatile
+  get exportRecordedLedgerLine(): string {
+    return ledgerOutcomeLine(this.exportRecorded?.ledger ?? []);
   }
 
   get locked(): boolean {
@@ -1101,11 +1283,13 @@ export class VintageTonight extends FASTElement {
 
   setExportText(value: string): void {
     this.exportText = value;
+    this.pendingRecord = null;
   }
 
   pickExportRaid(eventId: string): void {
     this.exportRaidPicked = true;
     this.exportRaidId = eventId;
+    this.pendingRecord = null;
   }
 
   /**
@@ -1134,6 +1318,8 @@ export class VintageTonight extends FASTElement {
       return failure({ code: 'COMMAND_DISABLED', message: 'Paste an export first' });
     const target = eventId ?? this.exportRaidId;
     this.busy = true;
+    this.pendingRecord = null;
+    this.exportRecorded = null;
     try {
       const raw = await getCommandClient().read<TonightExportCheck>('raid-export-check', {
         exportString,
@@ -1152,6 +1338,126 @@ export class VintageTonight extends FASTElement {
     } finally {
       this.busy = false;
     }
+  }
+
+  /**
+   * Preview recording the pasted export (`raid-export-record` is destructive, officer tier).
+   * Nothing is saved until `confirmRecord()` sends the returned confirm token back.
+   */
+  @command('vintage.raid-export-record', {
+    label: 'Record a raid export',
+    description:
+      'Preview recording a raid export from the Vintage addon: attendance, loot, boss kills for ' +
+      'the progress ledger, and completing the raid. Confirm to save.',
+    category: 'Officers',
+    parameters: {
+      type: 'object',
+      properties: { eventId: { type: 'string' } },
+    },
+  })
+  async recordExport(eventId?: unknown): Promise<ElementResult<unknown>> {
+    if (eventId !== undefined && typeof eventId !== 'string') {
+      return failure({ code: 'INVALID_PARAMETERS', message: 'eventId must be a raid id' });
+    }
+    if (this.busy) return failure({ code: 'COMMAND_DISABLED', message: 'Busy' });
+    const exportString = this.exportText.trim();
+    if (!exportString)
+      return failure({ code: 'COMMAND_DISABLED', message: 'Paste an export first' });
+    const target = eventId ?? this.exportRaidId;
+    this.busy = true;
+    this.exportRecorded = null;
+    try {
+      const raw = await getCommandClient().run<
+        {
+          preview?: TonightExportRecordPreview;
+          confirmToken?: string;
+        } & Partial<TonightExportRecorded>
+      >('raid-export-record', {
+        exportString,
+        ...(target ? { eventId: target } : {}),
+      });
+      const result = toElementResult(raw);
+      if (!result.success || !raw.success || !raw.data) {
+        this.pendingRecord = null;
+        this.say('error', describeError(result));
+        return result;
+      }
+      const token = raw.data.confirmToken;
+      const preview = raw.data.preview;
+      if (preview?.unchanged) {
+        this.pendingRecord = null;
+        this.exportRecorded = preview as unknown as TonightExportRecorded;
+        this.exportRecordedSummary = `${preview.event.name} already has this export recorded; nothing changed`;
+        this.say('success', this.exportRecordedSummary);
+        return result;
+      }
+      if (!token) {
+        // Server recorded directly without a confirm step.
+        this.pendingRecord = null;
+        this.exportRecorded = raw.data as TonightExportRecorded;
+        this.exportRecordedSummary = String(result.metadata?.reasoning ?? 'Export recorded');
+        this.say('success', this.exportRecordedSummary);
+        this.$emit('tonight-changed');
+        return result;
+      }
+      if (!preview) {
+        this.pendingRecord = null;
+        this.say('error', 'Server returned no preview for recording this export.');
+        return result;
+      }
+      if (preview.check) {
+        this.exportCheck = preview.check;
+        this.exportSummary = recordPreviewSummary(preview);
+      }
+      this.pendingRecord = {
+        exportString,
+        eventId: target,
+        token,
+        preview,
+        summary: recordPreviewSummary(preview),
+      };
+      this.say('idle', '');
+      return result;
+    } finally {
+      this.busy = false;
+    }
+  }
+
+  async confirmRecord(): Promise<ElementResult<unknown>> {
+    if (this.busy) return failure({ code: 'COMMAND_DISABLED', message: 'Busy' });
+    const pending = this.pendingRecord;
+    if (!pending) return failure({ code: 'NOTHING_TO_CONFIRM', message: 'No export waiting' });
+    this.busy = true;
+    try {
+      const raw = await getCommandClient().run<TonightExportRecorded>(
+        'raid-export-record',
+        {
+          exportString: pending.exportString,
+          ...(pending.eventId ? { eventId: pending.eventId } : {}),
+        },
+        { confirmToken: pending.token },
+      );
+      const result = toElementResult(raw);
+      this.pendingRecord = null;
+      if (!result.success || !raw.success) {
+        this.say('error', describeError(result));
+        return result;
+      }
+      this.exportRecorded = raw.data ?? null;
+      this.exportRecordedSummary = String(
+        result.metadata?.reasoning ?? `Recorded ${pending.preview.event.name}`,
+      );
+      this.say('success', this.exportRecordedSummary);
+      this.$emit('tonight-changed');
+      return result;
+    } finally {
+      this.busy = false;
+    }
+  }
+
+  cancelRecord(): void {
+    if (this.pendingRecord) this.say('idle', 'Export not recorded.');
+    this.pendingRecord = null;
   }
 
   private async change(

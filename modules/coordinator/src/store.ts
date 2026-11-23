@@ -232,6 +232,25 @@ export interface CoordinatorRaids {
   ): Promise<{ id: string }>;
 }
 
+/** One coordinator failure to notify officers about in the ops channel (#262). */
+export interface TickFailure {
+  /** Deduplication key for this failure kind (e.g. `coordinator:schedule-materialize`). */
+  key: string;
+  /** The step or rule that failed (e.g. `schedule-materialize`, `raid-night`, `lock`). */
+  step: string;
+  /** Human-readable raid or poll label when one applies. */
+  subject?: string;
+  /** Short error description. */
+  error: string;
+  /** Pre-rendered Discord message when already formatted (e.g. renderFailure). */
+  message?: MessageData;
+}
+
+/** Routes coordinator failures to the ops channel with deduplication (#262). */
+export interface OpsAlertPort {
+  report(failure: TickFailure, now: number): Promise<void>;
+}
+
 /** Everything the tick executor needs (PLAN §6.1). */
 export interface TickPorts {
   store: CoordinatorStore;
@@ -247,6 +266,8 @@ export interface TickPorts {
   recruiting?: { needs(guildId: string): Promise<ClassNeed[]> };
   /** Rewords the assessment's facts (AI); null or a throw keeps the facts as written. */
   wording?: { write(instructions: string, facts: string): Promise<string | null> };
+  /** Deduplicated ops-channel error reporting (#262). Absent: falls back to posting once per action. */
+  opsAlert?: OpsAlertPort;
 }
 
 export const command = commandsFor<CoordinatorDeps>();

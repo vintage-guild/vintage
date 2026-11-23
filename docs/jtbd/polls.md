@@ -69,3 +69,18 @@ counts the same.
 - [ ] Once a ranked poll closes, `/polls/<id>` shows the winner after the runoff (a second choice
   can carry it) and takes no more votes.
 - [ ] A Member (below the poll's audience) sees no poll card on the home page.
+
+### J71 · Keep leader and officer polls out of public channels
+**When** an officer or raid leader posts a restricted poll in Discord, **I (officer) want** leader
+and officer polls refused in public channels and limited to configured leads/officer channels, **so
+I can** keep sensitive questions from leaking to everyone in the channel.
+- [ ] `/random poll create` with `audience: officer` in a public channel (or `#leads`) is refused
+  privately, names the configured officer channel (`opsChannelId`), and creates or posts nothing.
+- [ ] `/random poll create` with `audience: officer` in the configured officer channel succeeds and
+  posts there.
+- [ ] `/random poll create` with `audience: leader` in a public channel is refused privately and
+  suggests the configured leads/officer channel; in `#leads` (`leadsChannelId`) or `#vintage-ops`
+  (`opsChannelId`) it succeeds and posts there.
+- [ ] With no matching channel configured, Discord creation is refused and points to
+  `coordinator-config-set` or the website; web-only creation (no `channelId`) still works because
+  every read command hides polls by tier.

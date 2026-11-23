@@ -133,6 +133,144 @@ describe('poll-create', () => {
     expect(poll.status).toBe('draft');
     expect(deps.pollEvents.emitted).toEqual([]);
   });
+
+  it('restricts leader and officer polls to configured channels when channelId is given (#82)', async () => {
+    const PUBLIC_CH = '400000000000000001';
+    const OPS_CH = '400000000000000002';
+    const LEADS_CH = '400000000000000003';
+    const base = { question: 'Promote Kol?', options: ['Yes', 'No'] };
+
+    // Non-snowflake channelId is rejected by validation.
+    expect(code(await run('poll-create', { ...base, channelId: '#general' }, raider))).toBe(
+      'VALIDATION_ERROR',
+    );
+
+    // Raider, recruit, and member polls are allowed in any channel, even with no officer channels set.
+    expect(code(await run('poll-create', { ...base, channelId: PUBLIC_CH }, raider))).toBe('OK');
+    expect(
+      code(
+        await run('poll-create', { ...base, eligibleTier: 'member', channelId: PUBLIC_CH }, leader),
+      ),
+    ).toBe('OK');
+
+    // Web-only (no channelId) leader/officer polls succeed even before channels are configured.
+    expect(code(await run('poll-create', { ...base, eligibleTier: 'officer' }, officer))).toBe(
+      'OK',
+    );
+    expect(code(await run('poll-create', { ...base, eligibleTier: 'leader' }, leader))).toBe('OK');
+
+    // Without configured channels, restricted polls targeting a Discord channel are refused.
+    const unconfiguredOfficer = await run(
+      'poll-create',
+      { ...base, eligibleTier: 'officer', channelId: PUBLIC_CH },
+      officer,
+    );
+    expect(unconfiguredOfficer).toMatchObject({
+      success: false,
+      error: { code: 'CHANNEL_NOT_ALLOWED' },
+    });
+    expect(unconfiguredOfficer.error?.suggestion).toContain('opsChannelId');
+    expect(
+      code(
+        await run('poll-create', { ...base, eligibleTier: 'leader', channelId: PUBLIC_CH }, leader),
+      ),
+    ).toBe('CHANNEL_NOT_ALLOWED');
+
+    // Configure only leadsChannelId: officer polls still require opsChannelId.
+    deps.pollChannels.channels.leadsChannelId = LEADS_CH;
+    expect(
+      code(
+        await run(
+          'poll-create',
+          { ...base, eligibleTier: 'officer', channelId: LEADS_CH },
+          officer,
+        ),
+      ),
+    ).toBe('CHANNEL_NOT_ALLOWED');
+    expect(
+      code(
+        await run('poll-create', { ...base, eligibleTier: 'leader', channelId: LEADS_CH }, leader),
+      ),
+    ).toBe('OK');
+
+    // Configure opsChannelId too: officer polls are limited to ops; leader polls allow leads or ops.
+    deps.pollChannels.channels.opsChannelId = OPS_CH;
+    const beforeCount = deps.polls.polls.size;
+    const beforeEmitted = deps.pollEvents.emitted.length;
+
+    const officerInPublic = await run(
+      'poll-create',
+      { ...base, eligibleTier: 'officer', channelId: PUBLIC_CH },
+      officer,
+    );
+    expect(officerInPublic).toMatchObject({
+      success: false,
+      error: { code: 'CHANNEL_NOT_ALLOWED' },
+    });
+    expect(officerInPublic.error?.message).toContain(`<#${OPS_CH}>`);
+    expect(officerInPublic.error?.message).not.toContain(LEADS_CH);
+
+    const officerInLeads = await run(
+      'poll-create',
+      { ...base, eligibleTier: 'officer', channelId: LEADS_CH },
+      officer,
+    );
+    expect(officerInLeads).toMatchObject({
+      success: false,
+      error: { code: 'CHANNEL_NOT_ALLOWED' },
+    });
+
+    const leaderInPublic = await run(
+      'poll-create',
+      { ...base, eligibleTier: 'leader', channelId: PUBLIC_CH },
+      leader,
+    );
+    expect(leaderInPublic).toMatchObject({
+      success: false,
+      error: { code: 'CHANNEL_NOT_ALLOWED' },
+    });
+    expect(leaderInPublic.error?.message).toContain(`<#${LEADS_CH}>`);
+    expect(leaderInPublic.error?.message).toContain(`<#${OPS_CH}>`);
+
+    // Refused polls are neither stored nor announced.
+    expect(deps.polls.polls.size).toBe(beforeCount);
+    expect(deps.pollEvents.emitted).toHaveLength(beforeEmitted);
+
+    // Lower-tier callers hit TIER_TOO_HIGH before channel checks, so private channel ids never leak.
+    const probe = await run(
+      'poll-create',
+      { ...base, eligibleTier: 'officer', channelId: PUBLIC_CH },
+      leader,
+    );
+    expect(probe).toMatchObject({ success: false, error: { code: 'TIER_TOO_HIGH' } });
+    expect(probe.error?.message).not.toContain(OPS_CH);
+
+    // Allowed channels succeed.
+    expect(
+      code(
+        await run('poll-create', { ...base, eligibleTier: 'officer', channelId: OPS_CH }, officer),
+      ),
+    ).toBe('OK');
+    expect(
+      code(
+        await run('poll-create', { ...base, eligibleTier: 'leader', channelId: OPS_CH }, leader),
+      ),
+    ).toBe('OK');
+    expect(
+      code(
+        await run('poll-create', { ...base, eligibleTier: 'leader', channelId: LEADS_CH }, leader),
+      ),
+    ).toBe('OK');
+
+    // Deduplicates suggestion when opsChannelId and leadsChannelId point to the same channel.
+    deps.pollChannels.channels.leadsChannelId = OPS_CH;
+    const deduped = await run(
+      'poll-create',
+      { ...base, eligibleTier: 'leader', channelId: PUBLIC_CH },
+      leader,
+    );
+    expect(deduped.error?.message).toBe(`Raid-leader polls can only be posted in <#${OPS_CH}>`);
+  });
 });
 
 describe('vote-cast and vote-retract', () => {

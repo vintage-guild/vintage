@@ -65,6 +65,17 @@ export interface PollsEventSink {
 }
 
 /**
+ * Configured restricted Discord channels, read by poll-create to keep leader and officer polls
+ * out of public channels (#82). apps/api adapts coordinator's config to this; polls never imports
+ * coordinator.
+ */
+export interface PollsChannels {
+  getRestrictedChannels(
+    guildId: string,
+  ): Promise<{ opsChannelId: string | null; leadsChannelId: string | null }>;
+}
+
+/**
  * Keys are prefixed so they never collide with another module's deps when apps/api merges
  * them into one object (raids already uses `members` and `events`).
  */
@@ -72,6 +83,7 @@ export interface PollsDeps {
   polls: PollsStore;
   pollMembers: PollsMembers;
   pollEvents: PollsEventSink;
+  pollChannels: PollsChannels;
 }
 
 export const command = commandsFor<PollsDeps>();

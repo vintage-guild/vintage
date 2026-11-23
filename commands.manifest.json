@@ -2559,7 +2559,7 @@
     },
     {
       "name": "poll-create",
-      "description": "Create a poll: a question, 2–25 options, a method (single, multi, or ranked), who may vote (eligibleTier, raider by default), and optional anonymity, hidden results, quorum, and close time. Opens at once unless open is false or opensAt is later. Raiders create polls for raiders and up; reaching members or recruits takes a raid leader, and nobody can target a tier above their own.",
+      "description": "Create a poll: a question, 2–25 options, a method (single, multi, or ranked), who may vote (eligibleTier, raider by default), and optional anonymity, hidden results, quorum, close time, and target Discord channelId. Opens at once unless open is false or opensAt is later. Raiders create polls for raiders and up; reaching members or recruits takes a raid leader, and nobody can target a tier above their own. When channelId is given, officer polls must target the configured officer channel and leader polls must target the configured leads or officer channel.",
       "tier": "raider",
       "mutation": true,
       "destructive": false,
@@ -2747,6 +2747,17 @@
           "open": {
             "default": true,
             "type": "boolean"
+          },
+          "channelId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{17,20}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [

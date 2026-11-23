@@ -62,7 +62,7 @@ export function splitOptions(text: string): string[] {
 }
 
 /** The poll-create input from the slash command's options. */
-export function createInput(values: OptionValues, now: number) {
+export function createInput(values: OptionValues, now: number, channelId?: string) {
   const hours = typeof values.hours === 'number' ? values.hours : DEFAULT_POLL_HOURS;
   return {
     question: String(values.question ?? ''),
@@ -73,6 +73,7 @@ export function createInput(values: OptionValues, now: number) {
     anonymous: values.anonymous === true,
     resultsVisible: values.results ?? 'live',
     closesAt: now + hours * 60 * 60 * 1000,
+    ...(channelId ? { channelId } : {}),
   };
 }
 
@@ -107,7 +108,7 @@ async function create(ports: PollPorts, caller: Caller, interaction: Interaction
   const result = await ports.run(
     caller,
     'poll-create',
-    createInput(commandOptions(interaction), now),
+    createInput(commandOptions(interaction), now, channelId),
   );
   if (!result.success) return ephemeral(failure(result, NEEDS_RAIDER));
   const poll = result.data as Poll;

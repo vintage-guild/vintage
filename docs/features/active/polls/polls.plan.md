@@ -250,7 +250,7 @@ them; only #2 is costly to change once votes exist.
 |---|---|---|
 | 1 | Who may create polls: raiders, or leaders only? | `raider` creates for `raider+` audiences; `leader` to target `member`/`recruit` or officer-only |
 | 2 | Is "anonymous through every surface" enough, or do officer votes need a secret ballot (`voterKey`)? | Surface-level anonymity; `secretBallot` flag held in reserve |
-| 3 | Dedicated `#polls` channel, or post where the command runs? | Where the command runs; officer polls in the officer channel |
+| 3 | Dedicated `#polls` channel, or post where the command runs? | Where the command runs; `officer` polls require `opsChannelId` and `leader` polls require `leadsChannelId` or `opsChannelId`, enforced in `poll-create` (#82) |
 | 4 | Is a plain components poll acceptable, or does the GM want Discord's native look for casual polls? | Components first; native mirror if asked |
 | 5 | Which integration first: raid-night picker, officer votes, or feedback survey? | Raid-night picker (uses the coordinator the GM already asked for) |
 
@@ -264,4 +264,5 @@ them; only #2 is costly to change once votes exist.
 - [x] Poster in `apps/api/convex/pollPosts.ts`: post, debounced refresh, final render; the sweep also refreshes open posts (#62)
 - [x] `ui-kit` poll card (pick one, pick any, ranked, hidden results) + `/polls` and `/polls/<id>`, home card by role view, officers' Polls tab (#63)
 - [x] Raid-night picker in the coordinator: `raid-night-poll`, settled by the tick (#64)
+- [x] Restrict `leader` and `officer` polls to configured leads/officer channels when posting to Discord (#82)
 - [x] Docs: module `AGENTS.md`, architecture table row, this plan → `active/` (#59)

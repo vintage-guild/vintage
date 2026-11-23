@@ -23,6 +23,8 @@ import {
 const GUILD = 'guild-test';
 const DISCORD_GUILD = '600000000000000001';
 const CHANNEL = '400000000000000009';
+const OPS_CHANNEL = '400000000000000002';
+const LEADS_CHANNEL = '400000000000000004';
 const HOUR = 60 * 60 * 1000;
 
 const member = (id: string, tier: Tier): Member => ({
@@ -38,7 +40,13 @@ const member = (id: string, tier: Tier): Member => ({
   syncedAt: 0,
   rankSince: null,
 });
-const MEMBERS = [member('aeryn', 'raider'), member('kol', 'raider'), member('tam', 'recruit')];
+const MEMBERS = [
+  member('ana', 'officer'),
+  member('rook', 'leader'),
+  member('aeryn', 'raider'),
+  member('kol', 'raider'),
+  member('tam', 'recruit'),
+];
 
 type Deps = ReturnType<typeof createMemoryPollsDeps>;
 let deps: Deps;
@@ -49,7 +57,10 @@ let ports: PollPorts;
 
 beforeEach(() => {
   clock = fixedClock();
-  deps = createMemoryPollsDeps(MEMBERS);
+  deps = createMemoryPollsDeps(MEMBERS, {
+    opsChannelId: OPS_CHANNEL,
+    leadsChannelId: LEADS_CHANNEL,
+  });
   posted = [];
   refreshed = [];
   const registry = testRegistry<Deps>([...pollsCommands], clock);
@@ -77,8 +88,13 @@ const base = (who: string, extra: Partial<Interaction>): Interaction => ({
 });
 
 const T = ApplicationCommandOptionType;
-const slash = (who: string, options: Record<string, string | number | boolean>) =>
+const slash = (
+  who: string,
+  options: Record<string, string | number | boolean>,
+  channelId = CHANNEL,
+) =>
   base(who, {
+    channel_id: channelId,
     type: InteractionType.APPLICATION_COMMAND,
     data: {
       name: 'vintage',
@@ -188,6 +204,53 @@ describe('/vintage poll create', () => {
       slash('aeryn', { question: 'q', options: 'a;b', audience: 'member' }),
     );
     expect(said(response).content).toContain('Only raid leaders can create polls for members');
+  });
+
+  it('refuses officer and leader polls in public channels and allows them in configured ones (#82)', async () => {
+    const officerPublic = await handle(
+      slash('ana', { question: 'Promote Kol?', options: 'Yes; No', audience: 'officer' }, CHANNEL),
+    );
+    expect(said(officerPublic)).toMatchObject({ flags: MessageFlags.EPHEMERAL });
+    expect(said(officerPublic).content).toContain(`<#${OPS_CHANNEL}>`);
+    expect(posted).toEqual([]);
+    expect(deps.polls.polls.size).toBe(0);
+
+    const officerInLeads = await handle(
+      slash(
+        'ana',
+        { question: 'Promote Kol?', options: 'Yes; No', audience: 'officer' },
+        LEADS_CHANNEL,
+      ),
+    );
+    expect(said(officerInLeads).content).toContain(`<#${OPS_CHANNEL}>`);
+    expect(posted).toEqual([]);
+
+    const leaderPublic = await handle(
+      slash('rook', { question: 'Bench plan?', options: 'A; B', audience: 'leader' }, CHANNEL),
+    );
+    expect(said(leaderPublic).content).toContain(`<#${LEADS_CHANNEL}>`);
+    expect(said(leaderPublic).content).toContain(`<#${OPS_CHANNEL}>`);
+    expect(posted).toEqual([]);
+
+    const officerOk = await handle(
+      slash(
+        'ana',
+        { question: 'Promote Kol?', options: 'Yes; No', audience: 'officer' },
+        OPS_CHANNEL,
+      ),
+    );
+    expect(said(officerOk).content).toContain('going up in this channel');
+    expect(posted).toEqual([{ pollId: expect.any(String), channelId: OPS_CHANNEL }]);
+
+    const leaderOk = await handle(
+      slash(
+        'rook',
+        { question: 'Bench plan?', options: 'A; B', audience: 'leader' },
+        LEADS_CHANNEL,
+      ),
+    );
+    expect(said(leaderOk).content).toContain('going up in this channel');
+    expect(posted.at(-1)).toEqual({ pollId: expect.any(String), channelId: LEADS_CHANNEL });
   });
 });
 

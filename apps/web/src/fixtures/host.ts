@@ -251,9 +251,19 @@ export function createFixtureHost(
       listMembers: (g) => identity.listMembers(g),
     },
     pollEvents: createPollsEventSink(),
+    pollChannels: {
+      getRestrictedChannels: async (g) => {
+        const { opsChannelId, leadsChannelId } = await coordinator.getConfig(g);
+        return { opsChannelId, leadsChannelId };
+      },
+    },
     // Like apps/api: poll-create as the caller; there is no Discord post to put up here.
     coordinatorPolls: {
-      create: (caller, input) => run(caller, 'poll-create', input) as Promise<CommandResult<Poll>>,
+      create: (caller, input, channelId) =>
+        run(caller, 'poll-create', {
+          ...input,
+          ...(channelId ? { channelId } : {}),
+        }) as Promise<CommandResult<Poll>>,
       get: (g, id) => polls.getPoll(g, id),
     },
     coordinator,

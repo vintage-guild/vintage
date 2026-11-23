@@ -44,9 +44,6 @@ const POOL_RANKS: ReadonlySet<number> = new Set([0, 1, 3, FLEX_RANK, RECRUIT_RAN
 /** Blizzard's armory hides characters below this level, so the roster leaves them out. */
 const MIN_LEVEL = 10;
 
-/** The profession card and filter count a profession from this skill level up. */
-const CRAFT_MIN = 225;
-
 /** Canonical display order for the nine launch-era classes in the composition chart. */
 const CLASS_ORDER: readonly { name: string; slug: WowClass }[] = [
   { name: 'Warrior', slug: 'warrior' },
@@ -70,16 +67,7 @@ const ROLE_META: Record<RosterRole, { label: string; token: string }> = {
 const isRosterRole = (value: string): value is RosterRole =>
   (ROSTER_ROLES as readonly string[]).includes(value);
 
-type StatKey = 'wowClass' | 'profession';
 type CompScope = 'raid' | 'pool';
-
-interface Stat {
-  name: string;
-  count: number;
-  /** Bar length against the card's largest count. */
-  pct: number;
-  icon: string;
-}
 
 interface ClassColumn {
   name: string;
@@ -130,40 +118,6 @@ function formatBreakdown(labels: string[]): string {
     .map(([name, count]) => `${count} ${name}`)
     .join(', ');
 }
-
-/** Counts by name, largest first, with each bar's share of the largest. */
-function toStats(names: string[], icon: (name: string) => string): Stat[] {
-  const counts = new Map<string, number>();
-  for (const name of names) counts.set(name, (counts.get(name) ?? 0) + 1);
-  const max = Math.max(1, ...counts.values());
-  return [...counts]
-    .sort(([a, x], [b, y]) => y - x || a.localeCompare(b))
-    .map(([name, count]) => ({ name, count, pct: (count / max) * 100, icon: icon(name) }));
-}
-
-/** A ranked bar list; a bar's button toggles the matching filter. */
-const statList = (stats: (x: Page) => Stat[], key: StatKey, unit: string) => html<Page>`
-  <ul class="stats ${(x) => (x[key] ? 'has-pick' : '')}">
-    ${repeat(
-      stats,
-      html<Stat, Page>`<li>
-        <button
-          type="button"
-          class="stat"
-          aria-pressed="${(s, c) => String(c.parent[key] === s.name)}"
-          aria-label="${(s) => `${s.name}, ${s.count} ${unit}`}"
-          @click="${(s, c) => c.parent.pick(key, s.name)}"
-        >
-          <img class="stat-icon" src="${(s) => s.icon}" alt="" loading="lazy" />
-          <span class="stat-name">${(s) => s.name}</span>
-          <span class="stat-track"><span class="stat-bar" style="inline-size: ${(s) => s.pct}%"></span></span>
-          <span class="stat-count">${(s) => s.count}</span>
-        </button>
-      </li>`,
-    )}
-  </ul>
-  ${when((x) => stats(x).length === 0, html`<p class="muted">None yet.</p>`)}
-`;
 
 type SortKey = 'rank' | 'name' | 'level';
 
@@ -518,7 +472,7 @@ const compDrawer = html<Page>`
                         aria-pressed="${(c, ctx) => String(ctx.parent.wowClass === c.name)}"
                         aria-label="${(c) => `${c.name}: ${c.count} ${c.count === 1 ? 'raider' : 'raiders'}${c.detail ? ` (${c.detail})` : ''}`}"
                         title="${(c) => `${c.name}: ${c.count}${c.detail ? ` — ${c.detail}` : ''}`}"
-                        @click="${(c, ctx) => c.filterable && ctx.parent.pick('wowClass', c.name)}"
+                        @click="${(c, ctx) => c.filterable && ctx.parent.pickClass(c.name)}"
                       >
                         <span class="col-slot">
                           <span
@@ -610,16 +564,6 @@ const template = html<Page>`
       (x) => x.loaded && !x.error,
       html<Page>`
             ${compDrawer}
-            <div class="dashboard">
-              <section class="card" aria-labelledby="by-class">
-                <h2 id="by-class" class="card-title">Raid roster by class</h2>
-                ${statList((x) => x.classStats, 'wowClass', 'in the raid roster')}
-              </section>
-              <section class="card" aria-labelledby="by-profession">
-                <h2 id="by-profession" class="card-title">Primary professions ${CRAFT_MIN}+</h2>
-                ${statList((x) => x.professionStats, 'profession', `at ${CRAFT_MIN} or higher`)}
-              </section>
-            </div>
             <div class="controls" role="search">
               <label>
                 <span>Search</span>
@@ -675,39 +619,24 @@ const template = html<Page>`
                 </span>
               </label>
               <label>
-                <span>Profession ${CRAFT_MIN}+</span>
+                <span>Role</span>
                 <span class="select-wrap">
                   <select
-                    :value="${(x) => x.profession}"
-                    @change="${(x, c) => {
-                      x.profession = (c.event.target as HTMLSelectElement).value;
-                    }}"
+                    :value="${(x) => x.role}"
+                    @change="${(x, c) => x.setRole((c.event.target as HTMLSelectElement).value)}"
                   >
-                    <option value="" ?selected="${(x) => !x.profession}">All professions</option>
+                    <option value="" ?selected="${(x) => !x.role}">All roles</option>
                     ${repeat(
-                      (x) => x.professions,
+                      () => ROSTER_ROLES,
                       html<
-                        string,
+                        RosterRole,
                         Page
-                      >`<option value="${(p) => p}" ?selected="${(p, ctx) => ctx.parent.profession === p}">${(p) => p}</option>`,
+                      >`<option value="${(r) => r}" ?selected="${(r, ctx) => ctx.parent.role === r}">${(r) => ROLE_META[r].label}</option>`,
                     )}
                   </select>
                   ${chevron('select-icon')}
                 </span>
               </label>
-              ${when(
-                (x) => Boolean(x.role),
-                html<Page>`<button
-                  type="button"
-                  class="active-filter"
-                  @click="${(x) => x.clearRole()}"
-                >
-                  <span class="role-dot" style="background: var(${(x) => ROLE_META[x.role || 'tank'].token})" aria-hidden="true"></span>
-                  <span>Role: ${(x) => ROLE_META[x.role || 'tank'].label}</span>
-                  <span aria-hidden="true">×</span>
-                  <span class="visually-hidden"> (clear role filter)</span>
-                </button>`,
-              )}
               <p class="count" aria-live="polite">
                 ${(x) => x.visible.length} of ${(x) => x.listed.length} characters
               </p>
@@ -1224,28 +1153,11 @@ const styles = css`
   .comp-toggle:focus-visible,
   .scope-btn:focus-visible,
   .col-btn:focus-visible,
-  .active-filter:focus-visible,
   .role-edit-btn:focus-visible,
   .role-save:focus-visible,
   .role-cancel:focus-visible {
     outline: var(--border-width-thin) solid var(--color-focus-ring);
     outline-offset: var(--border-width-thin);
-  }
-
-  .dashboard {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
-    gap: var(--space-md);
-  }
-
-  .card {
-    display: grid;
-    align-content: start;
-    gap: var(--space-xs);
-    padding: var(--space-sm) var(--space-md) var(--space-md);
-    border: var(--border-width-thin) solid var(--color-border-default);
-    border-radius: 0.35rem;
-    background: var(--color-surface-raised);
   }
 
   .card-title {
@@ -1255,79 +1167,6 @@ const styles = css`
     letter-spacing: var(--font-tracking-wider);
     text-transform: uppercase;
     color: var(--color-text-secondary);
-  }
-
-  .stats {
-    display: grid;
-    gap: 2px;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  .stat {
-    display: grid;
-    grid-template-columns: 1.15rem 7.5rem 1fr 2rem;
-    align-items: center;
-    gap: 0.5rem;
-    inline-size: 100%;
-    min-block-size: 1.75rem;
-    padding: 0.15rem 0.35rem;
-    border: 0;
-    border-radius: 0.25rem;
-    background: none;
-    color: var(--color-text-primary);
-    font: inherit;
-    font-size: var(--font-size-sm);
-    text-align: start;
-    cursor: pointer;
-  }
-
-  .stat:hover,
-  .stat:focus-visible {
-    background: var(--color-surface-sunken);
-  }
-
-  .stat:focus-visible {
-    outline: var(--border-width-thin) solid var(--color-focus-ring);
-  }
-
-  .stat-icon {
-    inline-size: 1.15rem;
-    block-size: 1.15rem;
-    border: var(--border-width-thin) solid var(--color-border-strong);
-    border-radius: 0.2rem;
-  }
-
-  .stat-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  /* One series, one color; the bar grows from the left with a rounded data end. */
-  .stat-bar {
-    display: block;
-    min-inline-size: 2px;
-    block-size: 0.6rem;
-    border-radius: 0 4px 4px 0;
-    background: var(--color-accent-secondary);
-  }
-
-  .stat-count {
-    justify-self: end;
-    font-family: var(--font-family-mono);
-    font-size: var(--font-size-xs);
-    font-variant-numeric: tabular-nums;
-  }
-
-  /* A picked bar stays; the rest step back. */
-  .has-pick .stat[aria-pressed='false'] {
-    opacity: 0.45;
-  }
-
-  .stat[aria-pressed='true'] .stat-name {
-    font-weight: var(--font-weight-bold);
   }
 
   .controls {
@@ -1425,25 +1264,6 @@ const styles = css`
   .sort:focus-visible {
     outline: var(--border-width-thin) solid var(--color-focus-ring);
     outline-offset: var(--border-width-thin);
-  }
-
-  .active-filter {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.42rem 0.65rem;
-    border: var(--border-width-thin) solid var(--color-accent-secondary);
-    border-radius: 0.25rem;
-    background: var(--color-surface-sunken);
-    color: var(--color-text-primary);
-    font-family: var(--font-family-sans);
-    font-size: var(--font-size-sm);
-    line-height: var(--font-leading-normal);
-    cursor: pointer;
-  }
-
-  .active-filter:hover {
-    border-color: var(--color-text-accent);
   }
 
   .count {
@@ -1903,8 +1723,6 @@ export class Page extends FASTElement {
   @observable rank = '';
   /** A class name, or '' for any. Not `className`: that's the element's class attribute. */
   @observable wowClass = '';
-  /** A profession name, held at CRAFT_MIN or higher, or '' for any. */
-  @observable profession = '';
   /** An active role filter from the composition chart, or '' for any. */
   @observable role: RosterRole | '' = '';
   @observable sort: SortKey = 'rank';
@@ -2049,8 +1867,9 @@ export class Page extends FASTElement {
     this.role = this.role === role ? '' : role;
   }
 
-  clearRole(): void {
-    this.role = '';
+  /** The Role filter; anything but a role clears it. */
+  setRole(value: string): void {
+    this.role = isRosterRole(value) ? value : '';
   }
 
   sortBy(key: SortKey): void {
@@ -2222,39 +2041,9 @@ export class Page extends FASTElement {
     return [...new Set(this.listed.flatMap((e) => (e.className ? [e.className] : [])))].sort();
   }
 
-  /** Professions someone listed holds at CRAFT_MIN or higher, for the filter. */
-  get professions(): string[] {
-    return [
-      ...new Set(
-        this.listed.flatMap((e) =>
-          e.professions.filter((p) => p.level >= CRAFT_MIN).map((p) => p.name),
-        ),
-      ),
-    ].sort();
-  }
-
-  /** The raid roster's characters by class. */
-  get classStats(): Stat[] {
-    const raid = this.listed.filter((e) => RAID_RANKS.has(e.guildRank) && e.className);
-    return toStats(
-      raid.map((e) => e.className ?? ''),
-      (name) => classIcon(name, 'medium'),
-    );
-  }
-
-  /** Listed characters by primary profession held at CRAFT_MIN or higher. */
-  get professionStats(): Stat[] {
-    const names = this.listed.flatMap((e) =>
-      primaries(e)
-        .filter((p) => p.level >= CRAFT_MIN)
-        .map((p) => p.name),
-    );
-    return toStats(names, (name) => professionIcon(name, 'medium'));
-  }
-
-  /** A card's bar sets its filter, or clears it when already set. */
-  pick(key: StatKey, name: string): void {
-    this[key] = this[key] === name ? '' : name;
+  /** A class bar sets the Class filter, or clears it when already set. */
+  pickClass(name: string): void {
+    this.wowClass = this.wowClass === name ? '' : name;
   }
 
   get visible(): RosterListing[] {
@@ -2264,8 +2053,6 @@ export class Page extends FASTElement {
       (e) =>
         (rank === null || e.guildRank === rank) &&
         (!this.wowClass || e.className === this.wowClass) &&
-        (!this.profession ||
-          e.professions.some((p) => p.name === this.profession && p.level >= CRAFT_MIN)) &&
         (!this.role || e.preferredRole === this.role) &&
         (!q || `${e.name} ${e.surname} ${this.discordName(e) ?? ''}`.toLowerCase().includes(q)),
     );

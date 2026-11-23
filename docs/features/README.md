@@ -26,3 +26,4 @@ when they affect every contributor, in the Decisions table in [AGENTS.md](../../
 | Recipe search: who in the guild can craft what | active | [recipe-search](active/recipe-search/recipe-search.plan.md) |
 | Absences: absent by date range, weekly nights, and late nights | active | [absences](active/absences/absences.plan.md) |
 | Signup improvements: card layout, Standby, late minutes, change alerts, other roles | active | [signup-improvements](active/signup-improvements/signup-improvements.plan.md) |
+| Roster self-service: availability, notes, last updated | proposed | [roster-self-service](proposed/roster-self-service/roster-self-service.plan.md) |

@@ -11,7 +11,7 @@ vote from the website are the same `vote-cast` command on the same poll. Design:
 | `src/contract.ts` | Public types (`Poll`, `Vote`, `PollResults`, `PollPost`), command names, events. The only import other modules may use |
 | `src/render/discord.ts` | Pure: the Discord post (Components V2), `renderKey` so posts are edited only on change, `buildPollCard`, and the `poll:*` custom ids, built and parsed in one place |
 | `src/domain/tally.ts` | Pure: poll + votes → `PollResults` for `single`, `multi`, and `ranked` (instant-runoff) |
-| `src/store.ts` | `PollsStore` port, `PollsMembers` (what polls reads from identity), `PollsEventSink`, `PollsDeps`, `command` |
+| `src/store.ts` | `PollsStore` port, `PollsMembers` (what polls reads from identity), `PollsChannels` (configured officer/leads channels), `PollsEventSink`, `PollsDeps`, `command` |
 | `src/commands/` | `poll-*` (lifecycle in `poll.ts`, reads in `read.ts`) and `vote-*` (`vote.ts`); shared guards in `shared.ts`. Registered in `apps/api/src/registry.ts` |
 | `src/testing.ts` | Memory store, members, and a recording event sink, same behavior as the component |
 | `convex/` | The `polls` Convex component: `polls`, `votes`, `pollPosts` tables and their functions. `apps/api/convex/stores.ts` adapts the port to it; `apps/api/convex/polls.ts` runs `poll-sweep` on a 5-minute cron |
@@ -22,7 +22,7 @@ vote from the website are the same `vote-cast` command on the same poll. Design:
   feature that wants a poll creates one, tags it (`raid-night`), and reacts to `poll-closed`
   for that tag. Never import raids, coordinator, or loot here; they depend on polls, not the
   other way round. `PollOption.value` carries the caller's own data (a start time) opaquely.
-- **Deps keys are prefixed** (`polls`, `pollMembers`, `pollEvents`). apps/api merges every
+- **Deps keys are prefixed** (`polls`, `pollMembers`, `pollEvents`, `pollChannels`). apps/api merges every
   module's deps into one object, so a generic key like `members` would collide with raids.
 - **One ballot per member per poll.** Changing your vote replaces it; the store refuses a
   second insert.
@@ -48,9 +48,13 @@ vote from the website are the same `vote-cast` command on the same poll. Design:
   `results: null` when `canSeeTally` says the caller couldn't already see it.
 - **The close time is enforced at vote time**, so a late vote fails even if the sweep hasn't
   run yet.
+- **Restricted Discord channels (#82).** When `poll-create` receives a target `channelId`,
+  `officer` polls require the configured `opsChannelId` and `leader` polls require `leadsChannelId`
+  or `opsChannelId`. Audience tier is checked first so lower-tier callers get `TIER_TOO_HIGH`
+  without learning private channel ids. Web-only polls (no `channelId`) are already hidden by tier.
 - Error codes: `POLL_NOT_FOUND`, `POLL_STATUS`, `POLL_CLOSED`, `INVALID_CHOICES`,
-  `INVALID_TIME`, `OPTIONS_LOCKED`, `RESULTS_HIDDEN`, `TIER_TOO_HIGH`, `FORBIDDEN`,
-  `NOT_SIGNED_IN`.
+  `INVALID_TIME`, `OPTIONS_LOCKED`, `RESULTS_HIDDEN`, `TIER_TOO_HIGH`, `CHANNEL_NOT_ALLOWED`,
+  `FORBIDDEN`, `NOT_SIGNED_IN`.
 
 ## Discord
 

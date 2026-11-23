@@ -372,6 +372,7 @@ export function pollsStore(ctx: Ctx): PollsStore {
 
 export function pollsDeps(ctx: Ctx): PollsDeps {
   const people = identityStore(ctx);
+  const coord = coordinatorStore(ctx);
   return {
     polls: pollsStore(ctx),
     pollMembers: {
@@ -379,6 +380,12 @@ export function pollsDeps(ctx: Ctx): PollsDeps {
       listMembers: (guildId) => people.listMembers(guildId),
     },
     pollEvents: eventSink(ctx),
+    pollChannels: {
+      getRestrictedChannels: async (guildId) => {
+        const { opsChannelId, leadsChannelId } = await coord.getConfig(guildId);
+        return { opsChannelId, leadsChannelId };
+      },
+    },
   };
 }
 
@@ -527,7 +534,10 @@ export function coordinatorScheduler(ctx: Ctx): CoordinatorDeps['scheduler'] {
 export function coordinatorPolls(ctx: Ctx, run: RunCommand): CoordinatorDeps['coordinatorPolls'] {
   return {
     create: async (caller, input, channelId) => {
-      const result = (await run(caller, 'poll-create', input)) as CommandResult<Poll>;
+      const result = (await run(caller, 'poll-create', {
+        ...input,
+        ...(channelId ? { channelId } : {}),
+      })) as CommandResult<Poll>;
       if (result.success && channelId) {
         await writable(ctx).scheduler.runAfter(0, postPoll, { pollId: result.data!.id, channelId });
       }

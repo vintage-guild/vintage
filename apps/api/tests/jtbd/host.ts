@@ -81,6 +81,7 @@ export const DISCORD_GUILD = '600000000000000001';
 export const SIGNUP_CHANNEL = '400000000000000001';
 export const OPS_CHANNEL = '400000000000000002';
 export const POLL_CHANNEL = '400000000000000003';
+export const LEADS_CHANNEL = '400000000000000004';
 export const SITE_URL = 'https://vintageguild.gg';
 
 export const HOUR = 60 * 60 * 1000;
@@ -160,11 +161,21 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
       listMembers: (g) => identity.listMembers(g),
     },
     pollEvents,
+    pollChannels: {
+      getRestrictedChannels: async (g) => {
+        const { opsChannelId, leadsChannelId } = await coordinator.getConfig(g);
+        return { opsChannelId, leadsChannelId };
+      },
+    },
     coordinatorPolls: {
       // Like apps/api coordinatorPolls: poll-create as the leader, then the post goes up.
       create: async (caller, input, channelId) => {
         const result = (await registry.execute(
-          { name: 'poll-create', input, caller },
+          {
+            name: 'poll-create',
+            input: { ...input, ...(channelId ? { channelId } : {}) },
+            caller,
+          },
           deps,
         )) as CommandResult<Poll>;
         if (result.success && channelId) await postPoll(result.data!.id, channelId);
@@ -960,8 +971,13 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
   };
 
   const pollUi = {
-    create: (discordId: string, options: Record<string, string | number | boolean>) =>
+    create: (
+      discordId: string,
+      options: Record<string, string | number | boolean>,
+      channelId = POLL_CHANNEL,
+    ) =>
       pollInteract(discordId, {
+        channel_id: channelId,
         type: InteractionType.APPLICATION_COMMAND,
         data: {
           name: 'vintage',

@@ -1,0 +1,23 @@
+{
+  "name": "@vintage/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "CLI for Vintage: afd-cli configured with --transport streamable against /mcp.",
+  "bin": {
+    "vintage": "./src/bin.ts"
+  },
+  "scripts": {
+    "vintage": "tsx src/bin.ts",
+    "type-check": "tsc6 -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@lushly-dev/afd-cli": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "@vintage/config": "workspace:*",
+    "tsx": "^4.23.15",
+    "typescript": "catalog:"
+  }
+}

@@ -38,6 +38,7 @@ export interface StoredAccessToken {
   clientId: string;
   userId?: string | null;
   expiresAt: number;
+  revoked?: number | null;
   scopes: string[];
 }
 export interface StoredClient {
@@ -69,7 +70,7 @@ export async function mcpCaller(
 ): Promise<McpCallerResult> {
   if (!token) return { refused: 'missing' };
   const stored = await ports.accessToken(await hashToken(token));
-  if (!stored) return { refused: 'unknown' };
+  if (!stored || stored.revoked) return { refused: 'unknown' };
   // No expiry counts as expired, as in the provider's own check.
   if (typeof stored.expiresAt !== 'number' || stored.expiresAt <= ports.now()) {
     return { refused: 'expired' };

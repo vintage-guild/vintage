@@ -1,12 +1,13 @@
 # @vintage/gateway
 
-Vercel functions for the public HTTP surfaces in front of Convex (PLAN §3.1). Today:
-`POST /api/discord/interactions` (also reachable as `/discord/interactions`).
+Vercel functions for the public HTTP surfaces in front of Convex (PLAN §3.1):
+`POST /api/discord/interactions` (also reachable as `/discord/interactions`) and
+`/api/mcp` (reachable as `/mcp` and `/.well-known/oauth-protected-resource(/mcp)?`).
 
 ## Environment
 
-Set these in Vercel (and in `.env.local` for local runs). Never commit real values. All come from
-the Discord Developer Portal → your application.
+Set these in Vercel (and in `.env.local` for local runs). Never commit real values. Discord
+settings come from the Discord Developer Portal → your application.
 
 | Variable | Where | Used by |
 |---|---|---|
@@ -14,17 +15,29 @@ the Discord Developer Portal → your application.
 | `DISCORD_APP_ID` | General Information → Application ID | `scripts/register-commands.ts` |
 | `DISCORD_BOT_TOKEN` | Bot → Token | `scripts/register-commands.ts`, `scripts/set-bot-profile.ts` |
 | `DISCORD_GUILD_ID` | Optional: a guild id | Register commands to one guild (instant) instead of globally |
-| `VINTAGE_CONVEX_SITE_URL` | The Convex deployment's HTTP actions URL (`https://<name>.convex.site`) | Forwarding signup buttons and modals; the issuer in /mcp's sign-in metadata (`<that origin>/api/auth`) |
-| `VINTAGE_MCP_URL` | Optional: the /mcp URL, if not `https://vintage-gateway.vercel.app/mcp` | The protected-resource metadata and /mcp's 401 challenge |
-| `VINTAGE_GATEWAY_SECRET` | Any long random string; the same value in the Convex env | Authenticates the forward to Convex |
+| `VINTAGE_CONVEX_SITE_URL` | The Convex deployment's HTTP actions URL (`https://<name>.convex.site`) | Forwarding signup buttons, modals, and `/mcp` calls; the issuer in `/mcp`'s sign-in metadata (`<that origin>/api/auth`) |
+| `VINTAGE_MCP_URL` | Optional: the `/mcp` URL, if not `https://vintage-gateway.vercel.app/mcp` | Protected-resource metadata, `/mcp`'s 401 challenge, and `allowedHosts` |
+| `VINTAGE_MCP_ALLOWED_ORIGINS` | Optional: comma-separated browser origins | CORS `Access-Control-Allow-Origin` on `/mcp` (CLI/Claude/Codex need none) |
+| `VINTAGE_GATEWAY_SECRET` | Any long random string; the same value in the Convex env | Authenticates gateway forwards to Convex |
 
-## MCP sign-in metadata
+## MCP endpoint and sign-in metadata
 
 `/.well-known/oauth-protected-resource` (and `/.well-known/oauth-protected-resource/mcp`) answers
-RFC 9728 metadata that names /mcp as the resource and Better Auth on Convex as its authorization
-server (`src/mcp-metadata.ts`). It needs no Discord settings. /mcp itself (AFD's stateless handler,
-#9) will answer an unauthenticated request with `mcpChallenge()`, a 401 whose `WWW-Authenticate`
-header points there, so MCP clients find the sign-in flow.
+RFC 9728 metadata naming `/mcp` as the resource and Better Auth on Convex as its authorization
+server (`src/mcp-metadata.ts`). It needs no Discord settings or bearer token.
+
+`/mcp` (`src/vercel-mcp.ts` → `src/mcp.ts`) is a stateless AFD 2.4 `createMcpHandler`
+(`toolStrategy: 'lazy'`, exposing `afd-discover`, `afd-detail`, `afd-call`, `afd-batch`, and
+`afd-pipe`):
+
+- An unauthenticated or invalid request gets `mcpChallenge()`, a 401 whose `WWW-Authenticate`
+  header points at the RFC 9728 metadata so MCP clients find the OAuth flow.
+- Valid Bearer tokens are forwarded to Convex `POST /gateway/mcp/tools` and `/gateway/mcp/call`
+  with `VINTAGE_GATEWAY_SECRET`. Each request builds a fresh handler over only the commands
+  Convex reports for that caller's tier, then calls `dispose()` in `finally`.
+- Destructive commands advertise an optional `confirmToken` input: the first call returns a
+  preview plus `confirmToken`, and the second call passes `confirmToken` to execute.
+- Convex 5xx bodies are never forwarded to MCP clients.
 
 ## Signup buttons
 

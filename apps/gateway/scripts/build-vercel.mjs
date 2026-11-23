@@ -10,24 +10,37 @@ import { build } from 'esbuild';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const out = join(root, '.vercel', 'output');
-const fn = join(out, 'functions', 'api', 'discord', 'interactions.func');
+const interactionsFn = join(out, 'functions', 'api', 'discord', 'interactions.func');
+const mcpFn = join(out, 'functions', 'api', 'mcp.func');
 
 rmSync(out, { recursive: true, force: true });
-mkdirSync(fn, { recursive: true });
+mkdirSync(interactionsFn, { recursive: true });
+mkdirSync(mcpFn, { recursive: true });
 
-await build({
-  entryPoints: [join(root, 'src', 'vercel.ts')],
-  outfile: join(fn, 'index.mjs'),
-  bundle: true,
-  platform: 'node',
-  format: 'esm',
-  target: 'node24',
-  logLevel: 'warning',
-});
-writeFileSync(
-  join(fn, '.vc-config.json'),
-  `${JSON.stringify({ runtime: 'nodejs24.x', handler: 'index.mjs', launcherType: 'Nodejs' }, null, 2)}\n`,
-);
+const vcConfig = `${JSON.stringify({ runtime: 'nodejs24.x', handler: 'index.mjs', launcherType: 'Nodejs' }, null, 2)}\n`;
+
+await Promise.all([
+  build({
+    entryPoints: [join(root, 'src', 'vercel.ts')],
+    outfile: join(interactionsFn, 'index.mjs'),
+    bundle: true,
+    platform: 'node',
+    format: 'esm',
+    target: 'node24',
+    logLevel: 'warning',
+  }),
+  build({
+    entryPoints: [join(root, 'src', 'vercel-mcp.ts')],
+    outfile: join(mcpFn, 'index.mjs'),
+    bundle: true,
+    platform: 'node',
+    format: 'esm',
+    target: 'node24',
+    logLevel: 'warning',
+  }),
+]);
+writeFileSync(join(interactionsFn, '.vc-config.json'), vcConfig);
+writeFileSync(join(mcpFn, '.vc-config.json'), vcConfig);
 writeFileSync(
   join(out, 'config.json'),
   `${JSON.stringify(
@@ -38,8 +51,9 @@ writeFileSync(
         // /mcp's protected-resource metadata (RFC 9728), at the root and path-inserted for /mcp.
         {
           src: '^/\\.well-known/oauth-protected-resource(/mcp)?/?$',
-          dest: '/api/discord/interactions',
+          dest: '/api/mcp',
         },
+        { src: '^/mcp/?$', dest: '/api/mcp' },
       ],
     },
     null,
@@ -48,5 +62,5 @@ writeFileSync(
 );
 cpSync(join(root, 'public'), join(out, 'static'), { recursive: true });
 console.log(
-  'Built .vercel/output (function: /api/discord/interactions, also /discord/interactions and /.well-known/oauth-protected-resource)',
+  'Built .vercel/output (functions: /api/discord/interactions, /api/mcp; routes: /discord/interactions, /mcp, /.well-known/oauth-protected-resource)',
 );

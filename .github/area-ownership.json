@@ -21,6 +21,7 @@
     "api": { "paths": ["apps/api/"], "owners": ["@Falkicon"] },
     "gateway": { "paths": ["apps/gateway/"], "owners": ["@Falkicon"] },
     "web": { "paths": ["apps/web/"], "owners": ["@Falkicon"] },
+    "cli": { "paths": ["apps/cli/"], "owners": ["@Falkicon"] },
     "libs": { "paths": ["libs/"], "owners": ["@Falkicon"] },
     "addon": { "paths": ["addon/"], "owners": ["@Falkicon"] },
     "vendor": { "paths": ["vendor/"], "owners": ["@Falkicon"] },

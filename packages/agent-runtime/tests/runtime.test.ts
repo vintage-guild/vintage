@@ -251,11 +251,15 @@ function tools() {
 }
 
 describe('createRegistryTools', () => {
-  it('discovers only what the member may run, minus hidden commands', async () => {
+  it('discovers only what the member may run, minus hidden commands, with optional query filter', async () => {
     const { t } = tools();
     const result = await t.execute(DISCOVER_TOOL, {});
     const names = (JSON.parse(result.output) as { name: string }[]).map((c) => c.name);
     expect(names).toEqual(['raid-cancel', 'raid-list', 'signup-set']);
+
+    const filtered = await t.execute(DISCOVER_TOOL, { query: 'signup' });
+    const filteredNames = (JSON.parse(filtered.output) as { name: string }[]).map((c) => c.name);
+    expect(filteredNames).toEqual(['signup-set']);
   });
 
   it('describes a command input as JSON Schema', async () => {

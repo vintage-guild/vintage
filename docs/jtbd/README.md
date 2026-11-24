@@ -19,7 +19,7 @@ Job ids (`J01`…) are shared: the doc, the test name, and the live run all use 
 | [Polls](polls.md) | J17, J18, J22, J43, J71 | ✅ `polls.jtbd.test.ts` | ✅ checklist (J17 partly run live on 2026-10-26) |
 | [Recruiting and the public site](recruiting.md) | J21, J23, J29, J34, J42, J76 | ✅ `recruiting.jtbd.test.ts` | ✅ checklist |
 | [Armory](armory.md) | J49 | ✅ `armory.jtbd.test.ts` (Blizzard faked) | ✅ checklist (J49 run 2026-11-07 against Blizzard US) |
-| [Guild agent](agent.md) | J25–J27, J30, J33, J77 | ✅ `agent.jtbd.test.ts` (the OpenAI turn stood in for) | ✅ J25, J26, J30 run 2026-10-26; J33 run 2026-10-27 |
+| [Guild agent](agent.md) | J25–J27, J30, J33, J77, J79 | ✅ `agent.jtbd.test.ts` (the OpenAI turn stood in for) | ✅ J25, J26, J30 run 2026-10-26; J33 run 2026-10-27 |
 
 ## Rules
 

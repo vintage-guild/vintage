@@ -1,7 +1,7 @@
 # Character choice: which character a raider brings
 
-**Status:** active (2026-11-23): §1–3 and addon attendance learning (#148, #149, #185) built and
-merged; §4 is #240, and a live Discord check is #241. **Owner modules:** raids (signups, attendance), identity (characters).
+**Status:** completed (2026-11-23): all four parts built and merged (#148, #149, #185, #240); a
+live Discord check is #241. **Owner modules:** raids (signups, attendance), identity (characters), agent.
 
 Raiders and flex raiders often bring a different character, class or spec from one raid to the next: a
 main on Molten Core, an alt on the Rage Fire Chasm run, or the same druid as a tank one night and
@@ -20,6 +20,7 @@ for this raid only.
 | Site signup card | `vintage-signup-card` (ui-kit) on the home page | ✅ the guess and its reason, with the same two menus (#148) |
 | Characters from Discord | `/random character`, `apps/api/src/discord-characters.ts` | ✅ add, list, main, remove, with autocomplete, and **New character…** in the picker (#149) |
 | Spec for one raid | raids `signup-set` `spec` | ✅ on the signup only; the saved character keeps its spec (#148) |
+| Guild agent signups | `modules/agent`, `packages/agent-runtime` | ✅ `signup-suggest` (read-only) and `signup-set` with `spec`/`role` (confirmation-gated); instructions, router `own-change` wording, and J79 (#240) |
 
 ## How other bots do it
 
@@ -169,9 +170,17 @@ gateway change, and it's what the `spec` and `name` options need.
 
 ### 4. The agent
 
-`/random ask "I'm bringing my priest Thursday"` works once the agent's tool list includes these
+`/vintage ask "I'm bringing my priest Thursday"` works once the agent's tool list includes these
 commands (`signup-suggest`, and `signup-set` with `spec`). The intent router sends it to
 `signup-set` with the character it resolved, and the reply names the character and spec it used.
+
+**As built (#240):** `createRegistryTools` dynamically exposes `signup-suggest` (read-only) and
+`signup-set` (with optional `spec` and `role`, confirmation-gated) to every raider via
+`afd-discover`, `afd-detail`, and `afd-call`. `ASK_INSTRUCTIONS` directs the agent to read
+`signup-suggest` (and `character-list` when another character is named), prepare `signup-set` with
+the resolved `characterId` and any requested `spec` or `role`, and name the character, spec, and
+role in its reply. `routeRequest` includes character, spec, and role signups in `own-change`, and
+JTBD job J79 verifies the end-to-end flow.
 
 ## Decisions
 
@@ -203,5 +212,5 @@ None open; the four from the proposal are decisions 5–8.
   removing `defaultCharacterId` (`breaking-contract`), an optional role on characters and
   signups (Role menu and site control), Edit on the Characters page, the main before history in
   `signup-suggest`, and jobs J40 and J41.
-- [ ] **The agent** (§4, #240): `signup-suggest` and `signup-set` with `spec` and `role` in the agent's tools.
+- [x] **The agent** (§4, #240): `signup-suggest` and `signup-set` with `spec` and `role` in the agent's tools.
 - [x] **Learn from addon attendance** (#185): count the character that actually came above signups alone (`listAttendanceByMember`, `mergeHistory`).

@@ -19,14 +19,23 @@ export const DETAIL_TOOL = 'afd-detail';
 export const CALL_TOOL = 'afd-call';
 
 /** Tool output the agent reads is capped so one large list can't blow the context. */
-export const MAX_TOOL_OUTPUT = 12_000;
+export const MAX_TOOL_OUTPUT = 32_000;
 
 export const REGISTRY_TOOLS: readonly AgentToolDefinition[] = [
   {
     name: DISCOVER_TOOL,
     description:
-      'List the guild commands you can run for this member: name, what it does, and whether it changes data. Call this first.',
-    parameters: { type: 'object', properties: {}, additionalProperties: false },
+      'List the guild commands you can run for this member: name, what it does, and whether it changes data. Call this first; pass query to filter by name or description.',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: 'Optional substring filter matching command name or description',
+        },
+      },
+      additionalProperties: false,
+    },
   },
   {
     name: DETAIL_TOOL,
@@ -132,6 +141,9 @@ export function summarize(command: string, input: unknown): string {
   return line.length > 200 ? `${line.slice(0, 199)}…` : line;
 }
 
+const matchesQuery = (c: { name: string; description: string }, needle: string) =>
+  !needle || c.name.toLowerCase().includes(needle) || c.description.toLowerCase().includes(needle);
+
 export function createRegistryTools<Deps>(options: RegistryToolsOptions<Deps>) {
   const { registry, deps, caller } = options;
   const hidden = options.hidden ?? (() => false);
@@ -199,10 +211,11 @@ export function createRegistryTools<Deps>(options: RegistryToolsOptions<Deps>) {
     };
   }
 
-  function discover(): RegistryToolExecution {
+  function discover(rawQuery?: unknown): RegistryToolExecution {
+    const needle = typeof rawQuery === 'string' ? rawQuery.trim().toLowerCase() : '';
     const list = registry
       .visibleTo(caller)
-      .filter((c) => !hidden(c.name))
+      .filter((c) => !hidden(c.name) && matchesQuery(c, needle))
       .map((c) => ({ name: c.name, description: c.description, changesData: c.mutation }));
     return { success: true, output: clip(list), command: null, confirmation: null };
   }
@@ -224,7 +237,7 @@ export function createRegistryTools<Deps>(options: RegistryToolsOptions<Deps>) {
     definitions: REGISTRY_TOOLS,
     async execute(toolName: string, rawArgs: unknown): Promise<RegistryToolExecution> {
       const args = argsOf(rawArgs);
-      if (toolName === DISCOVER_TOOL) return discover();
+      if (toolName === DISCOVER_TOOL) return discover(args.query);
       if (toolName === DETAIL_TOOL) return detail(String(args.name ?? ''));
       if (toolName === CALL_TOOL) {
         const name = String(args.name ?? '');

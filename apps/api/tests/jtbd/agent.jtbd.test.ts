@@ -264,6 +264,107 @@ describe('Guild agent', () => {
     expect(read?.output).toContain('Your rank can’t use these yet.');
     expect(read?.output).toContain('Raid leaders and officers can: `/vintage event create`');
   });
+
+  it('J79 · Sign up with a character, spec, or role by asking', async () => {
+    const warrior = await g.host.ok<{ id: string; role: string; rolePicked: boolean }>(
+      g.aeryn,
+      'character-add',
+      { name: 'Kael', class: 'warrior', spec: 'fury', isMain: false },
+    );
+    g.host.agentUi.setDecisions(
+      createFakeDecisions({ route: { choice: 'own-change', confidence: 0.95 } }),
+    );
+
+    const deferred = await g.host.agentUi.ask(
+      AERYN,
+      'put me down as a tank on my warrior for Molten Core',
+    );
+    expect(deferred).toEqual({ type: 5, data: { flags: 64 } });
+    const { runId } = g.host.agentUi.queued[0]!;
+
+    // Both full discovery and filtered discovery include signup-suggest (read-only) and signup-set.
+    const reply = await g.host.agentUi.answer(
+      runId,
+      [
+        { tool: 'afd-discover', args: {} },
+        { tool: 'afd-detail', args: { name: 'signup-set' } },
+        { tool: 'afd-call', args: { name: 'signup-suggest', input: { eventId: g.raid.id } } },
+        { tool: 'afd-call', args: { name: 'character-list', input: {} } },
+        {
+          tool: 'afd-call',
+          args: {
+            name: 'signup-set',
+            input: {
+              eventId: g.raid.id,
+              characterId: warrior.id,
+              status: 'accepted',
+              spec: 'fury',
+              role: 'tank',
+            },
+          },
+        },
+      ],
+      'Press Confirm to sign up for Molten Core on Kael (Fury Warrior, tank).',
+    );
+
+    // signup-suggest is read-only and discoverable; signup-set exposes spec and role and confirms.
+    const discovered = JSON.parse(
+      (await g.host.deps.agent.getToolResult('guild-test', runId, 'call-0'))!.output,
+    ) as { name: string; changesData: boolean }[];
+    expect(discovered).toContainEqual(
+      expect.objectContaining({ name: 'signup-suggest', changesData: false }),
+    );
+    expect(discovered).toContainEqual(
+      expect.objectContaining({ name: 'signup-set', changesData: true }),
+    );
+
+    const detail = JSON.parse(
+      (await g.host.deps.agent.getToolResult('guild-test', runId, 'call-1'))!.output,
+    ) as { input: { properties: Record<string, unknown> } };
+    expect(detail.input.properties).toHaveProperty('spec');
+    expect(detail.input.properties).toHaveProperty('role');
+
+    const suggested = JSON.parse(
+      (await g.host.deps.agent.getToolResult('guild-test', runId, 'call-2'))!.output,
+    ) as { success: boolean; data: { characterName: string; spec: string; role: string } };
+    expect(suggested.success).toBe(true);
+    expect(suggested.data).toMatchObject({ characterName: 'Aeryn', spec: 'holy', role: 'healer' });
+
+    // Only signup-set created a confirmation; the reply names character, spec, and role.
+    expect(reply.content).toContain('Kael (Fury Warrior, tank)');
+    expect(reply.content).toMatch(
+      /\*\*Change 1:\*\* signup-set: status accepted, spec fury, role tank/,
+    );
+    const confirmations = await g.host.deps.agent.listConfirmations('guild-test', runId);
+    expect(confirmations).toHaveLength(1);
+    expect(
+      await g.host.ok<Signup | null>(g.aeryn, 'signup-get', { eventId: g.raid.id }),
+    ).toBeNull();
+
+    // Confirm runs signup-set with the alt, spec, and role; the saved character keeps its role.
+    const row = reply.components?.[0] as { components: { custom_id: string }[] } | undefined;
+    const confirm = row?.components?.[0];
+    const done = await g.host.agentUi.click(AERYN, confirm!.custom_id, reply.content!);
+    expect(content(done)).toMatch(/Done\.$/);
+
+    const signup = await g.host.ok<Signup>(g.aeryn, 'signup-get', { eventId: g.raid.id });
+    expect(signup).toMatchObject({
+      characterId: warrior.id,
+      characterName: 'Kael',
+      spec: 'fury',
+      role: 'tank',
+      rolePicked: true,
+      status: 'accepted',
+    });
+    const saved = await g.host.ok<{ id: string; role: string; rolePicked: boolean }[]>(
+      g.aeryn,
+      'character-list',
+    );
+    expect(saved.find((c) => c.id === warrior.id)).toMatchObject({
+      role: 'melee',
+      rolePicked: false,
+    });
+  });
 });
 
 describe('Raid insights', () => {

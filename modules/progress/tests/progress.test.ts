@@ -107,9 +107,29 @@ describe('progress-get', () => {
     expect(view.raids.flatMap((r) => r.bosses).every((b) => b.firstKillAt === null)).toBe(true);
   });
 
-  it('is for members, not the public', async () => {
-    expect(code(await run('progress-get', {}, makeCaller('public')))).toBe('COMMAND_NOT_FOUND');
+  it('is public and omits recorder ids, notes, and guild ids', async () => {
+    await run(
+      'kill-record',
+      {
+        raidId: 'barrow-deeps',
+        bossId: 'chillhowl',
+        killedAt: Date.parse('2026-12-10T21:40:00-05:00'),
+        loot: [{ name: 'Frostfang Greaves', quality: 'epic' }],
+        note: 'officers-only note',
+      },
+      leader,
+    );
+    const pub = await run('progress-get', {}, makeCaller('public'));
+    expect(code(pub)).toBe('OK');
     expect(code(await run('progress-get', {}, member))).toBe('OK');
+    const view = pub.data as Progress;
+    expect(view).toMatchObject({ killed: 1, total: 22 });
+    const serialized = JSON.stringify(view);
+    expect(serialized).not.toContain('officers-only note');
+    expect(serialized).not.toContain('member-leader');
+    expect(serialized).not.toContain('recordedBy');
+    expect(serialized).not.toContain('recordedAt');
+    expect(serialized).not.toContain('guild-test');
   });
 });
 

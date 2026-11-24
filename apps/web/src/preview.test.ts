@@ -52,7 +52,7 @@ describe('the previewed session', () => {
     setSession(officer);
     setPreview('visitor');
     expect(currentSession()).toBeNull();
-    expect([...sectionsFor(currentSession())]).toEqual(['about', 'recruiting']);
+    expect([...sectionsFor(currentSession())]).toEqual(['about', 'progress', 'recruiting']);
   });
 
   it('only lets leaders and officers preview, and only below their own tier', () => {
@@ -131,6 +131,7 @@ describe('commandTiers', () => {
   it('reads each command’s tier from the module lists the server registers', async () => {
     const tiers = await commandTiers();
     expect(tiers['member-list']).toBe('recruit');
+    expect(tiers['progress-get']).toBe('public');
     expect(tiers['recruiting-get']).toBe('public');
     expect(tiers['recruiting-set']).toBe('officer');
     expect(Object.keys(tiers).length).toBeGreaterThan(40);

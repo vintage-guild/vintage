@@ -39,7 +39,7 @@ export function currentView(): View {
 export const HOME_SECTIONS = {
   about: 'public', // guild-profile-get
   raids: 'member', // raid-list, signup-list
-  progress: 'member', // progress-get
+  progress: 'public', // progress-get
   recruiting: 'public', // recruiting-get
   roster: 'recruit', // member-list
   news: 'member', // coordinator-log, poll-list

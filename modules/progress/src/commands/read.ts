@@ -9,8 +9,9 @@ export const progressGet = command({
     'The progression ledger: the three launch raids, every boss with the guild’s first-kill ' +
     'time (null until it dies), the next target per raid, the totals, and the latest first ' +
     'kill with its loot. Before the raids unlock, `open` is false and every slot is empty. ' +
-    'Boss names flagged `datamined` come from the beta client, not from Blizzard.',
-  tier: 'member',
+    'Boss names flagged `datamined` come from the beta client, not from Blizzard. Public: ' +
+    'omits recorder ids and kill notes.',
+  tier: 'public',
   input: z.object({}),
   handler: async (_input, { guildId, deps, now }) =>
     success(buildProgress(await deps.progress.listKills(guildId), now())),

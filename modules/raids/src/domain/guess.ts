@@ -3,7 +3,7 @@
 import { hasSplitDpsTargets } from '@vintage/comp-solver';
 import type { Character } from '@vintage/identity/contract';
 import { type Role, roleFor } from '@vintage/wow-data';
-import type { RaidEvent, Signup } from '../contract';
+import type { RaidAttendance, RaidEvent, Signup } from '../contract';
 import { targetsOf } from './kinds';
 
 /** How many of the member's recent raids in the same series the guess looks at. */
@@ -19,10 +19,14 @@ export interface SignupGuess {
   reason: string;
 }
 
-/** One past signup in the same series, with the raid it was for. */
-export interface PastSignup {
-  signup: Signup;
+/** One past raid in the same series: recorded addon attendance (#185) or a non-declined signup. */
+export interface PastNight {
   event: RaidEvent;
+  characterId: string;
+  /** Spec from the raid's signup when the character matches; null uses the character's saved spec. */
+  spec: string | null;
+  /** True when backed by recorded attendance; attended characters count above signups alone. */
+  attended: boolean;
 }
 
 /**
@@ -36,12 +40,49 @@ export function sameSeries(event: RaidEvent, other: RaidEvent): boolean {
 }
 
 /**
- * The member's last `SERIES_WINDOW` raids in the series, newest raid first. Declined answers
- * say nothing about who they'd bring, so they don't count.
+ * Combines a member's signups and recorded attendance per raid. When attendance names a character
+ * for a raid, that's who they actually brought (even if they signed up on another character or
+ * didn't sign up); the signup's spec is kept when the character matches.
  */
-export function seriesWindow(event: RaidEvent, past: PastSignup[]): PastSignup[] {
+export function mergeHistory(
+  signups: Signup[],
+  attendance: RaidAttendance[],
+  events: ReadonlyMap<string, RaidEvent | null>,
+): PastNight[] {
+  const signupByEvent = new Map(signups.map((s) => [s.eventId, s]));
+  const byEvent = new Map<string, PastNight>();
+  for (const row of attendance) {
+    if (!row.characterId || byEvent.has(row.eventId)) continue;
+    const pastEvent = events.get(row.eventId);
+    if (!pastEvent) continue;
+    const signup = signupByEvent.get(row.eventId);
+    byEvent.set(row.eventId, {
+      event: pastEvent,
+      characterId: row.characterId,
+      spec: signup?.characterId === row.characterId ? signup.spec : null,
+      attended: true,
+    });
+  }
+  for (const signup of signups) {
+    if (signup.status === 'declined' || byEvent.has(signup.eventId)) continue;
+    const pastEvent = events.get(signup.eventId);
+    if (!pastEvent) continue;
+    byEvent.set(signup.eventId, {
+      event: pastEvent,
+      characterId: signup.characterId,
+      spec: signup.spec,
+      attended: false,
+    });
+  }
+  return [...byEvent.values()];
+}
+
+/**
+ * The member's last `SERIES_WINDOW` raids in the series, newest raid first.
+ */
+export function seriesWindow(event: RaidEvent, past: PastNight[]): PastNight[] {
   return past
-    .filter((p) => p.signup.status !== 'declined' && sameSeries(event, p.event))
+    .filter((p) => sameSeries(event, p.event))
     .sort((a, b) => b.event.startsAt - a.event.startsAt)
     .slice(0, SERIES_WINDOW);
 }
@@ -73,36 +114,64 @@ function seriesReason(event: RaidEvent, used: number, window: number) {
   return window === 1 ? `your last ${where} night` : `your last ${window} ${where} nights`;
 }
 
+interface BroughtTally {
+  character: Character;
+  spec: string;
+  count: number;
+  attended: number;
+}
+
+const beats = (a: BroughtTally, b: BroughtTally) =>
+  a.attended !== b.attended ? a.attended > b.attended : a.count > b.count;
+
+function recordNight(
+  used: Map<string, BroughtTally>,
+  night: PastNight,
+  character: Character,
+): void {
+  const seen = used.get(character.id);
+  if (seen) {
+    seen.count++;
+    if (night.attended) seen.attended++;
+    return;
+  }
+  used.set(character.id, {
+    character,
+    spec: night.spec ?? character.spec,
+    count: 1,
+    attended: night.attended ? 1 : 0,
+  });
+}
+
 /**
  * The character brought most in the window, the spec from its newest night, and how often.
- * Characters deleted since don't count. Map order is first appearance and the window is newest
- * first, so keeping the first character with the top count gives a tie to the most recent.
+ * Attended nights (#185) rank above signed-up-only nights; characters deleted since don't count.
+ * Map order is first appearance and the window is newest first, so keeping the first character
+ * with the top score gives a tie to the most recent.
  */
-function mostBrought(window: PastSignup[], byId: Map<string, Character>) {
-  const used = new Map<string, { character: Character; spec: string; count: number }>();
-  for (const { signup } of window) {
-    const character = byId.get(signup.characterId);
-    if (!character) continue;
-    const seen = used.get(character.id);
-    if (seen) seen.count++;
-    else used.set(character.id, { character, spec: signup.spec, count: 1 });
+function mostBrought(window: PastNight[], byId: Map<string, Character>) {
+  const used = new Map<string, BroughtTally>();
+  for (const night of window) {
+    const character = byId.get(night.characterId);
+    if (character) recordNight(used, night, character);
   }
-  let best: { character: Character; spec: string; count: number } | null = null;
-  for (const entry of used.values()) if (!best || entry.count > best.count) best = entry;
+  let best: BroughtTally | null = null;
+  for (const entry of used.values()) if (!best || beats(entry, best)) best = entry;
   return best;
 }
 
 /**
  * The guess, in order: this raid's own signup (its spec and role), the main, then only when
- * there's no main the character used most in the series window (a tie goes to the most
- * recent), then the only character. Null when none of those apply. The main beats history
- * because members set it on purpose on the Characters page (Bloodfen, 2026-10-27, #149).
+ * there's no main the character used most in the series window (attended above signed-up-only;
+ * a tie goes to the most recent), then the only character. Null when none of those apply. The
+ * main beats history because members set it on purpose on the Characters page (Bloodfen,
+ * 2026-10-27, #149).
  */
 export function guessCharacter(
   event: RaidEvent,
   existing: Signup | null,
   characters: Character[],
-  window: PastSignup[],
+  window: PastNight[],
 ): SignupGuess | null {
   const byId = new Map(characters.map((c) => [c.id, c]));
   const signedUp = existing && byId.get(existing.characterId);

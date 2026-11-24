@@ -135,6 +135,44 @@ describe('signup-suggest and a spec for one raid', () => {
     });
     return past;
   };
+  /** Records addon attendance for `characterId` on `past`. */
+  const attended = async (
+    past: RaidEvent,
+    characterId: string,
+    opts: { stoodBy?: boolean } = {},
+  ) => {
+    const c = CHARACTERS.find((x) => x.id === characterId)!;
+    const seenAt = past.startsAt + 3600 * 1000;
+    await deps.raids.putRecord(
+      {
+        guildId: G,
+        eventId: past.id,
+        exportKey: `exp@${seenAt}`,
+        exporter: 'Aeryn',
+        exportedAt: seenAt,
+        addonVersion: '0.2.0',
+        snapshots: 3,
+        attended: 1,
+        drops: 0,
+        bosses: null,
+        recordedBy: 'officer',
+        recordedAt: seenAt,
+      },
+      [
+        {
+          name: c.name,
+          class: c.class,
+          characterId: c.id,
+          memberId: c.memberId,
+          snapshots: opts.stoodBy ? 0 : 3,
+          labels: opts.stoodBy ? [] : ['start', 'end'],
+          firstSeenAt: seenAt,
+          lastSeenAt: seenAt,
+          ...(opts.stoodBy ? { stoodBy: true } : {}),
+        },
+      ],
+    );
+  };
 
   beforeEach(() => {
     clock = fixedClock();
@@ -284,6 +322,65 @@ describe('signup-suggest and a spec for one raid', () => {
       expect(await suggest(open.id)).toBeNull();
     });
 
+    it('counts an attended character above a signed-up-only one in the same series (#185)', async () => {
+      const raid = await event();
+      // Signed up on oak for two newer nights with no attendance recorded,
+      // but actually attended an older night in the same series on elm.
+      await night(7, 'oak');
+      await night(14, 'oak');
+      const attendedNight = await night(21, 'elm');
+      await attended(attendedNight, 'elm');
+      expect(await suggest(raid.id)).toMatchObject({
+        characterId: 'elm',
+        spec: 'frost',
+        role: 'ranged',
+        reason: '1 of your last 3 Molten Core nights',
+      });
+    });
+
+    it('learns the character actually brought when it differs from the signup, and works without a signup (#185)', async () => {
+      const raid = await event();
+      // Signed up on oak, showed up on elm.
+      const swapped = await night(7, 'oak', { spec: 'feral' });
+      await attended(swapped, 'elm');
+      expect(await suggest(raid.id)).toMatchObject({
+        characterId: 'elm',
+        spec: 'frost',
+        role: 'ranged',
+        reason: 'your last Molten Core night',
+      });
+
+      // Attended a second night on ash without signing up at all; newer attended tie wins.
+      const walkIn = await event({ startsAt: clock.now() - 3 * DAY });
+      await attended(walkIn, 'ash');
+      expect(await suggest(raid.id)).toMatchObject({
+        characterId: 'ash',
+        spec: 'holy',
+        role: 'healer',
+        reason: '1 of your last 2 Molten Core nights',
+      });
+    });
+
+    it('keeps the signup spec when the member attended on the same character, and main still wins (#185)', async () => {
+      const raid = await event();
+      const sameChar = await night(7, 'oak', { spec: 'restoration' });
+      await attended(sameChar, 'oak');
+      expect(await suggest(raid.id)).toMatchObject({
+        characterId: 'oak',
+        spec: 'restoration',
+        role: 'healer',
+        reason: 'your last Molten Core night',
+      });
+
+      // Main still beats attendance history (Bloodfen, 2026-10-27, #149).
+      const heldNight = await night(7, 'pine');
+      await attended(heldNight, 'pine');
+      expect(await suggest(raid.id, 'held')).toMatchObject({
+        characterId: 'birch',
+        reason: 'your main',
+      });
+    });
+
     it('needs a signed-in recruit and a real raid', async () => {
       const raid = await event();
       expect(
@@ -304,13 +401,19 @@ describe('signup-suggest and a spec for one raid', () => {
     });
   });
 
-  it("the store lists a member's signups latest first, up to the limit", async () => {
-    await night(14, 'oak');
-    await night(7, 'elm');
-    await night(21, 'ash');
+  it("the store lists a member's signups and attendance latest first, up to the limit", async () => {
+    const n1 = await night(14, 'oak');
+    const n2 = await night(7, 'elm');
+    const n3 = await night(21, 'ash');
+    await attended(n1, 'oak');
+    await attended(n2, 'elm');
+    await attended(n3, 'ash');
     const listed = await deps.raids.listSignupsByMember(G, 'fen', 2);
     expect(listed.map((s) => s.characterId)).toEqual(['ash', 'elm']);
     expect(await deps.raids.listSignupsByMember(G, 'solo', 5)).toEqual([]);
+    const att = await deps.raids.listAttendanceByMember(G, 'fen', 2);
+    expect(att.map((a) => a.characterId)).toEqual(['elm', 'oak']);
+    expect(await deps.raids.listAttendanceByMember(G, 'solo', 5)).toEqual([]);
   });
 
   describe('signup-set with a spec', () => {

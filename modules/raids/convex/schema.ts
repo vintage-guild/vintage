@@ -222,7 +222,10 @@ export default defineSchema({
     .index('by_guild_member', ['guildId', 'memberId', 'signedUpAt']),
   // The export a raid was recorded from (raid-export-record): one per raid.
   raidRecords: defineTable(recordFields).index('by_guild_event', ['guildId', 'eventId']),
-  attendance: defineTable(attendanceFields).index('by_guild_event', ['guildId', 'eventId']),
+  attendance: defineTable(attendanceFields)
+    .index('by_guild_event', ['guildId', 'eventId'])
+    // A member's attended history across raids, for signup-suggest (#185).
+    .index('by_guild_member', ['guildId', 'memberId', 'lastSeenAt']),
   absences: defineTable(absenceFields)
     .index('by_guild', ['guildId'])
     .index('by_guild_member', ['guildId', 'memberId']),

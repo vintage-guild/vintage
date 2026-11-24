@@ -61,6 +61,12 @@ export interface RaidsStore {
   getRecord(guildId: string, eventId: string): Promise<RaidRecord | null>;
   /** A raid's recorded attendance, sorted by name. */
   listAttendance(guildId: string, eventId: string): Promise<RaidAttendance[]>;
+  /** One member's recorded attendance across raids, latest `lastSeenAt` first, at most `limit`. */
+  listAttendanceByMember(
+    guildId: string,
+    memberId: string,
+    limit: number,
+  ): Promise<RaidAttendance[]>;
   /** Records an export for a raid, replacing any earlier record and its attendance. */
   putRecord(record: Omit<RaidRecord, 'id'>, attendance: RaidAttendanceInput[]): Promise<RaidRecord>;
 

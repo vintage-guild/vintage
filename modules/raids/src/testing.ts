@@ -176,6 +176,12 @@ export function createMemoryRaidsStore(): RaidsStore & {
         .filter((a) => a.guildId === guildId && a.eventId === eventId)
         .sort((a, b) => a.name.localeCompare(b.name));
     },
+    async listAttendanceByMember(guildId, memberId, limit) {
+      return [...attendance.values()]
+        .filter((a) => a.guildId === guildId && a.memberId === memberId)
+        .sort((a, b) => b.lastSeenAt - a.lastSeenAt)
+        .slice(0, limit);
+    },
     async putRecord(input, people) {
       const { guildId, eventId } = input;
       for (const r of records.values()) {

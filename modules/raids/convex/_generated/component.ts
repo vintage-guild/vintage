@@ -176,6 +176,13 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
         any,
         Name
       >;
+      attendanceByMember: FunctionReference<
+        "query",
+        "internal",
+        { guildId: string; limit: number; memberId: string },
+        any,
+        Name
+      >;
       get: FunctionReference<
         "query",
         "internal",

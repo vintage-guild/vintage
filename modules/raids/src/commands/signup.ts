@@ -4,7 +4,13 @@ import type { Character } from '@vintage/identity/contract';
 import { classRoles, cleanAlsoRoles, type Role, roleFor, roleSchema } from '@vintage/wow-data';
 import { z } from 'zod';
 import { accessOf, type LateMinutes, type RaidEvent, type Signup } from '../contract';
-import { guessCharacter, type PastSignup, roleForSpec, seriesWindow } from '../domain/guess';
+import {
+  guessCharacter,
+  mergeHistory,
+  type PastNight,
+  roleForSpec,
+  seriesWindow,
+} from '../domain/guess';
 import { command, type RaidsDeps } from '../store';
 import { eventNotFound, isLeader, notSignedIn, raidClosed } from './shared';
 
@@ -322,24 +328,27 @@ export const signupSet = command({
 /** Enough of the member's recent signups to find SERIES_WINDOW from one series among others. */
 const HISTORY_LIMIT = 50;
 
-/** The member's recent signups in the same series as `event`, with their raids. */
+/** The member's recent attendance and signups in the same series as `event`, with their raids. */
 async function seriesOf(
   deps: RaidsDeps,
   guildId: string,
   memberId: string,
   event: RaidEvent,
-): Promise<PastSignup[]> {
-  const recent = await deps.raids.listSignupsByMember(guildId, memberId, HISTORY_LIMIT);
-  const events = new Map<string, RaidEvent | null>();
-  const past: PastSignup[] = [];
-  for (const signup of recent) {
-    if (!events.has(signup.eventId)) {
-      events.set(signup.eventId, await deps.raids.getEvent(guildId, signup.eventId));
-    }
-    const pastEvent = events.get(signup.eventId);
-    if (pastEvent) past.push({ signup, event: pastEvent });
+): Promise<PastNight[]> {
+  const [recentSignups, recentAttendance] = await Promise.all([
+    deps.raids.listSignupsByMember(guildId, memberId, HISTORY_LIMIT),
+    deps.raids.listAttendanceByMember(guildId, memberId, HISTORY_LIMIT),
+  ]);
+  const eventIds = new Set<string>();
+  for (const s of recentSignups) eventIds.add(s.eventId);
+  for (const a of recentAttendance) {
+    if (a.characterId) eventIds.add(a.eventId);
   }
-  return seriesWindow(event, past);
+  const events = new Map<string, RaidEvent | null>();
+  for (const id of eventIds) {
+    events.set(id, await deps.raids.getEvent(guildId, id));
+  }
+  return seriesWindow(event, mergeHistory(recentSignups, recentAttendance, events));
 }
 
 export const signupSuggest = command({
@@ -347,8 +356,9 @@ export const signupSuggest = command({
   description:
     'Which of your characters you are likely bringing to a raid, with the spec, role and a ' +
     'short reason: this raid’s signup, else your main, else (no main) the one you brought ' +
-    'most to your last 5 raids from the same schedule (one-offs: the same instance), else ' +
-    'your only character. Null when there is no good guess; pick with character-list then.',
+    'most to your last 5 raids from the same schedule (attended raids count above signups ' +
+    'alone; one-offs: the same instance), else your only character. Null when there is no ' +
+    'good guess; pick with character-list then.',
   tier: 'friend',
   input: z.object({ eventId: z.string().min(1) }),
   handler: async ({ eventId }, { caller, guildId, deps }) => {

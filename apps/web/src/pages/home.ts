@@ -1245,7 +1245,7 @@ export class Page extends FASTElement {
   /** `schedule-list`: the raid nights and their signup timings. */
   @observable schedules: Schedule[] = [];
   @observable schedulesLoaded = false;
-  /** `progress-get` answered with an error (a public caller, say): show the empty ledger. */
+  /** `progress-get` answered with an error: show the empty ledger. */
   @observable progressFailed = false;
   /** `raid-list` was refused (visitors): the calendar, the counts, and the log say so. */
   @observable raidsFailed = false;
@@ -1482,7 +1482,7 @@ export class Page extends FASTElement {
 
   @volatile
   get progressNote(): string {
-    if (!this.progress) return this.progressFailed ? 'sign in to see first kills' : '';
+    if (!this.progress) return this.progressFailed ? 'couldn’t load progress' : '';
     if (!this.progress.open) return '';
     return `${this.progress.killed} of ${this.progress.total} down`;
   }

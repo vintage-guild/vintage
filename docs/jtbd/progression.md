@@ -26,8 +26,9 @@ dropped, **so I can** have the guild's progression on the site without a screens
   `progress-get` as a member now shows Chillhowl's first-kill time and loot, Elder Tangleclaw as
   the next target, 1 of 22 down, and Chillhowl as the latest kill. The home page's ledger shows a
   gold slot with the date and the "first kill" card with the loot in quality colors.
-- [ ] A raider's `kill-record` is refused (`COMMAND_NOT_FOUND`); a member below recruit can still
-  read `progress-get`; the public can't.
+- [ ] A raider's `kill-record` is refused (`COMMAND_NOT_FOUND`); anyone — including signed-out
+  visitors (`public`) — can read `progress-get` and see the ledger on the home page, with no
+  recorder ids or kill notes exposed.
 - [ ] Recording the same boss a week later answers `first: false` and leaves the ledger date alone.
 - [ ] On the site, `/officers?tab=progress` as the raid leader: before Dec 9 the form is closed
   and says when kills can be recorded; after, recording Chillhowl with two drops answers "First

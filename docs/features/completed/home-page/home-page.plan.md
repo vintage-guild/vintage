@@ -497,7 +497,7 @@ Questions 2, 4, and 9 are Bloodfen's optional polish.
 | 5 | Ruleset (Normal / PvP / RP) and realm for the identity strip: guild profile pills (#341). Start time settled: Wed + Thu 8 pm ET (PLAN Q2) | GM |
 | 6 | Enable the Discord server widget so the page can show online count and the invite without auth (#341) | GM |
 | 7 | ~~Loot system line for the recruiting band~~ Settled 2026-11-23: mainspec over offspec (PLAN Q5); the copy is #341 | GM + officers |
-| 8 | ~~Should `progress-get` be public?~~ Settled 2026-11-23: yes; the change is #340 | GM |
+| 8 | ~~Should `progress-get` be public?~~ Settled 2026-11-23: yes; shipped in #340 | GM |
 | 9 | A dev switch for the fixtures' "raiding" state (seed kills through `kill-record`), so the page can be checked filled without the gallery | Bloodfen |
 
 ## Sources

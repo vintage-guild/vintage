@@ -84,14 +84,19 @@ describe('JTBD: progression', () => {
       killedAt: FIRST_KILL,
     });
 
-    // Only leaders record; members read; the public gets nothing.
+    // Only leaders record; anyone (including signed-out visitors) can read progress-get (#340).
     const refused = await g.host.run(g.aeryn, 'kill-record', {
       raidId: 'barrow-deeps',
       bossId: 'elder-tangleclaw',
     });
     expect(refused).toMatchObject({ success: false, error: { code: 'COMMAND_NOT_FOUND' } });
-    const anonymous = await g.host.run(await g.host.as('nobody'), 'progress-get');
-    expect(anonymous).toMatchObject({ success: false, error: { code: 'COMMAND_NOT_FOUND' } });
+    const anonymous = await ledger(g, await g.host.as('nobody'));
+    expect(anonymous).toMatchObject({
+      killed: 1,
+      total: 22,
+      latest: { raidName: 'Barrow Deeps', bossName: 'Chillhowl', killedAt: FIRST_KILL },
+    });
+    expect(JSON.stringify(anonymous)).not.toContain('recordedBy');
 
     // A week later the same boss dies again: logged, but the ledger keeps the first date.
     g.host.clock.advance(7 * DAY);

@@ -250,8 +250,8 @@ should not show. `HOME_SECTIONS` in `src/view.ts` gives each home section the ti
 need; the page renders only those, and the header drops links to the rest. Visitors see the hero
 and recruiting; `member` tier sees all but the roster. Pending reads now show a loading state
 (home calendar, Coming up, the news log, the officer strip, Tonight) distinct from empty and
-from refused. Open: `progress-get` is `member` tier, so the ledger is hidden from visitors; making
-it public would let recruits see the scoreboard (a command change).
+from refused. (Settled 2026-11-23, #340: `progress-get` is now `public` tier and `HOME_SECTIONS.progress`
+is `public`, so visitors see the live progression ledger on the home page.)
 
 ## Tasks
 

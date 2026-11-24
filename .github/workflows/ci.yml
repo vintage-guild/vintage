@@ -61,6 +61,9 @@ jobs:
       # Here, not in the ts lane: docs-only PRs skip ts, and .md/.json/.yml are where markers hide.
       - name: No merge-conflict markers in tracked files
         run: node scripts/check-conflict-markers.mjs
+      # Here too: docs-only PRs touch AGENTS.md, INIT.md, skills, and docs/jtbd (#259).
+      - name: Agent docs and JTBD ids stay valid
+        run: node scripts/check-agent-docs.mjs
       - id: selection
         env:
           EVENT: ${{ github.event_name }}
@@ -100,11 +103,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm check:boundaries
-      - run: pnpm check:agent-docs
       - run: pnpm check:vendor
       - run: pnpm check:lockfile
       - run: pnpm type-check
-      - name: Build (apps/web with Vite; ui-kit Custom Elements Manifest + check)
+      - name: Build (apps/web Vite, apps/gateway Vercel bundle, ui-kit Custom Elements Manifest)
         run: pnpm build
       - run: pnpm test:run
 

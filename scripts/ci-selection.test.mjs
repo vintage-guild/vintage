@@ -155,3 +155,112 @@ test('contract: removal, raised tier, new required field, new confirmation all b
     [],
   );
 });
+
+test('contract: removed property, removed enum value, and type change break (#259)', () => {
+  const withProps = (properties, required = ['name']) =>
+    cmd({ input: { type: 'object', properties, required } });
+
+  // Removed input property
+  assert.match(
+    findBreaks(
+      { commands: [withProps({ name: { type: 'string' }, realm: { type: 'string' } })] },
+      { commands: [withProps({ name: { type: 'string' } })] },
+    )[0] ?? '',
+    /"realm" was removed/,
+  );
+
+  // Removed enum value (top-level and inside array items)
+  assert.match(
+    findBreaks(
+      {
+        commands: [
+          withProps({
+            name: { type: 'string' },
+            role: { type: 'string', enum: ['tank', 'healer', 'dps'] },
+          }),
+        ],
+      },
+      {
+        commands: [
+          withProps({
+            name: { type: 'string' },
+            role: { type: 'string', enum: ['tank', 'healer'] },
+          }),
+        ],
+      },
+    )[0] ?? '',
+    /"role" removed enum value "dps"/,
+  );
+  assert.match(
+    findBreaks(
+      {
+        commands: [
+          withProps({
+            name: { type: 'string' },
+            days: { type: 'array', items: { type: 'string', enum: ['wed', 'thu'] } },
+          }),
+        ],
+      },
+      {
+        commands: [
+          withProps({
+            name: { type: 'string' },
+            days: { type: 'array', items: { type: 'string', enum: ['wed'] } },
+          }),
+        ],
+      },
+    )[0] ?? '',
+    /"days\[\]" removed enum value "thu"/,
+  );
+
+  // Type changed (direct change and narrowing a nullable field)
+  assert.match(
+    findBreaks(
+      { commands: [withProps({ name: { type: 'string' }, size: { type: 'integer' } })] },
+      { commands: [withProps({ name: { type: 'string' }, size: { type: 'string' } })] },
+    )[0] ?? '',
+    /"size" type changed/,
+  );
+  assert.match(
+    findBreaks(
+      {
+        commands: [
+          withProps({
+            name: { type: 'string' },
+            note: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+          }),
+        ],
+      },
+      { commands: [withProps({ name: { type: 'string' }, note: { type: 'string' } })] },
+    )[0] ?? '',
+    /"note" type changed/,
+  );
+
+  // Compatible widenings must still pass: added optional prop, added enum value, widening to nullable, integer -> number
+  assert.deepEqual(
+    findBreaks(
+      {
+        commands: [
+          withProps({
+            name: { type: 'string' },
+            role: { type: 'string', enum: ['tank', 'healer'] },
+            size: { type: 'integer' },
+            note: { type: 'string' },
+          }),
+        ],
+      },
+      {
+        commands: [
+          withProps({
+            name: { type: 'string' },
+            role: { type: 'string', enum: ['tank', 'healer', 'dps'] },
+            size: { type: 'number' },
+            note: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+            extra: { type: 'boolean' },
+          }),
+        ],
+      },
+    ),
+    [],
+  );
+});

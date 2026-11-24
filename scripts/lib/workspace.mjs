@@ -30,7 +30,7 @@ export function workspacePackages(root = ROOT) {
   return out;
 }
 
-const SKIP_DIRS = new Set(['node_modules', 'dist', '_generated', 'coverage', '.turbo']);
+const SKIP_DIRS = new Set(['node_modules', 'dist', '_generated', 'coverage', '.turbo', '.vercel']);
 
 /** Source files (ts/mts/js/mjs) under a directory, skipping generated and build output. */
 export function sourceFiles(dir) {

@@ -39,3 +39,26 @@ test('deploy-convex only runs on push to refs/heads/main after ci-ok succeeds', 
   assert.match(block, /github\.ref == 'refs\/heads\/main'/);
   assert.doesNotMatch(block, /always\(\)/, 'deploy-convex should rely on implicit success()');
 });
+
+test('select job runs check-agent-docs so docs-only PRs validate AGENTS.md, skills, and JTBD ids (#259)', () => {
+  const select = jobBlock(ciYml(), 'select');
+  assert.match(
+    select,
+    /node scripts\/check-agent-docs\.mjs/,
+    'select job must run node scripts/check-agent-docs.mjs so docs-only PRs run it',
+  );
+});
+
+test('gateway package defines a build script so pnpm build bundles the Vercel functions in CI (#259)', () => {
+  const pkg = JSON.parse(readFileSync(join(ROOT, 'apps', 'gateway', 'package.json'), 'utf8'));
+  assert.equal(
+    typeof pkg.scripts?.build,
+    'string',
+    'apps/gateway/package.json needs a build script',
+  );
+  assert.match(
+    pkg.scripts.build,
+    /build-vercel\.mjs|build:vercel/,
+    'apps/gateway build script must run the Vercel bundle build',
+  );
+});

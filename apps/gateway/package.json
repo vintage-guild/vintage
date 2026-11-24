@@ -8,6 +8,7 @@
     "./commands": "./src/commands.ts"
   },
   "scripts": {
+    "build": "node scripts/build-vercel.mjs",
     "type-check": "tsc6 -p tsconfig.json --noEmit",
     "register-commands": "tsx scripts/register-commands.ts",
     "build:vercel": "node scripts/build-vercel.mjs",

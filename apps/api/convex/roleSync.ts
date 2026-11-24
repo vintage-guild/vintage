@@ -3,14 +3,32 @@
 // 15 minutes; officers and developers can also run it by hand:
 //   npx convex run roleSync:syncAllMembers
 
+import { makeFunctionReference } from 'convex/server';
+import { v } from 'convex/values';
 import { discordGuildDirectory } from '../src/discord-directory';
 import { runRoleSyncWithAlerts } from '../src/ops-alerts';
 import { type RoleSyncSummary, runRoleSync } from '../src/role-sync';
 import { internal } from './_generated/api';
-import { internalAction, internalQuery } from './_generated/server';
+import { internalAction, internalMutation, internalQuery } from './_generated/server';
 import { GUILD_ID } from './commands';
 import { reportCronFailure } from './opsAlerts';
 import { identityStore } from './stores';
+
+/** Releases the manual role-sync in-flight lock once a run ends (#243). */
+export const clearSyncRequest = internalMutation({
+  args: { guildId: v.string() },
+  handler: async (ctx, { guildId }) => {
+    const existing = await ctx.db
+      .query('roleSyncRequests')
+      .withIndex('by_guild', (q) => q.eq('guildId', guildId))
+      .first();
+    if (existing) await ctx.db.delete(existing._id);
+  },
+});
+
+const clearSyncLock = makeFunctionReference<'mutation', { guildId: string }>(
+  'roleSync:clearSyncRequest',
+);
 
 /** Members identity already knows, for finding the ones who left the server. */
 export const knownMembers = internalQuery({
@@ -28,29 +46,35 @@ let warnedUnconfigured = false;
 export const syncAllMembers = internalAction({
   args: {},
   handler: async (ctx): Promise<RoleSyncSummary | { skipped: string } | { failed: string }> => {
-    const token = process.env.DISCORD_BOT_TOKEN;
-    const discordGuildId = process.env.DISCORD_GUILD_ID;
-    if (!token || !discordGuildId) {
-      if (!warnedUnconfigured) {
-        console.log('Role sync skipped: set DISCORD_BOT_TOKEN and DISCORD_GUILD_ID in Convex env');
-        warnedUnconfigured = true;
+    try {
+      const token = process.env.DISCORD_BOT_TOKEN;
+      const discordGuildId = process.env.DISCORD_GUILD_ID;
+      if (!token || !discordGuildId) {
+        if (!warnedUnconfigured) {
+          console.log(
+            'Role sync skipped: set DISCORD_BOT_TOKEN and DISCORD_GUILD_ID in Convex env',
+          );
+          warnedUnconfigured = true;
+        }
+        return { skipped: 'DISCORD_BOT_TOKEN or DISCORD_GUILD_ID is not set' };
       }
-      return { skipped: 'DISCORD_BOT_TOKEN or DISCORD_GUILD_ID is not set' };
+      return await runRoleSyncWithAlerts(
+        async () => {
+          const summary = await runRoleSync({
+            directory: discordGuildDirectory({ token, guildId: discordGuildId }),
+            knownMembers: () => ctx.runQuery(internal.roleSync.knownMembers, {}),
+            apply: (members) => ctx.runMutation(internal.commands.syncMembers, { members }),
+          });
+          console.log(
+            `Role sync: ${summary.inServer} in server, ${summary.departed} departed, ` +
+              `${summary.synced} synced, ${summary.failed.length} failed`,
+          );
+          return summary;
+        },
+        (alert, at) => reportCronFailure(ctx, alert, at),
+      );
+    } finally {
+      await ctx.runMutation(clearSyncLock, { guildId: GUILD_ID });
     }
-    return runRoleSyncWithAlerts(
-      async () => {
-        const summary = await runRoleSync({
-          directory: discordGuildDirectory({ token, guildId: discordGuildId }),
-          knownMembers: () => ctx.runQuery(internal.roleSync.knownMembers, {}),
-          apply: (members) => ctx.runMutation(internal.commands.syncMembers, { members }),
-        });
-        console.log(
-          `Role sync: ${summary.inServer} in server, ${summary.departed} departed, ` +
-            `${summary.synced} synced, ${summary.failed.length} failed`,
-        );
-        return summary;
-      },
-      (alert, at) => reportCronFailure(ctx, alert, at),
-    );
   },
 });

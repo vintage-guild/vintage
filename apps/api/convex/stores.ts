@@ -122,6 +122,11 @@ const asRoleRankMap = (entries: { discordRoleId: string; rank: GuildRank }[]): R
 
 // Referenced by name to avoid a type cycle with the generated api (as applicationAction is).
 const syncSignIn = makeFunctionReference<'action', { discordId: string }>('auth:syncSignIn');
+const syncAllMembers = makeFunctionReference<'action', Record<string, never>>(
+  'roleSync:syncAllMembers',
+);
+/** Lock ceiling for a manual role sync so a crashed action never wedges future requests (#243). */
+const ROLE_SYNC_LOCK_MS = 2 * 60_000;
 
 export function identityDeps(ctx: Ctx): IdentityDeps {
   return {
@@ -130,6 +135,25 @@ export function identityDeps(ctx: Ctx): IdentityDeps {
     memberRefresh: {
       request: async (_guildId, discordId) => {
         await writable(ctx).scheduler.runAfter(0, syncSignIn, { discordId });
+      },
+    },
+    // member-sync-request: schedule roleSync.syncAllMembers once while not already in flight (#243).
+    roleSync: {
+      request: async (guildId, now) => {
+        const m = writable(ctx);
+        const existing = await m.db
+          .query('roleSyncRequests')
+          .withIndex('by_guild', (q) => q.eq('guildId', guildId))
+          .first();
+        if (existing && existing.expiresAt > now) return 'pending';
+        const expiresAt = now + ROLE_SYNC_LOCK_MS;
+        if (existing) {
+          await m.db.patch(existing._id, { requestedAt: now, expiresAt });
+        } else {
+          await m.db.insert('roleSyncRequests', { guildId, requestedAt: now, expiresAt });
+        }
+        await m.scheduler.runAfter(0, syncAllMembers, {});
+        return 'scheduled';
       },
     },
   };

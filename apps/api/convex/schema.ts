@@ -31,4 +31,10 @@ export default defineSchema({
     windowStart: v.number(),
     count: v.number(),
   }).index('by_guild_subject', ['guildId', 'subject']),
+  /** In-flight manual Discord role sync lock per guild (#243). */
+  roleSyncRequests: defineTable({
+    guildId: v.string(),
+    requestedAt: v.number(),
+    expiresAt: v.number(),
+  }).index('by_guild', ['guildId']),
 });

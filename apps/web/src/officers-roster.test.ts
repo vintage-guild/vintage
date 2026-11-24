@@ -57,6 +57,7 @@ describe('the Roster tab’s reads', () => {
     await p.loadRoster();
     expect(p.rosterRoles?.[ROLE_IDS.member]).toBeUndefined();
     expect(p.rosterRoles?.[ROLE_IDS.officer]).toBe('officer');
+    expect((await desk.syncNow()).success).toBe(true);
   });
 
   it('keeps the newest roster when an older read finishes last', async () => {

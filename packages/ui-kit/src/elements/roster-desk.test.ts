@@ -6,6 +6,7 @@ import {
   describeRoleDiff,
   isTrialDue,
   type RosterDeskMember,
+  SYNC_REREAD_MS,
   TRIAL_LENGTH_DAYS,
   type VintageRosterDesk,
 } from './roster-desk';
@@ -235,9 +236,49 @@ describe('vintage-roster-desk', () => {
     expect($<HTMLFieldSetElement>(el, '.roles fieldset').disabled).toBe(true);
     expect(button(el, 'Review changes')).toBeUndefined();
     expect(button(el, 'Remove')).toBeUndefined();
+    expect(button(el, 'Sync now')).toBeUndefined();
     expect(shadowText(el)).toContain('Officers change the role map.');
     expect((await el.review()).success).toBe(false);
+    expect((await el.syncNow()).success).toBe(false);
     expect(client.run).not.toHaveBeenCalled();
+  });
+
+  it('Sync now schedules a role sync and re-reads the roster once it finishes (#243)', async () => {
+    vi.useFakeTimers();
+    try {
+      const client = useClient(() => ({ success: true, data: { status: 'scheduled' } }));
+      const el = await desk();
+      const changed = vi.fn();
+      el.addEventListener('roster-changed', changed);
+
+      button(el, 'Sync now')?.click();
+      await Promise.resolve();
+      await settle();
+      expect(client.run).toHaveBeenCalledWith('member-sync-request', {});
+      expect(shadowText(el)).toContain('Syncing from Discord');
+      expect(changed).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(SYNC_REREAD_MS);
+      expect(changed).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('Sync now shows the refusal when a sync is already running (#243)', async () => {
+    useClient(() => ({
+      success: false,
+      error: {
+        code: 'SYNC_ALREADY_PENDING',
+        message: 'A Discord role sync is already running',
+        suggestion: 'Wait a few seconds for it to finish',
+      },
+    }));
+    const el = await desk();
+    expect((await el.syncNow()).success).toBe(false);
+    await settle();
+    expect(shadowText(el)).toContain('A Discord role sync is already running');
+    expect(el.syncing).toBe(false);
   });
 
   it('words a role diff', () => {

@@ -211,6 +211,24 @@ export function createFixtureHost(
         registry.execute({ name, input, caller, ...(confirmToken ? { confirmToken } : {}) }, deps),
     },
     identity,
+    roleSync: {
+      request: async (g, at) => {
+        for (const m of await identity.listMembers(g)) {
+          await identity.upsertMember({
+            guildId: m.guildId,
+            discordId: m.discordId,
+            displayName: m.displayName,
+            roleIds: m.roleIds,
+            inServer: m.inServer,
+            rank: m.rank,
+            tier: m.tier,
+            syncedAt: at,
+            rankSince: m.rankSince,
+          });
+        }
+        return 'scheduled';
+      },
+    },
     raids,
     members: {
       getCharacter: (g, id) => identity.getCharacter(g, id),

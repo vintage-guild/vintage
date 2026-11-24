@@ -335,6 +335,24 @@ function absentNames(
   return [...declined, ...covered].sort((a, b) => a.localeCompare(b));
 }
 
+/** Pack bottom summary lines into as few embed fields as fit (<= 1,024 chars) to avoid blank gaps. */
+function packFooterFields(blocks: readonly string[]): EmbedField[] {
+  const out: EmbedField[] = [];
+  let current = '';
+  for (const block of blocks) {
+    if (!current) {
+      current = block;
+    } else if (current.length + 1 + block.length <= FIELD_MAX) {
+      current = `${current}\n${block}`;
+    } else {
+      out.push({ name: BLANK, value: current });
+      current = block;
+    }
+  }
+  if (current) out.push({ name: BLANK, value: current });
+  return out;
+}
+
 /**
  * The signup post (Card v2): 2x2 role columns (Tanks/Healers, Melee/Ranged), sorted by class then
  * name, spec icons, late minutes, recruit mark, Standby, Tentative (names only; reasons stay
@@ -358,6 +376,7 @@ export function renderSignupPost(
 
   const { fields, hidden: columnHidden } = buildRoleColumns(going, targets, ranks, event);
   let hidden = columnHidden;
+  const footerBlocks: string[] = [];
 
   if (standby.length) {
     const fitted = fitLines(
@@ -367,7 +386,7 @@ export function renderSignupPost(
       `${emoji('status_standby')} **Standby** `,
     );
     hidden += fitted.hidden;
-    fields.push({ name: BLANK, value: fitted.text });
+    footerBlocks.push(fitted.text);
   }
   if (maybe.length) {
     const fitted = fitLines(
@@ -377,16 +396,17 @@ export function renderSignupPost(
       `${emoji('status_tentative')} **Tentative** `,
     );
     hidden += fitted.hidden;
-    fields.push({ name: BLANK, value: fitted.text });
+    footerBlocks.push(fitted.text);
   }
-  fields.push({ name: BLANK, value: buildMissingValue(tick, members) });
+  footerBlocks.push(buildMissingValue(tick, members));
 
   const absent = absentNames(signups, tick.away);
   if (absent.length) {
     const fitted = fitLines(absent, FIELD_MAX, ' · ', `${emoji('status_out')} **Absent** `);
     hidden += fitted.hidden;
-    fields.push({ name: BLANK, value: fitted.text });
+    footerBlocks.push(fitted.text);
   }
+  fields.push(...packFooterFields(footerBlocks));
 
   const awayCount = tick.away?.length ?? 0;
   const showRoster = hidden > 0;

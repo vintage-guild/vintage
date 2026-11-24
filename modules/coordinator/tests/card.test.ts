@@ -151,17 +151,15 @@ describe('raid cards', () => {
     expect(text).not.toContain('might be stuck in traffic after work');
     expect(text).not.toContain('private reason');
     // Absent row sits below Missing.
-    const missingIdx = fields.findIndex(
-      (f) => f.value.includes('**Missing**') || f.value.includes('**Comp**'),
-    );
-    const absentIdx = fields.findIndex((f) => f.value.includes('**Absent**'));
-    expect(missingIdx).toBeGreaterThan(-1);
-    expect(absentIdx).toBe(missingIdx + 1);
+    const missingPos = Math.max(text.indexOf('**Missing**'), text.indexOf('**Comp**'));
+    const absentPos = text.indexOf('**Absent**');
+    expect(missingPos).toBeGreaterThan(-1);
+    expect(absentPos).toBeGreaterThan(missingPos);
     expect(buttonLabels(message)).toContain('Absent');
     expect(buttonLabels(message)).toContain('Raid page');
   });
 
-  it('shows Absent names (declined and scheduled away) below Missing without reasons', () => {
+  it('packs Tentative, Missing, and Absent into one compact field below the columns without blank gaps or reasons', () => {
     const raid = fullRaid();
     const going = raid.signups[0]!;
     const declined: Signup = {
@@ -187,12 +185,15 @@ describe('raid cards', () => {
       [],
     );
     const fields = (message.embeds![0] as Embed).fields!;
-    const missingIdx = fields.findIndex((f) => f.value.includes('**Missing**'));
-    const absentIdx = fields.findIndex((f) => f.value.includes('**Absent**'));
-    expect(absentIdx).toBe(missingIdx + 1);
-    expect(fields[absentIdx]!.value).toContain('**Absent** Cade · Gore Khan');
+    // 6 inline role/spacer fields + 1 compact footer field (no blank gaps between lines).
+    expect(fields).toHaveLength(7);
+    const footerLines = fields[6]!.value.split('\n');
+    expect(footerLines.every((l) => l.trim().length > 0)).toBe(true);
+    expect(footerLines[0]).toContain('**Tentative**');
+    expect(footerLines[0]).toContain('Plate Licker');
+    expect(footerLines[1]).toContain('**Missing**');
+    expect(footerLines.at(-1)).toContain('**Absent** Cade · Gore Khan');
     const text = messageText(message);
-    expect(text).toContain('Plate Licker');
     expect(text).not.toContain('might have plans with my wife');
     expect(text).not.toContain('family dinner');
     expect(text).not.toContain('work trip');

@@ -91,6 +91,8 @@ export const IDENTITY_COMMANDS = [
   'member-me',
   'member-list',
   'member-sync',
+  'member-sync-request',
+  'member-refresh',
   'member-prefs-set',
   'character-add',
   'character-update',

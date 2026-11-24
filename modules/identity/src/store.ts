@@ -34,10 +34,17 @@ export interface MemberRefresh {
   request(guildId: string, discordId: string): Promise<void>;
 }
 
+/** Schedules a full Discord role sync (apps/api: roleSync.syncAllMembers), deduplicated in flight. */
+export interface RoleSyncScheduler {
+  request(guildId: string, now: number): Promise<'scheduled' | 'pending'>;
+}
+
 export interface IdentityDeps {
   identity: IdentityStore;
   /** Optional: hosts without the bot (tests, the website's fixtures) leave it out. */
   memberRefresh?: MemberRefresh;
+  /** Optional: schedules a full Discord role sync on officer demand (#243). */
+  roleSync?: RoleSyncScheduler;
 }
 
 export const command = commandsFor<IdentityDeps>();

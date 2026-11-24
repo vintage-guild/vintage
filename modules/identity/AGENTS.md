@@ -38,6 +38,10 @@ Members, characters, and Discord roles → guild rank → permission tier (PLAN 
   the last 30 seconds gets the stored answer (`current`) without asking Discord; otherwise it
   answers `checking`, and the caller reads again a few seconds later. Each call by a
   non-member schedules one Discord read; the 30-second floor only covers known members.
+- `member-sync-request` (officer, #243) schedules a full Discord role sync (`roleSync:syncAllMembers`)
+  through the optional `RoleSyncScheduler` port instead of waiting for the 15-minute cron.
+  `apps/api` guards in-flight runs in `roleSyncRequests` (with a 2-minute TTL cleared in
+  `syncAllMembers`'s `finally`), refusing concurrent calls with `SYNC_ALREADY_PENDING`.
 - Role sync (`apps/api/convex/roleSync.ts`, every 15 min) reads the whole `GuildDirectory` before
   planning. Never plan from a partial or empty directory: missing members are synced as gone.
 - Rank decides tier (`RANK_TIER` in the contract). Discord-only Friends get the `friend` tier (can

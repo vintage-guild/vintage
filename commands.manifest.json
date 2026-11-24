@@ -2857,6 +2857,18 @@
       }
     },
     {
+      "name": "member-sync-request",
+      "description": "Ask for a full Discord role sync now instead of waiting for the 15-minute schedule. Officer-only; refuses a second request while a sync is already in flight.",
+      "tier": "officer",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
       "name": "poll-cancel",
       "description": "Cancel a draft or open poll with no result. Votes are kept for history. Shows a preview first; confirm to cancel. Raid leaders only.",
       "tier": "leader",

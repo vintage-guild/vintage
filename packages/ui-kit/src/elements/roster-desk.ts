@@ -44,6 +44,9 @@ export const ROSTER_RANKS: readonly { rank: string; label: string }[] = [
 /** How often apps/api's role sync runs (`crons.ts`). */
 export const ROLE_SYNC_MINUTES = 15;
 
+/** How long after "Sync now" the desk re-reads the roster: the sync runs off the command (#243). */
+export const SYNC_REREAD_MS = 4000;
+
 /** Recruit trial length in days, settled by the GM (#30, #244). */
 export const TRIAL_LENGTH_DAYS = 14;
 
@@ -166,7 +169,25 @@ const template = html<VintageRosterDesk>`
       html<VintageRosterDesk>`
         <header class="head" part="head">
           <h2 id="h-roster">${(x) => x.headline}</h2>
-          <p class="${(x) => (x.syncStale ? 'meta stale' : 'meta')}">${(x) => x.syncLine}</p>
+          <div class="sync-row">
+            <p class="${(x) => (x.syncStale ? 'meta stale' : 'meta')}">${(x) => x.syncLine}</p>
+            ${when(
+              (x) => x.canConfigure,
+              html<VintageRosterDesk>`
+                <button
+                  type="button"
+                  ?disabled="${(x) => x.syncing || x.busy}"
+                  @click="${(x) => x.syncNow()}"
+                >
+                  ${(x) => (x.syncing ? 'Syncing…' : 'Sync now')}
+                </button>
+              `,
+            )}
+          </div>
+          ${when(
+            (x) => x.syncStatusText,
+            html<VintageRosterDesk>`<p class="status ${(x) => x.syncStatusKind}" role="status" aria-live="polite">${(x) => x.syncStatusText}</p>`,
+          )}
         </header>
 
         <section aria-labelledby="h-trial" part="trial">
@@ -300,6 +321,13 @@ const styles = css`
   .head p,
   section p {
     margin: 0;
+  }
+
+  .sync-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-xs) var(--space-sm);
   }
 
   .stale {
@@ -446,9 +474,19 @@ export class VintageRosterDesk extends FASTElement {
   @observable rows: RoleRow[] = [];
   @observable dirty = false;
   @observable busy = false;
+  @observable syncing = false;
   @observable pending: Pending | null = null;
   @observable statusText = '';
   @observable statusKind: 'idle' | 'error' | 'success' = 'idle';
+  @observable syncStatusText = '';
+  @observable syncStatusKind: 'idle' | 'error' | 'success' = 'idle';
+  private syncReread: ReturnType<typeof setTimeout> | undefined;
+
+  disconnectedCallback(): void {
+    clearTimeout(this.syncReread);
+    this.syncReread = undefined;
+    super.disconnectedCallback();
+  }
 
   rolesChanged(): void {
     if (!this.dirty) this.reset();
@@ -685,6 +723,45 @@ export class VintageRosterDesk extends FASTElement {
   private say(kind: 'idle' | 'error' | 'success', text: string): void {
     this.statusKind = kind;
     this.statusText = text;
+  }
+
+  private saySync(kind: 'idle' | 'error' | 'success', text: string): void {
+    this.syncStatusKind = kind;
+    this.syncStatusText = text;
+  }
+
+  @command('vintage.member-sync-request', {
+    label: 'Sync ranks from Discord now',
+    description:
+      'Schedule a full Discord role sync now instead of waiting for the 15-minute schedule, then re-read the roster.',
+    category: 'Officers',
+  })
+  async syncNow(): Promise<ElementResult<unknown>> {
+    if (!this.canConfigure) {
+      return failure({ code: 'COMMAND_DISABLED', message: 'Officers start a Discord role sync' });
+    }
+    if (this.syncing || this.busy) {
+      return failure({ code: 'COMMAND_DISABLED', message: 'Busy' });
+    }
+    this.syncing = true;
+    try {
+      const result = toElementResult(await getCommandClient().run('member-sync-request', {}));
+      if (!result.success) {
+        this.syncing = false;
+        this.saySync('error', describeError(result));
+        return result;
+      }
+      this.saySync('success', 'Syncing from Discord. The roster catches up in a few seconds.');
+      clearTimeout(this.syncReread);
+      this.syncReread = setTimeout(() => {
+        this.syncing = false;
+        this.$emit('roster-changed');
+      }, SYNC_REREAD_MS);
+      return result;
+    } catch (err) {
+      this.syncing = false;
+      throw err;
+    }
   }
 }
 

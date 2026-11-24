@@ -472,3 +472,58 @@ describe('member-refresh (#145)', () => {
     });
   });
 });
+
+describe('member-sync-request (#243)', () => {
+  const SYNC_NOW = Date.UTC(2026, 9, 25, 20, 0);
+  const officer = makeCaller('officer');
+  const leader = makeCaller('leader');
+
+  it('schedules once, refuses a second request while in flight, and refuses leaders', async () => {
+    let pending = false;
+    const calls: string[] = [];
+    const deps: IdentityDeps = {
+      ...createMemoryIdentityDeps({ ...ROLE_MAP }),
+      roleSync: {
+        request: async (guildId) => {
+          if (pending) return 'pending';
+          pending = true;
+          calls.push(guildId);
+          return 'scheduled';
+        },
+      },
+    };
+    const registry = testRegistry<IdentityDeps>([...identityCommands], fixedClock(SYNC_NOW));
+
+    // Leaders cannot start a full role sync.
+    expect(
+      await registry.execute({ name: 'member-sync-request', input: {}, caller: leader }, deps),
+    ).toMatchObject({ success: false, error: { code: 'COMMAND_NOT_FOUND' } });
+
+    // First officer call schedules the sync.
+    expect(
+      await registry.execute({ name: 'member-sync-request', input: {}, caller: officer }, deps),
+    ).toMatchObject({ success: true, data: { status: 'scheduled' } });
+    expect(calls).toEqual(['guild-test']);
+
+    // Second call while pending is refused without scheduling again.
+    expect(
+      await registry.execute({ name: 'member-sync-request', input: {}, caller: officer }, deps),
+    ).toMatchObject({ success: false, error: { code: 'SYNC_ALREADY_PENDING' } });
+    expect(calls).toEqual(['guild-test']);
+
+    // Once the sync finishes, another request schedules cleanly.
+    pending = false;
+    expect(
+      await registry.execute({ name: 'member-sync-request', input: {}, caller: officer }, deps),
+    ).toMatchObject({ success: true, data: { status: 'scheduled' } });
+    expect(calls).toEqual(['guild-test', 'guild-test']);
+  });
+
+  it('returns NOT_AVAILABLE when the host has no roleSync port', async () => {
+    const deps = createMemoryIdentityDeps({ ...ROLE_MAP });
+    const registry = testRegistry<IdentityDeps>([...identityCommands], fixedClock(SYNC_NOW));
+    expect(
+      await registry.execute({ name: 'member-sync-request', input: {}, caller: officer }, deps),
+    ).toMatchObject({ success: false, error: { code: 'NOT_AVAILABLE' } });
+  });
+});

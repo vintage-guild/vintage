@@ -130,6 +130,7 @@ export {
   ROSTER_RANKS,
   type RosterDeskMember,
   type RosterDeskRoles,
+  SYNC_REREAD_MS,
   TRIAL_LENGTH_DAYS,
   VintageRosterDesk,
 } from './elements/roster-desk';

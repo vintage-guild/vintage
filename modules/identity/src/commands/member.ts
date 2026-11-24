@@ -96,6 +96,35 @@ export const memberRefresh = command({
   },
 });
 
+export const memberSyncRequest = command({
+  name: 'member-sync-request',
+  description:
+    'Ask for a full Discord role sync now instead of waiting for the 15-minute schedule. ' +
+    'Officer-only; refuses a second request while a sync is already in flight.',
+  tier: 'officer',
+  mutation: true,
+  input: z.object({}),
+  handler: async (_input, { guildId, deps, now }) => {
+    if (!deps.roleSync) {
+      return error('NOT_AVAILABLE', 'Role sync can’t be started here', {
+        suggestion: 'Ranks sync on their own every 15 minutes',
+        retryable: false,
+      });
+    }
+    const result = await deps.roleSync.request(guildId, now());
+    if (result === 'pending') {
+      return error('SYNC_ALREADY_PENDING', 'A Discord role sync is already running', {
+        suggestion: 'Wait a few seconds for it to finish, then read member-list again',
+        retryable: true,
+      });
+    }
+    return success(
+      { status: 'scheduled' as const },
+      { reasoning: 'Scheduled a Discord role sync; ranks catch up in a few seconds' },
+    );
+  },
+});
+
 export const memberSync = command({
   name: 'member-sync',
   description:

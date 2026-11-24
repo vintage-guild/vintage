@@ -44,10 +44,19 @@ export const ROSTER_RANKS: readonly { rank: string; label: string }[] = [
 /** How often apps/api's role sync runs (`crons.ts`). */
 export const ROLE_SYNC_MINUTES = 15;
 
+/** Recruit trial length in days, settled by the GM (#30, #244). */
+export const TRIAL_LENGTH_DAYS = 14;
+
 /** A last sync older than this means the role sync has stopped. */
 const STALE_SYNC_MS = 60 * 60_000;
 
 const DAY_MS = 86_400_000;
+const TRIAL_LENGTH_MS = TRIAL_LENGTH_DAYS * DAY_MS;
+
+/** True when a recruit's recorded trial start is at or past the two-week review mark (#244). */
+export function isTrialDue(rankSince: number | null, now: number): boolean {
+  return rankSince !== null && now - rankSince >= TRIAL_LENGTH_MS;
+}
 
 /** A Discord role id, as `guild-roles-set` checks it. */
 const SNOWFLAKE = /^\d{17,20}$/;
@@ -93,6 +102,7 @@ interface MemberLine {
 interface TrialLine {
   member: RosterDeskMember;
   trial: string;
+  due: boolean;
 }
 
 /** "today", "1 day", "12 days". */
@@ -169,12 +179,13 @@ const template = html<VintageRosterDesk>`
                 <li>
                   <strong>${(t) => t.member.displayName}</strong>
                   <span>${(t) => t.trial}</span>
+                  ${when((t) => t.due, html`<small class="flag due">due for review</small>`)}
                   ${when((t) => !t.member.main, html`<small class="flag">no character yet</small>`)}
                 </li>
               `,
             )}
           </ul>
-          <p class="note">How long a trial lasts isn’t settled yet, so nobody is flagged as due for review.</p>
+          <p class="note">Trials run ${TRIAL_LENGTH_DAYS} days; recruits at or past two weeks are flagged as due for review.</p>
         </section>
 
         ${when(
@@ -316,6 +327,12 @@ const styles = css`
     letter-spacing: var(--font-tracking-wide);
     text-transform: uppercase;
     color: var(--color-text-accent);
+  }
+
+  .flag.due {
+    padding: 0.05rem 0.35rem;
+    border: var(--border-width-thin) solid currentColor;
+    border-radius: 0.2rem;
   }
 
   .scroll {
@@ -497,6 +514,7 @@ export class VintageRosterDesk extends FASTElement {
           member.rankSince === null
             ? 'on trial since before tracking began'
             : `on trial ${days(this.now - member.rankSince)} (since ${this.day(member.rankSince)})`,
+        due: isTrialDue(member.rankSince, this.now),
       }));
   }
 

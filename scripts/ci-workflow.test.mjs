@@ -8,11 +8,19 @@ const ciYml = () => readFileSync(join(ROOT, '.github', 'workflows', 'ci.yml'), '
 
 function jobBlock(yml, name) {
   const lines = yml.split(/\r?\n/);
-  const start = lines.findIndex((line) => line === `  ${name}:`);
+  const start = lines.indexOf(`  ${name}:`);
   assert.notEqual(start, -1, `missing job ${name} in .github/workflows/ci.yml`);
   const end = lines.findIndex((line, i) => i > start && /^ {2}[a-z0-9-]+:$/i.test(line));
   return lines.slice(start, end === -1 ? lines.length : end).join('\n');
 }
+
+test('pull_request trigger excludes labeled/unlabeled so routine labels do not start a second run (#254)', () => {
+  const header = ciYml().split('\njobs:')[0] ?? '';
+  const typesLine = header.split(/\r?\n/).find((line) => /^\s+types:\s*\[/.test(line));
+  assert.ok(typesLine, 'missing pull_request types list in ci.yml');
+  assert.doesNotMatch(typesLine, /\blabeled\b/, 'pull_request types must not include labeled');
+  assert.doesNotMatch(typesLine, /\bunlabeled\b/, 'pull_request types must not include unlabeled');
+});
 
 test('ci-ok skips cancelled runs so concurrency cancellation never reports a failed check (#254)', () => {
   const block = jobBlock(ciYml(), 'ci-ok');

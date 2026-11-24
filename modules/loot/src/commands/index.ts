@@ -1,8 +1,17 @@
 import { success } from '@vintage/guild-kit';
 import { z } from 'zod';
 import { command } from '../store';
+import { lootAward, lootCandidates, lootHistory } from './awards';
+import { lootMethodConfigure, lootMethodsList } from './methods';
 
-export type { LootDeps, LootStore } from '../store';
+export type {
+  LootAwardFilter,
+  LootDeps,
+  LootRaidContext,
+  LootRaidReader,
+  LootStore,
+} from '../store';
+export { lootAward, lootCandidates, lootHistory, lootMethodConfigure, lootMethodsList };
 
 export const lootList = command({
   name: 'loot-list',
@@ -25,4 +34,11 @@ export const lootList = command({
 });
 
 /** Every loot command, registered by apps/api through guild-kit. */
-export const lootCommands = [lootList] as const;
+export const lootCommands = [
+  lootList,
+  lootMethodsList,
+  lootMethodConfigure,
+  lootCandidates,
+  lootAward,
+  lootHistory,
+] as const;

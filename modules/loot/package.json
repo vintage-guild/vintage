@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Loot drops, and later loot methods and awards.",
+  "description": "Loot drops, pluggable loot methods, awards, and history.",
   "exports": {
     "./contract": "./src/contract.ts",
     "./commands": "./src/commands/index.ts",
@@ -17,6 +17,8 @@
   },
   "dependencies": {
     "@vintage/guild-kit": "workspace:*",
+    "@vintage/loot-core": "workspace:*",
+    "@vintage/wow-data": "workspace:*",
     "convex": "catalog:",
     "zod": "catalog:"
   },

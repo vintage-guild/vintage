@@ -23,6 +23,75 @@ import type { FunctionReference } from "convex/server";
  */
 export type ComponentApi<Name extends string | undefined = string | undefined> =
   {
+    awards: {
+      insert: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          awardedAt: number;
+          awardedBy: string;
+          characterId: string;
+          characterName: string;
+          configVersion: number;
+          eventId: string;
+          guildId: string;
+          intent: "mainspec" | "offspec" | "transmog" | "disenchant" | "other";
+          itemId: number;
+          itemName: string | null;
+          memberId: string | null;
+          methodId: string;
+          methodVersion: number;
+          note: string | null;
+          roll: number | null;
+        },
+        any,
+        Name
+      >;
+      list: FunctionReference<
+        "query",
+        "internal",
+        {
+          characterId?: string;
+          eventId?: string;
+          guildId: string;
+          limit?: number;
+        },
+        any,
+        Name
+      >;
+    };
+    configs: {
+      get: FunctionReference<
+        "query",
+        "internal",
+        { guildId: string; methodId: string },
+        any,
+        Name
+      >;
+      list: FunctionReference<
+        "query",
+        "internal",
+        { guildId: string },
+        any,
+        Name
+      >;
+      upsert: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          config: any;
+          configVersion: number;
+          guildId: string;
+          methodId: string;
+          methodVersion: number;
+          state: any;
+          updatedAt: number;
+          updatedBy: string;
+        },
+        any,
+        Name
+      >;
+    };
     drops: {
       list: FunctionReference<
         "query",

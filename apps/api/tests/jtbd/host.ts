@@ -60,6 +60,7 @@ import { handleManageInteraction } from '../../src/discord-manage';
 import { handlePollInteraction } from '../../src/discord-polls';
 import { handleScheduleAutocomplete, handleScheduleInteraction } from '../../src/discord-schedules';
 import { handleSignupInteraction } from '../../src/discord-signups';
+import { createLootRaidReader } from '../../src/loot-raids';
 import { callFor, toolsFor } from '../../src/mcp-gateway';
 import { onboardAfterSync, onboardIfPromoted } from '../../src/onboarding';
 import { commands, type VintageDeps } from '../../src/registry';
@@ -154,6 +155,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
         )) as CommandResult<KillRecorded>,
     },
     loot,
+    lootRaids: createLootRaidReader({ raids, identity }),
     coordinator,
     tickSource,
     scheduler: { runTickNow: async (g) => void ticksRequested.push(g) },

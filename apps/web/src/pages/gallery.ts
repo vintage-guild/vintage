@@ -417,8 +417,8 @@ const template = html<Page>`
       </div>
     </section>
     <section>
-      <h2>Random</h2>
-      <p>The quarters' Random tab: what the coordinator did and will do for each raid, who it's chasing, its log with the reason for each entry, and its settings. Actions report the gallery client's refusal.</p>
+      <h2>Vintage</h2>
+      <p>The quarters' Vintage tab: what the coordinator did and will do for each raid, who it's chasing, its log with the reason for each entry, and its settings. Actions report the gallery client's refusal.</p>
       <vintage-coordinator-desk
         can-act
         can-configure

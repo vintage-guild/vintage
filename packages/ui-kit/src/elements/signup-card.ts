@@ -817,7 +817,7 @@ export class VintageSignupCard extends FASTElement {
     if (position < 1) return '';
     const place =
       position === 1 ? 'You’re next in line' : `You’re in line with ${position - 1} ahead of you`;
-    return `The raid is full. ${place}; Random tells you when a spot opens.`;
+    return `The raid is full. ${place}; Vintage tells you when a spot opens.`;
   }
 
   get statusKey(): SignupStatus | 'none' {

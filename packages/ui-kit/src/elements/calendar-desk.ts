@@ -161,7 +161,7 @@ const template = html<VintageCalendarDesk>`
       <div>
         <span class="eyebrow">Calendar</span>
         <h2 id="cal-title">${(x) => x.headline}</h2>
-        <p class="meta">Times in ${(x) => x.viewerZoneName}. Random creates each schedule's raids as their signups come due${(x) => (x.canEdit ? '; Create raids now does it straight away' : '')}.</p>
+        <p class="meta">Times in ${(x) => x.viewerZoneName}. Vintage creates each schedule's raids as their signups come due${(x) => (x.canEdit ? '; Create raids now does it straight away' : '')}.</p>
       </div>
       ${when(
         (x) => x.canEdit,
@@ -264,7 +264,7 @@ const template = html<VintageCalendarDesk>`
       </header>
       ${when(
         (x) => x.schedules.length === 0 && !x.loading,
-        html`<p class="empty">No raid schedules yet. Add one and Random posts signups for each raid night.</p>`,
+        html`<p class="empty">No raid schedules yet. Add one and Vintage posts signups for each raid night.</p>`,
       )}
       <ul class="list">
         ${repeat((x) => x.schedules, scheduleCard)}
@@ -571,7 +571,7 @@ export class VintageCalendarDesk extends FASTElement {
     }
     if (!this.hasActiveSchedule)
       return 'Every schedule is paused. Resume one, or add a one-off raid.';
-    return 'No raids coming up yet. Random creates them as their signups come due, or use Create raids now.';
+    return 'No raids coming up yet. Vintage creates them as their signups come due, or use Create raids now.';
   }
 
   private endOf(r: CalendarRaid): number {
@@ -663,7 +663,7 @@ export class VintageCalendarDesk extends FASTElement {
   async save(submit: CalendarFormSubmit): Promise<ElementResult<unknown>> {
     const kind = (submit.input.kind as EventKind | undefined) ?? 'raid';
     const done: Record<CalendarFormSubmit['command'], string> = {
-      'schedule-create': 'Schedule added. Random creates its raids as their signups come due',
+      'schedule-create': 'Schedule added. Vintage creates its raids as their signups come due',
       'schedule-update': 'Schedule saved. Raids already created keep their time',
       'raid-create': `${KIND_LABELS[kind]} added and open for signups`,
       'raid-update': 'Raid saved. Signups and the roster came along',
@@ -857,7 +857,7 @@ export class VintageCalendarDesk extends FASTElement {
   @command('vintage.schedule-materialize', {
     label: 'Create raids from schedules',
     description:
-      "Create the raids each active schedule needs over its signup window now, instead of waiting for Random's next pass.",
+      "Create the raids each active schedule needs over its signup window now, instead of waiting for Vintage's next pass.",
     category: 'Officers',
   })
   async materialize(): Promise<ElementResult<unknown>> {

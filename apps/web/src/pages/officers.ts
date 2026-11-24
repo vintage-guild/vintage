@@ -62,7 +62,7 @@ const EXPORT_AHEAD_MS = 86_400_000;
 const TABS = [
   { id: 'tonight', label: 'Tonight', ready: true, hint: '' },
   { id: 'calendar', label: 'Calendar', ready: true, hint: '' },
-  { id: 'coordinator', label: 'Random', ready: true, hint: '' },
+  { id: 'coordinator', label: 'Vintage', ready: true, hint: '' },
   { id: 'roster', label: 'Roster', ready: true, hint: '' },
   { id: 'guild', label: 'Guild', ready: true, hint: '' },
   { id: 'recruiting', label: 'Recruiting', ready: true, hint: '' },
@@ -187,7 +187,7 @@ const template = html<Page>`
             aria-keyshortcuts="Alt+A"
             title="Alt+A"
             @click="${(x) => x.toggleAssistant()}"
-          >${(x) => (x.assistantOpen ? 'Hide Random' : 'Ask Random')}</button>
+          >${(x) => (x.assistantOpen ? 'Hide Vintage' : 'Ask Vintage')}</button>
         `,
       )}
     </header>
@@ -395,7 +395,7 @@ const template = html<Page>`
         ${when(
           (x) => x.assistantOpen,
           html<Page>`
-            <aside class="assist" aria-label="Random, the guild assistant">
+            <aside class="assist" aria-label="Vintage, the guild assistant">
               <vintage-agent-panel
                 :context="${(x) => x.assistantContext}"
                 :prompts="${(x) => STARTER_PROMPTS[x.tab] ?? []}"
@@ -786,7 +786,7 @@ export class Page extends FASTElement {
       ]);
       if (read !== this.coordinatorRead) return;
       if (!status.success || !status.data) {
-        this.coordinatorError = `Couldn’t ask Random how it’s doing: ${status.error?.message ?? 'the server didn’t answer'}.`;
+        this.coordinatorError = `Couldn’t ask Vintage how it’s doing: ${status.error?.message ?? 'the server didn’t answer'}.`;
         return;
       }
       const raids = new Map<string, string>(status.data.upcoming.map((u) => [u.eventId, u.name]));

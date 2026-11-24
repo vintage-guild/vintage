@@ -125,7 +125,7 @@ const raidCard = html<RaidCard, VintageCoordinatorDesk>`
         <dd>${(r) => r.due}</dd>`,
       )}
       <dt>Hasn’t answered</dt>
-      <dd>${(r) => r.waiting || 'Everyone Random chases has answered'}</dd>
+      <dd>${(r) => r.waiting || 'Everyone Vintage chases has answered'}</dd>
     </dl>
     ${when(
       (_r, c) => c.parent.canAct,
@@ -134,7 +134,7 @@ const raidCard = html<RaidCard, VintageCoordinatorDesk>`
           <button
             type="button"
             ?disabled="${(r, c) => c.parent.busy || !r.canRepost}"
-            title="${(r) => (r.canRepost ? '' : 'Random hasn’t posted this raid yet')}"
+            title="${(r) => (r.canRepost ? '' : 'Vintage hasn’t posted this raid yet')}"
             @click="${(r, c) => c.parent.repost(r.raid.eventId)}"
           >Replace the signup post</button>
         </p>
@@ -157,7 +157,7 @@ const logLine = html<LogLine>`
 const template = html<VintageCoordinatorDesk>`
   <div class="desk wide" part="desk">
     ${when((x) => x.error, html<VintageCoordinatorDesk>`<p class="error" role="alert">${(x) => x.error}</p>`)}
-    ${when((x) => x.loading && !x.config, html`<p class="meta">Asking Random how it’s doing…</p>`)}
+    ${when((x) => x.loading && !x.config, html`<p class="meta">Asking Vintage how it’s doing…</p>`)}
 
     ${when(
       (x) => x.config,
@@ -171,11 +171,11 @@ const template = html<VintageCoordinatorDesk>`
               <p class="actions">
                 ${when(
                   (x) => !x.config?.paused,
-                  html<VintageCoordinatorDesk>`<button type="button" ?disabled="${(x) => x.busy}" @click="${(x) => x.pause()}">Pause Random</button>`,
+                  html<VintageCoordinatorDesk>`<button type="button" ?disabled="${(x) => x.busy}" @click="${(x) => x.pause()}">Pause Vintage</button>`,
                 )}
                 ${when(
                   (x) => x.config?.paused,
-                  html<VintageCoordinatorDesk>`<button type="button" class="primary" ?disabled="${(x) => x.busy}" @click="${(x) => x.resume()}">Resume Random</button>`,
+                  html<VintageCoordinatorDesk>`<button type="button" class="primary" ?disabled="${(x) => x.busy}" @click="${(x) => x.resume()}">Resume Vintage</button>`,
                 )}
                 <button
                   type="button"
@@ -194,14 +194,14 @@ const template = html<VintageCoordinatorDesk>`
           <h2 id="h-upcoming">Coming up</h2>
           ${when(
             (x) => !x.cards.length,
-            html`<p class="note">No open raids coming up. Random starts on a raid once it’s on the calendar.</p>`,
+            html`<p class="note">No open raids coming up. Vintage starts on a raid once it’s on the calendar.</p>`,
           )}
           <ul class="raids">${repeat((x) => x.cards, raidCard)}</ul>
         </section>
 
         <section aria-labelledby="h-log">
-          <h2 id="h-log">Random’s log</h2>
-          <p class="note">What Random did for these raids and why, newest first. It answers “why did the bot ping me?”.</p>
+          <h2 id="h-log">Vintage’s log</h2>
+          <p class="note">What Vintage did for these raids and why, newest first. It answers “why did the bot ping me?”.</p>
           ${when((x) => !x.lines.length, html`<p class="note">Nothing logged yet.</p>`)}
           <ol class="log" part="log">${repeat((x) => x.lines, logLine)}</ol>
         </section>
@@ -209,7 +209,7 @@ const template = html<VintageCoordinatorDesk>`
         <form class="settings" part="settings" @submit="${(x, c) => x.submit(c.event)}">
           <h2>Settings</h2>
           <fieldset ?disabled="${(x) => !x.canConfigure || x.busy}">
-            <legend>Where Random posts</legend>
+            <legend>Where Vintage posts</legend>
             <div class="field">
               <label for="signup">Signup channel id</label>
               <input
@@ -219,7 +219,7 @@ const template = html<VintageCoordinatorDesk>`
                 :value="${(x) => x.signupChannel}"
                 @input="${(x, c) => x.edit('signupChannel', (c.event.target as HTMLInputElement).value)}"
               />
-              <small>Signup posts, reminders, and the final roster go here. Random does nothing until this is set.</small>
+              <small>Signup posts, reminders, and the final roster go here. Vintage does nothing until this is set.</small>
             </div>
             <div class="field">
               <label for="ops">Officer channel id</label>
@@ -234,7 +234,7 @@ const template = html<VintageCoordinatorDesk>`
             </div>
           </fieldset>
           <fieldset ?disabled="${(x) => !x.canConfigure || x.busy}">
-            <legend>Whose answers Random chases</legend>
+            <legend>Whose answers Vintage chases</legend>
             <div class="ranks">
               ${repeat(
                 () => RANK_CHOICES,
@@ -271,7 +271,7 @@ const template = html<VintageCoordinatorDesk>`
           )}
           ${when(
             (x) => !x.canConfigure,
-            html`<p class="note">Officers change Random’s settings. You can read them here.</p>`,
+            html`<p class="note">Officers change Vintage’s settings. You can read them here.</p>`,
           )}
         </form>
       `,
@@ -484,9 +484,9 @@ export class VintageCoordinatorDesk extends FASTElement {
 
   @volatile
   get headline(): string {
-    if (this.state === 'paused') return 'Random is paused';
-    if (this.state === 'unconfigured') return 'Random isn’t set up';
-    return 'Random is running';
+    if (this.state === 'paused') return 'Vintage is paused';
+    if (this.state === 'unconfigured') return 'Vintage isn’t set up';
+    return 'Vintage is running';
   }
 
   @volatile
@@ -576,7 +576,7 @@ export class VintageCoordinatorDesk extends FASTElement {
         return { problem: `The ${label} id should be 17 to 20 digits, copied from Discord` };
       }
     }
-    if (!this.ranks.length) return { problem: 'Pick at least one rank for Random to chase' };
+    if (!this.ranks.length) return { problem: 'Pick at least one rank for Vintage to chase' };
     const input: Record<string, unknown> = {};
     if ((signup || null) !== saved.signupChannelId) input.signupChannelId = signup || null;
     if ((ops || null) !== saved.opsChannelId) input.opsChannelId = ops || null;
@@ -586,14 +586,14 @@ export class VintageCoordinatorDesk extends FASTElement {
   }
 
   @command('vintage.coordinator-config-save', {
-    label: 'Save Random’s settings',
+    label: 'Save Vintage’s settings',
     description:
-      'Save the channels, the ranks Random chases, and DM reminders as the form shows them.',
+      'Save the channels, the ranks Vintage chases, and DM reminders as the form shows them.',
     category: 'Officers',
   })
   async save(): Promise<ElementResult<unknown>> {
     if (!this.canConfigure) {
-      return failure({ code: 'COMMAND_DISABLED', message: 'Officers change Random’s settings' });
+      return failure({ code: 'COMMAND_DISABLED', message: 'Officers change Vintage’s settings' });
     }
     const patch = this.patch();
     if ('problem' in patch) {
@@ -607,7 +607,7 @@ export class VintageCoordinatorDesk extends FASTElement {
     return this.act(
       'coordinator-config-set',
       patch.input,
-      'Saved. Random uses them from its next check.',
+      'Saved. Vintage uses them from its next check.',
       () => {
         this.dirty = false;
       },
@@ -615,22 +615,22 @@ export class VintageCoordinatorDesk extends FASTElement {
   }
 
   @command('vintage.coordinator-pause', {
-    label: 'Pause Random',
-    description: 'Stop Random posting, reminding, and locking until it is resumed.',
+    label: 'Pause Vintage',
+    description: 'Stop Vintage posting, reminding, and locking until it is resumed.',
     category: 'Officers',
   })
   async pause(): Promise<ElementResult<unknown>> {
     return this.act(
       'coordinator-pause',
       {},
-      'Paused. Random won’t post or remind until you resume it.',
+      'Paused. Vintage won’t post or remind until you resume it.',
     );
   }
 
   @command('vintage.coordinator-resume', {
-    label: 'Resume Random',
+    label: 'Resume Vintage',
     description:
-      'Restart Random; anything that came due while it was paused goes out on its next check.',
+      'Restart Vintage; anything that came due while it was paused goes out on its next check.',
     category: 'Officers',
   })
   async resume(): Promise<ElementResult<unknown>> {
@@ -643,14 +643,14 @@ export class VintageCoordinatorDesk extends FASTElement {
 
   @command('vintage.coordinator-run', {
     label: 'Run a check now',
-    description: 'Have Random check now instead of waiting a few minutes. Nothing is sent twice.',
+    description: 'Have Vintage check now instead of waiting a few minutes. Nothing is sent twice.',
     category: 'Officers',
   })
   async run(): Promise<ElementResult<unknown>> {
     return this.act(
       'coordinator-run',
       {},
-      'Random is checking now. The log catches up in a few seconds.',
+      'Vintage is checking now. The log catches up in a few seconds.',
       () => {
         clearTimeout(this.reread);
         this.reread = setTimeout(() => this.$emit('coordinator-changed'), RUN_REREAD_MS);
@@ -660,7 +660,7 @@ export class VintageCoordinatorDesk extends FASTElement {
 
   @command('vintage.coordinator-repost', {
     label: 'Replace a signup post',
-    description: 'Delete a raid’s signup post and have Random post a fresh one. Signups are kept.',
+    description: 'Delete a raid’s signup post and have Vintage post a fresh one. Signups are kept.',
     category: 'Officers',
   })
   async repost(eventId: string): Promise<ElementResult<unknown>> {
@@ -681,7 +681,10 @@ export class VintageCoordinatorDesk extends FASTElement {
     after?: () => void,
   ): Promise<ElementResult<unknown>> {
     if (name !== 'coordinator-config-set' && !this.canAct) {
-      return failure({ code: 'COMMAND_DISABLED', message: 'Raid leaders and officers run Random' });
+      return failure({
+        code: 'COMMAND_DISABLED',
+        message: 'Raid leaders and officers run Vintage',
+      });
     }
     if (this.busy) return failure({ code: 'COMMAND_DISABLED', message: 'Busy' });
     this.busy = true;

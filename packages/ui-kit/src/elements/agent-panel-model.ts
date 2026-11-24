@@ -169,7 +169,7 @@ export function contextLabel(context: AgentPanelContext | null | undefined): str
 function statusOf(run: AgentPanelRun): Pick<TurnView, 'statusText' | 'tone'> {
   if (run.status === 'answered') return { statusText: null, tone: 'default' };
   if (run.status === 'failed') {
-    return { statusText: run.error ?? 'Random couldn’t answer that.', tone: 'error' };
+    return { statusText: run.error ?? 'Vintage couldn’t answer that.', tone: 'error' };
   }
   if (run.status === 'cancelled') return { statusText: 'Stopped', tone: 'muted' };
   return { statusText: run.cancelRequested ? 'Stopping…' : 'Working on it', tone: 'muted' };
@@ -209,7 +209,7 @@ export const STARTER_PROMPTS: Record<string, string[]> = {
     'Who signed up late?',
   ],
   calendar: ['What raids are coming up this month?', 'Which raid nights have the fewest signups?'],
-  coordinator: ['What has Random posted this week?', 'Is Random paused?'],
+  coordinator: ['What has Vintage posted this week?', 'Is Vintage paused?'],
   recruiting: ['What are we recruiting for?', 'Which classes are we short of?'],
   applications: ['Summarize the open applications', 'Which applications are waiting longest?'],
   polls: ['Which polls are open?', 'What did the last poll decide?'],

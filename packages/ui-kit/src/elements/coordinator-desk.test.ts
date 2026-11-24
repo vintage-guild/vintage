@@ -134,9 +134,9 @@ describe('rule words', () => {
 });
 
 describe('vintage-coordinator-desk', () => {
-  it('says Random is running and what it did and will do for each raid', async () => {
+  it('says Vintage is running and what it did and will do for each raid', async () => {
     const el = await desk();
-    expect(text($(el, '#h-state'))).toBe('Random is running');
+    expect(text($(el, '#h-state'))).toBe('Vintage is running');
     const card = text($(el, '.raid'));
     expect(card).toContain('Posted the signups, Sent reminder DMs ×2 (24 hours before)');
     expect(card).not.toContain('Reminded'); // skipped, so not "done"
@@ -157,13 +157,13 @@ describe('vintage-coordinator-desk', () => {
 
   it('names paused and not-set-up, and only runs a check when running', async () => {
     const paused = await desk({ config: config({ paused: true }) });
-    expect(text($(paused, '#h-state'))).toBe('Random is paused');
-    expect(button(paused, 'Resume Random')).toBeTruthy();
-    expect(button(paused, 'Pause Random')).toBeUndefined();
+    expect(text($(paused, '#h-state'))).toBe('Vintage is paused');
+    expect(button(paused, 'Resume Vintage')).toBeTruthy();
+    expect(button(paused, 'Pause Vintage')).toBeUndefined();
     expect(button(paused, 'Run a check now')?.disabled).toBe(true);
     cleanup();
     const bare = await desk({ config: config({ signupChannelId: null }), configure: false });
-    expect(text($(bare, '#h-state'))).toBe('Random isn’t set up');
+    expect(text($(bare, '#h-state'))).toBe('Vintage isn’t set up');
     expect(shadowText(bare)).toContain('An officer needs to give it a signup channel');
   });
 
@@ -172,7 +172,7 @@ describe('vintage-coordinator-desk', () => {
     const el = await desk();
     const changed = vi.fn();
     el.addEventListener('coordinator-changed', changed);
-    button(el, 'Pause Random')?.click();
+    button(el, 'Pause Vintage')?.click();
     await vi.waitFor(() => expect(changed).toHaveBeenCalled());
     expect(client.run).toHaveBeenCalledWith('coordinator-pause', {});
     expect(text($(el, '.status'))).toContain('Paused');
@@ -251,7 +251,7 @@ describe('vintage-coordinator-desk', () => {
     for (const r of ['officer', 'raid-leader', 'raider', 'flex-raider']) el.toggleRank(r, false);
     await el.save();
     await settle();
-    expect(text($(el, '.status'))).toBe('Pick at least one rank for Random to chase.');
+    expect(text($(el, '.status'))).toBe('Pick at least one rank for Vintage to chase.');
     expect(client.run).not.toHaveBeenCalled();
   });
 
@@ -266,20 +266,20 @@ describe('vintage-coordinator-desk', () => {
     expect($<HTMLInputElement>(el, '#ops').value).toBe(OPS);
   });
 
-  it('lets a raid leader run Random but only read its settings', async () => {
+  it('lets a raid leader run Vintage but only read its settings', async () => {
     const client = useClient();
     const el = await desk({ configure: false });
     expect(button(el, 'Save settings')).toBeUndefined();
     expect($<HTMLFieldSetElement>(el, '.settings fieldset').disabled).toBe(true);
-    expect(shadowText(el)).toContain('Officers change Random’s settings');
+    expect(shadowText(el)).toContain('Officers change Vintage’s settings');
     expect((await el.save()).success).toBe(false);
     expect(client.run).not.toHaveBeenCalled();
-    expect(button(el, 'Pause Random')).toBeTruthy();
+    expect(button(el, 'Pause Vintage')).toBeTruthy();
   });
 
   it('hides the controls without can-act', async () => {
     const el = await desk({ act: false, configure: false });
-    expect(button(el, 'Pause Random')).toBeUndefined();
+    expect(button(el, 'Pause Vintage')).toBeUndefined();
     expect($$(el, '.raid button')).toHaveLength(0);
   });
 });

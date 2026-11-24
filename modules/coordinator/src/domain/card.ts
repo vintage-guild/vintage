@@ -247,12 +247,19 @@ export interface CardOptions {
   siteUrl?: string | null;
 }
 
+/** Strip trailing slashes in linear time (avoids polynomial regex backtracking on untrusted input). */
+function stripTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47) end--;
+  return value.slice(0, end);
+}
+
 /** Short site link for a raid (`vintageguild.gg/r/<code>`), or `/raids/<id>` on unbackfilled rows. */
 export function raidSiteLink(
   siteUrl: string | null | undefined,
   event: Pick<RaidEvent, 'id' | 'shortCode'>,
 ): { url: string; label: string; markdown: string } | null {
-  const base = siteUrl?.trim().replace(/\/+$/, '');
+  const base = siteUrl ? stripTrailingSlashes(siteUrl.trim()) : '';
   if (!base) return null;
   const path = event.shortCode
     ? `/r/${encodeURIComponent(event.shortCode)}`

@@ -153,7 +153,9 @@ jobs:
       - run: node --test 'scripts/*.test.mjs'
 
   ci-ok:
-    if: always()
+    # Run when any lane passed, failed, or was skipped, but never on a cancelled run (e.g. a
+    # superseded PR run cancelled by concurrency), which would otherwise emit a bogus red check (#254).
+    if: ${{ always() && !cancelled() && !contains(needs.*.result, 'cancelled') }}
     needs: [select, ts, contract, addon, botcore, workflow-contracts]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -185,7 +187,7 @@ jobs:
   # this job sees the deploy key; it lives in the production environment, never in PR runs.
   deploy-convex:
     needs: ci-ok
-    if: always() && needs.ci-ok.result == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     environment: production

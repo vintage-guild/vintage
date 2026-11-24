@@ -23,6 +23,7 @@ import {
 import { handleHelpInteraction } from '../src/discord-help';
 import { handleLeadsInteraction } from '../src/discord-leads';
 import { handlePollInteraction } from '../src/discord-polls';
+import { handleScheduleAutocomplete, handleScheduleInteraction } from '../src/discord-schedules';
 import { handleSignupInteraction } from '../src/discord-signups';
 import { internal } from './_generated/api';
 import { internalMutation, internalQuery } from './_generated/server';
@@ -167,6 +168,8 @@ export const interaction = internalMutation({
     if (form) return form;
     const event = await handleEventInteraction(incoming, eventPorts);
     if (event) return event;
+    const schedule = await handleScheduleInteraction(incoming, eventPorts);
+    if (schedule) return schedule;
 
     const poll = await handlePollInteraction(incoming, {
       discordGuildId,
@@ -212,6 +215,13 @@ export const autocomplete = internalQuery({
       absences: (memberId) => raids.listAbsences(GUILD_ID, { memberId, activeOnly: true }),
     });
     if (absence) return absence;
+    const schedule = await handleScheduleAutocomplete(incoming, {
+      discordGuildId,
+      guildId: GUILD_ID,
+      memberByDiscordId,
+      schedules: () => raids.listSchedules(GUILD_ID),
+    });
+    if (schedule) return schedule;
     return handleEventAutocomplete(incoming, {
       discordGuildId,
       guildId: GUILD_ID,

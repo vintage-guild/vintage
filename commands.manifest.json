@@ -2217,6 +2217,7 @@
             "type": "string",
             "enum": [
               "events",
+              "schedules",
               "exports",
               "signups",
               "absences",
@@ -4948,7 +4949,7 @@
     },
     {
       "name": "schedule-list",
-      "description": "List raid schedules (active ones unless includeInactive).",
+      "description": "List raid schedules (active ones unless includeInactive), each with its nextStartsAt occurrence.",
       "tier": "member",
       "mutation": false,
       "destructive": false,

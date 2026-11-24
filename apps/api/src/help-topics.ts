@@ -41,6 +41,27 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
     ],
   },
   {
+    key: 'schedules',
+    title: 'Schedules',
+    summary: 'Recurring raid nights: create, list, edit, pause, and resume from Discord.',
+    group: 'schedule',
+    runs: {
+      'schedule create': 'schedule-create',
+      'schedule list': 'schedule-list',
+      'schedule edit': 'schedule-update',
+      'schedule pause': 'schedule-update',
+      'schedule resume': 'schedule-update',
+    },
+    examples: [
+      '/vintage schedule create',
+      '/vintage schedule list',
+      '/vintage schedule edit schedule:sched-1',
+      '/vintage schedule pause schedule:sched-1',
+      '/vintage schedule resume schedule:sched-1',
+    ],
+    sitePath: '/officers',
+  },
+  {
     key: 'exports',
     title: 'Raid exports',
     summary:

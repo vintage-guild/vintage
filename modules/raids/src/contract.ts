@@ -66,6 +66,7 @@ export {
   sizesText,
   targetsOf,
 } from './domain/kinds';
+export { nextOccurrence } from './domain/recurrence';
 
 export const WEEKDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 export type Weekday = (typeof WEEKDAYS)[number];

@@ -1714,4 +1714,70 @@ describe('JTBD: raid night', () => {
     const rows = await g.host.ok<Signup[]>(g.rook, 'signup-list', { eventId: zg.id });
     expect(rows.filter((s) => s.roster === 'rostered')).toHaveLength(3);
   });
+
+  it('J73 · two raid nights from Discord: create, list, pause one while the other stays active', async () => {
+    await g.host.configureCoordinator();
+    const createViaForm = async (name: string, where: string, day: string) => {
+      const opened = await g.host.scheduleUi.slash(g.rook.discordId!, 'create');
+      expect((opened as { type: number }).type).toBe(9);
+      const step1 = (await g.host.scheduleUi.form(g.rook.discordId!, {
+        type: 5,
+        data: {
+          custom_id: 'schedform:new',
+          components: [
+            { type: 18, component: { type: 4, custom_id: 'name', value: name } },
+            { type: 18, component: { type: 3, custom_id: 'kind', values: ['raid'] } },
+            { type: 18, component: { type: 4, custom_id: 'where', value: where } },
+            { type: 18, component: { type: 3, custom_id: 'weekdays', values: [day] } },
+            { type: 18, component: { type: 3, custom_id: 'time', values: ['20:00'] } },
+          ],
+        },
+      })) as { data: { embeds?: { footer?: { text: string } }[] } };
+      const step2 = (await g.host.scheduleUi.form(g.rook.discordId!, {
+        type: 5,
+        message: { id: 'p1', embeds: step1.data.embeds },
+        data: {
+          custom_id: 'schedform:kind:raid',
+          components: [{ type: 18, component: { type: 3, custom_id: 'size', values: ['40'] } }],
+        },
+      })) as { data: { embeds?: { footer?: { text: string } }[] } };
+      return (await g.host.scheduleUi.form(g.rook.discordId!, {
+        type: 3,
+        message: { id: 'p1', embeds: step2.data.embeds },
+        data: { custom_id: 'schedform:save', component_type: 2 },
+      })) as { data: { content?: string } };
+    };
+
+    const monReply = await createViaForm('Monday MC', 'Molten Core', 'mon');
+    expect(monReply.data.content).toContain(
+      "Made **Monday MC** (Molten Core, 40-player raid) on Mondays at 8:00 PM. This week's raids are posting now.",
+    );
+    const wedReply = await createViaForm('Wednesday BWL', 'Blackwing Lair', 'wed');
+    expect(wedReply.data.content).toContain(
+      "Made **Wednesday BWL** (Blackwing Lair, 40-player raid) on Wednesdays at 8:00 PM. This week's raids are posting now.",
+    );
+
+    // Both weeks' signup posts go up on the coordinator tick.
+    await g.host.tick();
+    const titles = g.host.sentTo(SIGNUP_CHANNEL).map((m) => m.message.embeds?.[0]?.title ?? '');
+    expect(titles.some((t) => t.includes('Monday MC'))).toBe(true);
+    expect(titles.some((t) => t.includes('Wednesday BWL'))).toBe(true);
+
+    // `/vintage schedule list` shows both with their next raid.
+    const listed = (await g.host.scheduleUi.slash(g.aeryn.discordId!, 'list')) as {
+      data: { content?: string };
+    };
+    expect(listed.data.content).toContain('**Monday MC**');
+    expect(listed.data.content).toContain('**Wednesday BWL**');
+
+    // Pause Wednesday BWL -> next week materializes Monday MC only.
+    const paused = (await g.host.scheduleUi.slash(g.rook.discordId!, 'pause', {
+      schedule: 'Wednesday BWL',
+    })) as { data: { content?: string } };
+    expect(paused.data.content).toBe('Paused **Wednesday BWL**. No new raids until you resume it.');
+
+    g.host.clock.advance(7 * DAY);
+    const nextWeek = await g.host.ok<{ created: RaidEvent[] }>(g.rook, 'schedule-materialize', {});
+    expect(nextWeek.created.map((e) => e.name)).toEqual(['Monday MC']);
+  });
 });

@@ -2,7 +2,7 @@ import { roleTargetsSchema } from '@vintage/comp-solver';
 import { error, success } from '@vintage/guild-kit';
 import { z } from 'zod';
 import { accessOf, RAID_ACCESS, type RaidEvent, type Schedule, WEEKDAYS } from '../contract';
-import { isValidTime, isValidTimeZone, occurrences } from '../domain/recurrence';
+import { isValidTime, isValidTimeZone, nextOccurrence, occurrences } from '../domain/recurrence';
 import { command } from '../store';
 import {
   eventSizeSchema,
@@ -205,11 +205,23 @@ export const scheduleUpdate = command({
 
 export const scheduleList = command({
   name: 'schedule-list',
-  description: 'List raid schedules (active ones unless includeInactive).',
+  description:
+    'List raid schedules (active ones unless includeInactive), each with its nextStartsAt occurrence.',
   tier: 'member',
   input: z.object({ includeInactive: z.boolean().default(false) }),
-  handler: async ({ includeInactive }, { guildId, deps }) =>
-    success(await deps.raids.listSchedules(guildId, includeInactive ? {} : { active: true })),
+  handler: async ({ includeInactive }, { guildId, deps, now }) => {
+    const schedules = await deps.raids.listSchedules(
+      guildId,
+      includeInactive ? {} : { active: true },
+    );
+    const at = now();
+    return success(
+      schedules.map((s) => ({
+        ...s,
+        nextStartsAt: s.active ? nextOccurrence(s.recurrence, at) : null,
+      })),
+    );
+  },
 });
 
 export const scheduleMaterialize = command({

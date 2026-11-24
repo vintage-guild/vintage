@@ -57,6 +57,7 @@ import {
 } from '../../src/discord-events';
 import { handleHelpInteraction } from '../../src/discord-help';
 import { handlePollInteraction } from '../../src/discord-polls';
+import { handleScheduleAutocomplete, handleScheduleInteraction } from '../../src/discord-schedules';
 import { handleSignupInteraction } from '../../src/discord-signups';
 import { callFor, toolsFor } from '../../src/mcp-gateway';
 import { onboardAfterSync, onboardIfPromoted } from '../../src/onboarding';
@@ -690,6 +691,91 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     },
   };
 
+  /** `/vintage schedule …` slash commands, form steps, and autocomplete. */
+  const scheduleUi = {
+    slash: (discordId: string, sub: string, options: Record<string, string> = {}) =>
+      handleScheduleInteraction(
+        {
+          id: 'i',
+          application_id: 'app',
+          token: 'token',
+          type: InteractionType.APPLICATION_COMMAND,
+          guild_id: DISCORD_GUILD,
+          channel_id: SIGNUP_CHANNEL,
+          member: { user: { id: discordId, username: discordId }, roles: [] },
+          data: {
+            name: 'vintage',
+            options: [
+              {
+                name: 'schedule',
+                type: 2,
+                options: [
+                  {
+                    name: sub,
+                    type: 1,
+                    options: Object.entries(options).map(([name, value]) => ({
+                      name,
+                      type: 3,
+                      value,
+                    })),
+                  },
+                ],
+              },
+            ],
+          },
+        } as Interaction,
+        eventPorts,
+      ),
+    form: (discordId: string, interaction: Partial<Interaction>) =>
+      handleScheduleInteraction(
+        {
+          id: 'i',
+          application_id: 'app',
+          token: 'token',
+          type: InteractionType.MESSAGE_COMPONENT,
+          guild_id: DISCORD_GUILD,
+          channel_id: SIGNUP_CHANNEL,
+          member: { user: { id: discordId, username: discordId }, roles: [] },
+          ...interaction,
+        } as Interaction,
+        eventPorts,
+      ),
+    autocomplete: (discordId: string, sub: string, value: string) =>
+      handleScheduleAutocomplete(
+        {
+          id: 'i',
+          application_id: 'app',
+          token: 'token',
+          type: InteractionType.APPLICATION_COMMAND_AUTOCOMPLETE,
+          guild_id: DISCORD_GUILD,
+          channel_id: SIGNUP_CHANNEL,
+          member: { user: { id: discordId, username: discordId }, roles: [] },
+          data: {
+            name: 'vintage',
+            options: [
+              {
+                name: 'schedule',
+                type: 2,
+                options: [
+                  {
+                    name: sub,
+                    type: 1,
+                    options: [{ name: 'schedule', type: 3, value, focused: true }],
+                  },
+                ],
+              },
+            ],
+          },
+        } as Interaction,
+        {
+          discordGuildId: DISCORD_GUILD,
+          guildId: GUILD,
+          memberByDiscordId,
+          schedules: () => raids.listSchedules(GUILD),
+        },
+      ),
+  };
+
   /** A `/vintage character …` interaction from a member, as convex/discord.ts builds it. */
   const characterInteraction = (
     discordId: string,
@@ -1051,6 +1137,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     discordUi,
     characterUi,
     eventUi,
+    scheduleUi,
     pollUi,
     clock,
     deps,

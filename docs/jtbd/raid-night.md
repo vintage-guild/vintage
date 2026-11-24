@@ -489,3 +489,10 @@ re-seat before approval and never unseat anyone after approval.
 - [x] After approval: shrinking below seated count saves without unseating anyone, `#leads` warns
   how many to move to Standby, and the party post / quarters show overflow and out-of-range groups;
   growing opens seats and posts Standby-only `[Seat X]` buttons to `#leads`.
+
+### J73 · Two raid nights from Discord
+**When** the guild runs recurring raids on separate nights, **I (leader) want** to create, list,
+edit, pause, and resume schedules right from Discord.
+- [x] `/vintage schedule create` creates each schedule via the 2-stage modal + preview form and
+  posts this week's raids right away; `/vintage schedule list` shows both with their next raid;
+  pausing one stops new raids for it while leaving the other active.

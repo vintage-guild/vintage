@@ -247,6 +247,57 @@ const EVENT_GROUP = {
   ],
 };
 
+/** One of the guild's schedules, suggested as the leader types (autocomplete). */
+const SCHEDULE_PICK = {
+  type: T.STRING,
+  name: 'schedule',
+  description: 'Pick a schedule from the suggestions',
+  required: true,
+  max_length: 100,
+  autocomplete: true,
+};
+
+/**
+ * `/vintage schedule …` (raid-scheduling.plan.md §2): create, list, edit, pause, and resume
+ * recurring raid schedules from Discord. Create and edit use a 2-stage modal + preview form.
+ */
+const SCHEDULE_GROUP = {
+  type: T.SUB_COMMAND_GROUP,
+  name: 'schedule',
+  description: 'Recurring raid schedules (raid leaders and officers)',
+  options: [
+    GROUP_HELP,
+    {
+      type: T.SUB_COMMAND,
+      name: 'create',
+      description: 'Set up a recurring raid schedule (opens a form)',
+    },
+    {
+      type: T.SUB_COMMAND,
+      name: 'list',
+      description: 'Show every schedule, its nights, time, and next raid',
+    },
+    {
+      type: T.SUB_COMMAND,
+      name: 'edit',
+      description: 'Edit a schedule’s nights, time, size, or comp (opens a form)',
+      options: [SCHEDULE_PICK],
+    },
+    {
+      type: T.SUB_COMMAND,
+      name: 'pause',
+      description: 'Pause a schedule so it stops making new raids',
+      options: [SCHEDULE_PICK],
+    },
+    {
+      type: T.SUB_COMMAND,
+      name: 'resume',
+      description: 'Resume a paused schedule and post its upcoming raids',
+      options: [SCHEDULE_PICK],
+    },
+  ],
+};
+
 const CLASS_CHOICES = [
   'warrior',
   'paladin',
@@ -497,6 +548,7 @@ const HELP = {
       description: 'One topic in detail',
       choices: [
         { name: 'Events', value: 'events' },
+        { name: 'Schedules', value: 'schedules' },
         { name: 'Raid exports', value: 'exports' },
         { name: 'Signups', value: 'signups' },
         { name: 'Absences', value: 'absences' },
@@ -522,6 +574,7 @@ export const RANDOM_COMMAND = {
     HELP,
     POLL_GROUP,
     EVENT_GROUP,
+    SCHEDULE_GROUP,
     CHARACTER_GROUP,
     ABSENCE_GROUP,
     ASK,
@@ -535,6 +588,7 @@ export const FORWARDED_GROUPS: ReadonlySet<string> = new Set([
   HELP.name,
   POLL_GROUP.name,
   EVENT_GROUP.name,
+  SCHEDULE_GROUP.name,
   CHARACTER_GROUP.name,
   ABSENCE_GROUP.name,
   ASK.name,
@@ -544,11 +598,13 @@ export const FORWARDED_GROUPS: ReadonlySet<string> = new Set([
 
 /**
  * Groups whose autocomplete interactions the gateway forwards to Convex: `/vintage character`
- * (spec and name, #149), `/vintage event check-export` (the raid), and `/vintage absence remove`.
+ * (spec and name, #149), `/vintage event check-export` (the raid), `/vintage schedule` (schedules),
+ * and `/vintage absence remove`.
  */
 export const AUTOCOMPLETED_GROUPS: ReadonlySet<string> = new Set([
   CHARACTER_GROUP.name,
   EVENT_GROUP.name,
+  SCHEDULE_GROUP.name,
   ABSENCE_GROUP.name,
 ]);
 

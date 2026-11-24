@@ -1,10 +1,10 @@
 # Raid scheduling: edit a raid's comp and size, schedules from Discord, a short site link
 
-**Status:** active (2026-11-23). Prerequisites (#322, #323, #324, #325) and Phase 1 (edit comp
-and size) landed. All of Bloodfen's technical calls and all of TJ's product calls except row 16
-(proposed) are settled (2026-11-22). **Owner modules:** raids (commands), comp-solver
-(`groupDraft`), apps/api (Discord), web (quarters, short links), coordinator (signup post, party
-post, leads feed).
+**Status:** active (2026-11-23). Prerequisites (#322, #323, #324, #325), Phase 1 (edit comp
+and size, #343), and Phase 2 (schedules from Discord) landed. All of Bloodfen's technical calls
+and all of TJ's product calls except row 16 (proposed) are settled (2026-11-22). **Owner modules:**
+raids (commands), comp-solver (`groupDraft`), apps/api (Discord), web (quarters, short links),
+coordinator (signup post, party post, leads feed).
 
 Three asks from TJ (guild master) on 2026-11-22:
 
@@ -226,7 +226,7 @@ approved seats).
   approved seats + over-full `#leads` line & draft/quarters display after approval, raid-level
   `announcedState` diff for the leads feed line, quarters raid Edit form fields, manifest. Jobs
   J71 and J72.
-- [ ] **Schedules from Discord** (gateway, apps/api, raids): `/vintage schedule` group (`create`,
+- [x] **Schedules from Discord** (gateway, apps/api, raids): `/vintage schedule` group (`create`,
   `list`, `edit`, `pause`, `resume`, `help`), `FORWARDED_GROUPS` / `AUTOCOMPLETED_GROUPS` /
   `help-topics.ts`, New schedule form (Stage 1 weekday multi-select; Preview `Open to pugs`
   toggle + `Length` select; Stage 2 Size, Tanks, Healers, Melee, Ranged; `schedule edit` opens

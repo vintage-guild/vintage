@@ -71,8 +71,8 @@ export function createMemoryIdentityStore(): IdentityStore & {
       characters.set(characterId, updated);
       return updated;
     },
-    async deleteCharacter(_guildId, characterId) {
-      characters.delete(characterId);
+    async deleteCharacter(guildId, characterId) {
+      if (characters.get(characterId)?.guildId === guildId) characters.delete(characterId);
     },
     async getRoleRankMap(guildId) {
       return sortedMap(roleRanks.get(guildId) ?? {});

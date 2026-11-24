@@ -47,6 +47,7 @@
     "@vintage/bridge-format": "workspace:*",
     "@vintage/config": "workspace:*",
     "@vintage/testing": "workspace:*",
+    "convex-test": "^0.0.75",
     "tsx": "^4.23.15",
     "typescript": "catalog:"
   }

@@ -41,7 +41,7 @@ import {
 import type { Role } from '@vintage/wow-data';
 import type { TickAway, TickEvent, TickMember } from '../store';
 import { EMOJI_IDS } from './emoji-ids';
-import { cardTitle, countOf, eventTitle, sizeWords } from './kind-words';
+import { cardTitle, countOf, eventTitle, noun, sizeWords } from './kind-words';
 import { compFor, finalRoster } from './render';
 
 const ROLE_ROWS: readonly (readonly [Role, string][])[] = [
@@ -414,6 +414,8 @@ export function renderSignupPost(
   const row2 = [
     ...(siteLink ? [linkButton(siteLink.url, 'Raid page')] : []),
     ...(showRoster ? [button(`roster:${event.id}`, 'Roster', ButtonStyle.SECONDARY)] : []),
+    // Move or cancel, for raid leaders and officers; everyone else gets a private "can't".
+    button(`${MANAGE_PREFIX}:${event.id}`, 'Manage', ButtonStyle.SECONDARY),
   ];
 
   return {
@@ -440,8 +442,27 @@ export function renderSignupPost(
           button(`signup:${event.id}:${status}`, text, style, { disabled: locked }),
         ),
       ),
-      ...(row2.length ? [actionRow(...row2)] : []),
+      actionRow(...row2),
     ],
+    allowed_mentions: { parse: [] },
+  };
+}
+
+/** The custom id prefix of the card's Manage button (`manage:<eventId>`). */
+export const MANAGE_PREFIX = 'manage';
+
+/** A cancelled raid's signup post: the title and time kept, no answer buttons. */
+export function renderCancelledPost(event: TickEvent['event']): MessageData {
+  return {
+    embeds: [
+      embed({
+        title: `Cancelled · ${cardTitle(event)}`,
+        description: `~~${when(event.startsAt)}~~
+-# This ${noun(event)} was cancelled. Signups are kept for history.`,
+        color: discordColor('color.border.strong'),
+      }),
+    ],
+    components: [],
     allowed_mentions: { parse: [] },
   };
 }

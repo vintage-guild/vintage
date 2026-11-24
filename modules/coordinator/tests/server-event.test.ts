@@ -204,6 +204,19 @@ describe('server events in the tick', () => {
     expect(await action('server-event-cancel')).toMatchObject({ status: 'sent' });
   });
 
+  it('redraws a cancelled raid’s signup post as cancelled, without buttons, once', async () => {
+    await tick(); // the post (server events off: the card is redrawn anyway)
+    cancelled = [raid('r1', { status: 'cancelled' })];
+    events = [];
+    await tick();
+    await tick();
+    const edits = discord.sent.filter((s) => s.kind === 'edit');
+    expect(edits).toHaveLength(1);
+    expect(edits[0]!.messageId).toBe(discord.sent[0]!.messageId);
+    expect(edits[0]!.message.embeds?.[0]?.title).toMatch(/^Cancelled · /);
+    expect(edits[0]!.message.components).toEqual([]);
+  });
+
   it('leaves the event alone once the raid has started or completed', async () => {
     await store.setConfig(G, { serverEvents: true }, 0);
     await tick();

@@ -22,6 +22,7 @@ import {
 } from '../src/discord-events';
 import { handleHelpInteraction } from '../src/discord-help';
 import { handleLeadsInteraction } from '../src/discord-leads';
+import { handleManageInteraction } from '../src/discord-manage';
 import { handlePollInteraction } from '../src/discord-polls';
 import { handleScheduleAutocomplete, handleScheduleInteraction } from '../src/discord-schedules';
 import { handleSignupInteraction } from '../src/discord-signups';
@@ -123,6 +124,18 @@ export const interaction = internalMutation({
       afterChange: () => scheduleCoalescedTick(ctx, GUILD_ID),
     });
     if (leads) return leads;
+
+    // The card's Manage button: move or cancel the event (raid leaders and officers).
+    const manage = await handleManageInteraction(incoming, {
+      discordGuildId,
+      guildId: GUILD_ID,
+      memberByDiscordId,
+      run: (caller, name, input, confirmToken) =>
+        runCommandAs(ctx, caller, name, input, confirmToken),
+      afterChange: () => coordinatorScheduler(ctx).runTickNow(GUILD_ID),
+      now: () => Date.now(),
+    });
+    if (manage) return manage;
 
     const signup = await handleSignupInteraction(incoming, {
       discordGuildId,

@@ -147,7 +147,8 @@ describe('runTick', () => {
       'signup:raid-1:tentative',
       'signup:raid-1:bench',
       'signup:raid-1:declined',
-    ]); // no Roster: an empty card hides no one
+      'manage:raid-1',
+    ]); // no Roster: an empty card hides no one; Manage is always there
   });
 
   it('edits the post only when signups change', async () => {
@@ -410,7 +411,14 @@ describe('runTick', () => {
     expect(text).toMatch(/\*\*Standby\*\* <:spec_mage_frost:\d+> Pip/);
     expect(text).toMatch(/\*\*Tentative\*\* <:spec_warrior_protection:\d+> Cade(?! \(maybe\))/);
     expect(text).not.toContain('(maybe)');
-    expect(buttonLabels(message)).toEqual(['Accept', 'Late', 'Tentative', 'Standby', 'Absent']);
+    expect(buttonLabels(message)).toEqual([
+      'Accept',
+      'Late',
+      'Tentative',
+      'Standby',
+      'Absent',
+      'Manage',
+    ]);
   });
 
   it('posts T-24h party draft to leads, posts parties on approval, and promotes in place at lock', async () => {

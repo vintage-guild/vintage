@@ -30,6 +30,7 @@ and posts the final roster and addon import string. Maturity: **core**.
 |---|---|---|
 | `post` | as soon as the raid exists | signup channel (or `openSignupChannelId` for open raids), with answer buttons |
 | refresh | whenever the post's content changed (not logged) | edits the post |
+| cancelled card | the raid was cancelled after its post went up (not logged; its hash keeps it to one edit) | edits the post to **Cancelled · …** with no buttons |
 | `remind-<h>h` | each reminder offset, before lock (guild raids only); only the latest due one is sent | signup channel, pings non-responders only, or the `reminderRoleIds` roles with the non-responders named as plain text |
 | `dm-<h>h` | the last reminder offset (guild raids only), if `dmReminders`; skips members who opted out and, when `dmRanks` is set, ranks not in it | DM |
 | `digest`, `party-draft` | `digestHours` (default 24h) before start | leads channel (`leadsChannelId`, else `opsChannelId`); seeds `announcedState` for the post-digest change feed |
@@ -76,6 +77,8 @@ and posts the final roster and addon import string. Maturity: **core**.
   edit refreshes the post on the next tick. Each field uses line-safe character-budget packing
   (`fitLines`, <= 1,024 chars) ending in `+N more…` only when a field overflows; the **Roster**
   button (`roster:<eventId>`) appears only when someone is hidden and shows everyone privately.
+  **Manage** (`manage:<eventId>`, always on the card) gives raid leaders and officers a private
+  Move / Cancel menu (`apps/api/src/discord-manage.ts`); everyone else gets a private refusal.
   `tests/card.test.ts` checks a full raid against Discord's embed limits. Icons are the app's
   own emoji (`emoji('status_late')`, `emoji('spec_warrior_protection')`, falling back to
   `emoji('square_<class>')`): our art in `assets/emoji` (`scripts/build-emoji-art.mjs`) plus
@@ -140,5 +143,5 @@ and posts the final roster and addon import string. Maturity: **core**.
   Discord (10070) is recreated on the next tick. A finished raid's event is left alone: Discord
   completes EXTERNAL events at their end time. At most `MAX_SERVER_EVENTS` (25) are held, well under
   Discord's 100. "Interested" is Discord's own and is never read as a signup. Turning the toggle
-  off stops all event writes; existing events stay. The tick source reads cancelled raids only
-  while it is on.
+  off stops all event writes; existing events stay. The tick source always reads cancelled raids
+  within the lookahead so cancelled signup cards are redrawn whether or not `serverEvents` is on.

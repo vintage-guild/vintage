@@ -91,6 +91,12 @@ commands). Everything runs serverless: no always-on gateway process.
   values. Keep every id within 100 characters with 32-character Convex ids. A click signs up
   with `signup-suggest`'s guess. Replies are ephemeral; never edit the
   public post from an interaction (the coordinator tick does that).
+- **Manage** (`src/discord-manage.ts`, routed before the signup flow): the card's
+  `manage:<event>` button opens a private menu for Raid Leader and up; `manage:move:<event>` opens
+  modal `manage:when:<event>` (the New event form's date and time pickers, on the event's own
+  time) → `raid-update`; `manage:cancel:<event>` shows `raid-cancel`'s preview with
+  `manage:confirm:<event>` (fresh preview, confirmed at once) and `manage:keep:<event>`. Each step
+  re-checks the server, the member, and the tier. A cancelled raid's card is redrawn by the tick.
 - **New event form** (`src/discord-event-form.ts`, routed before `discord-events.ts`): a bare
   `/random event create` opens modal `evform:new` (name, kind as a radio group, where, a date
   select of the next 25 days and a half-hour time select, both in the guild's clock; options

@@ -126,6 +126,8 @@ export type PlannedAction =
       target: string;
       recorded: TickRecorded;
     }
+  /** Redraw a cancelled raid's signup post as cancelled (no buttons); like refresh, not logged. */
+  | { kind: 'cancelled-card'; tick: TickEvent; post: CoordinatorAction }
   /** Edit the summary in place when the record changed; like refresh, not logged. */
   | { kind: 'summary-update'; tick: TickEvent; summary: CoordinatorAction; recorded: TickRecorded }
   /** Logged without sending: a reminder overtaken by a later one, or nothing to say. */
@@ -525,6 +527,8 @@ export function planTick(
   summaryHash?: (recorded: TickRecorded) => string,
   partyDraftHash?: (tick: TickEvent) => string,
   partyPostHash?: (tick: TickEvent, locked: boolean) => string,
+  /** Hash of a cancelled raid's post; needed only when `cancelled` has raids. */
+  cancelledHash?: (tick: TickEvent) => string,
 ): PlannedAction[] {
   if (state.config.paused || !state.config.signupChannelId) return [];
   const out: PlannedAction[] = [];
@@ -535,5 +539,21 @@ export function planTick(
     out.push(...planServerEvents(state, now, serverEventHash));
   }
   if (summaryHash) out.push(...planSummaries(state, summaryHash));
+  if (cancelledHash) out.push(...planCancelledCards(state, cancelledHash));
+  return out;
+}
+
+/** A cancelled raid's signup post loses its buttons and says so, once (its hash then matches). */
+function planCancelledCards(
+  state: TickState,
+  cancelledHash: (tick: TickEvent) => string,
+): PlannedAction[] {
+  const out: PlannedAction[] = [];
+  for (const tick of state.cancelled ?? []) {
+    const post = sentAction(state, tick.event.id, 'post');
+    if (post && post.renderHash !== cancelledHash(tick)) {
+      out.push({ kind: 'cancelled-card', tick, post });
+    }
+  }
   return out;
 }

@@ -24,6 +24,13 @@ import type { FunctionReference } from "convex/server";
 export type ComponentApi<Name extends string | undefined = string | undefined> =
   {
     kills: {
+      get: FunctionReference<
+        "query",
+        "internal",
+        { guildId: string; killId: string },
+        any,
+        Name
+      >;
       insert: FunctionReference<
         "mutation",
         "internal",
@@ -51,6 +58,13 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           guildId: string;
           raidId?: "barrow-deeps" | "hyjal-summit" | "onyxias-lair";
         },
+        any,
+        Name
+      >;
+      remove: FunctionReference<
+        "mutation",
+        "internal",
+        { guildId: string; killId: string },
         any,
         Name
       >;

@@ -206,5 +206,18 @@ export interface Progress {
   latest: FirstKill | null;
 }
 
-export const PROGRESS_COMMANDS = ['kill-record', 'progress-get'] as const;
+/** One kill log row as `kill-list` answers it, annotated with names and whether it's the first kill. */
+export interface KillLogEntry extends Kill {
+  raidName: string;
+  bossName: string;
+  /** True when this kill is currently the guild's first kill on the ledger. */
+  first: boolean;
+}
+
+export const PROGRESS_COMMANDS = [
+  'kill-record',
+  'kill-list',
+  'kill-remove',
+  'progress-get',
+] as const;
 export type ProgressCommandName = (typeof PROGRESS_COMMANDS)[number];

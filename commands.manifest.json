@@ -2306,6 +2306,31 @@
       }
     },
     {
+      "name": "kill-list",
+      "description": "Every recorded kill for the guild (or one raid / boss), newest first, with who recorded it, what dropped, notes, and whether each entry is currently the ledger’s first kill.",
+      "tier": "leader",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "raidId": {
+            "type": "string",
+            "enum": [
+              "barrow-deeps",
+              "hyjal-summit",
+              "onyxias-lair"
+            ]
+          },
+          "bossId": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    {
       "name": "kill-record",
       "description": "Record a boss kill: the raid, the boss (ids from progress-get), when (defaults to now), and what dropped with its quality. The guild’s first kill of a boss is what the ledger shows; later kills are kept as the kill log. The same kill again (same raid, boss and time) changes nothing and answers duplicate: true.",
       "tier": "leader",
@@ -2388,6 +2413,26 @@
         "required": [
           "raidId",
           "bossId"
+        ]
+      }
+    },
+    {
+      "name": "kill-remove",
+      "description": "Remove a recorded boss kill. Officer-only and destructive: previews the boss, raid, time, and whether the ledger’s first kill moves to the next-earliest kill; confirm to delete.",
+      "tier": "officer",
+      "mutation": true,
+      "destructive": true,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "killId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "killId"
         ]
       }
     },

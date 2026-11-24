@@ -408,7 +408,11 @@ const progress = components.progress;
 export function progressStore(ctx: Ctx): ProgressStore {
   return {
     listKills: (guildId, filter = {}) => ctx.runQuery(progress.kills.list, { guildId, ...filter }),
+    getKill: (guildId, killId) => ctx.runQuery(progress.kills.get, { guildId, killId }),
     insertKill: (kill) => writable(ctx).runMutation(progress.kills.insert, kill),
+    deleteKill: async (guildId, killId) => {
+      await writable(ctx).runMutation(progress.kills.remove, { guildId, killId });
+    },
   };
 }
 

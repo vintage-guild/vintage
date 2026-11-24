@@ -15,10 +15,18 @@ export function createMemoryProgressStore(): ProgressStore & { kills: Map<string
         )
         .sort((a, b) => a.killedAt - b.killedAt || a.recordedAt - b.recordedAt);
     },
+    async getKill(guildId, killId) {
+      const kill = kills.get(killId);
+      return kill && kill.guildId === guildId ? kill : null;
+    },
     async insertKill(input) {
       const kill = { ...input, id: `kill_${++seq}` };
       kills.set(kill.id, kill);
       return kill;
+    },
+    async deleteKill(guildId, killId) {
+      const kill = kills.get(killId);
+      if (kill && kill.guildId === guildId) kills.delete(killId);
     },
   };
 }

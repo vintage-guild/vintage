@@ -1965,6 +1965,9 @@
           },
           "weeklyAssessment": {
             "type": "boolean"
+          },
+          "postRaidFeedbackSurvey": {
+            "type": "boolean"
           }
         }
       }
@@ -4113,6 +4116,62 @@
       }
     },
     {
+      "name": "response-set",
+      "description": "Submit or update the caller’s response to an open survey (one response per member; free text up to 500 chars).",
+      "tier": "member",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "surveyId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "answers": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "questionId": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "choices": {
+                  "maxItems": 25,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "text": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 500
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "questionId"
+              ]
+            }
+          }
+        },
+        "required": [
+          "surveyId",
+          "answers"
+        ]
+      }
+    },
+    {
       "name": "roster-approve",
       "description": "Approve and post the drafted party groups for a raid. Refuses if more players are seated than the raid holds. After approval, only leaders change seats and new signups land on Standby.",
       "tier": "leader",
@@ -5734,6 +5793,344 @@
         },
         "required": [
           "eventId"
+        ]
+      }
+    },
+    {
+      "name": "survey-close",
+      "description": "Close an open survey now and freeze its results. Destructive: previews the response count first; confirm to close.",
+      "tier": "leader",
+      "mutation": true,
+      "destructive": true,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "surveyId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "surveyId"
+        ]
+      }
+    },
+    {
+      "name": "survey-create",
+      "description": "Create a multi-question survey (single, multi, ranked, or free-text questions up to 500 chars) answered on the website. Opens immediately unless open is false or opensAt is in the future.",
+      "tier": "leader",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "questions": {
+            "minItems": 1,
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "prompt": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 300
+                },
+                "kind": {
+                  "default": "single",
+                  "type": "string",
+                  "enum": [
+                    "single",
+                    "multi",
+                    "ranked",
+                    "text"
+                  ]
+                },
+                "required": {
+                  "default": true,
+                  "type": "boolean"
+                },
+                "options": {
+                  "maxItems": 25,
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 80
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "label": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 80
+                          },
+                          "emoji": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 64
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "value": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "maxLength": 200
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "label"
+                        ]
+                      }
+                    ]
+                  }
+                },
+                "maxChoices": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 25
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "prompt"
+              ]
+            }
+          },
+          "eligibleTier": {
+            "default": "raider",
+            "type": "string",
+            "enum": [
+              "public",
+              "friend",
+              "member",
+              "recruit",
+              "raider",
+              "leader",
+              "officer"
+            ]
+          },
+          "anonymous": {
+            "default": false,
+            "type": "boolean"
+          },
+          "resultsVisible": {
+            "default": "after-close",
+            "type": "string",
+            "enum": [
+              "live",
+              "after-close",
+              "officers"
+            ]
+          },
+          "opensAt": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "closesAt": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tags": {
+            "default": [],
+            "maxItems": 10,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 40,
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+            }
+          },
+          "open": {
+            "default": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "title",
+          "questions"
+        ]
+      }
+    },
+    {
+      "name": "survey-export",
+      "description": "Export a survey’s responses as RFC 4180 CSV. Anonymous surveys omit respondent identity columns. Raid leaders and officers.",
+      "tier": "leader",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "surveyId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "surveyId"
+        ]
+      }
+    },
+    {
+      "name": "survey-get",
+      "description": "Read one survey, the caller’s own response (if any), and response counts (results included when visible to the caller).",
+      "tier": "member",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "surveyId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "surveyId"
+        ]
+      }
+    },
+    {
+      "name": "survey-list",
+      "description": "List surveys the caller may see, optionally filtered by status or tag.",
+      "tier": "member",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "statuses": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "open",
+                "closed",
+                "cancelled"
+              ]
+            }
+          },
+          "tag": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          }
+        }
+      }
+    },
+    {
+      "name": "survey-open",
+      "description": "Open a draft survey for website responses now. Raid leaders and officers.",
+      "tier": "leader",
+      "mutation": true,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "surveyId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "surveyId"
+        ]
+      }
+    },
+    {
+      "name": "survey-results",
+      "description": "Read tallied choice results and free-text answers for a survey. Respects resultsVisible and never reveals respondent names when the survey is anonymous.",
+      "tier": "member",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "surveyId": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "surveyId"
         ]
       }
     },

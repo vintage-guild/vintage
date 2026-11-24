@@ -213,6 +213,67 @@ parity('pollsStore', createMemoryPollsStore, pollsStore, (setup) => {
       expect((await s.listPosts(GUILD_A, pollA.id)).map((p) => p.id)).toEqual([postA.id]);
       expect(await s.listPosts(GUILD_B, pollA.id)).toEqual([]);
       await expect(s.updatePost(GUILD_B, postA.id, { renderedKey: 'v2' })).rejects.toThrow();
+
+      // Surveys, responses, and survey posts isolation (#65).
+      const surveyA = await s.insertSurvey({
+        guildId: GUILD_A,
+        title: 'Feedback',
+        description: null,
+        questions: [
+          {
+            id: 'q1',
+            prompt: 'How was it?',
+            kind: 'single',
+            required: true,
+            options: [
+              { id: 'o1', label: 'Good', emoji: null, value: null },
+              { id: 'o2', label: 'Rough', emoji: null, value: null },
+            ],
+            maxChoices: null,
+          },
+        ],
+        eligibleTier: 'raider',
+        anonymous: true,
+        resultsVisible: 'after-close',
+        status: 'open',
+        opensAt: null,
+        closesAt: 50_000,
+        createdBy: 'officer',
+        closedBy: null,
+        createdAt: 1000,
+        closedAt: null,
+        tags: ['raid-feedback'],
+        configVersion: 1,
+        results: null,
+      });
+      expect((await s.getSurvey(GUILD_A, surveyA.id))?.title).toBe('Feedback');
+      expect(await s.getSurvey(GUILD_B, surveyA.id)).toBeNull();
+      expect(await s.listSurveys(GUILD_B)).toEqual([]);
+      await expect(s.updateSurvey(GUILD_B, surveyA.id, { status: 'closed' })).rejects.toThrow();
+
+      const respA = await s.upsertSurveyResponse({
+        guildId: GUILD_A,
+        surveyId: surveyA.id,
+        memberId: 'm1',
+        answers: [{ questionId: 'q1', choices: ['o1'], text: null }],
+        submittedAt: 2000,
+        updatedAt: 2000,
+      });
+      expect(await s.countSurveyResponses(GUILD_A, surveyA.id)).toBe(1);
+      expect(await s.countSurveyResponses(GUILD_B, surveyA.id)).toBe(0);
+      expect((await s.getSurveyResponseByMember(GUILD_A, surveyA.id, 'm1'))?.id).toBe(respA.id);
+      expect(await s.getSurveyResponseByMember(GUILD_B, surveyA.id, 'm1')).toBeNull();
+
+      const spostA = await s.insertSurveyPost({
+        guildId: GUILD_A,
+        surveyId: surveyA.id,
+        channelId: 'ch1',
+        messageId: 'msg2',
+        renderedKey: 'k1',
+      });
+      expect((await s.listSurveyPosts(GUILD_A, surveyA.id)).map((p) => p.id)).toEqual([spostA.id]);
+      expect(await s.listSurveyPosts(GUILD_B, surveyA.id)).toEqual([]);
+      await expect(s.updateSurveyPost(GUILD_B, spostA.id, { renderedKey: 'k2' })).rejects.toThrow();
     });
   });
 });

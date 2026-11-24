@@ -84,3 +84,19 @@ I can** keep sensitive questions from leaking to everyone in the channel.
 - [ ] With no matching channel configured, Discord creation is refused and points to
   `coordinator-config-set` or the website; web-only creation (no `channelId`) still works because
   every read command hides polls by tier.
+
+### J81 · Run a post-raid feedback survey with website responses, Discord invite, nudges, and CSV export
+**When** officers want structured feedback with choice and free-text questions, **I (officer) want**
+to open a survey (or have `raid-completed` open one automatically when enabled), post a Discord
+invite with a refreshing responded count, nudge non-responders who allow DMs, and export the
+results as CSV.
+- [ ] `survey-create|open|close|get|list|results|export` and `response-set` support choice
+  (`single`, `multi`, `ranked`) and free-text (≤500 chars) questions, one response per member,
+  and poll-style anonymity.
+- [ ] Discord invite embed shows the responded count and a link button to `/surveys/<id>`, and
+  refreshes in place as responses arrive.
+- [ ] With `postRaidFeedbackSurvey` off by default, completing a raid opens nothing; enabled via
+  `coordinator-config-set`, the next tick opens an anonymous feedback survey and posts its invite.
+- [ ] Non-responder reminder DMs within 24 hours of close skip anyone who already answered or has
+  `dmOptOut: true`.
+- [ ] `survey-export` returns RFC 4180 CSV with respondent columns omitted when `anonymous: true`.

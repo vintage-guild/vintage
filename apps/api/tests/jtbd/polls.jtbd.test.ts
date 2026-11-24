@@ -426,4 +426,77 @@ describe('JTBD: polls', () => {
     });
     expect(badNight).toMatchObject({ success: false, error: { code: 'CHANNEL_NOT_ALLOWED' } });
   });
+
+  it('J81 · post-raid feedback survey, Discord invite, non-responder nudges respecting DM opt-out, and CSV export', async () => {
+    const ana = await g.host.discordMember('500000000000000001', 'Ana', [ROLES.officer]);
+    await g.host.configureCoordinator();
+    await g.host.ok(g.bram, 'member-prefs-set', { dmOptOut: true });
+
+    // Create a raid in the past hour and complete it. With postRaidFeedbackSurvey off (default),
+    // ticking opens no survey.
+    const raidStart = g.host.clock.now() + HOUR;
+    const raid = await g.host.ok<RaidEvent>(ana, 'raid-create', {
+      name: 'Molten Core',
+      instance: 'Molten Core',
+      size: 40,
+      startsAt: raidStart,
+    });
+    g.host.clock.advance(2 * HOUR);
+    await g.host.ok(g.rook, 'raid-complete', { eventId: raid.id });
+    await g.host.tick({ siteUrl: 'https://vintageguild.gg' });
+    expect(await g.host.ok<unknown[]>(g.aeryn, 'survey-list', {})).toEqual([]);
+
+    // Enable postRaidFeedbackSurvey: the next tick opens an anonymous feedback survey and posts
+    // the Discord invite embed with a link button.
+    await g.host.ok(ana, 'coordinator-config-set', { postRaidFeedbackSurvey: true });
+    await g.host.tick({ siteUrl: 'https://vintageguild.gg' });
+    const surveys = await g.host.ok<{ id: string; title: string; anonymous: boolean }[]>(
+      g.aeryn,
+      'survey-list',
+      { tag: 'raid-feedback' },
+    );
+    expect(surveys).toHaveLength(1);
+    const survey = surveys[0]!;
+    expect(survey.title).toBe('Feedback: Molten Core');
+    expect(survey.anonymous).toBe(true);
+
+    const invite = g.host
+      .sentTo(SIGNUP_CHANNEL)
+      .find((m) => m.message.embeds?.[0]?.title === 'Feedback: Molten Core');
+    expect(invite?.message.embeds?.[0]?.description).toContain('**0 / 4** responded');
+    expect(JSON.stringify(invite?.message.components)).toContain(
+      `https://vintageguild.gg/surveys/${survey.id}`,
+    );
+
+    // Aeryn submits a response on the website.
+    await g.host.ok(g.aeryn, 'response-set', {
+      surveyId: survey.id,
+      answers: [
+        { questionId: 'q1', choices: ['o1'] },
+        { questionId: 'q2', text: 'Great pulls, keep it up' },
+      ],
+    });
+
+    // Advance inside the 24h nudge window: non-responders without dmOptOut (Ana, Rook) are DMed;
+    // Aeryn (already answered) and Bram (dmOptOut) are NOT DMed.
+    g.host.clock.advance(25 * HOUR);
+    await g.host.tick({ siteUrl: 'https://vintageguild.gg' });
+    const dmRecipients = g.host.discord.sent
+      .filter((d) => d.kind === 'dm' && d.message.content?.includes('Feedback: Molten Core'))
+      .map((d) => d.to);
+    expect(dmRecipients).toContain(ana.discordId);
+    expect(dmRecipients).toContain(g.rook.discordId);
+    expect(dmRecipients).not.toContain(g.aeryn.discordId);
+    expect(dmRecipients).not.toContain(g.bram.discordId);
+
+    // Close and export CSV: anonymous omits member identities.
+    await g.host.ok(ana, 'survey-close', { surveyId: survey.id });
+    const exported = await g.host.ok<{ csv: string; responses: number }>(ana, 'survey-export', {
+      surveyId: survey.id,
+    });
+    expect(exported.responses).toBe(1);
+    expect(exported.csv).toContain('Smooth');
+    expect(exported.csv).toContain('Great pulls, keep it up');
+    expect(exported.csv).not.toContain('Aeryn');
+  });
 });

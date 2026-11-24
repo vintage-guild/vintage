@@ -1,7 +1,25 @@
 import { pollCancel, pollClose, pollCreate, pollOpen, pollSweep, pollUpdate } from './poll';
 import { pollGet, pollList, pollResults } from './read';
+import {
+  responseSet,
+  surveyClose,
+  surveyCreate,
+  surveyExport,
+  surveyGet,
+  surveyList,
+  surveyOpen,
+  surveyResults,
+} from './survey';
 import { voteCast, voteRetract } from './vote';
 
+export { exportSurveyCsv, surveyNonResponders, tallySurvey } from '../domain/survey';
+export {
+  buildSurveyCard,
+  renderSurveyInvite,
+  renderSurveyReminderDm,
+  type SurveyCard,
+  surveyRenderKey,
+} from '../render/survey';
 export type {
   PollsChannels,
   PollsDeps,
@@ -10,8 +28,9 @@ export type {
   PollsStore,
 } from '../store';
 export type { PollView } from './shared';
+export type { SurveyView } from './survey';
 
-/** Every polls command, registered by apps/api through guild-kit (#61). */
+/** Every polls & surveys command, registered by apps/api through guild-kit (#61, #65). */
 export const pollsCommands = [
   pollCreate,
   pollUpdate,
@@ -24,6 +43,14 @@ export const pollsCommands = [
   pollResults,
   voteCast,
   voteRetract,
+  surveyCreate,
+  surveyOpen,
+  surveyClose,
+  surveyGet,
+  surveyList,
+  surveyResults,
+  surveyExport,
+  responseSet,
 ] as const;
 
 export {

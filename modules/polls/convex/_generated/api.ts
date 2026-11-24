@@ -10,6 +10,7 @@
 
 import type * as polls from "../polls.js";
 import type * as posts from "../posts.js";
+import type * as surveys from "../surveys.js";
 import type * as votes from "../votes.js";
 
 import type {
@@ -22,6 +23,7 @@ import { anyApi, componentsGeneric } from "convex/server";
 const fullApi: ApiFromModules<{
   polls: typeof polls;
   posts: typeof posts;
+  surveys: typeof surveys;
   votes: typeof votes;
 }> = anyApi as any;
 

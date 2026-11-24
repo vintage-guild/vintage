@@ -265,4 +265,5 @@ them; only #2 is costly to change once votes exist.
 - [x] `ui-kit` poll card (pick one, pick any, ranked, hidden results) + `/polls` and `/polls/<id>`, home card by role view, officers' Polls tab (#63)
 - [x] Raid-night picker in the coordinator: `raid-night-poll`, settled by the tick (#64)
 - [x] Restrict `leader` and `officer` polls to configured leads/officer channels when posting to Discord (#82)
+- [x] Surveys (v2): `Survey` and `SurveyResponse` in polls contract, `survey-create|open|close|get|list|results|export` + `response-set`, `/surveys` website page, Discord invite embed & non-responder nudges respecting DM opt-out, CSV export, and `postRaidFeedbackSurvey` on `raid-completed` (#65)
 - [x] Docs: module `AGENTS.md`, architecture table row, this plan → `active/` (#59)

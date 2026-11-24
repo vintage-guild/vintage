@@ -1,5 +1,13 @@
 import type { Member } from '@vintage/identity/contract';
-import type { Poll, PollPost, PollsEvents, Vote } from './contract';
+import type {
+  Poll,
+  PollPost,
+  PollsEvents,
+  Survey,
+  SurveyPost,
+  SurveyResponse,
+  Vote,
+} from './contract';
 import type { PollsChannels, PollsDeps, PollsEventSink, PollsMembers, PollsStore } from './store';
 
 /** In-memory PollsStore for tests and local agents. Same behavior contract as the Convex component. */
@@ -7,10 +15,16 @@ export function createMemoryPollsStore(): PollsStore & {
   polls: Map<string, Poll>;
   votes: Map<string, Vote>;
   posts: Map<string, PollPost>;
+  surveys: Map<string, Survey>;
+  surveyResponses: Map<string, SurveyResponse>;
+  surveyPosts: Map<string, SurveyPost>;
 } {
   const polls = new Map<string, Poll>();
   const votes = new Map<string, Vote>();
   const posts = new Map<string, PollPost>();
+  const surveys = new Map<string, Survey>();
+  const surveyResponses = new Map<string, SurveyResponse>();
+  const surveyPosts = new Map<string, SurveyPost>();
   let seq = 0;
   const id = (prefix: string) => `${prefix}_${++seq}`;
   const inGuild = <T extends { guildId: string }>(value: T | undefined, guildId: string) =>
@@ -21,11 +35,16 @@ export function createMemoryPollsStore(): PollsStore & {
   };
   const votesFor = (guildId: string, pollId: string) =>
     [...votes.values()].filter((v) => v.guildId === guildId && v.pollId === pollId);
+  const responsesFor = (guildId: string, surveyId: string) =>
+    [...surveyResponses.values()].filter((r) => r.guildId === guildId && r.surveyId === surveyId);
 
   return {
     polls,
     votes,
     posts,
+    surveys,
+    surveyResponses,
+    surveyPosts,
 
     async listPolls(guildId, filter = {}) {
       const { statuses, tag, closesBy } = filter;
@@ -94,6 +113,82 @@ export function createMemoryPollsStore(): PollsStore & {
     async updatePost(guildId, postId, patch) {
       const updated = { ...must(inGuild(posts.get(postId), guildId), 'post'), ...patch };
       posts.set(postId, updated);
+      return updated;
+    },
+
+    async listSurveys(guildId, filter = {}) {
+      const { statuses, tag, closesBy } = filter;
+      return [...surveys.values()]
+        .filter(
+          (s) =>
+            s.guildId === guildId &&
+            (statuses === undefined || statuses.includes(s.status)) &&
+            (tag === undefined || s.tags.includes(tag)) &&
+            (closesBy === undefined || (s.closesAt !== null && s.closesAt <= closesBy)),
+        )
+        .sort(
+          (a, b) =>
+            (a.closesAt ?? Number.POSITIVE_INFINITY) - (b.closesAt ?? Number.POSITIVE_INFINITY) ||
+            a.createdAt - b.createdAt,
+        );
+    },
+    async getSurvey(guildId, surveyId) {
+      return inGuild(surveys.get(surveyId), guildId);
+    },
+    async insertSurvey(input) {
+      const survey = { ...input, id: id('survey') };
+      surveys.set(survey.id, survey);
+      return survey;
+    },
+    async updateSurvey(guildId, surveyId, patch) {
+      const updated = { ...must(inGuild(surveys.get(surveyId), guildId), 'survey'), ...patch };
+      surveys.set(surveyId, updated);
+      return updated;
+    },
+
+    async listSurveyResponses(guildId, surveyId) {
+      return responsesFor(guildId, surveyId).sort((a, b) => a.submittedAt - b.submittedAt);
+    },
+    async countSurveyResponses(guildId, surveyId) {
+      return responsesFor(guildId, surveyId).length;
+    },
+    async getSurveyResponseByMember(guildId, surveyId, memberId) {
+      return responsesFor(guildId, surveyId).find((r) => r.memberId === memberId) ?? null;
+    },
+    async upsertSurveyResponse(input) {
+      const existing = responsesFor(input.guildId, input.surveyId).find(
+        (r) => r.memberId === input.memberId,
+      );
+      if (existing) {
+        const updated: SurveyResponse = {
+          ...existing,
+          answers: input.answers,
+          updatedAt: input.updatedAt,
+        };
+        surveyResponses.set(existing.id, updated);
+        return updated;
+      }
+      const created = { ...input, id: id('resp') };
+      surveyResponses.set(created.id, created);
+      return created;
+    },
+
+    async listSurveyPosts(guildId, surveyId) {
+      return [...surveyPosts.values()].filter(
+        (p) => p.guildId === guildId && p.surveyId === surveyId,
+      );
+    },
+    async insertSurveyPost(input) {
+      const post = { ...input, id: id('spost') };
+      surveyPosts.set(post.id, post);
+      return post;
+    },
+    async updateSurveyPost(guildId, postId, patch) {
+      const updated = {
+        ...must(inGuild(surveyPosts.get(postId), guildId), 'survey post'),
+        ...patch,
+      };
+      surveyPosts.set(postId, updated);
       return updated;
     },
   };

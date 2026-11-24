@@ -165,6 +165,7 @@ export const coordinatorConfigSet = command({
     reminderRoleIds: z.array(snowflake).max(10).optional(),
     serverEvents: z.boolean().optional(),
     weeklyAssessment: z.boolean().optional(),
+    postRaidFeedbackSurvey: z.boolean().optional(),
   }),
   handler: async (input, { guildId, deps, now }) => {
     const patch = Object.fromEntries(Object.entries(input).filter(([, v]) => v !== undefined));

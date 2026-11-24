@@ -15,12 +15,29 @@ export const runSweep = internalMutation({
   handler: async (ctx) => {
     const result = await runSystemCommand(ctx, 'poll-sweep', {});
     if (!result.success) throw new Error(`poll-sweep failed: ${result.error?.message}`);
-    const { opened, closed } = result.data as { opened: string[]; closed: string[] };
-    const open = await pollsStore(ctx).listPolls(GUILD_ID, { statuses: ['open'] });
+    const {
+      opened,
+      closed,
+      surveysOpened = [],
+      surveysClosed = [],
+    } = result.data as {
+      opened: string[];
+      closed: string[];
+      surveysOpened?: string[];
+      surveysClosed?: string[];
+    };
+    const store = pollsStore(ctx);
+    const [open, openSurveys] = await Promise.all([
+      store.listPolls(GUILD_ID, { statuses: ['open'] }),
+      store.listSurveys(GUILD_ID, { statuses: ['open'] }),
+    ]);
     for (const pollId of new Set([...closed, ...open.map((p) => p.id)])) {
       await ctx.scheduler.runAfter(0, internal.pollPosts.refresh, { pollId });
     }
-    return { opened, closed };
+    for (const surveyId of new Set([...surveysClosed, ...openSurveys.map((s) => s.id)])) {
+      await ctx.scheduler.runAfter(0, internal.pollPosts.refreshSurvey, { surveyId });
+    }
+    return { opened, closed, surveysOpened, surveysClosed };
   },
 });
 

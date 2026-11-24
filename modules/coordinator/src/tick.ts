@@ -2,12 +2,18 @@
 // action. Every action is claimed in the store before it is sent, so two overlapping ticks can't
 // both send it, and re-running a tick sends nothing twice.
 import {
+  actionRow,
   DiscordRestError,
+  discordTimestamp,
+  linkButton,
   type MessageData,
   ScheduledEventStatus,
+  TimestampStyle,
   UNKNOWN_SCHEDULED_EVENT,
 } from '@vintage/discord-kit';
-import type { Poll } from '@vintage/polls/contract';
+import { tierAllows } from '@vintage/guild-kit';
+import { RANK_TIER } from '@vintage/identity/contract';
+import type { Poll, Survey } from '@vintage/polls/contract';
 import type { CoordinatorAction, CoordinatorConfig, RaidNight } from './contract';
 import {
   assessmentFacts,
@@ -637,6 +643,7 @@ export async function runTick(ports: TickPorts, guildId: string, now: number): P
     outcomes.push(await runPlannedAction(action, state, ports, now));
   }
   outcomes.push(...(await runAssessment(ports, state, config, now)));
+  outcomes.push(...(await runSurveys(ports, state, config, now)));
   return { outcomes };
 }
 
@@ -733,4 +740,166 @@ async function runAssessment(
     );
     return [{ ...key, status: 'failed', detail }];
   }
+}
+
+const FEEDBACK_SURVEY_WINDOW_MS = 48 * 60 * 60 * 1000;
+const SURVEY_NUDGE_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+function surveyLinkFor(siteUrl: string | null | undefined, surveyId: string): string | null {
+  return siteUrl ? `${siteUrl.replace(/\/$/, '')}/surveys/${surveyId}` : null;
+}
+
+function buildSurveyNudgeMessage(survey: Survey, surveyUrl: string | null): MessageData {
+  const closeNote =
+    survey.closesAt !== null
+      ? ` — closes ${discordTimestamp(survey.closesAt, TimestampStyle.RELATIVE)}`
+      : '';
+  const linkLine = surveyUrl ? `\n${surveyUrl}` : '';
+  return {
+    content: `Quick reminder: **${survey.title}** is still open${closeNote}. Answer on the website.${linkLine}`,
+    components: surveyUrl ? [actionRow(linkButton('Answer survey', surveyUrl))] : [],
+  };
+}
+
+async function openFeedbackSurveyForRaid(
+  ports: TickPorts,
+  state: TickState,
+  config: CoordinatorConfig,
+  raid: { id: string; name: string },
+  now: number,
+): Promise<TickOutcome | null> {
+  const target = config.signupChannelId ?? raid.id;
+  const key = { guildId: state.guildId, eventId: raid.id, rule: 'feedback-survey', target };
+  const claimed = await ports.store.claimAction(key, now, CLAIM_STALE_MS);
+  if (!claimed || !ports.surveys) return null;
+  try {
+    const created = await ports.surveys.createFeedback(
+      state.guildId,
+      {
+        title: `Feedback: ${raid.name}`,
+        description: `Quick post-raid check-in for ${raid.name}. Responses are anonymous.`,
+        questions: [
+          {
+            prompt: 'How did the raid feel?',
+            kind: 'single',
+            required: true,
+            options: ['Smooth', 'Good', 'Rough'],
+          },
+          {
+            prompt: 'Anything we should change next week?',
+            kind: 'text',
+            required: false,
+          },
+        ],
+        eligibleTier: 'raider',
+        anonymous: true,
+        closesAt: now + FEEDBACK_SURVEY_WINDOW_MS,
+        tags: ['raid-feedback'],
+      },
+      config.signupChannelId,
+    );
+    const detail = `survey ${created.id}`;
+    await ports.store.completeAction(
+      state.guildId,
+      claimed.action.id,
+      { status: 'sent', detail },
+      now,
+    );
+    return { ...key, status: 'sent', detail };
+  } catch (err) {
+    const detail = describe(err);
+    await ports.store.completeAction(
+      state.guildId,
+      claimed.action.id,
+      { status: 'failed', detail },
+      now,
+    );
+    return { ...key, status: 'failed', detail };
+  }
+}
+
+async function nudgeSurveyMember(
+  ports: TickPorts,
+  guildId: string,
+  survey: Survey,
+  member: TickState['members'][number],
+  url: string | null,
+  now: number,
+): Promise<TickOutcome | null> {
+  const key = { guildId, eventId: survey.id, rule: 'survey-dm', target: member.memberId };
+  const claimed = await ports.store.claimAction(key, now, CLAIM_STALE_MS);
+  if (!claimed) return null;
+  if (member.dmOptOut) {
+    await ports.store.completeAction(
+      guildId,
+      claimed.action.id,
+      { status: 'skipped', detail: 'opted out of DMs' },
+      now,
+    );
+    return { ...key, status: 'skipped', detail: 'opted out of DMs' };
+  }
+  try {
+    const sent = await ports.discord.dm(member.discordId, buildSurveyNudgeMessage(survey, url));
+    await ports.store.completeAction(
+      guildId,
+      claimed.action.id,
+      { status: 'sent', discordMessageId: sent.id },
+      now,
+    );
+    return { ...key, status: 'sent' };
+  } catch (err) {
+    const detail = describe(err);
+    await ports.store.completeAction(guildId, claimed.action.id, { status: 'failed', detail }, now);
+    return { ...key, status: 'failed', detail };
+  }
+}
+
+async function nudgeSurveyNonResponders(
+  ports: TickPorts,
+  state: TickState,
+  survey: Survey,
+  respondedMemberIds: readonly string[],
+  now: number,
+): Promise<TickOutcome[]> {
+  if (survey.closesAt === null) return [];
+  const remaining = survey.closesAt - now;
+  if (remaining <= 0 || remaining > SURVEY_NUDGE_WINDOW_MS) return [];
+  const answered = new Set(respondedMemberIds);
+  const url = surveyLinkFor(ports.links?.siteUrl, survey.id);
+  const outcomes: TickOutcome[] = [];
+  for (const m of state.members) {
+    const memberTier = m.rank ? RANK_TIER[m.rank] : 'public';
+    if (!tierAllows(memberTier, survey.eligibleTier) || answered.has(m.memberId)) continue;
+    const outcome = await nudgeSurveyMember(ports, state.guildId, survey, m, url, now);
+    if (outcome) outcomes.push(outcome);
+  }
+  return outcomes;
+}
+
+/** Post-raid feedback surveys (off by default) and non-responder nudges respecting DM opt-out (#65). */
+async function runSurveys(
+  ports: TickPorts,
+  state: TickState,
+  config: CoordinatorConfig,
+  now: number,
+): Promise<TickOutcome[]> {
+  if (!ports.surveys) return [];
+  const outcomes: TickOutcome[] = [];
+
+  if (config.postRaidFeedbackSurvey) {
+    for (const raid of state.completed ?? []) {
+      const outcome = await openFeedbackSurveyForRaid(ports, state, config, raid, now);
+      if (outcome) outcomes.push(outcome);
+    }
+  }
+
+  if (config.dmReminders) {
+    for (const { survey, respondedMemberIds } of await ports.surveys.listOpen(state.guildId)) {
+      outcomes.push(
+        ...(await nudgeSurveyNonResponders(ports, state, survey, respondedMemberIds, now)),
+      );
+    }
+  }
+
+  return outcomes;
 }

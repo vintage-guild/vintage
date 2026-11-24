@@ -27,6 +27,7 @@ import {
   viewOf,
   wrongStatus,
 } from './shared';
+import { closeSurvey, openSurvey } from './survey';
 
 const invalid = (code: string, message: string, suggestion: string) =>
   error(code, message, { suggestion, retryable: false });
@@ -337,6 +338,23 @@ export const pollCancel = command({
   },
 });
 
+async function sweepSurveys(deps: PollsDeps, guildId: string, at: number) {
+  const surveysOpened: string[] = [];
+  const surveysClosed: string[] = [];
+  for (const draft of await deps.polls.listSurveys(guildId, { statuses: ['draft'] })) {
+    if (draft.opensAt === null || draft.opensAt > at) continue;
+    if (draft.closesAt !== null && draft.closesAt <= at) continue;
+    surveysOpened.push((await openSurvey(deps, draft, at)).id);
+  }
+  for (const survey of await deps.polls.listSurveys(guildId, {
+    statuses: ['open'],
+    closesBy: at,
+  })) {
+    surveysClosed.push((await closeSurvey(deps, survey, at, null)).survey.id);
+  }
+  return { surveysOpened, surveysClosed };
+}
+
 export const pollSweep = command({
   name: 'poll-sweep',
   description:
@@ -357,9 +375,12 @@ export const pollSweep = command({
     for (const poll of await deps.polls.listPolls(guildId, { statuses: ['open'], closesBy: at })) {
       closed.push((await closePoll(deps, poll, at, null)).poll.id);
     }
+    const { surveysOpened, surveysClosed } = await sweepSurveys(deps, guildId, at);
     return success(
-      { opened, closed },
-      { reasoning: `Opened ${opened.length}, closed ${closed.length}` },
+      { opened, closed, surveysOpened, surveysClosed },
+      {
+        reasoning: `Opened ${opened.length} polls/${surveysOpened.length} surveys, closed ${closed.length} polls/${surveysClosed.length} surveys`,
+      },
     );
   },
 });

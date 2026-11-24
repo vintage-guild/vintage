@@ -38,6 +38,7 @@ export class VintageRoutes extends RouterConfiguration {
         element: page(() => import('./pages/professions')),
       },
       { path: 'polls/{id?}', title: 'Polls', element: page(() => import('./pages/polls')) },
+      { path: 'surveys/{id?}', title: 'Surveys', element: page(() => import('./pages/surveys')) },
       { path: 'raids/{id}', title: 'Raid', element: page(() => import('./pages/raid')) },
       { path: 'r/{code}', title: 'Raid', element: page(() => import('./pages/raid')) },
       { path: 'apply', title: 'Apply', element: page(() => import('./pages/apply')) },

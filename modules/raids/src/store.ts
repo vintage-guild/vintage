@@ -35,6 +35,7 @@ export interface RaidsStore {
     filter?: { from?: number; to?: number; scheduleId?: string; statuses?: RaidStatus[] },
   ): Promise<RaidEvent[]>;
   getEvent(guildId: string, eventId: string): Promise<RaidEvent | null>;
+  getEventByShortCode(guildId: string, shortCode: string): Promise<RaidEvent | null>;
   insertEvent(event: Omit<RaidEvent, 'id'>): Promise<RaidEvent>;
   updateEvent(
     guildId: string,

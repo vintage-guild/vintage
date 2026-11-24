@@ -119,7 +119,7 @@ describe('server events in the tick', () => {
     (await store.listActions(G)).find((a) => a.rule === rule && a.eventId === eventId);
 
   beforeEach(async () => {
-    events = [raid('r1')];
+    events = [raid('r1', { shortCode: 'k3m9qz' })];
     cancelled = [];
     store = createMemoryCoordinatorStore();
     discord = createFakeDiscord();
@@ -128,7 +128,7 @@ describe('server events in the tick', () => {
       raids: createFakeRaids(),
       discord,
       polls: createFakePolls(),
-      links: { discordGuildId: DISCORD_GUILD, siteUrl: null },
+      links: { discordGuildId: DISCORD_GUILD, siteUrl: 'https://vintageguild.gg' },
       source: createStateSource(
         () => ({
           guildId: G,
@@ -148,7 +148,7 @@ describe('server events in the tick', () => {
     expect(discord.eventCalls).toEqual([]);
   });
 
-  it('creates one event after the post, storing its Discord id, and is idempotent', async () => {
+  it('creates one event after the post using the short site link, storing its Discord id, and is idempotent', async () => {
     await store.setConfig(G, { serverEvents: true }, 0);
     await tick(); // the post goes out first
     expect(discord.eventCalls).toEqual([]);
@@ -156,14 +156,23 @@ describe('server events in the tick', () => {
     await tick();
     expect(discord.eventCalls.map((c) => c.kind)).toEqual(['create']);
     const [created] = discord.serverEvents.values();
-    expect(created!.data.description).toContain(
-      `https://discord.com/channels/${DISCORD_GUILD}/${SIGNUPS}/msg_1`,
-    );
+    expect(created!.data.description).toContain('Sign up: https://vintageguild.gg/r/k3m9qz');
+    expect(created!.data.description).not.toContain('discord.com/channels');
     expect(await action('server-event')).toMatchObject({
       status: 'sent',
       target: 'r1',
       discordMessageId: created!.id,
     });
+  });
+
+  it('without siteUrl, the server event points to the Discord card instead of a URL', async () => {
+    ports.links = { discordGuildId: DISCORD_GUILD, siteUrl: null };
+    await store.setConfig(G, { serverEvents: true }, 0);
+    await tick();
+    await tick();
+    const [created] = discord.serverEvents.values();
+    expect(created!.data.description).toContain('Sign up on the raid card in Discord.');
+    expect(created!.data.description).not.toContain('https://');
   });
 
   it('edits the event when the raid moves or is renamed, once per change', async () => {

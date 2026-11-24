@@ -174,6 +174,19 @@ describe('the OAuth server guards', () => {
     expect(landed.searchParams.has('ott')).toBe(true);
   });
 
+  it('preserves a raid short-link return path (/r/<code>) across Discord sign-in', async () => {
+    const auth = makeAuth();
+    const start = await post(auth, '/sign-in/social', {
+      provider: 'discord',
+      callbackURL: `${SITE}/r/k3m9qz`,
+    });
+    expect(start.status).toBe(200);
+    const landed = await discordCallback(auth, start);
+    expect(landed.origin).toBe(SITE);
+    expect(landed.pathname).toBe('/r/k3m9qz');
+    expect(landed.searchParams.has('ott')).toBe(true);
+  });
+
   it('refuses a sign-in that carries an authorization (additionalData or oauth_query)', async () => {
     const auth = makeAuth();
     const clientId = await registerAttackerClient(auth);

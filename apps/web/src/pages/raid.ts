@@ -39,6 +39,7 @@ import {
   type RaidGet,
   raidFacts,
   raidIdFromPath,
+  raidShortCodeFromPath,
   refusedNote,
   rosterComp,
   type SignupRow,
@@ -339,6 +340,7 @@ export class Page extends FASTElement {
   readonly allowed = canViewRaids(currentSession());
   readonly meId = currentSession()?.memberId ?? '';
   @observable eventId = raidIdFromPath(location.pathname);
+  @observable shortCode = raidShortCodeFromPath(location.pathname);
   @observable event: RaidEvent | null = null;
   @observable counts: RaidRosterCounts | null = null;
   @observable mine: Signup | null = null;
@@ -369,6 +371,9 @@ export class Page extends FASTElement {
   private reads = 0;
   /** Active live-query subscriptions for this raid, cleared on unmount or raid change. */
   private unsubscribers: Unsubscribe[] = [];
+  /** Active live-query subscriptions keyed by the resolved event id (signups, comp, guess). */
+  private detailSubs: Unsubscribe[] = [];
+  private watchedDetailId = '';
   /** Active live-query subscriptions for a completed raid's attendance and loot report. */
   private reportSubs: Unsubscribe[] = [];
   private watchedReportId = '';
@@ -492,9 +497,29 @@ export class Page extends FASTElement {
     if (this.$fastController.isConnected && this.allowed) this.subscribe();
   }
 
+  shortCodeChanged(): void {
+    if (this.$fastController.isConnected && this.allowed) this.subscribe();
+  }
+
   /** Live clients push updates automatically; one-shot clients re-read after the member answers. */
   onSignupChanged(): void {
     if (!getCommandClient().watch) void this.load();
+  }
+
+  private raidLookup(): { eventId: string } | { shortCode: string } | null {
+    if (this.eventId) return { eventId: this.eventId };
+    if (this.shortCode) return { shortCode: this.shortCode };
+    return null;
+  }
+
+  private lookupKey(): string {
+    return this.eventId ? `id:${this.eventId}` : this.shortCode ? `code:${this.shortCode}` : '';
+  }
+
+  private stopWatchingDetails(): void {
+    for (const stop of this.detailSubs) stop();
+    this.detailSubs = [];
+    this.watchedDetailId = '';
   }
 
   private stopWatchingReport(): void {
@@ -506,6 +531,7 @@ export class Page extends FASTElement {
   private stopWatching(): void {
     for (const stop of this.unsubscribers) stop();
     this.unsubscribers = [];
+    this.stopWatchingDetails();
     this.stopWatchingReport();
   }
 
@@ -556,9 +582,9 @@ export class Page extends FASTElement {
         : [];
   }
 
-  private applyRaid(eventId: string, got: CommandResult<RaidGet>): void {
+  private applyRaid(hasTarget: boolean, got: CommandResult<RaidGet>): void {
     if (!got.success || !got.data) {
-      this.missing = got.error?.code === 'RAID_NOT_FOUND' || !eventId;
+      this.missing = got.error?.code === 'RAID_NOT_FOUND' || !hasTarget;
       this.error = this.missing
         ? ''
         : `Couldn’t read the raid: ${got.error?.message ?? 'no answer'}.`;
@@ -591,11 +617,79 @@ export class Page extends FASTElement {
     this.compNote = refusedNote(comp, COMP_NOTE, 'the comp');
   }
 
+  private watchDetails(resolvedId: string, onSignups: () => void, onComp: () => void): void {
+    if (this.watchedDetailId === resolvedId) return;
+    this.stopWatchingDetails();
+    this.watchedDetailId = resolvedId;
+    const client = getCommandClient();
+    const session = currentSession();
+    const subs: Unsubscribe[] = [
+      watchCommand<SignupRow[]>(
+        client,
+        'signup-list',
+        { eventId: resolvedId },
+        (list) => {
+          if (this.watchedDetailId !== resolvedId) return;
+          this.applySignups(list);
+          onSignups();
+        },
+        (err) => {
+          if (this.watchedDetailId !== resolvedId) return;
+          this.signupsReadable = false;
+          this.signups = [];
+          this.signupsNote = `Couldn’t read the signups: ${err.message}.`;
+          this.updateNeeded();
+          onSignups();
+        },
+      ),
+      watchCommand<CompSuggest>(
+        client,
+        'comp-suggest',
+        { eventId: resolvedId },
+        (comp) => {
+          if (this.watchedDetailId !== resolvedId) return;
+          this.applyComp(comp);
+          onComp();
+        },
+        (err) => {
+          if (this.watchedDetailId !== resolvedId) return;
+          this.comp = null;
+          this.compNote = `Couldn’t read the comp: ${err.message}.`;
+          onComp();
+        },
+      ),
+    ];
+    if (canSignUp(session, 'open')) {
+      subs.push(
+        watchCommand<SignupGuess | null>(
+          client,
+          'signup-suggest',
+          { eventId: resolvedId },
+          (guess) => {
+            if (this.watchedDetailId !== resolvedId) return;
+            this.guess = guess.success ? (guess.data ?? null) : null;
+          },
+          () => {
+            if (this.watchedDetailId !== resolvedId) return;
+            this.guess = null;
+          },
+        ),
+      );
+    }
+    this.detailSubs = subs;
+  }
+
   /** Subscribe live to the raid, its signups, the comp, and the member's character guess. */
   private subscribe(): void {
     this.stopWatching();
+    const lookup = this.raidLookup();
+    if (!lookup) {
+      this.missing = true;
+      this.loaded = true;
+      return;
+    }
     const client = getCommandClient();
-    const eventId = this.eventId;
+    const key = this.lookupKey();
     this.loaded = false;
     let gotRaid = false;
     let gotSignups = false;
@@ -605,18 +699,38 @@ export class Page extends FASTElement {
         this.loaded = true;
       }
     };
+    const startDetails = (resolvedId: string) => {
+      this.watchDetails(
+        resolvedId,
+        () => {
+          gotSignups = true;
+          markLoaded();
+        },
+        () => {
+          gotComp = true;
+          markLoaded();
+        },
+      );
+    };
 
     const subs: Unsubscribe[] = [
       watchCommand<RaidGet>(
         client,
         'raid-get',
-        { eventId },
+        lookup,
         (got) => {
-          if (this.eventId !== eventId) return;
-          this.applyRaid(eventId, got);
-          if (this.event?.status === 'completed') {
-            this.watchReport(eventId);
+          if (this.lookupKey() !== key) return;
+          this.applyRaid(true, got);
+          if (this.event) {
+            startDetails(this.event.id);
+            if (this.event.status === 'completed') {
+              this.watchReport(this.event.id);
+            } else {
+              this.stopWatchingReport();
+              this.clearReport();
+            }
           } else {
+            this.stopWatchingDetails();
             this.stopWatchingReport();
             this.clearReport();
           }
@@ -624,7 +738,7 @@ export class Page extends FASTElement {
           markLoaded();
         },
         (err) => {
-          if (this.eventId !== eventId) return;
+          if (this.lookupKey() !== key) return;
           this.missing = false;
           this.error = `Couldn’t read the raid: ${err.message}.`;
           this.event = null;
@@ -632,68 +746,21 @@ export class Page extends FASTElement {
           this.locksAt = undefined;
           this.mine = null;
           this.needed = [];
+          this.stopWatchingDetails();
           this.stopWatchingReport();
           this.clearReport();
           gotRaid = true;
           markLoaded();
         },
       ),
-      watchCommand<SignupRow[]>(
-        client,
-        'signup-list',
-        { eventId },
-        (list) => {
-          if (this.eventId !== eventId) return;
-          this.applySignups(list);
-          gotSignups = true;
-          markLoaded();
-        },
-        (err) => {
-          if (this.eventId !== eventId) return;
-          this.signupsReadable = false;
-          this.signups = [];
-          this.signupsNote = `Couldn’t read the signups: ${err.message}.`;
-          this.updateNeeded();
-          gotSignups = true;
-          markLoaded();
-        },
-      ),
-      watchCommand<CompSuggest>(
-        client,
-        'comp-suggest',
-        { eventId },
-        (comp) => {
-          if (this.eventId !== eventId) return;
-          this.applyComp(comp);
-          gotComp = true;
-          markLoaded();
-        },
-        (err) => {
-          if (this.eventId !== eventId) return;
-          this.comp = null;
-          this.compNote = `Couldn’t read the comp: ${err.message}.`;
-          gotComp = true;
-          markLoaded();
-        },
-      ),
     ];
+
+    // On `/raids/<id>` we already know the event id, so signups/comp subscribe in parallel immediately.
+    if (this.eventId) startDetails(this.eventId);
 
     const session = currentSession();
     if (canSignUp(session, 'open')) {
       subs.push(
-        watchCommand<SignupGuess | null>(
-          client,
-          'signup-suggest',
-          { eventId },
-          (guess) => {
-            if (this.eventId !== eventId) return;
-            this.guess = guess.success ? (guess.data ?? null) : null;
-          },
-          () => {
-            if (this.eventId !== eventId) return;
-            this.guess = null;
-          },
-        ),
         watchCommand<Character[]>(
           client,
           'character-list',
@@ -730,30 +797,43 @@ export class Page extends FASTElement {
   /** One-shot read of the raid, its signups, the comp, and the member's likely character. */
   async load(): Promise<void> {
     const read = ++this.reads;
+    const lookup = this.raidLookup();
+    if (!lookup) {
+      this.missing = true;
+      this.loaded = true;
+      return;
+    }
     const client = getCommandClient();
-    const eventId = this.eventId;
+    const key = this.lookupKey();
     const session = currentSession();
-    const [got, list, comp, guess, absences] = await Promise.all([
-      client.read<RaidGet>('raid-get', { eventId }),
-      client.read<SignupRow[]>('signup-list', { eventId }),
-      client.read<CompSuggest>('comp-suggest', { eventId }),
-      canSignUp(session, 'open')
-        ? client.read<SignupGuess | null>('signup-suggest', { eventId })
-        : Promise.resolve(null),
+    const [got, absences] = await Promise.all([
+      client.read<RaidGet>('raid-get', lookup),
       canSignUp(session, 'guild')
         ? client.read<{ absences: Absence[] }>('absence-list')
         : Promise.resolve(null),
     ]);
-    if (read !== this.reads || this.eventId !== eventId) return;
+    if (read !== this.reads || this.lookupKey() !== key) return;
+    this.applyRaid(true, got);
+    if (!got.success || !got.data) {
+      this.loaded = true;
+      return;
+    }
+    const resolvedId = got.data.event.id;
+    const [list, comp, guess] = await Promise.all([
+      client.read<SignupRow[]>('signup-list', { eventId: resolvedId }),
+      client.read<CompSuggest>('comp-suggest', { eventId: resolvedId }),
+      canSignUp(session, 'open')
+        ? client.read<SignupGuess | null>('signup-suggest', { eventId: resolvedId })
+        : Promise.resolve(null),
+    ]);
+    if (read !== this.reads || this.lookupKey() !== key) return;
     this.loaded = true;
-    this.applyRaid(eventId, got);
-    if (!got.success || !got.data) return;
     this.applySignups(list);
     this.applyComp(comp);
     this.guess = guess?.success ? (guess.data ?? null) : null;
     this.absences = absences?.success ? (absences.data?.absences ?? []) : [];
     if (got.data.event.status === 'completed') {
-      await this.loadReport(eventId, read);
+      await this.loadReport(resolvedId, read);
     } else {
       this.clearReport();
     }

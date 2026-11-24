@@ -502,4 +502,47 @@ describe('/raids/<id> without fixtures', () => {
     expect(reportText).toContain('Loot · 1');
     expect(reportText).toContain('Lava Core ×2 → Doran');
   });
+
+  it('resolves a raid from /r/<code> (case-insensitive), lets the member answer, and hides guild raids from Friends', async () => {
+    const host = createFixtureHost();
+    await seedFixtures(host);
+    const aeryn = await host.member('Aeryn');
+    if (!aeryn) throw new Error('fixtures: Aeryn is missing');
+    const caller = host.callerFor(aeryn);
+    restore = setCommandClient(createHostClient(host, caller));
+    setSession({
+      memberId: aeryn.id,
+      displayName: aeryn.displayName,
+      tier: aeryn.tier,
+      rank: aeryn.rank,
+    });
+    const raids = await host.run<{ event: RaidEvent }[]>(caller, 'raid-list', {
+      from: 1,
+      to: Date.parse('2027-06-01'),
+    });
+    const target = raids.success
+      ? raids.data?.find((r) => r.event.name === 'Barrow Deeps, first pull')?.event
+      : undefined;
+    expect(target?.shortCode).toMatch(/^[23456789abcdefghjkmnpqrstuvwxyz]{6}$/);
+
+    // Uppercase short code resolves cleanly on /r/<code>.
+    history.replaceState(null, '', `/r/${target!.shortCode!.toUpperCase()}`);
+    await import('./raid');
+    document.body.innerHTML = '<vintage-raid-page></vintage-raid-page>';
+    const page = document.querySelector('vintage-raid-page') as Page;
+    await until(() => page.loaded && Boolean(card(page)?.characterId));
+    expect(page.event?.id).toBe(target!.id);
+    expect(page.shadowRoot?.querySelector('h1')?.textContent).toBe('Barrow Deeps, first pull');
+    expect(roster(page).signups.length).toBeGreaterThan(0);
+
+    // A signed-out visitor on /r/<code> sees the sign-in card and keeps /r/<code> as location.
+    page.remove();
+    setSession(null);
+    history.replaceState(null, '', `/r/${target!.shortCode}`);
+    document.body.innerHTML = '<vintage-raid-page></vintage-raid-page>';
+    const signedOut = document.querySelector('vintage-raid-page') as Page;
+    await until(() => false);
+    expect(signedOut.shadowRoot?.querySelector('vintage-sign-in-card')).not.toBeNull();
+    expect(location.pathname).toBe(`/r/${target!.shortCode}`);
+  });
 });

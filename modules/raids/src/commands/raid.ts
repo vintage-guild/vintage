@@ -3,6 +3,7 @@ import { error, success, tierAllows } from '@vintage/guild-kit';
 import { z } from 'zod';
 import {
   accessOf,
+  normalizeShortCode,
   RAID_ACCESS,
   RAID_STATUSES,
   type RaidEvent,
@@ -247,16 +248,34 @@ export const raidComplete = command({
 export const raidGet = command({
   name: 'raid-get',
   description:
-    'One raid with signup counts, when signups lock, and your own signup. Recruits and up see ' +
-    'the full signup list; Friends see open raids only.',
+    'One raid (by eventId or case-insensitive shortCode) with signup counts, when signups lock, ' +
+    'and your own signup. Recruits and up see the full signup list; Friends see open raids only.',
   tier: 'friend',
-  input: z.object({ eventId: z.string().min(1) }),
-  handler: async ({ eventId }, { caller, guildId, deps }) => {
-    const event = await deps.raids.getEvent(guildId, eventId);
+  input: z
+    .object({
+      eventId: z.string().min(1).optional(),
+      shortCode: z.string().trim().min(1).optional(),
+    })
+    .refine((i) => i.eventId !== undefined || i.shortCode !== undefined, {
+      message: 'Give eventId or shortCode',
+    }),
+  handler: async ({ eventId, shortCode }, { caller, guildId, deps }) => {
+    const normalizedCode = shortCode === undefined ? undefined : normalizeShortCode(shortCode);
+    const event =
+      eventId !== undefined
+        ? await deps.raids.getEvent(guildId, eventId)
+        : await deps.raids.getEventByShortCode(guildId, normalizedCode!);
     if (!event) return eventNotFound();
+    if (
+      eventId !== undefined &&
+      normalizedCode !== undefined &&
+      event.shortCode !== normalizedCode
+    ) {
+      return eventNotFound();
+    }
     const open = accessOf(event) === 'open';
     if (!open && !tierAllows(caller.tier, 'member')) return eventNotFound();
-    const signups = await deps.raids.listSignups(guildId, eventId);
+    const signups = await deps.raids.listSignups(guildId, event.id);
     const mine = signups.find((s) => s.memberId === caller.memberId) ?? null;
     const canSeeList = open || tierAllows(caller.tier, 'recruit');
     const schedule = event.scheduleId

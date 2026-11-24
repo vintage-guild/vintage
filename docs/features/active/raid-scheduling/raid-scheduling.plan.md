@@ -232,9 +232,11 @@ approved seats).
   toggle + `Length` select; Stage 2 Size, Tanks, Healers, Melee, Ranged; `schedule edit` opens
   to preview and preserves unshown fields), schedule autocomplete, `nextStartsAt` on
   `schedule-list`, immediate `schedule-materialize` + `afterChange()` on create/resume. Job J73.
-- [ ] **Short site links** (raids, web, coordinator): `shortCode` on raids with
-  `by_guild_short_code` index, collision retry, and backfill; `raid-get` accepting `shortCode`;
-  `/r/<code>` route with post-sign-in return; masked link on the signup post's subtext line, Raid
-  page button, party post (`renderPartyPost`), final roster (`renderFinalRoster`), and server
-  event (`renderServerEvent`, leaving reminder DMs on `signupLink()`). Human step: verify
-  `VINTAGE_SITE_URL` is set in production Convex. Job J74.
+- [x] **Short site links** (raids, web, coordinator): `shortCode` on raids with
+  `by_guild_short_code` index, collision retry, and backfill (`coordinator:backfillRaidShortCodes`);
+  `raid-get` accepting `shortCode`; `/r/<code>` route with post-sign-in return; masked link on the
+  signup post's subtext line, Raid page button, party post (`renderPartyPost`), final roster
+  (`renderFinalRoster`), and server event (`renderServerEvent`, leaving reminder DMs on
+  `signupLink()`). Job J74.
+- [ ] **Production setup (human step):** verify `VINTAGE_SITE_URL` is set in production Convex and
+  run `npx convex run coordinator:backfillRaidShortCodes` once to assign codes to existing raids.

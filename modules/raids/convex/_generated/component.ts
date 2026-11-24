@@ -70,6 +70,20 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
       >;
     };
     raidEvents: {
+      backfillShortCodes: FunctionReference<
+        "mutation",
+        "internal",
+        { guildId?: string; limit?: number },
+        any,
+        Name
+      >;
+      byShortCode: FunctionReference<
+        "query",
+        "internal",
+        { guildId: string; shortCode: string },
+        any,
+        Name
+      >;
       get: FunctionReference<
         "query",
         "internal",
@@ -97,6 +111,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           rosterApprovedAt?: number | null;
           rosterApprovedBy?: string | null;
           scheduleId: string | null;
+          shortCode?: string | null;
           size: number | null;
           startsAt: number;
           status: "open" | "locked" | "cancelled" | "completed";
@@ -141,6 +156,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             rosterApprovedAt?: number | null;
             rosterApprovedBy?: string | null;
             scheduleId?: string | null;
+            shortCode?: string | null;
             size?: number | null;
             startsAt?: number;
             status?: "open" | "locked" | "cancelled" | "completed";

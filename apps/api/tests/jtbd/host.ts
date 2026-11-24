@@ -319,7 +319,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
   }
 
   /** One coordinator tick, wired like convex/coordinator.ts but against memory and fake Discord. */
-  function tick() {
+  function tick(options: { siteUrl?: string | null } = {}) {
     return runTick(
       {
         store: coordinator,
@@ -344,7 +344,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
         discord,
         polls: { get: (g, id) => polls.getPoll(g, id) },
         decisions,
-        links: { discordGuildId: DISCORD_GUILD, siteUrl: null },
+        links: { discordGuildId: DISCORD_GUILD, siteUrl: options.siteUrl ?? null },
         recruiting: {
           needs: async (g) => (await siteStore.getRecruiting(g))?.needs ?? STARTER_RECRUITING.needs,
         },

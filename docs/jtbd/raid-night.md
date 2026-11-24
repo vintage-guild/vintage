@@ -496,3 +496,13 @@ edit, pause, and resume schedules right from Discord.
 - [x] `/vintage schedule create` creates each schedule via the 2-stage modal + preview form and
   posts this week's raids right away; `/vintage schedule list` shows both with their next raid;
   pausing one stops new raids for it while leaving the other active.
+
+### J74 · Sign up on the site from the Discord post
+**When** I see a raid in Discord and prefer answering on the site, **I (raider) want** a short link
+right on the signup post that opens that raid's signup card.
+- [x] The signup post's subtext line ends with `[vintageguild.gg/r/<code>](https://vintageguild.gg/r/<code>)`,
+  the **Raid page** button and Discord server event use the same short link, party posts and final
+  rosters include it too, and reminder DMs keep the Discord message link.
+- [x] Opening `/r/<code>` resolves through `raid-get({ shortCode })` (case-insensitive), answers on
+  the signup card refresh the Discord post within a tick, and a Friend probing a guild raid's code
+  gets `RAID_NOT_FOUND`.

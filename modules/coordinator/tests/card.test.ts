@@ -273,6 +273,47 @@ describe('raid cards', () => {
     expect((partyPost.embeds![0] as Embed).title).toContain('Final roster');
   });
 
+  it('includes the masked short site link on signup, party, and final roster posts when siteUrl is set', () => {
+    const coded: TickEvent = {
+      event: { ...event, shortCode: 'k3m9qz' },
+      timings: DEFAULT_TIMINGS,
+      signups: [],
+    };
+    const siteUrl = 'https://vintageguild.gg/';
+    const expectedMd = '[vintageguild.gg/r/k3m9qz](https://vintageguild.gg/r/k3m9qz)';
+
+    const signup = renderSignupPost(coded, [], { siteUrl });
+    const subtext = (signup.embeds![0] as Embed)
+      .description!.split('\n')
+      .find((l) => l.startsWith('-# '));
+    expect(subtext).toContain(`· ${expectedMd}`);
+    const row2 = signup.components?.[1] as { components?: { url?: string; label?: string }[] };
+    expect(row2?.components).toContainEqual(
+      expect.objectContaining({ label: 'Raid page', url: 'https://vintageguild.gg/r/k3m9qz' }),
+    );
+
+    // Without siteUrl: no short link and no Raid page button.
+    const noSite = renderSignupPost(coded, []);
+    expect((noSite.embeds![0] as Embed).description).not.toContain('vintageguild.gg');
+    expect(buttonLabels(noSite)).not.toContain('Raid page');
+
+    // Legacy raid without shortCode falls back to /raids/<id>.
+    const legacy = renderSignupPost({ ...coded, event: { ...event, shortCode: null } }, [], {
+      siteUrl,
+    });
+    expect((legacy.embeds![0] as Embed).description).toContain(
+      '[vintageguild.gg/raids/raid-1](https://vintageguild.gg/raids/raid-1)',
+    );
+
+    // Party post (open & locked) and Final Roster carry the same masked short link.
+    const partyOpen = renderPartyPost(coded, [], { locked: false, siteUrl });
+    expect((partyOpen.embeds![0] as Embed).description).toContain(`· ${expectedMd}`);
+    const partyLocked = renderPartyPost(coded, [], { locked: true, siteUrl });
+    expect((partyLocked.embeds![0] as Embed).description).toContain(`· ${expectedMd}`);
+    const final = renderFinalRoster(coded, [], { siteUrl });
+    expect((final.embeds![0] as Embed).description).toContain(`· ${expectedMd}`);
+  });
+
   it("quotes the raid's notes under the lock line, a block per paragraph, within the limits", () => {
     const plain = renderSignupPost({ event, timings: DEFAULT_TIMINGS, signups: [] }, []);
     expect((plain.embeds![0] as Embed).description).not.toMatch(/^> /m);

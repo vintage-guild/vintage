@@ -1027,5 +1027,65 @@ describe('raids commands', () => {
     expect(await run('raid-get', { eventId: raid.id }, otherGuild)).toMatchObject({
       error: { code: 'RAID_NOT_FOUND' },
     });
+    expect(await run('raid-get', { shortCode: raid.shortCode }, otherGuild)).toMatchObject({
+      error: { code: 'RAID_NOT_FOUND' },
+    });
+  });
+
+  describe('short codes and raid-get by shortCode', () => {
+    it('assigns an unambiguous 6-char shortCode on create and materialize, and resolves case-insensitively', async () => {
+      const created = await createRaid();
+      expect(created.shortCode).toMatch(/^[23456789abcdefghjkmnpqrstuvwxyz]{6}$/);
+      expect(created.shortCode).not.toMatch(/[0o1li]/);
+
+      const upper = created.shortCode!.toUpperCase();
+      const got = await ok<{ event: RaidEvent }>('raid-get', { shortCode: upper }, as('aeryn'));
+      expect(got.event.id).toBe(created.id);
+
+      // Materialized raids also receive unique short codes.
+      await ok(
+        'schedule-create',
+        {
+          name: 'MC nights',
+          instance: 'Molten Core',
+          size: 40,
+          weekdays: ['wed', 'thu'],
+          time: '20:00',
+          timeZone: 'America/New_York',
+        },
+        leader,
+      );
+      const { created: materialized } = await ok<{ created: RaidEvent[] }>(
+        'schedule-materialize',
+        {},
+        leader,
+      );
+      expect(materialized.length).toBeGreaterThanOrEqual(2);
+      const codes = new Set(materialized.map((e) => e.shortCode));
+      expect(codes.size).toBe(materialized.length);
+      for (const code of codes) {
+        expect(code).toMatch(/^[23456789abcdefghjkmnpqrstuvwxyz]{6}$/);
+      }
+    });
+
+    it('enforces access checks on shortCode lookups (Friends see open raids only) and requires eventId or shortCode', async () => {
+      const guildRaid = await createRaid({ access: 'guild' });
+      const openRaid = await createRaid({ access: 'open', name: 'Pug ZG', size: 20 });
+      const friend = makeCaller('friend', { memberId: 'm_friend' });
+
+      expect(await run('raid-get', { shortCode: guildRaid.shortCode }, friend)).toMatchObject({
+        success: false,
+        error: { code: 'RAID_NOT_FOUND' },
+      });
+      const openGot = await ok<{ event: RaidEvent }>(
+        'raid-get',
+        { shortCode: openRaid.shortCode },
+        friend,
+      );
+      expect(openGot.event.id).toBe(openRaid.id);
+
+      // Neither eventId nor shortCode is rejected by input validation.
+      expect(await run('raid-get', {}, as('aeryn'))).toMatchObject({ success: false });
+    });
   });
 });

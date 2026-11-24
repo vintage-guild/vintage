@@ -30,8 +30,17 @@ export function raidIdFromPath(path: string): string {
   return match?.[1] ? decodeURIComponent(match[1]) : '';
 }
 
+/** The short code in `/r/<code>`, or empty. */
+export function raidShortCodeFromPath(path: string): string {
+  const match = /^\/?r\/([^/?#]+)\/?$/.exec(path);
+  return match?.[1] ? decodeURIComponent(match[1]) : '';
+}
+
 /** The page for one raid. */
 export const raidHref = (eventId: string) => `/raids/${encodeURIComponent(eventId)}`;
+
+/** The short link for one raid (`/r/<code>`). */
+export const raidShortHref = (shortCode: string) => `/r/${encodeURIComponent(shortCode)}`;
 
 const STATUS_WORDS: Record<string, string> = {
   open: 'signups open',

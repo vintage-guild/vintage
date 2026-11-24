@@ -1584,15 +1584,13 @@ describe('JTBD: raid night', () => {
 
     // Its server event follows: made after the card, moved with the raid, cancelled with it.
     await g.host.tick(); // the card
-    await g.host.tick(); // the server event, linking to the card
+    await g.host.tick(); // the server event (without VINTAGE_SITE_URL, points to the card in Discord)
     expect(serverEvent('Alt run')).toMatchObject({
       status: ScheduledEventStatus.SCHEDULED,
       data: {
         scheduled_start_time: new Date(saturday + HOUR).toISOString(),
         entity_metadata: { location: 'Barrow Deeps' },
-        description: expect.stringContaining(
-          `https://discord.com/channels/${DISCORD_GUILD}/${SIGNUP_CHANNEL}/`,
-        ),
+        description: expect.stringContaining('Sign up on the raid card in Discord.'),
       },
     });
     expect(serverEvent('Raid night')).toBeDefined();
@@ -1779,5 +1777,77 @@ describe('JTBD: raid night', () => {
     g.host.clock.advance(7 * DAY);
     const nextWeek = await g.host.ok<{ created: RaidEvent[] }>(g.rook, 'schedule-materialize', {});
     expect(nextWeek.created.map((e) => e.name)).toEqual(['Monday MC']);
+  });
+
+  it('J74 · sign up on the site from the Discord post short link', async () => {
+    await g.host.ok(g.ana, 'schedule-create', {
+      name: 'Raid night',
+      instance: 'Molten Core',
+      size: 40,
+      weekdays: ['wed'],
+      time: '20:00',
+      timeZone: 'America/New_York',
+    });
+    await g.host.configureCoordinator({ serverEvents: true });
+
+    // Tick 1 materializes Wednesday's raid and posts the signup card with the masked short link.
+    await g.host.tick({ siteUrl: 'https://vintageguild.gg' });
+    const [listed] = await g.host.ok<{ event: RaidEvent }[]>(g.aeryn, 'raid-list', {});
+    const wed = listed!.event;
+    expect(wed.shortCode).toMatch(/^[23456789abcdefghjkmnpqrstuvwxyz]{6}$/);
+    const code = wed.shortCode!;
+    const shortUrl = `https://vintageguild.gg/r/${code}`;
+    const masked = `[vintageguild.gg/r/${code}](${shortUrl})`;
+
+    const signupPost = g.host.sentTo(SIGNUP_CHANNEL)[0]!.message;
+    const subtext = signupPost.embeds?.[0]?.description
+      ?.split('\n')
+      .find((l) => l.startsWith('-# '));
+    expect(subtext).toContain(`· ${masked}`);
+    const row2 = signupPost.components?.[1] as { components?: { label?: string; url?: string }[] };
+    expect(row2?.components).toContainEqual(
+      expect.objectContaining({ label: 'Raid page', url: shortUrl }),
+    );
+
+    // Tick 2 creates the Discord server event using the same short link.
+    await g.host.tick({ siteUrl: 'https://vintageguild.gg' });
+    const [serverEvent] = g.host.discord.serverEvents.values();
+    expect(serverEvent?.data.description).toContain(`Sign up: ${shortUrl}`);
+
+    // Aeryn opens /r/<code> -> resolves through raid-get({ shortCode }) and answers on the site.
+    const resolved = await g.host.ok<{ event: RaidEvent }>(g.aeryn, 'raid-get', {
+      shortCode: code.toUpperCase(),
+    });
+    expect(resolved.event.id).toBe(wed.id);
+    await answer(g, g.aeryn, 'aeryn', resolved.event.id, 'accepted');
+
+    // The Discord signup post reflects her answer on the next tick.
+    await g.host.tick({ siteUrl: 'https://vintageguild.gg' });
+    const refreshed = messageText(g.host.editsTo(SIGNUP_CHANNEL).at(-1)!.message);
+    expect(refreshed).toContain('Aeryn');
+    expect(refreshed).toContain(masked);
+
+    // A Friend probing this guild raid's short code gets RAID_NOT_FOUND.
+    const wren = await g.host.discordMember('900000000000000099', 'Wren', [ROLES.friend]);
+    expect(await g.host.run(wren, 'raid-get', { shortCode: code })).toMatchObject({
+      success: false,
+      error: { code: 'RAID_NOT_FOUND' },
+    });
+
+    // At lock without approval, the Final Roster carries the same short link while reminder DMs
+    // keep the Discord channel/message link.
+    g.host.clock.advance(wed.startsAt - 30 * HOUR - g.host.clock.now());
+    await g.host.tick({ siteUrl: 'https://vintageguild.gg' });
+    const dm = g.host.discord.sent.find((m) => m.kind === 'dm');
+    expect(dm?.message.content).toContain(
+      `https://discord.com/channels/${DISCORD_GUILD}/${SIGNUP_CHANNEL}/`,
+    );
+
+    g.host.clock.advance(wed.startsAt - 2 * HOUR - g.host.clock.now());
+    await g.host.tick({ siteUrl: 'https://vintageguild.gg' });
+    const finalPost = g.host
+      .sentTo(SIGNUP_CHANNEL)
+      .find((m) => m.message.embeds?.[0]?.title?.startsWith('Final roster'));
+    expect(finalPost?.message.embeds?.[0]?.description).toContain(`· ${masked}`);
   });
 });

@@ -243,8 +243,23 @@ function notesLines(event: RaidEvent): string[] {
 }
 
 export interface CardOptions {
-  /** Base site URL (e.g. `https://vintage.guild`) for Raid page / Edit in quarters link buttons. */
+  /** Base site URL (e.g. `https://vintageguild.gg`) for short raid links and Edit in quarters buttons. */
   siteUrl?: string | null;
+}
+
+/** Short site link for a raid (`vintageguild.gg/r/<code>`), or `/raids/<id>` on unbackfilled rows. */
+export function raidSiteLink(
+  siteUrl: string | null | undefined,
+  event: Pick<RaidEvent, 'id' | 'shortCode'>,
+): { url: string; label: string; markdown: string } | null {
+  const base = siteUrl?.trim().replace(/\/+$/, '');
+  if (!base) return null;
+  const path = event.shortCode
+    ? `/r/${encodeURIComponent(event.shortCode)}`
+    : `/raids/${encodeURIComponent(event.id)}`;
+  const url = `${base}${path}`;
+  const label = `${base.replace(/^https?:\/\//i, '')}${path}`;
+  return { url, label, markdown: `[${label}](${url})` };
 }
 
 function rankMap(members: readonly TickMember[]): Map<string, GuildRank | null> {
@@ -368,10 +383,9 @@ export function renderSignupPost(
 
   const awayCount = tick.away?.length ?? 0;
   const showRoster = hidden > 0;
+  const siteLink = raidSiteLink(options.siteUrl, event);
   const row2 = [
-    ...(options.siteUrl
-      ? [linkButton(`${options.siteUrl.replace(/\/$/, '')}/raids/${event.id}`, 'Raid page')]
-      : []),
+    ...(siteLink ? [linkButton(siteLink.url, 'Raid page')] : []),
     ...(showRoster ? [button(`roster:${event.id}`, 'Roster', ButtonStyle.SECONDARY)] : []),
   ];
 
@@ -381,7 +395,7 @@ export function renderSignupPost(
         title: cardTitle(event),
         description: [
           `${emoji('info_calendar')} ${when(event.startsAt)}`,
-          `-# ${lock} · ${sizeWords(event)}`,
+          `-# ${lock} · ${sizeWords(event)}${siteLink ? ` · ${siteLink.markdown}` : ''}`,
           ...notesLines(event),
           '',
           statusLine(going, standby, maybe, signups, awayCount),
@@ -624,7 +638,7 @@ export function renderPartyDraft(
 export function renderPartyPost(
   tick: TickEvent,
   members: TickMember[],
-  { locked = false }: { locked?: boolean } = {},
+  { locked = false, siteUrl = null }: { locked?: boolean } & CardOptions = {},
 ): MessageData {
   const ranks = rankMap(members);
   const { going, bench } = finalRoster(tick, members);
@@ -639,6 +653,8 @@ export function renderPartyPost(
     locked && standbyUsers.length
       ? `${standbyUsers.map((id) => `<@${id}>`).join(' ')} You're on standby tonight. Stay close in case a seat opens.`
       : undefined;
+  const siteLink = raidSiteLink(siteUrl, tick.event);
+  const linkSuffix = siteLink ? ` · ${siteLink.markdown}` : '';
   return {
     ...(content ? { content } : {}),
     embeds: [
@@ -647,8 +663,8 @@ export function renderPartyPost(
           ? `Final roster · ${eventTitle(tick.event)}`
           : `Parties · ${eventTitle(tick.event)}`,
         description: locked
-          ? `${emoji('info_calendar')} ${when(tick.event.startsAt)}  ${emoji('info_locked')} Signups locked · ${countOf(going.length, tick.event)}`
-          : `${emoji('info_calendar')} ${when(tick.event.startsAt)} · ${countOf(going.length, tick.event)}`,
+          ? `${emoji('info_calendar')} ${when(tick.event.startsAt)}  ${emoji('info_locked')} Signups locked · ${countOf(going.length, tick.event)}${linkSuffix}`
+          : `${emoji('info_calendar')} ${when(tick.event.startsAt)} · ${countOf(going.length, tick.event)}${linkSuffix}`,
         color: locked
           ? discordColor('color.border.strong')
           : discordColor('color.accent.secondary'),
@@ -663,7 +679,11 @@ export function renderPartyPost(
  * Fallback Final Roster at lock when nobody approved the party draft (or for non-raid events):
  * 4 role columns, Standby, and Standby mentions.
  */
-export function renderFinalRoster(tick: TickEvent, members: TickMember[]): MessageData {
+export function renderFinalRoster(
+  tick: TickEvent,
+  members: TickMember[],
+  options: CardOptions = {},
+): MessageData {
   const ranks = rankMap(members);
   const { going, bench } = finalRoster(tick, members);
   const { fields } = buildRoleColumns(going, targetsOf(tick.event), ranks, tick.event);
@@ -687,12 +707,14 @@ export function renderFinalRoster(tick: TickEvent, members: TickMember[]): Messa
     : undefined;
   const open = tick.event.size !== null ? Math.max(0, tick.event.size - going.length) : 0;
   const openSuffix = open > 0 ? ` · ${open} open` : '';
+  const siteLink = raidSiteLink(options.siteUrl, tick.event);
+  const linkSuffix = siteLink ? ` · ${siteLink.markdown}` : '';
   return {
     ...(content ? { content } : {}),
     embeds: [
       embed({
         title: `Final roster · ${eventTitle(tick.event)}`,
-        description: `${emoji('info_calendar')} ${when(tick.event.startsAt)}  ${emoji('info_locked')} Signups locked · ${countOf(going.length, tick.event)}${openSuffix}`,
+        description: `${emoji('info_calendar')} ${when(tick.event.startsAt)}  ${emoji('info_locked')} Signups locked · ${countOf(going.length, tick.event)}${openSuffix}${linkSuffix}`,
         color: discordColor('color.border.strong'),
         fields,
       }),

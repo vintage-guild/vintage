@@ -67,6 +67,14 @@ export {
   targetsOf,
 } from './domain/kinds';
 export { nextOccurrence } from './domain/recurrence';
+export {
+  generateShortCode,
+  isValidShortCode,
+  normalizeShortCode,
+  SHORT_CODE_ALPHABET,
+  SHORT_CODE_LENGTH,
+  SHORT_CODE_MAX_RETRIES,
+} from './domain/short-code';
 
 export const WEEKDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 export type Weekday = (typeof WEEKDAYS)[number];
@@ -163,6 +171,8 @@ export interface RaidEvent {
   updatedAt?: number | null;
   /** Member or discord id of the leader who last edited this raid; absent/null on older rows. */
   updatedBy?: string | null;
+  /** Six-character lowercase short link code (e.g. `k3m9qz`), unique per guild; absent/null on unbackfilled rows. */
+  shortCode?: string | null;
   configVersion: number;
 }
 

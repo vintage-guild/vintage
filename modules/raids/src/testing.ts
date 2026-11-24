@@ -2,14 +2,17 @@ import { type Caller, error, success } from '@vintage/guild-kit';
 import type { Character, Member } from '@vintage/identity/contract';
 import type { LootDropInput } from '@vintage/loot/contract';
 import { RAIDS_OPEN_AT } from '@vintage/progress/contract';
-import type {
-  Absence,
-  RaidAttendance,
-  RaidEvent,
-  RaidRecord,
-  RaidsEvents,
-  Schedule,
-  Signup,
+import {
+  type Absence,
+  generateShortCode,
+  normalizeShortCode,
+  type RaidAttendance,
+  type RaidEvent,
+  type RaidRecord,
+  type RaidsEvents,
+  type Schedule,
+  SHORT_CODE_MAX_RETRIES,
+  type Signup,
 } from './contract';
 import type {
   RaidsDeps,
@@ -91,8 +94,34 @@ export function createMemoryRaidsStore(): RaidsStore & {
     async getEvent(guildId, eventId) {
       return inGuild(events.get(eventId), guildId);
     },
+    async getEventByShortCode(guildId, shortCode) {
+      const normalized = normalizeShortCode(shortCode);
+      if (!normalized) return null;
+      return (
+        [...events.values()].find((e) => e.guildId === guildId && e.shortCode === normalized) ??
+        null
+      );
+    },
     async insertEvent(input) {
-      const event = { ...input, id: id('raid') };
+      let shortCode: string;
+      if (input.shortCode) {
+        shortCode = normalizeShortCode(input.shortCode);
+      } else {
+        let candidate = '';
+        for (let attempt = 0; attempt < SHORT_CODE_MAX_RETRIES; attempt++) {
+          const next = generateShortCode();
+          const taken = [...events.values()].some(
+            (e) => e.guildId === input.guildId && e.shortCode === next,
+          );
+          if (!taken) {
+            candidate = next;
+            break;
+          }
+        }
+        if (!candidate) throw new Error('could not allocate a unique shortCode');
+        shortCode = candidate;
+      }
+      const event = { ...input, shortCode, id: id('raid') };
       events.set(event.id, event);
       return event;
     },

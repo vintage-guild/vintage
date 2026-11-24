@@ -25,12 +25,12 @@ adds characters, and an officer's agent lists members over MCP from Claude or th
 - [x] `apps/api`: Convex app composing `identity`, `commands.read` / `commands.run` / `syncMember`
 - [x] `botcore-vintage` plugin: `module-new`, `repo-check`
 - [x] GitHub org + remote (`vintage-guild/vintage`, public); ruleset requiring `ci-ok`; CodeQL, secret scanning, Dependabot
-- [ ] Better Auth with Discord sign-in (`@convex-dev/better-auth`) → `resolveCaller` uses it
-- [x] Role sync: role → rank map in identity, `guild-roles-get`/`-set`, 15-minute cron (#44). Live Discord path waits on the bot invite
-- [ ] `/mcp` on AFD 2.2 with meta-tools; `apps/cli` = `afd-cli`
-- [x] `libs/design-tokens` (plain DTCG; Q14): CSS per theme, TS map, interim FenUI Lua table
-- [ ] `packages/ui-kit` on FAST-AF; `apps/web` shell. Components, shell, and routes built (#13); sign-in (#7), a live Convex connection, and the Vercel deploy remain
-- [ ] Discord: app and bot created ✅, `libs/discord-kit` + `/discord/interactions` built and tested (#43) ✅; bot invite (Stridulent), Server Members intent, deploy + endpoint verification still to do
+- [x] Better Auth with Discord sign-in (`@convex-dev/better-auth`) → `resolveCaller` uses it, plus MCP OAuth (`oauthProvider`) (#7, #176, #179, #186)
+- [x] Role sync: role → rank map in identity, `guild-roles-get`/`-set`, 15-minute cron (#8, #44)
+- [ ] `/mcp` on AFD 2.4 with meta-tools; `apps/cli` = `afd-cli` — handler and CLI shipped and deployed (#334); only live verification from Claude remains (#9)
+- [x] `libs/design-tokens` (plain DTCG; Q14): CSS per theme, TS map, interim FenUI Lua table (#12, #45)
+- [x] `packages/ui-kit` on FAST-AF; `apps/web` shell, sign-in, profile, characters, live Convex connection, deployed to Vercel (`https://vintageguild.gg`) (#13)
+- [x] Discord: app and bot created, `libs/discord-kit` + `/discord/interactions` built, deployed on `vintage-gateway`, verified by Discord, and live in the Vintage server (#10, #43)
 
 ## Decisions
 

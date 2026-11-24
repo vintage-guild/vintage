@@ -1,7 +1,12 @@
 // JTBD: the raid night (PLAN §6). One test per job in docs/jtbd/raid-night.md; the ids match.
 // Each test builds a fresh guild, drives it only through commands and coordinator ticks, and
 // checks what members would see in Discord. Extend these when the raid night changes.
-import { decodeRaidImport, encodeBridge, type RaidExport } from '@vintage/bridge-format';
+import {
+  decodeRaidExport,
+  decodeRaidImport,
+  encodeBridge,
+  type RaidExport,
+} from '@vintage/bridge-format';
 import luaMade from '@vintage/bridge-format/fixtures/lua-made.json';
 import { buttonLabels, messageText } from '@vintage/coordinator/testing';
 import { type Interaction, InteractionType, ScheduledEventStatus } from '@vintage/discord-kit';
@@ -357,13 +362,23 @@ describe('JTBD: raid night', () => {
     expect(after.signups).toEqual(before.signups);
   });
 
-  it('J46 · an officer records the addon’s export: attendance and loot are kept and the raid is done', async () => {
+  it('J46 · an officer records the addon’s export: attendance, standby credit, and loot are kept and the raid is done', async () => {
     const { wed } = await scheduleRaidNights(g);
     for (const key of ['aeryn', 'bram', 'cade'] as const) {
       await answer(g, g[key], key, wed.id, 'accepted');
     }
+    // Daralis signed up on Standby and waited on the bench without entering the raid.
+    await answer(g, g.dara, 'dara', wed.id, 'bench');
     g.host.clock.advance(WED + 4 * HOUR - g.host.clock.now()); // the raid is over
-    const exportString = luaMade.strings[RAID_NIGHT_EXPORT]!;
+
+    const baseExport = decodeRaidExport(luaMade.strings[RAID_NIGHT_EXPORT]!);
+    if (!baseExport.ok) throw new Error(baseExport.error.message);
+    const encoded = encodeBridge({
+      ...baseExport.value,
+      standby: [{ characterId: g.chars.dara!, name: 'Daralis', reason: 'standby' }],
+    });
+    if (!encoded.ok) throw new Error(encoded.error.message);
+    const exportString = encoded.value;
     const input = { exportString, eventId: wed.id };
 
     // Officers record; raid leaders only check. Over MCP it's listed the same way.
@@ -383,7 +398,7 @@ describe('JTBD: raid night', () => {
       check: ExportCheck;
     }>(g.ana, 'raid-export-record', input);
     expect(preview).toMatchObject({ completes: true, replaces: null });
-    expect([preview.attendance.length, preview.drops.length]).toEqual([3, 2]);
+    expect([preview.attendance.length, preview.drops.length]).toEqual([4, 2]);
     expect(preview.check.absent.map((a) => a.characterName)).toEqual(['Cadence']);
     expect(
       (await g.host.ok<{ record: unknown }>(g.aeryn, 'attendance-list', { eventId: wed.id }))
@@ -392,17 +407,26 @@ describe('JTBD: raid night', () => {
     const recorded = await g.host.run(g.ana, 'raid-export-record', input);
     expect(recorded).toMatchObject({
       success: true,
-      reasoning: 'Recorded Raid night: 3 attended, 2 drops; completes Raid night',
+      reasoning: 'Recorded Raid night: 4 attended, 2 drops; completes Raid night',
     });
 
-    // Raiders see who came, and members what dropped; the raid is done.
+    // Raiders see who came and who stood by (full credit), and members see what dropped.
     const { attendance } = await g.host.ok<{
-      attendance: { name: string; characterId: string | null; snapshots: number }[];
+      attendance: {
+        name: string;
+        characterId: string | null;
+        memberId: string | null;
+        snapshots: number;
+        stoodBy?: boolean;
+      }[];
     }>(g.aeryn, 'attendance-list', { eventId: wed.id });
-    expect(attendance.map((a) => [a.name, a.characterId, a.snapshots])).toEqual([
-      ['Aeryn', g.chars.aeryn, 3],
-      ['Bramble', g.chars.bram, 3],
-      ['Doran-Stonemaul', null, 2],
+    expect(
+      attendance.map((a) => [a.name, a.characterId, a.memberId, a.snapshots, a.stoodBy ?? false]),
+    ).toEqual([
+      ['Aeryn', g.chars.aeryn, g.aeryn.memberId, 3, false],
+      ['Bramble', g.chars.bram, g.bram.memberId, 3, false],
+      ['Daralis', g.chars.dara, g.dara.memberId, 0, true],
+      ['Doran-Stonemaul', null, null, 2, false],
     ]);
     const { drops } = await g.host.ok<{
       drops: { itemName: string | null; looter: string; count: number }[];
@@ -413,6 +437,16 @@ describe('JTBD: raid night', () => {
     ]);
     const raid = await g.host.ok<{ event: RaidEvent }>(g.aeryn, 'raid-get', { eventId: wed.id });
     expect(raid.event.status).toBe('completed');
+
+    // The summary post lists who stood by apart from who came.
+    await g.host.tick();
+    const summary = g.host
+      .sentTo(SIGNUP_CHANNEL)
+      .find((m) => messageText(m.message).startsWith('Raid summary'));
+    expect(summary).toBeDefined();
+    const summaryText = messageText(summary!.message);
+    expect(summaryText).toContain('Came · 3\nAeryn, Bramble, Doran-Stonemaul');
+    expect(summaryText).toContain('Stood by · 1\nDaralis');
 
     // Pasting the same export again keeps what's there.
     expect(await g.host.run(g.ana, 'raid-export-record', input)).toMatchObject({

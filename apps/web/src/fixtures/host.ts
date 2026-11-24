@@ -195,6 +195,16 @@ export function createFixtureHost(
           alsoRoles: c.alsoRoles,
         })),
     },
+    armoryMembers: {
+      listMembers: async (g) =>
+        (await identity.listMembers(g)).map(({ id, discordId, displayName, rank, inServer }) => ({
+          id,
+          discordId,
+          displayName,
+          rank,
+          inServer,
+        })),
+    },
     // apps/api schedules a Convex action; here the fetch runs after a pause, off the command.
     armoryEffects: {
       fetch: async (g, ids) => {

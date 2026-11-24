@@ -268,6 +268,16 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
           alsoRoles: c.alsoRoles,
         })),
     },
+    armoryMembers: {
+      listMembers: async (g) =>
+        (await identity.listMembers(g)).map(({ id, discordId, displayName, rank, inServer }) => ({
+          id,
+          discordId,
+          displayName,
+          rank,
+          inServer,
+        })),
+    },
     armoryEffects: { fetch: async (_g, ids) => void armoryQueue.push(...ids) },
     armoryRoster: armoryRosterStore,
     armoryRosterEffects: { sync: async (g) => void rosterSyncs.push(g) },

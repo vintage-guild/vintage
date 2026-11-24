@@ -533,6 +533,34 @@ const RECRUITING = {
   description: 'Show who Vintage is recruiting',
 };
 
+/** `/vintage roster audit`: compare Discord roles against the synced in-game guild roster (#353). */
+const ROSTER_GROUP = {
+  type: T.SUB_COMMAND_GROUP,
+  name: 'roster',
+  description: 'Guild roster audits',
+  options: [
+    GROUP_HELP,
+    {
+      type: T.SUB_COMMAND,
+      name: 'audit',
+      description: 'Compare Discord roles against the in-game guild roster (officers)',
+      options: [
+        {
+          type: T.STRING,
+          name: 'section',
+          description: 'What to show (default: mismatches and summary counts)',
+          choices: [
+            { name: 'Summary & mismatches', value: 'mismatches' },
+            { name: 'Unlinked / missing', value: 'unlinked' },
+            { name: 'Left Discord, still in-game', value: 'departed' },
+            { name: 'Everything', value: 'all' },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
 /**
  * `/vintage help`: what Random does, for the reader's rank, or one topic's page. The topic values
  * match HELP_TOPICS in apps/api/src/help-topics.ts; a test there checks they stay the same.
@@ -556,6 +584,7 @@ const HELP = {
         { name: 'Polls', value: 'polls' },
         { name: 'Ask Random', value: 'ask' },
         { name: 'Recruiting', value: 'recruiting' },
+        { name: 'Roster', value: 'roster' },
       ],
     },
   ],
@@ -577,6 +606,7 @@ export const RANDOM_COMMAND = {
     SCHEDULE_GROUP,
     CHARACTER_GROUP,
     ABSENCE_GROUP,
+    ROSTER_GROUP,
     ASK,
     APPLY,
     RECRUITING,
@@ -591,6 +621,7 @@ export const FORWARDED_GROUPS: ReadonlySet<string> = new Set([
   SCHEDULE_GROUP.name,
   CHARACTER_GROUP.name,
   ABSENCE_GROUP.name,
+  ROSTER_GROUP.name,
   ASK.name,
   APPLY.name,
   RECRUITING.name,

@@ -49,6 +49,20 @@ export interface ArmoryCharacters {
   listCharacters(guildId: string): Promise<ArmoryCharacter[]>;
 }
 
+/** A synced Discord member, as the roster rank audit needs them (#353). */
+export interface ArmoryMember {
+  id: string;
+  discordId: string;
+  displayName: string;
+  rank: string | null;
+  inServer: boolean;
+}
+
+/** Read-only member port adapted by apps/api from identity for `roster-rank-audit`. */
+export interface ArmoryMembers {
+  listMembers(guildId: string): Promise<ArmoryMember[]>;
+}
+
 /** Fetches from Blizzard outside the transaction (apps/api), then calls `armory-record`. */
 export interface ArmoryEffects {
   fetch(guildId: string, linkIds: readonly string[]): Promise<void>;
@@ -106,6 +120,8 @@ export interface CatalogEffects {
 export interface ArmoryDeps {
   armory: ArmoryStore;
   armoryCharacters: ArmoryCharacters;
+  /** Optional: hosts supporting `roster-rank-audit` wire identity's synced members (#353). */
+  armoryMembers?: ArmoryMembers;
   armoryEffects: ArmoryEffects;
   armoryRoster: RosterStore;
   armoryRosterEffects: RosterEffects;

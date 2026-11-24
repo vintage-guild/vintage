@@ -2224,7 +2224,8 @@
               "characters",
               "polls",
               "ask",
-              "recruiting"
+              "recruiting",
+              "roster"
             ]
           }
         }
@@ -4195,6 +4196,28 @@
           "signupId",
           "group"
         ]
+      }
+    },
+    {
+      "name": "roster-rank-audit",
+      "description": "Compare synced Discord guild roles against the synced Blizzard in-game guild roster. Officer-only, read-only. Reports rank mismatches (highest in-game rank wins across alts; Raid Leader matches in-game Raider/Officer), active Discord members without a matched in-game character, unlinked in-game characters, and departed Discord members still in-game.",
+      "tier": "officer",
+      "mutation": false,
+      "destructive": false,
+      "input": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "section": {
+            "type": "string",
+            "enum": [
+              "mismatches",
+              "unlinked",
+              "departed",
+              "all"
+            ]
+          }
+        }
       }
     },
     {

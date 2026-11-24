@@ -752,6 +752,65 @@ describe('JTBD: raid night', () => {
     expect(got.locksAt).toBe(WED - 2 * HOUR);
   });
 
+  it('J20 · a raid leader locks tonight’s roster and copies the addon import from the site', async () => {
+    const { wed } = await scheduleRaidNights(g);
+    const tank = await answer(g, g.aeryn, 'aeryn', wed.id, 'accepted');
+    const healer = await answer(g, g.bram, 'bram', wed.id, 'accepted');
+    const dps = await answer(g, g.cade, 'cade', wed.id, 'accepted');
+
+    await g.host.ok(g.rook, 'roster-move', { signupId: tank.id, group: 1 });
+    await g.host.ok(g.rook, 'roster-move', { signupId: healer.id, group: 1 });
+    await g.host.ok(g.rook, 'roster-bench', { signupId: dps.id });
+
+    // A raider cannot lock the roster or fetch the addon import string.
+    expect(await g.host.run(g.aeryn, 'roster-lock', { eventId: wed.id })).toMatchObject({
+      error: { code: 'COMMAND_NOT_FOUND' },
+    });
+    expect(await g.host.run(g.aeryn, 'addon-import-get', { eventId: wed.id })).toMatchObject({
+      error: { code: 'COMMAND_NOT_FOUND' },
+    });
+
+    // Rook locks tonight's roster from the site and copies the addon import string.
+    await g.host.ok(g.rook, 'roster-lock', { eventId: wed.id });
+    const locked = await g.host.ok<{ event: RaidEvent }>(g.rook, 'raid-get', { eventId: wed.id });
+    expect(locked.event.status).toBe('locked');
+
+    // Locked raids refuse raider changes.
+    expect(
+      await g.host.run(g.dara, 'signup-set', {
+        eventId: wed.id,
+        characterId: g.chars.dara,
+        status: 'accepted',
+      }),
+    ).toMatchObject({ error: { code: 'RAID_CLOSED' } });
+
+    const { importString, characters } = await g.host.ok<{
+      importString: string;
+      characters: number;
+    }>(g.rook, 'addon-import-get', { eventId: wed.id });
+    expect(characters).toBe(2);
+    const decoded = decodeRaidImport(importString);
+    expect(decoded.ok).toBe(true);
+    if (decoded.ok) {
+      expect(decoded.value.raid.eventId).toBe(wed.id);
+      expect(decoded.value.groups).toEqual([
+        { group: 1, characterIds: [g.chars.aeryn, g.chars.bram] },
+      ]);
+      expect(decoded.value.bench).toEqual([
+        expect.objectContaining({
+          characterId: g.chars.cade,
+          name: 'Cadence',
+          reason: 'benched',
+        }),
+      ]);
+    }
+
+    // Unlocking reopens signups.
+    await g.host.ok(g.rook, 'roster-unlock', { eventId: wed.id });
+    const reopened = await g.host.ok<{ event: RaidEvent }>(g.rook, 'raid-get', { eventId: wed.id });
+    expect(reopened.event.status).toBe('open');
+  });
+
   it('J14 · signedUpAt stays as a record when changing answers (no place in line)', async () => {
     const { wed } = await scheduleRaidNights(g);
     await answer(g, g.aeryn, 'aeryn', wed.id, 'accepted');

@@ -118,6 +118,19 @@ when we pull, and when signups lock, **so I can** get ready without hunting thro
   instance, a paragraph per blank line, and the Discord signup post is edited to quote them. A
   raider can read them but `raid-update` answers `COMMAND_NOT_FOUND`.
 
+### J20 · Lock tonight's roster and copy the addon import from the site
+**When** tonight's roster is set, **I (raid leader) want** to lock it from the site and copy the
+addon import string, **so I can** form the raid in game without opening Discord or the CLI.
+- [ ] Signed in as Rook on `/officers` (Tonight tab), place people in groups (`roster-move`) or on
+  the bench (`roster-bench`) and press **Lock roster** (`roster-lock`): the raid status changes to
+  locked and raiders can no longer change their answers (`RAID_CLOSED`).
+- [ ] Press **Copy the addon import** (`addon-import-get`): the site fetches and copies the import
+  string, which decodes (`decodeRaidImport`) to the locked raid, its groups, and its bench.
+- [ ] Unlocking (`roster-unlock`) reopens signups. A raider calling `roster-lock` or
+  `addon-import-get` gets `COMMAND_NOT_FOUND`.
+- (`packages/ui-kit/src/elements/tonight.test.ts` covers the Tonight tab's buttons and clipboard
+  flow; `raid-night.jtbd.test.ts` covers the command and decoded import end to end.)
+
 ### J24 · Keep the calendar right from the quarters
 **When** plans change, **I (raid leader) want** to add, move, pause, and close out raids on the
 site, **so I can** keep the calendar true without commands (the quarters' Calendar tab).

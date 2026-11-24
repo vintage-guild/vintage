@@ -221,7 +221,7 @@ describe('Guild agent', () => {
     );
   });
 
-  it('J31 · Find out what I can do, for my rank', async () => {
+  it('J77 · Find out what I can do, for my rank', async () => {
     const ROOK = '500000000000000002';
     await g.host.discordMember(ROOK, 'Rook', [ROLES.raidLeader]);
     const page = (response: unknown) =>

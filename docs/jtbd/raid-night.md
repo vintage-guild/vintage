@@ -488,7 +488,7 @@ Accept to sync me on the spot and sign me up.
 - [x] Clicking Accept on an open raid syncs an unknown Discord member from `interaction.member.roles`
   and signs them up immediately.
 
-### J71 · Add a healer to a raid that's already up
+### J78 · Add a healer to a raid that's already up
 **When** tonight's raid needs a different comp than the schedule defaulted to, **I (leader) want**
 to change this raid's role targets without changing the schedule.
 - [x] `raid-update` updates `roleTargets` on the raid while leaving the schedule untouched; the

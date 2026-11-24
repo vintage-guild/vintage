@@ -5,6 +5,7 @@
 //   - every skill named as `vintage-*` in AGENTS.md exists in .claude/skills
 //   - every module has its own AGENTS.md
 //   - every .claude/skills/vintage-* skill is listed in AGENTS.md
+//   - no JTBD id (### Jnn) is used by more than one job across docs/jtbd/*.md
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { ROOT, rel, workspacePackages } from './lib/workspace.mjs';
@@ -53,6 +54,25 @@ function checkModuleDocs(root) {
     .map((p) => `${rel(p.dir, root)}/AGENTS.md is missing`);
 }
 
+/** No two JTBD jobs across docs/jtbd/*.md may share the same `### Jnn` id (#249). */
+export function checkJtbdIds(root) {
+  const dir = join(root, 'docs', 'jtbd');
+  if (!existsSync(dir)) return [];
+  const seen = new Map();
+  for (const name of readdirSync(dir).sort()) {
+    if (!name.endsWith('.md') || name === 'README.md') continue;
+    const text = readFileSync(join(dir, name), 'utf8');
+    for (const [, id] of text.matchAll(/^### (J\d+)\b/gm)) {
+      const files = seen.get(id) ?? [];
+      files.push(`docs/jtbd/${name}`);
+      seen.set(id, files);
+    }
+  }
+  return [...seen.entries()]
+    .filter(([, files]) => files.length > 1)
+    .map(([id, files]) => `duplicate JTBD id ${id} in ${files.join(', ')}`);
+}
+
 export function checkAgentDocs(root = ROOT) {
   const agentsPath = join(root, 'AGENTS.md');
   if (!existsSync(agentsPath)) return ['AGENTS.md is missing'];
@@ -64,6 +84,7 @@ export function checkAgentDocs(root = ROOT) {
     ...checkNamedSkills(root, agents),
     ...checkSkillsRouted(root, agents),
     ...checkModuleDocs(root),
+    ...checkJtbdIds(root),
   ];
 }
 

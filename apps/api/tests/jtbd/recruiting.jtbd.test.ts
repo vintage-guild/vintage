@@ -21,7 +21,7 @@ describe('JTBD: applications and the weekly check', () => {
     availability: 'Tue and Thu evenings',
   };
 
-  it('J28 · a player applies from Discord, an officer replies and accepts', async () => {
+  it('J76 · a player applies from Discord, an officer replies and accepts', async () => {
     const host = createHost(NOW);
     const ana = await host.discordMember('500000000000000001', 'Ana', [ROLES.officer]);
     const rook = await host.discordMember('500000000000000002', 'Rook', [ROLES.raidLeader]);

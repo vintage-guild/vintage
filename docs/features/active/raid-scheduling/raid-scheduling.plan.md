@@ -164,7 +164,7 @@ Decided: each Discord signup post carries a short link to that raid's signup on 
 
 Added to [raid-night.md](../../../jtbd/raid-night.md) when the work lands.
 
-- **J71 · Add a healer to a raid that's already up.** Wednesday's Molten Core was made for 10
+- **J78 · Add a healer to a raid that's already up.** Wednesday's Molten Core was made for 10
   healers. Rook opens it in the quarters, sets Healers to 11, and saves. The signup post reads
   "Healers 9/11" within a tick; the schedule's next raid still asks for 10. A raider calling
   `raid-update` with `roleTargets` gets `COMMAND_NOT_FOUND`.
@@ -228,7 +228,7 @@ approved seats).
   clearing before approval, `groupDraft()` `outOfRange`/`overflow` + `finalRoster()` keeping
   approved seats + over-full `#leads` line & draft/quarters display after approval, raid-level
   `announcedState` diff for the leads feed line, quarters raid Edit form fields, manifest. Jobs
-  J71 and J72.
+  J78 and J72.
 - [x] **Schedules from Discord** (gateway, apps/api, raids): `/vintage schedule` group (`create`,
   `list`, `edit`, `pause`, `resume`, `help`), `FORWARDED_GROUPS` / `AUTOCOMPLETED_GROUPS` /
   `help-topics.ts`, New schedule form (Stage 1 weekday multi-select; Preview `Open to pugs`

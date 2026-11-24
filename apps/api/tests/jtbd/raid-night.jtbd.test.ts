@@ -1692,7 +1692,7 @@ describe('JTBD: raid night', () => {
     expect(refused).toMatchObject({ success: false, error: { code: 'COMMAND_NOT_FOUND' } });
   });
 
-  it("J71 · add a healer to a raid that's already up without changing its schedule", async () => {
+  it("J78 · add a healer to a raid that's already up without changing its schedule", async () => {
     const { wed } = await scheduleRaidNights(g);
     await g.host.configureCoordinator();
     await g.host.tick(); // post the initial signup card

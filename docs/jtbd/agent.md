@@ -68,7 +68,7 @@ Live checklist:
       confirm), freeing its `run_key` to be imported again; already-sent runs refuse unless
       `allowSent: true`.
 
-### J31 · Find out what I can do, for my rank
+### J77 · Find out what I can do, for my rank
 
 When I can't remember Random's commands, I want help inside Discord that shows what my rank can
 do, with examples, so I can get on with it without asking an officer.

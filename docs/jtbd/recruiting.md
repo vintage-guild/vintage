@@ -51,7 +51,7 @@ visitors read what is true now.
 - [ ] For members, the calendar's line under "Coming up" names the raid nights and signup
   timings from `schedule-list` in their time zone; change a schedule and it follows.
 
-### J28 · Apply from Discord and hear back
+### J76 · Apply from Discord and hear back
 
 When I want to raid with Vintage, I want to apply in the guild's Discord and hear back there, so
 I don't have to find a website or an officer first.

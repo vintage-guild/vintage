@@ -63,7 +63,7 @@ directly. Maturity: **core**.
   unique per guild with collision retry on insert (`by_guild_short_code` index; optional in Convex
   until backfilled via `coordinator:backfillRaidShortCodes`). `raid-get` accepts `eventId` or
   case-insensitive `shortCode` and enforces the same `access` / `friend`-tier visibility check.
-- **Raid notes and post-creation edits** ("what to bring", J19, J71, J72): `notes` on events and
+- **Raid notes and post-creation edits** ("what to bring", J19, J78, J72): `notes` on events and
   schedules, at most `RAID_NOTES_MAX` (500) characters, trimmed, blank or null for none
   (`notesSchema`). Set by `raid-create`, changed by `raid-update` (`startsAt`, `notes`, `size`,
   `roleTargets`; at least one; allowed open or locked, including after start; only completed or

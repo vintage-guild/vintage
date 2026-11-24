@@ -691,24 +691,24 @@ Phase 0 has about ten days and one maintainer, so it is cut to the minimum that 
 **Spikes first (days 1–2), each a yes/no with a fallback already named:**
 
 - [x] Convex local components as the module pattern: auth context handoff, parent-orchestrated cross-module call, scheduled fan-out (Q8; fallback: namespaced folders) **Passed.**
-- [ ] **Dependency, not a spike:** AFD 2.2 (stateless Streamable HTTP; separate session, in progress) published before `/mcp` is wired around day 5. If it slips, `/mcp` runs on the raw v2 SDK behind the `guild-kit` adapter until it lands (§3.7)
+- [x] **Dependency, not a spike:** AFD 2.2+ (stateless Streamable HTTP) shipped (`@lushly-dev/afd-core`, `afd-server`, `afd-cli` 2.4.0) and wired in `/mcp` and `apps/cli` (#334).
 - [x] Violet CLI export from in-repo nodes in CI (Q14; fallback: plain DTCG script) **No**: plain DTCG fallback (#45); upstream lushly-dev/violet#30.
 - [x] Vercel plan decision: Pro seat or public repo (Q10); Convex preview availability on the chosen plan **Public repo**, so Vercel Hobby works; Convex production is set up (Q10 answered 2026-11-23).
 
 **Build:**
 
-- [x] Create GitHub org + `vintage` monorepo (pnpm, Turbo, `botcore-vintage` with `module.new` and `repo.check`); secrets only in Vercel/Convex env vintage-guild/vintage.
-- [x] CI: `select` → lanes → `ci-ok`; `validate:final` / `check` local gates; lefthook + commitlint (§7.2) Plus DCO, PR-title, lockfile, and CodeQL checks.
-- [x] Agent-native setup: lean AGENTS.md + INIT.md, seeded skills + `vintage-afd-commands` + `vintage-convex-modules`, three reviewer agents, safety hooks, label taxonomy, issue forms (§7.4)
-- [ ] `packages/guild-kit` on AFD 2.2: caller resolution, permission tiers, `guildId`, dryRun/confirm tokens, transport adapter, command manifest + `contract.diff`
+- [x] Create GitHub org + `vintage` monorepo (pnpm, Turbo, `botcore-vintage` with `module.new` and `repo.check`); secrets only in Vercel/Convex env vintage-guild/vintage (#6).
+- [x] CI: `select` → lanes → `ci-ok`; `validate:final` / `check` local gates; lefthook + commitlint (§7.2) Plus DCO, PR-title, lockfile, and CodeQL checks (#6).
+- [x] Agent-native setup: lean AGENTS.md + INIT.md, seeded skills + `vintage-afd-commands` + `vintage-convex-modules`, three reviewer agents, safety hooks, label taxonomy, issue forms (§7.4) (#6).
+- [x] `packages/guild-kit` on AFD 2.4: caller resolution, permission tiers, `guildId`, dryRun/confirm tokens, transport adapter, command manifest + `contract.diff` (#6, #334).
 - [x] `identity` module as the first component: members, characters, role → tier sync Now guild rank → tier (#42) with role sync (#44).
-- [ ] Better Auth with Discord sign-in (`@convex-dev/better-auth`) and the MCP OAuth plugin; sign-in + cron role sync Discord sign-in and the role-sync cron are built and live on https://vintageguild.gg; the MCP OAuth plugin waits on `/mcp`.
-- [ ] `/mcp` on `afd-server`'s stateless handler with AFD's meta-tools and the confirm-token flow; `apps/cli` = `afd-cli --transport streamable`; verified from Claude and the CLI
-- [x] `libs/design-tokens`: `afd-site` + `vintage` nodes exporting CSS/TS as-is (no reskin yet); `docs/design/` forked from the AFD site Includes the emblem palette and a FenUI Lua theme (#45); `docs/design/` still to do.
+- [x] Better Auth with Discord sign-in (`@convex-dev/better-auth`) and the MCP OAuth plugin (`oauthProvider`); sign-in + cron role sync live on https://vintageguild.gg (#7, #8, #176, #179, #186).
+- [ ] `/mcp` on `afd-server`'s stateless handler with AFD's meta-tools and the confirm-token flow; `apps/cli` = `afd-cli --transport streamable`; verified from Claude and the CLI Handler and `apps/cli` shipped and deployed (#334); only live verification from Claude remains (#9).
+- [x] `libs/design-tokens`: `afd-site` + `vintage` nodes exporting CSS/TS as-is (no reskin yet); `docs/design/` forked from the AFD site Includes the emblem palette and a FenUI Lua theme (#12, #45); `docs/design/` still to do.
 - [x] FAST-AF vendored in `vendor/` (fast-element, fast-router, violet-elements), pinned to a commit
-- [ ] `packages/ui-kit` on FAST-AF + `violet-elements` (vendored): sign-in, profile, and character components with `@command`; Custom Elements Manifest in CI Built: logo header, badges, character form (`@command` → `character-add`), signup and sign-in cards, CEM checked in CI; the command client runs over Convex through `@vintage/web-session`.
-- [ ] `apps/web`: shell on the FAST-AF Router, public about/recruitment page, member profile + characters, deployed to Vercel Shell, routes, theme switching, and Discord sign-in built; deployed to Vercel (`vintage-web`, https://vintageguild.gg) on every push to `main` with PR previews; profile and characters pages still thin.
-- [x] Discord application created ✅; `/discord/interactions` built and tested (#43), deployed on Vercel (`vintage-gateway`) and verified by Discord; live in the test server
+- [x] `packages/ui-kit` on FAST-AF + `violet-elements` (vendored): sign-in, profile, and character components with `@command`; Custom Elements Manifest in CI (#13).
+- [x] `apps/web`: shell on the FAST-AF Router, public about/recruitment page, member profile + characters, deployed to Vercel (`vintage-web`, https://vintageguild.gg) on every push to `main` with PR previews (#13).
+- [x] Discord application created ✅; `/discord/interactions` built and tested (#10, #43), deployed on Vercel (`vintage-gateway`) and verified by Discord; live in the Vintage server.
 
 **Done when:** a guildie signs in with Discord, sees the tier matching their Discord role, adds characters, and an officer's agent lists members over MCP from Claude or the CLI.
 
@@ -742,10 +742,10 @@ Phase 0 has about ten days and one maintainer, so it is cut to the minimum that 
 ### Later
 
 - Companion app (automatic SavedVariables sync both ways)
-- More loot methods (prio lists, DKP, EPGP, MS>OS)
+- More loot methods (prio lists, DKP, EPGP; MS>OS shipped in #26)
 - Boss strategy docs + content notes the agent can draw on
-- Battle.net / Armory sync: Blizzard exposes Forever profile data (undocumented, `profile-forever-{region}`). First slice: the `armory` module links characters by surname and keeps level, item level, gear, and portrait ([armory](docs/features/active/armory/armory.plan.md), 2026-11-07); Battle.net sign-in for ownership and the website card are next
-- Guild bank, crafting orders, events beyond raids (the recruitment pipeline moved to epic #126)
+- Battle.net / Armory sync: Blizzard exposes Forever profile data (undocumented, `profile-forever-{region}`). First slice: the `armory` module links characters by surname and keeps level, item level, gear, and portrait ([armory](docs/features/active/armory/armory.plan.md), #269); Battle.net sign-in for ownership remains
+- Guild bank, crafting orders (recruitment pipeline shipped in #126/#134/#135; non-raid events shipped in #151)
 - Always-on Discord gateway worker if the bot needs to read channel chatter
 - Fold `apps/gateway` into Convex HTTP actions if they prove sufficient
 

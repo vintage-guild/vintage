@@ -98,3 +98,4 @@ than no check.
 | 2026-10-27 | Addon actions are kebab-case and mirror the service commands (`session-get`, `raid-import`), not PLAN §3.6's dotted names. |
 | 2026-10-27 | The addon (`addon/Vintage`) is GPL-3.0, since it ships GPL-3.0 FenUI and FenCore; the rest of the repo stays PolyForm Noncommercial. |
 | 2026-10-30 | Standing by on the bench counts as full attendance (#222, #29): a recorded export credits everyone the leader confirmed stood by, as a `stoodBy` attendance row. |
+| 2026-11-23 | Silence Vercel PR comments (`"github": { "silent": true }` in `apps/web/vercel.json` and `apps/gateway/vercel.json`) while keeping deployment status checks (#247). |

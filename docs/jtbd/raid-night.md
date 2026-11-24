@@ -307,21 +307,25 @@ before attendance and loot are recorded. The check records nothing.
 
 ### J46 · Record the addon's export after the raid
 **When** a raid is over and the export checks out, **I (officer) want** to record it, **so I can**
-keep who attended and what dropped, under the raid's loot method, and close the raid.
+keep who attended, who stood by, and what dropped, under the raid's loot method, and close the raid.
 - [ ] Rook (Raid Leader) can't record: `raid-export-record` isn't listed for him over `/mcp`, and
   running it says it doesn't exist. Ana (Officer) sees it.
-- [ ] Ana runs `raid-export-record` with the export and Wednesday's raid. The preview says
-  "Records Raid night: 3 attended, 2 drops; completes Raid night" and carries the same check as
-  J44 (Cadence signed up but not seen, `Doran-Stonemaul` not signed up). Nothing is stored yet:
-  `attendance-list` has no record.
-- [ ] Confirming says "Recorded Raid night: …". `attendance-list` (a raider) shows Aeryn and
-  Bramble in 3 snapshots and `Doran-Stonemaul` in 2, with no signup; `loot-list` (any member)
-  shows Arcanist Boots → Bramble and Lava Core ×2 → Doran-Stonemaul; `raid-get` says completed.
+- [ ] Ana runs `raid-export-record` with the export (including Daralis confirmed on `standby` after
+  signing up on Standby) and Wednesday's raid. The preview says "Records Raid night: 4 attended,
+  2 drops; completes Raid night" and carries the same check as J44 (Cadence signed up but not seen,
+  `Doran-Stonemaul` not signed up). Nothing is stored yet: `attendance-list` has no record.
+- [ ] Confirming says "Recorded Raid night: 4 attended, 2 drops; completes Raid night".
+  `attendance-list` (a raider) shows Aeryn and Bramble in 3 snapshots, Daralis with `stoodBy: true`
+  (0 snapshots, matched to her signup for full attendance credit), and `Doran-Stonemaul` in 2 with no
+  signup; `loot-list` (any member) shows Arcanist Boots → Bramble and Lava Core ×2 →
+  Doran-Stonemaul; `raid-get` says completed.
+- [ ] On the next tick, the summary post in `#raid-signups` lists **Stood by · 1** (Daralis) apart
+  from **Came · 3** (Aeryn, Bramble, Doran-Stonemaul).
 - [ ] Recording the same string again changes nothing and says it's already recorded. A different
   export for the raid replaces the first after its own preview.
 - On the website, officers see **Record export** beside **Check export** in the quarters' Tonight
   tab (preview, then confirm), and `/raids/<id>` shows the recorded attendance, standby credit,
-  and loot once completed. The summary post is J47.
+  and loot once completed. Boss kills on the progress ledger are J47.
 
 ### J47 · The night's first kills land on the ledger, and Random posts the raid summary
 **When** an officer records an export that carries boss attempts (#221), **I (raider) want** the

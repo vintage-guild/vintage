@@ -741,4 +741,260 @@ describe('runTick', () => {
       error: 'Convex query timeout',
     });
   });
+
+  it('auto-posts final-roster at lock when Going signups are at cap with voluntary Standby (#345)', async () => {
+    const LEADS_CH = '100000000000000088';
+    await store.setConfig(G, { leadsChannelId: LEADS_CH }, 0);
+    event = { ...event, size: 2, roleTargets: { tank: 1, healer: 1, melee: 0, ranged: 0 } };
+    signups = [
+      signup('aeryn', { role: 'tank', status: 'accepted' }),
+      signup('cade', { class: 'priest', spec: 'holy', role: 'healer', status: 'accepted' }),
+      signup('bram', { class: 'rogue', spec: 'combat', role: 'melee', status: 'bench' }),
+    ];
+
+    await tick(START - 100 * HOUR);
+    await tick(START - 2 * HOUR);
+
+    expect(raids.calls).toContain('lock:raid-1');
+    const finalPost = discord.sent.find(
+      (s) =>
+        s.kind === 'post' && s.to === SIGNUPS && messageText(s.message).includes('Final roster'),
+    );
+    expect(finalPost).toBeDefined();
+    expect(messageText(finalPost!.message)).toContain('2/2');
+    expect(finalPost!.message.allowed_mentions?.users).toEqual([
+      member('bram', 'flex-raider').discordId,
+    ]);
+    // No over-cap hold notice sent.
+    expect(
+      discord.sent.filter(
+        (s) => s.to === LEADS_CH && s.message.content?.includes('held so no one is sat'),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it('locks at T-2h, holds final-roster when unapproved and over cap, asks leads with recommendation, and posts after approval (#345)', async () => {
+    const LEADS_CH = '100000000000000088';
+    await store.setConfig(G, { leadsChannelId: LEADS_CH }, 0);
+    ports = {
+      ...ports,
+      links: { discordGuildId: '600000000000000001', siteUrl: 'https://vintageguild.gg' },
+    };
+    event = { ...event, size: 2, roleTargets: { tank: 1, healer: 1, melee: 0, ranged: 0 } };
+    // 3 accepted (over cap of 2) + 1 voluntary bench: pip (member rank) is recommended to sit.
+    signups = [
+      signup('aeryn', { role: 'tank', status: 'accepted' }),
+      signup('cade', { class: 'priest', spec: 'holy', role: 'healer', status: 'accepted' }),
+      signup('pip', { class: 'mage', spec: 'frost', role: 'ranged', status: 'accepted' }),
+      signup('bram', { class: 'rogue', spec: 'combat', role: 'melee', status: 'bench' }),
+    ];
+
+    await tick(START - 100 * HOUR);
+    await tick(START - 24 * HOUR);
+    const draft = discord.sent.find(
+      (s) =>
+        s.kind === 'post' &&
+        s.to === LEADS_CH &&
+        s.message.embeds?.[0]?.title?.startsWith('Party draft'),
+    );
+    expect(draft).toBeDefined();
+    expect(messageText(draft!.message)).toContain('Recommended to sit (1)');
+    expect(messageText(draft!.message)).toContain('Pip');
+    expect(messageText(draft!.message)).toContain('Standby (1)');
+    expect(messageText(draft!.message)).toContain('Bram');
+
+    // At T-2h lock: signups lock, public final-roster is HELD, Standby is NOT pinged.
+    await tick(START - 2 * HOUR);
+    expect(raids.calls).toContain('lock:raid-1');
+    expect(event.status).toBe('locked');
+    const publicFinalsBefore = discord.sent.filter(
+      (s) => s.to === SIGNUPS && messageText(s.message).includes('Final roster'),
+    );
+    expect(publicFinalsBefore).toHaveLength(0);
+    // Neither unapproved-notice ("posted the 4-column final roster") nor import-string went out yet.
+    expect(
+      discord.sent.filter((s) => s.message.content?.includes('4-column final roster')),
+    ).toHaveLength(0);
+    expect(discord.sent.filter((s) => s.message.content?.includes('Addon import'))).toHaveLength(0);
+
+    // Leads got the updated locked draft (with action buttons) + overcap-approval notice.
+    const draftLockEdit = discord.sent.find(
+      (s) => s.kind === 'edit' && s.messageId === draft!.messageId,
+    );
+    expect(draftLockEdit).toBeDefined();
+    expect(messageText(draftLockEdit!.message)).toContain('Final roster held for officer approval');
+    expect(buttonLabels(draftLockEdit!.message)).toEqual([
+      'Approve and post',
+      'Redraft',
+      'Edit in the quarters',
+    ]);
+    const approvalNotice = discord.sent.find(
+      (s) => s.kind === 'post' && s.to === LEADS_CH && s.message.content?.includes('3 going'),
+    );
+    expect(approvalNotice).toBeDefined();
+    expect(approvalNotice!.message.content).toContain('Recommended to sit: **Pip**');
+
+    // A second tick while still unapproved does not duplicate notices or post publicly.
+    const countBeforeRepeat = discord.sent.filter((s) => s.kind === 'post').length;
+    await tick(START - 1.5 * HOUR);
+    expect(discord.sent.filter((s) => s.kind === 'post')).toHaveLength(countBeforeRepeat);
+
+    // Officer approves (materializes 2 rostered, 2 benched): next tick posts locked roster immediately.
+    signups = [
+      signup('aeryn', { role: 'tank', status: 'accepted', roster: 'rostered', group: 1 }),
+      signup('cade', {
+        class: 'priest',
+        spec: 'holy',
+        role: 'healer',
+        status: 'accepted',
+        roster: 'rostered',
+        group: 1,
+      }),
+      signup('pip', {
+        class: 'mage',
+        spec: 'frost',
+        role: 'ranged',
+        status: 'accepted',
+        roster: 'benched',
+        group: null,
+      }),
+      signup('bram', {
+        class: 'rogue',
+        spec: 'combat',
+        role: 'melee',
+        status: 'bench',
+        roster: 'benched',
+        group: null,
+      }),
+    ];
+    event = { ...event, rosterApprovedAt: START - 1 * HOUR, rosterApprovedBy: 'rook' };
+    await tick(START - 1 * HOUR);
+
+    const postedFinal = discord.sent.find(
+      (s) =>
+        s.kind === 'post' &&
+        s.to === SIGNUPS &&
+        s.message.embeds?.[0]?.title?.startsWith('Final roster ·'),
+    );
+    expect(postedFinal).toBeDefined();
+    expect(postedFinal!.message.allowed_mentions?.users).toEqual([
+      member('pip', 'member').discordId,
+      member('bram', 'flex-raider').discordId,
+    ]);
+    expect(
+      discord.sent.find((s) => s.to === LEADS_CH && s.message.content?.includes('Addon import')),
+    ).toBeDefined();
+  });
+
+  it('creates an officer party draft at lock when an over-cap non-raid has no prior draft, and posts final-roster after approval (#345)', async () => {
+    const LEADS_CH = '100000000000000088';
+    await store.setConfig(G, { leadsChannelId: LEADS_CH }, 0);
+    event = {
+      ...event,
+      kind: 'other',
+      size: 2,
+      roleTargets: { tank: 1, healer: 1, dps: 0 },
+    };
+    signups = [
+      signup('aeryn', { role: 'tank', status: 'accepted' }),
+      signup('cade', { class: 'priest', spec: 'holy', role: 'healer', status: 'accepted' }),
+      signup('pip', { class: 'mage', spec: 'frost', role: 'ranged', status: 'accepted' }),
+    ];
+
+    await tick(START - 100 * HOUR);
+    await tick(START - 2 * HOUR);
+
+    expect(event.status).toBe('locked');
+    expect(
+      discord.sent.filter(
+        (s) => s.to === SIGNUPS && messageText(s.message).includes('Final roster'),
+      ),
+    ).toHaveLength(0);
+    const lockDraft = discord.sent.find(
+      (s) =>
+        s.kind === 'post' &&
+        s.to === LEADS_CH &&
+        s.message.embeds?.[0]?.title?.startsWith('Party draft'),
+    );
+    expect(lockDraft).toBeDefined();
+    expect(buttonLabels(lockDraft!.message)).toContain('Approve and post');
+
+    // Approve (2 rostered, 1 benched): next tick posts final-roster to SIGNUPS.
+    signups = [
+      { ...signups[0]!, roster: 'rostered', group: 1 },
+      { ...signups[1]!, roster: 'rostered', group: 1 },
+      { ...signups[2]!, roster: 'benched', group: null },
+    ];
+    event = { ...event, rosterApprovedAt: START - 1 * HOUR, rosterApprovedBy: 'rook' };
+    await tick(START - 1 * HOUR);
+
+    const finalPost = discord.sent.find(
+      (s) =>
+        s.kind === 'post' && s.to === SIGNUPS && messageText(s.message).includes('Final roster'),
+    );
+    expect(finalPost).toBeDefined();
+  });
+
+  it('never posts or promotes an overcommitted roster at lock, and posts once seated <= size (#345)', async () => {
+    const LEADS_CH = '100000000000000088';
+    await store.setConfig(G, { leadsChannelId: LEADS_CH }, 0);
+    // Approved raid shrunk from 10 to 2 with 3 players explicitly rostered.
+    event = {
+      ...event,
+      size: 2,
+      roleTargets: { tank: 1, healer: 1, melee: 0, ranged: 0 },
+      rosterApprovedAt: START - 20 * HOUR,
+      rosterApprovedBy: 'rook',
+    };
+    signups = [
+      signup('aeryn', { role: 'tank', roster: 'rostered', group: 1 }),
+      signup('cade', {
+        class: 'priest',
+        spec: 'holy',
+        role: 'healer',
+        roster: 'rostered',
+        group: 1,
+      }),
+      signup('pip', {
+        class: 'mage',
+        spec: 'frost',
+        role: 'ranged',
+        roster: 'rostered',
+        group: 2,
+      }),
+    ];
+
+    await tick(START - 100 * HOUR);
+    // Overcommitted even before lock: party-post is NOT posted publicly.
+    expect(
+      discord.sent.filter(
+        (s) => s.to === SIGNUPS && s.message.embeds?.[0]?.title?.startsWith('Parties ·'),
+      ),
+    ).toHaveLength(0);
+
+    // At T-2h lock: locks signups, holds public roster, alerts leads once.
+    await tick(START - 2 * HOUR);
+    expect(raids.calls).toContain('lock:raid-1');
+    expect(
+      discord.sent.filter(
+        (s) => s.to === SIGNUPS && messageText(s.message).includes('Final roster'),
+      ),
+    ).toHaveLength(0);
+    const overNotice = discord.sent.find(
+      (s) => s.to === LEADS_CH && s.message.content?.includes('3 seated** for **2 seats'),
+    );
+    expect(overNotice).toBeDefined();
+
+    // Officer benches Pip (now 2 seated <= 2): next tick posts locked Final roster immediately.
+    signups = [signups[0]!, signups[1]!, { ...signups[2]!, roster: 'benched', group: null }];
+    await tick(START - 1 * HOUR);
+    const postedFinal = discord.sent.find(
+      (s) =>
+        s.kind === 'post' &&
+        s.to === SIGNUPS &&
+        s.message.embeds?.[0]?.title?.startsWith('Final roster ·'),
+    );
+    expect(postedFinal).toBeDefined();
+    expect(messageText(postedFinal!.message)).toContain('2/2');
+  });
 });

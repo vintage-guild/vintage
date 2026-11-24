@@ -487,7 +487,8 @@ to change this raid's role targets without changing the schedule.
 re-seat before approval and never unseat anyone after approval.
 - [x] Before approval: growing seats overflow Standby; shrinking clears out-of-range manual groups.
 - [x] After approval: shrinking below seated count saves without unseating anyone, `#leads` warns
-  how many to move to Standby, and the party post / quarters show overflow and out-of-range groups;
+  how many to move to Standby, the `#leads` draft and quarters show overflow and out-of-range
+  groups while public party-post/final-roster updates stay held until `seated <= size` (#345);
   growing opens seats and posts Standby-only `[Seat X]` buttons to `#leads`.
 
 ### J73 · Two raid nights from Discord

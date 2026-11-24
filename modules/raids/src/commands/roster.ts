@@ -6,6 +6,7 @@ import {
   kindNoun,
   MAX_EVENT_SIZE,
   type RaidEvent,
+  rosteredSignups,
   type Signup,
   solveEventComp,
 } from '../contract';
@@ -81,19 +82,51 @@ function draftedGroupsBySignup(selected: readonly Signup[], raidSize: number): M
   return groupBySignup;
 }
 
-/** Materialize drafted comp seats and party groups onto signups at approval time. */
-async function materializeApprovedRoster(deps: RaidsDeps, guildId: string, event: RaidEvent) {
-  const signups = await deps.raids.listSignups(guildId, event.id);
-  if (signups.length === 0) return;
+const GOING_STATUS = new Set(['accepted', 'late']);
+
+/** Decide who is seated and who is benched when approving a roster, matching `finalRoster`. */
+async function resolveApprovalSeats(
+  deps: RaidsDeps,
+  guildId: string,
+  event: RaidEvent,
+  signups: readonly Signup[],
+): Promise<{ selected: Signup[]; bench: Signup[] }> {
+  const seated = rosteredSignups(signups);
+  const pendingGoing = signups.some((s) => s.roster === 'pending' && GOING_STATUS.has(s.status));
+  const fullByRoster = event.size !== null && seated.length >= event.size;
+  if (seated.length > 0 && (!pendingGoing || fullByRoster)) {
+    return {
+      selected: seated,
+      bench: signups.filter(
+        (s) =>
+          s.roster === 'benched' ||
+          (s.roster === 'pending' && (s.status === 'bench' || GOING_STATUS.has(s.status))),
+      ),
+    };
+  }
   const ranks = new Map<string, GuildRank | null>();
   for (const memberId of new Set(signups.map((s) => s.memberId))) {
     ranks.set(memberId, (await deps.members.getMember(guildId, memberId))?.rank ?? null);
   }
   const comp = solveEventComp(event, signups, ranks, { goingOnly: true });
   const byId = new Map(signups.map((s) => [s.id, s]));
-  const selected = comp.selected
-    .map((d) => byId.get(d.signup.id))
-    .filter((s): s is Signup => Boolean(s));
+  return {
+    selected: comp.selected
+      .map((d) => byId.get(d.signup.id))
+      .filter((s): s is Signup => Boolean(s)),
+    bench: comp.bench.map((d) => byId.get(d.signup.id)).filter((s): s is Signup => Boolean(s)),
+  };
+}
+
+/** Materialize drafted comp seats and party groups onto signups at approval time. */
+async function materializeApprovedRoster(
+  deps: RaidsDeps,
+  guildId: string,
+  event: RaidEvent,
+  signups: readonly Signup[],
+) {
+  if (signups.length === 0) return;
+  const { selected, bench } = await resolveApprovalSeats(deps, guildId, event, signups);
   const groupBySignup = draftedGroupsBySignup(selected, event.size ?? MAX_EVENT_SIZE);
 
   for (const s of selected) {
@@ -102,9 +135,8 @@ async function materializeApprovedRoster(deps: RaidsDeps, guildId: string, event
       await deps.raids.updateSignup(guildId, s.id, { roster: 'rostered', group });
     }
   }
-  for (const d of comp.bench) {
-    const s = byId.get(d.signup.id);
-    if (s && (s.roster !== 'benched' || s.group !== null)) {
+  for (const s of bench) {
+    if (s.roster !== 'benched' || s.group !== null) {
       await deps.raids.updateSignup(guildId, s.id, { roster: 'benched', group: null });
     }
   }
@@ -113,8 +145,8 @@ async function materializeApprovedRoster(deps: RaidsDeps, guildId: string, event
 export const rosterApprove = command({
   name: 'roster-approve',
   description:
-    'Approve and post the drafted party groups for a raid. After approval, only leaders change ' +
-    'seats and new signups land on Standby.',
+    'Approve and post the drafted party groups for a raid. Refuses if more players are seated ' +
+    'than the raid holds. After approval, only leaders change seats and new signups land on Standby.',
   tier: 'leader',
   mutation: true,
   input: z.object({ eventId: z.string().min(1) }),
@@ -122,10 +154,23 @@ export const rosterApprove = command({
     const event = await deps.raids.getEvent(guildId, eventId);
     if (!event) return eventNotFound();
     if (!isLive(event)) return raidClosed(event);
+    const signups = await deps.raids.listSignups(guildId, event.id);
+    const seated = rosteredSignups(signups);
+    if (event.size !== null && seated.length > event.size) {
+      const over = seated.length - event.size;
+      return error(
+        'ROSTER_OVERCOMMITTED',
+        `${event.name} has ${seated.length} seated for ${event.size} seats`,
+        {
+          suggestion: `Move ${over} seated ${over === 1 ? 'player' : 'players'} to Standby with roster-bench (or increase the raid size) before approving`,
+          retryable: false,
+        },
+      );
+    }
     if (event.rosterApprovedAt !== null) {
       return success(event, { reasoning: `${event.name} roster is already approved` });
     }
-    await materializeApprovedRoster(deps, guildId, event);
+    await materializeApprovedRoster(deps, guildId, event, signups);
     const actor = caller.memberId ?? caller.discordId ?? 'system';
     const at = now();
     const updated = await deps.raids.updateEvent(guildId, eventId, {
@@ -186,7 +231,8 @@ export const rosterMove = command({
         },
       );
     }
-    const inGroup = (await deps.raids.listSignups(guildId, event.id)).filter(
+    const allSignups = await deps.raids.listSignups(guildId, event.id);
+    const inGroup = allSignups.filter(
       (s) => s.roster === 'rostered' && s.group === group && s.id !== signupId,
     );
     if (inGroup.length >= GROUP_SIZE) {
@@ -194,6 +240,20 @@ export const rosterMove = command({
         suggestion: 'Move or bench someone in that group first, or pick another group',
         retryable: false,
       });
+    }
+    if (event.size !== null && signup.roster !== 'rostered') {
+      const seatedCount = rosteredSignups(allSignups).length;
+      if (seatedCount >= event.size) {
+        return error(
+          'ROSTER_FULL',
+          `${event.name} already has ${seatedCount}/${event.size} seated`,
+          {
+            suggestion:
+              'Move someone to Standby with roster-bench (or increase the raid size) first',
+            retryable: false,
+          },
+        );
+      }
     }
     const updated = await deps.raids.updateSignup(guildId, signupId, {
       roster: 'rostered',

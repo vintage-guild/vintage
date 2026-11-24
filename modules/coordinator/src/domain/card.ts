@@ -29,8 +29,10 @@ import {
 } from '@vintage/discord-kit';
 import type { GuildRank } from '@vintage/identity/contract';
 import {
+  competingGoingSignups,
   DEFAULT_TIMINGS,
   hasRoleTargets,
+  isRosterOvercommitted,
   kindOf,
   MAX_EVENT_SIZE,
   RANK_PRIORITY,
@@ -42,7 +44,7 @@ import type { Role } from '@vintage/wow-data';
 import type { TickAway, TickEvent, TickMember } from '../store';
 import { EMOJI_IDS } from './emoji-ids';
 import { cardTitle, countOf, eventTitle, noun, sizeWords } from './kind-words';
-import { compFor, finalRoster } from './render';
+import { compFor, finalRoster, recommendedSitsFromBench } from './render';
 
 const ROLE_ROWS: readonly (readonly [Role, string][])[] = [
   [
@@ -245,6 +247,8 @@ function notesLines(event: RaidEvent): string[] {
 export interface CardOptions {
   /** Base site URL (e.g. `https://vintageguild.gg`) for short raid links and Edit in quarters buttons. */
   siteUrl?: string | null;
+  /** Override locked display state (e.g. on the lock tick before `event.status` flips to `locked`). */
+  locked?: boolean;
 }
 
 /** Strip trailing slashes in linear time (avoids polynomial regex backtracking on untrusted input). */
@@ -584,6 +588,7 @@ function partyFields(
   going: readonly Signup[],
   bench: readonly Signup[],
   ranks: ReadonlyMap<string, GuildRank | null>,
+  recommendedSit: readonly Signup[] = [],
 ): EmbedField[] {
   const raidSize = event.size ?? MAX_EVENT_SIZE;
   const draft = groupDraft(
@@ -615,6 +620,17 @@ function partyFields(
       ).text,
     });
   }
+  if (recommendedSit.length) {
+    const sortedSit = [...recommendedSit].sort(byStandbyOrder(ranks));
+    fields.push({
+      name: `Recommended to sit (${sortedSit.length})`,
+      value: fitLines(
+        sortedSit.map((s) => line(s, ranks)),
+        FIELD_MAX,
+        ' · ',
+      ).text,
+    });
+  }
   if (bench.length) {
     const sortedBench = [...bench].sort(byStandbyOrder(ranks));
     fields.push({
@@ -629,6 +645,38 @@ function partyFields(
   return fields;
 }
 
+function partyDraftStatusLine(
+  tick: TickEvent,
+  goingCount: number,
+  recommendedSitCount: number,
+  {
+    approved,
+    locked,
+    overcommitted,
+  }: { approved: boolean; locked: boolean; overcommitted: boolean },
+): string {
+  const size = tick.event.size;
+  if (overcommitted && size !== null) {
+    const over = goingCount - size;
+    const prefix = approved
+      ? 'Approved · '
+      : locked
+        ? `${emoji('info_locked')} Signups locked · Final roster held · `
+        : '';
+    const suffix = approved ? '' : ' before approving';
+    return `-# ${prefix}Over size: ${goingCount}/${size} seated — move ${over} to Standby${suffix}`;
+  }
+  if (approved) return `-# Approved · ${countOf(goingCount, tick.event)}`;
+  const competing = competingGoingSignups(tick.signups).length;
+  if (locked && recommendedSitCount > 0 && size !== null) {
+    return `-# ${emoji('info_locked')} Signups locked · Final roster held for officer approval · ${competing} going for ${size} seats`;
+  }
+  if (recommendedSitCount > 0) {
+    return `-# Waiting for approval · ${countOf(goingCount, tick.event)} · ${competing} going (${recommendedSitCount} recommended to sit)`;
+  }
+  return `-# Waiting for approval · ${countOf(goingCount, tick.event)}`;
+}
+
 /**
  * T-24h party draft in `#leads`: Group 1..N laid out by `groupDraft`, with Approve and post,
  * Redraft, and Edit in the quarters buttons. Edited in place as leaders move people until approved.
@@ -641,10 +689,17 @@ export function renderPartyDraft(
   const ranks = rankMap(members);
   const { going, bench } = finalRoster(tick, members);
   const approved = tick.event.rosterApprovedAt !== null;
-  const fields = partyFields(tick.event, going, bench, ranks);
+  const locked = options.locked ?? tick.event.status === 'locked';
+  const overcommitted =
+    tick.event.size !== null &&
+    (isRosterOvercommitted(tick.event, tick.signups) || going.length > tick.event.size);
+  const recSit = approved ? [] : recommendedSitsFromBench(tick.event, bench);
+  const recSitIds = new Set(recSit.map((s) => s.id));
+  const otherBench = bench.filter((s) => !recSitIds.has(s.id));
+  const fields = partyFields(tick.event, going, otherBench, ranks, recSit);
   const buttons = [
     button(`party-approve:${tick.event.id}`, 'Approve and post', ButtonStyle.SUCCESS, {
-      disabled: approved,
+      disabled: approved || overcommitted,
     }),
     button(`party-redraft:${tick.event.id}`, 'Redraft', ButtonStyle.SECONDARY, {
       disabled: approved,
@@ -664,9 +719,11 @@ export function renderPartyDraft(
         title: `Party draft · ${eventTitle(tick.event)}`,
         description: [
           `${emoji('info_calendar')} ${when(tick.event.startsAt)}`,
-          approved
-            ? `-# Approved · ${countOf(going.length, tick.event)}`
-            : `-# Waiting for approval · ${countOf(going.length, tick.event)}`,
+          partyDraftStatusLine(tick, going.length, recSit.length, {
+            approved,
+            locked,
+            overcommitted,
+          }),
         ].join('\n'),
         color: approved
           ? discordColor('color.border.strong')

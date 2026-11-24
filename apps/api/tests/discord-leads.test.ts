@@ -1,6 +1,6 @@
 import { defaultConfig } from '@vintage/coordinator/contract';
 import { type Interaction, InteractionType } from '@vintage/discord-kit';
-import { success } from '@vintage/guild-kit';
+import { error, success } from '@vintage/guild-kit';
 import type { Member } from '@vintage/identity/contract';
 import type { RaidEvent, Signup } from '@vintage/raids/contract';
 import { describe, expect, it } from 'vitest';
@@ -227,5 +227,45 @@ describe('discord-leads buttons (party-approve, party-redraft, seat)', () => {
     expect(replyText(res)).toContain('already taken (taken by **Player4**)');
     expect(ctx.ran).toHaveLength(0);
     expect(ctx.mentions).toHaveLength(0);
+  });
+
+  it('refuses seat button when the raid is already full at event.size before mutating signup (#345)', async () => {
+    const smallEvent: RaidEvent = { ...EVENT, size: 2 };
+    const seated = [0, 1].map((i) =>
+      makeSignup({
+        id: `s_seated_${i}`,
+        memberId: `m_s_${i}`,
+        characterId: `c_s_${i}`,
+        characterName: `Seated${i}`,
+        status: 'accepted',
+        roster: 'rostered',
+        group: 1,
+      }),
+    );
+    const ctx = makePorts([...seated, makeSignup({ id: 's_moon' })], smallEvent);
+    const res = await handleLeadsInteraction(
+      buttonClick('seat:evt_mc:s_moon:tank:1', LEADER.discordId),
+      ctx.ports,
+    );
+    expect(replyText(res)).toContain('already full (2/2 seated)');
+    expect(ctx.ran).toHaveLength(0);
+    expect(ctx.mentions).toHaveLength(0);
+  });
+
+  it('surfaces roster-approve rejection (e.g. ROSTER_OVERCOMMITTED) without triggering a tick (#345)', async () => {
+    const ctx = makePorts([]);
+    ctx.ports.run = async (_caller, name, input) => {
+      ctx.ran.push({ name, input });
+      return error('ROSTER_OVERCOMMITTED', 'Molten Core has 12 seated for 10 seats', {
+        suggestion: 'Move 2 seated players to Standby first',
+        retryable: false,
+      });
+    };
+    const res = await handleLeadsInteraction(
+      buttonClick('party-approve:evt_mc', LEADER.discordId),
+      ctx.ports,
+    );
+    expect(replyText(res)).toContain('12 seated for 10 seats');
+    expect(ctx.ticks).toBe(0);
   });
 });

@@ -16,7 +16,7 @@ import {
 } from '@vintage/discord-kit';
 import { type Caller, type CommandResult, tierAllows } from '@vintage/guild-kit';
 import type { Member } from '@vintage/identity/contract';
-import type { RaidEvent, Signup } from '@vintage/raids/contract';
+import { type RaidEvent, rosteredSignups, type Signup } from '@vintage/raids/contract';
 import { ROLES, type Role } from '@vintage/wow-data';
 
 const GROUP_SIZE = 5;
@@ -132,6 +132,14 @@ function validateSeatTarget(
     return { error: `**${target.characterName}** declined this raid.` };
   if (target.roster === 'rostered' && target.status !== 'bench') {
     return { error: `**${target.characterName}** is already seated.` };
+  }
+  if (event.size !== null) {
+    const seatedCount = rosteredSignups(signups).filter((s) => s.id !== target.id).length;
+    if (seatedCount >= event.size) {
+      return {
+        error: `**${event.name}** is already full (${seatedCount}/${event.size} seated).`,
+      };
+    }
   }
   const slot = pickTargetGroup(requestedGroup, event, signups);
   if ('full' in slot) {

@@ -3763,7 +3763,7 @@
     },
     {
       "name": "roster-approve",
-      "description": "Approve and post the drafted party groups for a raid. After approval, only leaders change seats and new signups land on Standby.",
+      "description": "Approve and post the drafted party groups for a raid. Refuses if more players are seated than the raid holds. After approval, only leaders change seats and new signups land on Standby.",
       "tier": "leader",
       "mutation": true,
       "destructive": false,

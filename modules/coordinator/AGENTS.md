@@ -33,11 +33,11 @@ and posts the final roster and addon import string. Maturity: **core**.
 | cancelled card | the raid was cancelled after its post went up (not logged; its hash keeps it to one edit) | edits the post to **Cancelled · …** with no buttons |
 | `remind-<h>h` | each reminder offset, before lock (guild raids only); only the latest due one is sent | signup channel, pings non-responders only, or the `reminderRoleIds` roles with the non-responders named as plain text |
 | `dm-<h>h` | the last reminder offset (guild raids only), if `dmReminders`; skips members who opted out and, when `dmRanks` is set, ranks not in it | DM |
-| `digest`, `party-draft` | `digestHours` (default 24h) before start | leads channel (`leadsChannelId`, else `opsChannelId`); seeds `announcedState` for the post-digest change feed |
-| `dropout-*`, `changes-*` | after digest, when signups or absences change (group-only moves ignored) | leads channel (seated dropouts get Standby-only `[Seat X]` buttons) |
-| `party-post` | once a leader approves the roster (`roster-approve`) | signup channel; edited in place on moves and promoted into Final Roster at lock |
-| `lock` | `lockHours` before start | runs `roster-lock` |
-| `final-roster`, `unapproved-notice`, `lock-open-seats`, `import-string` | after lock | signup channel (fallback if unapproved), leads channel (unapproved notice, open-seat `[Seat X]` suggestions when open seats and Standby exist, addon import string) |
+| `digest`, `party-draft` | `digestHours` (default 24h) before start (or at lock if over-cap/overcommitted and unapproved) | leads channel (`leadsChannelId`, else `opsChannelId`); seeds `announcedState` for the post-digest change feed; shows **Recommended to sit** when Going signups exceed `event.size` |
+| `dropout-*`, `changes-*` | after digest (including while locked and awaiting officer approval), when signups or absences change (group-only moves ignored) | leads channel (seated dropouts get Standby-only `[Seat X]` buttons) |
+| `party-post` | once a leader approves the roster (`roster-approve`) and `seated <= event.size` | signup channel; edited in place on moves and promoted into Final Roster at lock (never posted or promoted while overcommitted) |
+| `lock` | `lockHours` before start | runs `roster-lock` (always automatic; no approval gate) |
+| `final-roster`, `unapproved-notice`, `overcap-approval`, `overcommitted-notice`, `lock-open-seats`, `import-string` | after lock | signup channel (auto-posts at/under cap including voluntary Standby; **held** when unapproved and Going > `event.size` or when `seated > event.size`), leads channel (overcap approval prompt or overcommitted notice when held; unapproved notice, open-seat `[Seat X]` suggestions, and addon import string once ready) |
 | `raid-night` | a raid-night poll has closed (keyed by the poll id) | runs `raid-create`, or tells the ops channel why not |
 | `server-event` | if `serverEvents`, the tick after the post is up | a Discord server event (Events list); edited in place when the raid moves or is renamed (not logged) |
 | `server-event-cancel` | if `serverEvents`, the raid was cancelled before it started | sets the server event to CANCELED |

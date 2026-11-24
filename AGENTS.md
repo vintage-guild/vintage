@@ -61,6 +61,8 @@ lives in skills and module `AGENTS.md` files.
 | `vintage-maintain-docs` | Finishing any PR that changes behavior, structure, or setup |
 | `vintage-jtbd` | A feature changes what a member can do; validating end to end; a live run |
 | `vintage-addon` | The WoW addon (`addon/Vintage`): Lua, its specs and validator, libraries, the FenUI theme |
+| `do-triage` | Triaging open backlog issues (labels, `fleet:candidate`, owner routing) |
+| `do-run-fleet` | Claiming a `fleet:candidate` batch (≤3 issues/area) with a lease through PR |
 
 ## Commits and attribution
 

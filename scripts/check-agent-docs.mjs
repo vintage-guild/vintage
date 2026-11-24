@@ -2,9 +2,9 @@
 // AGENTS.md routes rather than explains (PLAN §7.4). This keeps it lean and its links live:
 //   - AGENTS.md stays under the line budget
 //   - every relative markdown link in AGENTS.md / INIT.md resolves
-//   - every skill named as `vintage-*` in AGENTS.md exists in .claude/skills
+//   - every skill named as `vintage-*` or `do-*` in AGENTS.md exists in .claude/skills
 //   - every module has its own AGENTS.md
-//   - every .claude/skills/vintage-* skill is listed in AGENTS.md
+//   - every .claude/skills/{vintage-*,do-*} skill is listed in AGENTS.md
 //   - no JTBD id (### Jnn) is used by more than one job across docs/jtbd/*.md
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -29,8 +29,10 @@ function checkLinks(root, doc) {
     .map((target) => `${doc}: broken link → ${target}`);
 }
 
+const SKILL_PREFIX = /^(?:vintage|do)-/;
+
 function checkNamedSkills(root, agents) {
-  return [...agents.matchAll(/`(vintage-[a-z0-9-]+)`/g)]
+  return [...agents.matchAll(/`((?:vintage|do)-[a-z0-9-]+)`/g)]
     .map(([, skill]) => skill)
     .filter((skill) => !existsSync(join(root, '.claude', 'skills', skill, 'SKILL.md')))
     .map(
@@ -43,7 +45,7 @@ function checkSkillsRouted(root, agents) {
   const dir = join(root, '.claude', 'skills');
   if (!existsSync(dir)) return [];
   return readdirSync(dir)
-    .filter((name) => name.startsWith('vintage-') && existsSync(join(dir, name, 'SKILL.md')))
+    .filter((name) => SKILL_PREFIX.test(name) && existsSync(join(dir, name, 'SKILL.md')))
     .filter((name) => !agents.includes(`\`${name}\``))
     .map((name) => `.claude/skills/${name} is not listed in AGENTS.md's Skills table`);
 }

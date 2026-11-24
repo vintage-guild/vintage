@@ -10,6 +10,7 @@ import {
 import { createMemoryCoordinatorStore } from '@vintage/coordinator/testing';
 import { createMemoryInsightsStore } from '@vintage/insights/testing';
 import { createMemoryPollsStore } from '@vintage/polls/testing';
+import { createMemoryWishlistStore } from '@vintage/wishlist/testing';
 import { describe, expect, it } from 'vitest';
 import {
   agentStore,
@@ -21,6 +22,7 @@ import {
   pollsStore,
   rosterStore,
   siteStore,
+  wishlistStore,
 } from '../../convex/stores';
 import { createConvexBackend, GUILD_A, GUILD_B } from './harness';
 
@@ -510,6 +512,66 @@ parity('catalogStore', createMemoryCatalogStore, catalogStore, (setup) => {
       expect((await s.getRecipeDetail(GUILD_A, 201))?.itemName).toBe('Flask of the Titans');
       expect(await s.getRecipeDetail(GUILD_B, 201)).toBeNull();
       expect(await s.listRecipeItems(GUILD_B)).toEqual([]);
+    });
+  });
+});
+
+parity('wishlistStore', createMemoryWishlistStore, wishlistStore, (setup) => {
+  it('replaces, queries, and isolates wishlist entries per guild and character', async () => {
+    const { run } = await setup();
+
+    await run(async (s) => {
+      await s.replaceForCharacter(GUILD_A, 'char-1', [
+        {
+          guildId: GUILD_A,
+          characterId: 'char-1',
+          memberId: 'm1',
+          itemId: 18803,
+          itemName: 'Lava Dredger',
+          rank: 2,
+          note: null,
+          updatedAt: 1000,
+          updatedBy: 'm1',
+        },
+        {
+          guildId: GUILD_A,
+          characterId: 'char-1',
+          memberId: 'm1',
+          itemId: 17103,
+          itemName: 'Azuresong Mageblade',
+          rank: 1,
+          note: 'BiS',
+          updatedAt: 1000,
+          updatedBy: 'm1',
+        },
+      ]);
+      await s.replaceForCharacter(GUILD_B, 'char-1', [
+        {
+          guildId: GUILD_B,
+          characterId: 'char-1',
+          memberId: 'm2',
+          itemId: 17103,
+          itemName: 'Azuresong Mageblade',
+          rank: 1,
+          note: 'Other guild',
+          updatedAt: 1000,
+          updatedBy: 'm2',
+        },
+      ]);
+
+      expect((await s.listByCharacter(GUILD_A, 'char-1')).map((e) => [e.itemId, e.rank])).toEqual([
+        [17103, 1],
+        [18803, 2],
+      ]);
+      expect((await s.listByItem(GUILD_A, 17103)).map((e) => e.note)).toEqual(['BiS']);
+      expect((await s.listByItem(GUILD_B, 17103)).map((e) => e.note)).toEqual(['Other guild']);
+      expect((await s.listAll(GUILD_A, { memberId: 'm1' })).length).toBe(2);
+      expect(await s.listAll(GUILD_B, { memberId: 'm1' })).toEqual([]);
+
+      // Replacing GUILD_B's char-1 must not touch GUILD_A's char-1.
+      await s.replaceForCharacter(GUILD_B, 'char-1', []);
+      expect(await s.listByCharacter(GUILD_B, 'char-1')).toEqual([]);
+      expect(await s.listByCharacter(GUILD_A, 'char-1')).toHaveLength(2);
     });
   });
 });

@@ -28,6 +28,7 @@ import {
   raidsDeps,
   scheduleCoalescedTick,
   siteDeps,
+  wishlistDeps,
 } from './stores';
 
 /** Mutations that affect raid cards, party drafts, summaries, or `#leads` change alerts (coalesced ~12s). */
@@ -78,6 +79,7 @@ export const deps = (ctx: Ctx, options: { agentDelivery?: AgentDelivery } = {}):
   ...insightsDeps(ctx),
   ...lootDeps(ctx),
   ...armoryDeps(ctx),
+  ...wishlistDeps(ctx),
 });
 
 /** The website caller: the signed-in member from the token's Discord id (convex/auth.ts), else public. */

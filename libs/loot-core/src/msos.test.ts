@@ -240,9 +240,10 @@ describe('msosMethod (Mainspec over Offspec)', () => {
 });
 
 describe('createMethodRegistry', () => {
-  it('registers default MS/OS method and rejects duplicate ids', () => {
+  it('registers default MS/OS and Loot Council methods and rejects duplicate ids', () => {
     expect(defaultLootMethods.has('msos')).toBe(true);
-    expect(defaultLootMethods.list().map((m) => m.id)).toEqual(['msos']);
+    expect(defaultLootMethods.has('council')).toBe(true);
+    expect(defaultLootMethods.list().map((m) => m.id)).toEqual(['msos', 'council']);
     expect(() => createMethodRegistry([msosMethod, msosMethod])).toThrow(/duplicate loot method/);
   });
 });

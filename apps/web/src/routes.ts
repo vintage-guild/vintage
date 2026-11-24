@@ -21,6 +21,11 @@ export class VintageRoutes extends RouterConfiguration {
         title: 'Characters',
         element: page(() => import('./pages/characters')),
       },
+      {
+        path: 'wishlist',
+        title: 'Wishlist',
+        element: page(() => import('./pages/wishlist')),
+      },
       { path: 'roster', title: 'Roster', element: page(() => import('./pages/roster')) },
       {
         path: 'professions/character/{slug}',

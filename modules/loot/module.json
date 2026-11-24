@@ -2,6 +2,6 @@
   "name": "loot",
   "maturity": "official",
   "owners": ["@Falkicon"],
-  "dependsOn": [],
+  "dependsOn": ["wishlist"],
   "description": "Loot drops recorded from raid exports; later loot methods, awards, and history (PLAN §5, #26)."
 }

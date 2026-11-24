@@ -14,6 +14,7 @@ import { createMemoryProgressDeps } from '@vintage/progress/testing';
 import { createMemoryRaidsDeps } from '@vintage/raids/testing';
 import { createMemorySiteDeps } from '@vintage/site/testing';
 import { makeCaller, TEST_GUILD_ID, testRegistry } from '@vintage/testing';
+import { createMemoryWishlistDeps } from '@vintage/wishlist/testing';
 import { describe, expect, it } from 'vitest';
 import { fetchGuildMember } from '../src/discord-directory';
 import { commands, type VintageDeps } from '../src/registry';
@@ -58,6 +59,7 @@ function host() {
     ...createMemoryInsightsDeps().deps,
     ...createMemoryLootDeps(),
     ...createMemoryArmoryDeps(),
+    ...createMemoryWishlistDeps(),
   };
   const registry = testRegistry<VintageDeps>(commands);
   const system = makeCaller('officer', { surface: 'system', memberId: undefined });

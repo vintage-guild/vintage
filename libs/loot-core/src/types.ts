@@ -76,6 +76,17 @@ export interface RankedCandidate {
   reason: string;
   /** Mainspec wins recorded for this character in the current raid. */
   recentWins: number;
+  /** 1-based wishlist rank for this item when the character wishlisted it, else null. */
+  wishlistRank?: number | null;
+  /** Optional note from the character's wishlist entry for this item. */
+  wishlistNote?: string | null;
+}
+
+/** One character's wishlist rank for an item, passed into loot methods via RaidContext. */
+export interface WishlistSignal {
+  characterId: string;
+  rank: number;
+  note: string | null;
 }
 
 export type ValidationResult = { ok: true } | { ok: false; code: string; reason: string };
@@ -96,6 +107,8 @@ export interface RaidContext {
   attendees: readonly RaidAttendee[];
   /** Awards already recorded for this raid (and optionally recent raids for the guild). */
   recentAwards: readonly LootAwardRecord[];
+  /** Wishlist interest keyed by itemId, populated by the host from the wishlist contract (#27). */
+  wishlistByItem?: Readonly<Record<number, readonly WishlistSignal[]>>;
   now: number;
 }
 

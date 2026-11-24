@@ -1,5 +1,6 @@
 import { commandsFor } from '@vintage/guild-kit';
 import type { LootMethodRegistry, RaidAttendee } from '@vintage/loot-core';
+import type { WishlistReader } from '@vintage/wishlist/contract';
 import type {
   LootAward,
   LootAwardInput,
@@ -48,6 +49,8 @@ export interface LootRaidReader {
 export interface LootDeps {
   loot: LootStore;
   lootRaids: LootRaidReader;
+  /** Read-only wishlist contract port (`@vintage/wishlist/contract`), never wishlist tables (#27). */
+  lootWishlist?: WishlistReader;
   /** Optional custom registry for tests or future plugins; defaults to `defaultLootMethods`. */
   lootMethods?: LootMethodRegistry;
 }

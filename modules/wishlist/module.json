@@ -1,0 +1,7 @@
+{
+  "name": "wishlist",
+  "maturity": "official",
+  "owners": ["@Falkicon"],
+  "dependsOn": [],
+  "description": "Per-character wishlists and BiS rankings that feed loot council candidates (PLAN §3.11, #27)."
+}

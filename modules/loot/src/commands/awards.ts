@@ -37,7 +37,14 @@ export const lootCandidates = command({
     if (!method) return methodNotFound(requestedMethodId);
 
     const item = toLootItem(input);
-    const { loaded, ctx } = await buildMethodContext(deps, guildId, method, raid, now());
+    const { loaded, ctx } = await buildMethodContext(
+      deps,
+      guildId,
+      method,
+      raid,
+      now(),
+      item.itemId,
+    );
     const candidates = method.candidates(item, ctx);
     const standings = method.standings ? method.standings(ctx) : [];
     const eligible = candidates.filter((c) => c.tier !== 'ineligible').length;
@@ -148,7 +155,14 @@ export const lootAward = command({
     if ('failure' in built) return built.failure;
     const { draft } = built;
 
-    const { loaded, ctx } = await buildMethodContext(deps, guildId, method, raid, now());
+    const { loaded, ctx } = await buildMethodContext(
+      deps,
+      guildId,
+      method,
+      raid,
+      now(),
+      draft.item.itemId,
+    );
     const validation = method.validateAward(draft, ctx);
     const blocked = checkValidation(validation, input.override, draft.note ?? null);
     if (blocked) return blocked;

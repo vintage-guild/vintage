@@ -126,6 +126,10 @@ function evaluateAttendee(
   ctx: MethodContext<MsosConfig, MsosState>,
 ): RankedCandidate {
   const tally = winsFor(ctx.raid.eventId, attendee.characterId, ctx);
+  const wish = ctx.raid.wishlistByItem?.[item.itemId]?.find(
+    (w) => w.characterId === attendee.characterId,
+  );
+  const wishFields = wish ? { wishlistRank: wish.rank, wishlistNote: wish.note } : {};
   if (classIneligible(item, attendee)) {
     return {
       characterId: attendee.characterId,
@@ -135,6 +139,7 @@ function evaluateAttendee(
       priority: 0,
       reason: `Class not eligible (${attendee.class})`,
       recentWins: tally.mainspec,
+      ...wishFields,
     };
   }
 
@@ -153,6 +158,7 @@ function evaluateAttendee(
     priority: scoreCandidate(tier, tally.mainspec, recent, ctx.config.plusOne),
     reason,
     recentWins: tally.mainspec,
+    ...wishFields,
   };
 }
 

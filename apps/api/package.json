@@ -37,6 +37,7 @@
     "@vintage/progress": "workspace:*",
     "@vintage/raids": "workspace:*",
     "@vintage/site": "workspace:*",
+    "@vintage/wishlist": "workspace:*",
     "@vintage/wow-data": "workspace:*",
     "better-auth": "1.7.27",
     "convex": "catalog:",

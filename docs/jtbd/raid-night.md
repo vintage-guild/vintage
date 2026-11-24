@@ -532,3 +532,13 @@ its Discord signup card, without the website.
   gets a private "ask a raid leader". Move picks a day and a time in the guild's clock and keeps
   signups; Cancel asks first. The card follows on the next tick: the new time, or a Cancelled
   card with no buttons.
+
+### J80 · Rank a character's wishlist and feed loot council candidates
+**When** I want loot council to know which raid drops matter most to my character, **I (raider)
+want** to rank items on my character's wishlist so officers see my priority when an item drops.
+- [x] `wishlist-set` saves a ranked list per character (own characters for recruits/raiders, any
+  character for officers), `wishlist-get` / `wishlist-list` read it back in rank order, and `/wishlist`
+  on the site lets members add, reorder, and remove items.
+- [x] `loot-candidates` under the `council` loot method reads wishlist interest through
+  `@vintage/wishlist/contract` and ranks higher-priority wishlisted mainspec attendees ahead of
+  lower-ranked or non-wishlisted ones with the wishlist rank and note in each candidate's reason.

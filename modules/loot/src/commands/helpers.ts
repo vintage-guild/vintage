@@ -99,11 +99,25 @@ export async function buildMethodContext(
   method: AnyLootMethod,
   raid: LootRaidContext,
   now: number,
+  itemId?: number,
 ): Promise<{ loaded: LoadedMethodConfig; ctx: MethodContext<unknown, unknown> }> {
-  const [loaded, recentAwards] = await Promise.all([
+  const [loaded, recentAwards, wishlistEntries] = await Promise.all([
     loadMethodConfig(deps, guildId, method),
     deps.loot.listAwards(guildId, { eventId: raid.eventId, limit: 500 }),
+    itemId !== undefined && deps.lootWishlist
+      ? deps.lootWishlist.listForItem(guildId, itemId)
+      : Promise.resolve(null),
   ]);
+  const wishlistByItem =
+    itemId !== undefined && wishlistEntries
+      ? {
+          [itemId]: wishlistEntries.map((e) => ({
+            characterId: e.characterId,
+            rank: e.rank,
+            note: e.note,
+          })),
+        }
+      : undefined;
   const ctx: MethodContext<unknown, unknown> = {
     config: loaded.config,
     state: loaded.state,
@@ -111,6 +125,7 @@ export async function buildMethodContext(
       eventId: raid.eventId,
       attendees: raid.attendees,
       recentAwards,
+      ...(wishlistByItem ? { wishlistByItem } : {}),
       now,
     },
   };

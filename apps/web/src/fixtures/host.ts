@@ -41,6 +41,8 @@ import { createMemoryRaidsStore, createRecordingEventSink } from '@vintage/raids
 import { type SiteDeps, siteCommands } from '@vintage/site/commands';
 import { createMemorySiteStore } from '@vintage/site/testing';
 import type { CommandClient, Unsubscribe } from '@vintage/ui-kit';
+import { type WishlistDeps, wishlistCommands } from '@vintage/wishlist/commands';
+import { createMemoryWishlistStore, createWishlistReader } from '@vintage/wishlist/testing';
 import { createFixtureAgent } from './agent';
 import { createFixtureArmoryClient } from './armory';
 import { FIXTURE_GUILD_ID, FIXTURE_NOW, ROLE_IDS } from './data';
@@ -54,7 +56,8 @@ export type FixtureDeps = IdentityDeps &
   SiteDeps &
   ApplicationsDeps &
   AgentDeps &
-  ArmoryDeps;
+  ArmoryDeps &
+  WishlistDeps;
 
 /** How far ahead the coordinator looks, as in apps/api. */
 const LOOKAHEAD_MS = 29 * 24 * 60 * 60 * 1000;
@@ -139,6 +142,7 @@ export function createFixtureHost(
 
   const polls = createMemoryPollsStore();
   const loot = createMemoryLootStore();
+  const wishlist = createMemoryWishlistStore();
   // The armory: the real commands and store, with a fake Blizzard over the example characters.
   const armory = createMemoryArmoryStore();
   const armoryRoster = createMemoryRosterStore();
@@ -247,6 +251,20 @@ export function createFixtureHost(
     },
     events: createRecordingEventSink(),
     loot,
+    lootWishlist: createWishlistReader(wishlist),
+    wishlist,
+    wishlistCharacters: {
+      getCharacter: async (g, id) => {
+        const c = await identity.getCharacter(g, id);
+        return c && { id: c.id, memberId: c.memberId, name: c.name };
+      },
+      listCharacters: async (g, filter) =>
+        (await identity.listCharacters(g, filter)).map(({ id, memberId, name }) => ({
+          id,
+          memberId,
+          name,
+        })),
+    },
     lootRaids: {
       getRaidContext: async (g, eventId) => {
         const event = await raids.getEvent(g, eventId);
@@ -368,6 +386,7 @@ export function createFixtureHost(
     ...applicationsCommands,
     ...agentCommands,
     ...armoryCommands,
+    ...wishlistCommands,
   ];
   const mutatingCommands = new Set(allCommands.filter((c) => c.mutation).map((c) => c.name));
   const changeListeners = new Set<() => void>();

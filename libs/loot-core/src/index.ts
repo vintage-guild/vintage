@@ -1,4 +1,12 @@
 export {
+  type CouncilCharTally,
+  type CouncilConfig,
+  type CouncilState,
+  councilConfigSchema,
+  councilMethod,
+  DEFAULT_COUNCIL_CONFIG,
+} from './methods/council';
+export {
   DEFAULT_MSOS_CONFIG,
   type MsosCharTally,
   type MsosConfig,
@@ -30,4 +38,5 @@ export {
   type RankedCandidate,
   type Standing,
   type ValidationResult,
+  type WishlistSignal,
 } from './types';

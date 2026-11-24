@@ -1,4 +1,5 @@
 // Pure registry of swappable loot methods (PLAN §5.2).
+import { councilMethod } from './methods/council';
 import { msosMethod } from './methods/msos';
 import type { LootMethod, LootMethodInfo } from './types';
 
@@ -31,8 +32,8 @@ export function createMethodRegistry(methods: readonly AnyLootMethod[]): LootMet
   };
 }
 
-/** The built-in loot methods shipped with Vintage (MS/OS first per Q5 / #30). */
-export const DEFAULT_LOOT_METHODS: readonly AnyLootMethod[] = [msosMethod];
+/** The built-in loot methods shipped with Vintage (MS/OS default per Q5 / #30; Loot Council #27). */
+export const DEFAULT_LOOT_METHODS: readonly AnyLootMethod[] = [msosMethod, councilMethod];
 
 export const DEFAULT_METHOD_ID = msosMethod.id;
 

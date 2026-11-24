@@ -18,6 +18,7 @@
   "dependencies": {
     "@vintage/guild-kit": "workspace:*",
     "@vintage/loot-core": "workspace:*",
+    "@vintage/wishlist": "workspace:*",
     "@vintage/wow-data": "workspace:*",
     "convex": "catalog:",
     "zod": "catalog:"

@@ -17,6 +17,7 @@ modules/applications/ @Falkicon
 modules/insights/ @Falkicon
 modules/loot/ @Falkicon
 modules/armory/ @Falkicon
+modules/wishlist/ @Falkicon
 apps/api/ @Falkicon
 apps/gateway/ @Falkicon
 apps/web/ @Falkicon

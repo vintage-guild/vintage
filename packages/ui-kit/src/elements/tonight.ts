@@ -376,7 +376,7 @@ const template = html<VintageTonight>`
                 )}
                 ${when(
                   (x) => !x.exportRecorded?.unchanged,
-                  html<VintageTonight>`<p class="names">Random posts the raid summary in Discord on the next tick.</p>`,
+                  html<VintageTonight>`<p class="names">Vintage posts the raid summary in Discord on the next tick.</p>`,
                 )}
               </div>
             `,

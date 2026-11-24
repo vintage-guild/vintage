@@ -144,10 +144,10 @@ const turnTemplate = html<TurnView, VintageAgentPanel>`
 `;
 
 const template = html<VintageAgentPanel>`
-  <section class="panel" part="panel" aria-label="Ask Random">
+  <section class="panel" part="panel" aria-label="Ask Vintage">
     <header class="head" part="head">
       <div class="title">
-        <h2>Random</h2>
+        <h2>Vintage</h2>
         ${when((x) => x.usageText, html<VintageAgentPanel>`<span class="usage">${(x) => x.usageText}</span>`)}
       </div>
       <button type="button" class="quiet" @click="${(x) => x.newChat()}" ?disabled="${(x) => x.active}">New chat</button>
@@ -155,7 +155,7 @@ const template = html<VintageAgentPanel>`
     </header>
     <violet-conversation-thread ?busy="${(x) => x.active}" ?empty="${(x) => !x.runs.length}">
       <div slot="empty" class="empty">
-        <p>Ask Random about raids, signups, applications, or anything an officer can do here. Changes wait for you to confirm.</p>
+        <p>Ask Vintage about raids, signups, applications, or anything an officer can do here. Changes wait for you to confirm.</p>
         ${when(
           (x) => x.prompts.length,
           html<VintageAgentPanel>`
@@ -178,7 +178,7 @@ const template = html<VintageAgentPanel>`
       `,
     )}
     <violet-chat-composer
-      label="Ask Random"
+      label="Ask Vintage"
       placeholder="Ask about raids, signups, applications…"
       status="${(x) => (x.active ? 'streaming' : 'ready')}"
       @submit="${(x, c) => x.ask((c.event as CustomEvent<{ text: string }>).detail.text)}"
@@ -435,7 +435,7 @@ export class VintageAgentPanel extends FASTElement {
   }
 
   @command('vintage.agent-ask', {
-    label: 'Ask Random',
+    label: 'Ask Vintage',
     description: 'Ask the guild agent a question, with the page in view as context.',
     category: 'Officers',
   })
@@ -443,7 +443,7 @@ export class VintageAgentPanel extends FASTElement {
     const text = question?.trim() ?? '';
     if (!text) return failure({ code: 'COMMAND_DISABLED', message: 'Write a question first' });
     if (this.active) {
-      return failure({ code: 'COMMAND_DISABLED', message: 'Random is still answering' });
+      return failure({ code: 'COMMAND_DISABLED', message: 'Vintage is still answering' });
     }
     this.error = '';
     const context = this.contextDropped ? null : this.context;
@@ -482,8 +482,8 @@ export class VintageAgentPanel extends FASTElement {
   }
 
   @command('vintage.agent-stop', {
-    label: 'Stop Random',
-    description: 'Stop the question Random is working on.',
+    label: 'Stop Vintage',
+    description: 'Stop the question Vintage is working on.',
     category: 'Officers',
   })
   async stop(): Promise<ElementResult<unknown>> {
@@ -498,7 +498,7 @@ export class VintageAgentPanel extends FASTElement {
 
   @command('vintage.agent-confirm', {
     label: 'Confirm a change',
-    description: 'Run a change Random prepared.',
+    description: 'Run a change Vintage prepared.',
     category: 'Officers',
   })
   confirm(confirmationId: string): Promise<ElementResult<unknown>> {
@@ -507,7 +507,7 @@ export class VintageAgentPanel extends FASTElement {
 
   @command('vintage.agent-decline', {
     label: 'Drop a change',
-    description: 'Drop a change Random prepared, without running it.',
+    description: 'Drop a change Vintage prepared, without running it.',
     category: 'Officers',
   })
   decline(confirmationId: string): Promise<ElementResult<unknown>> {

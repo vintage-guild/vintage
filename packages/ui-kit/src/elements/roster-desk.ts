@@ -215,7 +215,7 @@ const template = html<VintageRosterDesk>`
             <section aria-labelledby="h-nochar" part="no-character">
               <h3 id="h-nochar">No character yet</h3>
               <p>${(x) => x.noCharacter.map((m) => m.displayName).join(', ')}</p>
-              <p class="note">They add one on their Characters page; the signup card and Random use it.</p>
+              <p class="note">They add one on their Characters page; the signup card and Vintage use it.</p>
             </section>
           `,
         )}

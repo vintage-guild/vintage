@@ -145,7 +145,7 @@ describe('the Random tab’s reads', () => {
     expect(page.coordinatorConfig?.paused).toBe(true);
   });
 
-  it('says why when Random’s status can’t be read', async () => {
+  it('says why when Vintage’s status can’t be read', async () => {
     restore = setCommandClient({
       read: (async (name: string) =>
         name === 'coordinator-status'
@@ -155,6 +155,6 @@ describe('the Random tab’s reads', () => {
     });
     const page = document.createElement('vintage-officers-page') as Page;
     await page.loadCoordinator();
-    expect(page.coordinatorError).toBe('Couldn’t ask Random how it’s doing: Unknown command.');
+    expect(page.coordinatorError).toBe('Couldn’t ask Vintage how it’s doing: Unknown command.');
   });
 });

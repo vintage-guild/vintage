@@ -517,7 +517,7 @@ const scheduleTemplate = html<VintageScheduleForm>`
             @input="${(x, c) => x.set('reminders', (c.event.target as HTMLInputElement).value)}" />
         </div>
       </div>
-      <small>Random posts the signup that many days ahead, reminds anyone who hasn't answered at each reminder, and locks signups before the pull.</small>
+      <small>Vintage posts the signup that many days ahead, reminds anyone who hasn't answered at each reminder, and locks signups before the pull.</small>
     </fieldset>
 
     ${notesField('Each new raid copies these; change one raid from the agenda. A blank line starts a new paragraph.')}

@@ -356,7 +356,7 @@ export class VintageApplicationsDesk extends FASTElement {
 function acceptedMessage(data: unknown): string {
   const roleId = (data as { giveRole?: { roleId: string | null } } | undefined)?.giveRole?.roleId;
   return roleId
-    ? `Accepted. Give them the recruit role in Discord (role id ${roleId}); role sync promotes them and Random DMs the onboarding note.`
+    ? `Accepted. Give them the recruit role in Discord (role id ${roleId}); role sync promotes them and Vintage DMs the onboarding note.`
     : 'Accepted. No Discord role is mapped to recruit yet: map one in the role settings, then give it to them in Discord.';
 }
 

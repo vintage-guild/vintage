@@ -65,7 +65,7 @@ function answerFor(name: string, output: string, prepared: boolean): string {
   const names = namesIn(output);
   if (!names.length) return 'I found nothing to list there.';
   const what = name === 'signup-list' ? 'Signed up' : 'Coming up';
-  return `**${what}:**\n${names.map((n) => `- ${n}`).join('\n')}\n\n_This is the development fixtures’ stand-in for Random._`;
+  return `**${what}:**\n${names.map((n) => `- ${n}`).join('\n')}\n\n_This is the development fixtures’ stand-in for Vintage._`;
 }
 
 export function createFixtureAgent<Deps>(ports: FixtureAgentPorts<Deps>) {

@@ -397,12 +397,12 @@ describe('vintage-signup-card queue line', () => {
     );
     const line = () => el.shadowRoot?.querySelector('.queue')?.textContent?.trim();
     expect(line()).toBe(
-      'The raid is full. You’re in line with 2 ahead of you; Random tells you when a spot opens.',
+      'The raid is full. You’re in line with 2 ahead of you; Vintage tells you when a spot opens.',
     );
     el.queuePosition = 1;
     await settle();
     expect(line()).toBe(
-      'The raid is full. You’re next in line; Random tells you when a spot opens.',
+      'The raid is full. You’re next in line; Vintage tells you when a spot opens.',
     );
     el.removeAttribute('queue-position');
     await settle();

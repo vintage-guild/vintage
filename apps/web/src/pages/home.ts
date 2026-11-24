@@ -489,7 +489,7 @@ const template = html<Page>`
         id="news"
         data-section
         data-section-eyebrow="News"
-        data-section-title="From Random Raven"
+        data-section-title="From Vintage"
         data-section-action="Open the log"
         aria-labelledby="h-news"
       >
@@ -498,13 +498,13 @@ const template = html<Page>`
             <div class="lead byline">
               <img class="mascot" src="${ART.coordinator}" alt="" loading="lazy" decoding="async" />
               <span class="eyebrow">News</span>
-              <h2 id="h-news">From Random Raven</h2>
+              <h2 id="h-news">From Vintage</h2>
             </div>
-            <span class="mono">random by name, not by nature</span>
+            <span class="mono">bot activity · raid notices</span>
           </header>
           <div class="two">
             <div class="card">
-              <span class="eyebrow">What Random did · newest first</span>
+              <span class="eyebrow">What Vintage did · newest first</span>
               <div class="feed">
                 ${repeat(
                   (x) => x.feed,
@@ -517,12 +517,12 @@ const template = html<Page>`
                 )}
                 ${when(
                   (x) => x.feed.length === 0,
-                  html<Page>`<p class="muted">${(x) => (!x.feedLoaded ? 'Loading Random’s log…' : x.raidsFailed ? 'Random’s log is for members. Sign in with Discord to see what he posted and why.' : 'Nothing yet. Random posts signups a week ahead and logs every reminder here.')}</p>`,
+                  html<Page>`<p class="muted">${(x) => (!x.feedLoaded ? 'Loading Vintage’s log…' : x.raidsFailed ? 'Vintage’s log is for members. Sign in with Discord to see what it posted and why.' : 'Nothing yet. Vintage posts signups a week ahead and logs every reminder here.')}</p>`,
                 )}
               </div>
               ${when(
                 (x) => x.feed.length > 0 && x.feed.length < 4,
-                html`<p class="muted small">Early days: the log fills in as Random posts, reminds, locks, and promotes. Every entry answers “why did Random ping me?”.</p>`,
+                html`<p class="muted small">Early days: the log fills in as Vintage posts, reminds, locks, and promotes. Every entry answers “why did Vintage ping me?”.</p>`,
               )}
             </div>
             ${when(

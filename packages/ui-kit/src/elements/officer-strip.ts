@@ -28,7 +28,7 @@ const template = html<VintageOfficerStrip>`
       <span class="detail">${(x) => x.gapsText}</span>
     </div>
     <div class="cell" part="coordinator">
-      <span class="label">Random</span>
+      <span class="label">Vintage</span>
       <b class="${(x) => (x.state === 'running' ? 'ok' : 'warn')}">${(x) => x.stateLabel}</b>
       <span class="detail">${(x) => x.stateDetail}</span>
     </div>

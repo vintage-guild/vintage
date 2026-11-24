@@ -154,9 +154,9 @@ export const tables = {
   })
     .index("authorizationCodeId", ["authorizationCodeId"])
     .index("token", ["token"])
-    .index("clientId", ["clientId"])
     .index("sessionId", ["sessionId"])
-    .index("userId", ["userId"]),
+    .index("userId", ["userId"])
+    .index("clientId_userId", ["clientId","userId"]),
   oauthAccessToken: defineTable({
     token: v.optional(v.union(v.null(), v.string())),
     clientId: v.string(),
@@ -175,10 +175,10 @@ export const tables = {
   })
     .index("authorizationCodeId", ["authorizationCodeId"])
     .index("token", ["token"])
-    .index("clientId", ["clientId"])
     .index("sessionId", ["sessionId"])
     .index("userId", ["userId"])
-    .index("refreshId", ["refreshId"]),
+    .index("refreshId", ["refreshId"])
+    .index("clientId_userId", ["clientId","userId"]),
   oauthConsent: defineTable({
     clientId: v.string(),
     userId: v.optional(v.union(v.null(), v.string())),

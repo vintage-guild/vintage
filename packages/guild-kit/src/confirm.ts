@@ -4,11 +4,13 @@
  * the real call must present it before it expires. Stateless: works on every surface.
  */
 const encoder = new TextEncoder();
+const decoder = new TextDecoder();
 
 export interface ConfirmClaims {
   command: string;
   inputHash: string;
   subject: string;
+  guildId: string;
   expiresAt: number;
 }
 
@@ -21,8 +23,20 @@ function toBase64Url(bytes: ArrayBuffer | Uint8Array): string {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-function fromBase64Url(text: string): string {
-  return atob(text.replace(/-/g, '+').replace(/_/g, '/'));
+function fromBase64UrlBytes(text: string): Uint8Array<ArrayBuffer> | undefined {
+  if (!/^[A-Za-z0-9_-]+$/.test(text) || text.length % 4 === 1) return undefined;
+  const padded = text
+    .replace(/-/g, '+')
+    .replace(/_/g, '/')
+    .padEnd(Math.ceil(text.length / 4) * 4, '=');
+  try {
+    const binary = atob(padded);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+  } catch {
+    return undefined;
+  }
 }
 
 /** Stable JSON: sorted keys, so the same input always hashes the same. */
@@ -41,15 +55,27 @@ async function sha256(text: string): Promise<string> {
   return toBase64Url(await crypto.subtle.digest('SHA-256', encoder.encode(text)));
 }
 
-async function hmac(secret: string, payload: string): Promise<string> {
-  const key = await crypto.subtle.importKey(
+async function importHmacKey(secret: string, usage: 'sign' | 'verify'): Promise<CryptoKey> {
+  return crypto.subtle.importKey(
     'raw',
     encoder.encode(secret),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
-    ['sign'],
+    [usage],
   );
+}
+
+async function hmac(secret: string, payload: string): Promise<string> {
+  const key = await importHmacKey(secret, 'sign');
   return toBase64Url(await crypto.subtle.sign('HMAC', key, encoder.encode(payload)));
+}
+
+/** Constant-time HMAC-SHA256 verification via WebCrypto `subtle.verify`. */
+async function verifyHmac(secret: string, payload: string, signature: string): Promise<boolean> {
+  const sig = fromBase64UrlBytes(signature);
+  if (sig?.length !== 32 || toBase64Url(sig) !== signature) return false;
+  const key = await importHmacKey(secret, 'verify');
+  return crypto.subtle.verify('HMAC', key, sig, encoder.encode(payload));
 }
 
 export async function hashInput(input: unknown): Promise<string> {
@@ -77,12 +103,18 @@ export async function verifyConfirmToken(
   expected: Omit<ConfirmClaims, 'expiresAt'>,
   now: number,
 ): Promise<ConfirmCheck> {
-  const [payload, signature] = token.split('.');
+  const parts = token.split('.');
+  if (parts.length !== 2) return { ok: false, reason: 'malformed' };
+  const [payload, signature] = parts;
   if (!payload || !signature) return { ok: false, reason: 'malformed' };
-  if ((await hmac(secret, payload)) !== signature) return { ok: false, reason: 'bad-signature' };
+  if (!(await verifyHmac(secret, payload, signature))) {
+    return { ok: false, reason: 'bad-signature' };
+  }
+  const payloadBytes = fromBase64UrlBytes(payload);
+  if (!payloadBytes) return { ok: false, reason: 'malformed' };
   let claims: ConfirmClaims;
   try {
-    claims = JSON.parse(fromBase64Url(payload));
+    claims = JSON.parse(decoder.decode(payloadBytes));
   } catch {
     return { ok: false, reason: 'malformed' };
   }
@@ -90,7 +122,8 @@ export async function verifyConfirmToken(
   if (
     claims.command !== expected.command ||
     claims.inputHash !== expected.inputHash ||
-    claims.subject !== expected.subject
+    claims.subject !== expected.subject ||
+    claims.guildId !== expected.guildId
   ) {
     return { ok: false, reason: 'mismatch' };
   }

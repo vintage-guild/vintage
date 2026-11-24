@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import type { Caller } from './caller';
+import { hashInput, issueConfirmToken, verifyConfirmToken } from './confirm';
 import { defineGuildCommand } from './define';
 import { success } from './index';
 import { toManifest } from './manifest';
@@ -101,12 +102,72 @@ describe('createGuildRegistry', () => {
     );
     expect(otherCaller).toMatchObject({ error: { code: 'CONFIRMATION_INVALID' } });
 
+    const otherGuild = await registry.execute(
+      {
+        name: 'thing-remove',
+        input: { id: 'x' },
+        caller: { ...officer, guildId: 'g2' },
+        confirmToken,
+      },
+      {},
+    );
+    expect(otherGuild).toMatchObject({
+      error: { code: 'CONFIRMATION_INVALID', message: expect.stringContaining('mismatch') },
+    });
+
     clock += 6 * 60 * 1000;
     const expired = await registry.execute(
       { name: 'thing-remove', input: { id: 'x' }, caller: officer, confirmToken },
       {},
     );
     expect(expired).toMatchObject({ error: { message: expect.stringContaining('expired') } });
+  });
+
+  it('rejects malformed and tampered confirm tokens', async () => {
+    const claims = {
+      command: 'thing-remove',
+      inputHash: await hashInput({ id: 'x' }),
+      subject: 'm-officer',
+      guildId: 'g1',
+    };
+    const token = await issueConfirmToken('test-secret', claims, 1_000_000);
+    const [payload, sig] = token.split('.');
+    expect(await verifyConfirmToken('test-secret', token, claims, 1_000_000)).toEqual({ ok: true });
+
+    // Flip a character in the signature.
+    const flipped = `${sig![0] === 'A' ? 'B' : 'A'}${sig!.slice(1)}`;
+    expect(
+      await verifyConfirmToken('test-secret', `${payload}.${flipped}`, claims, 1_000_000),
+    ).toEqual({
+      ok: false,
+      reason: 'bad-signature',
+    });
+
+    // Wrong secret, wrong length, invalid base64url, and extra dot.
+    expect(await verifyConfirmToken('other-secret', token, claims, 1_000_000)).toEqual({
+      ok: false,
+      reason: 'bad-signature',
+    });
+    expect(await verifyConfirmToken('test-secret', `${payload}.short`, claims, 1_000_000)).toEqual({
+      ok: false,
+      reason: 'bad-signature',
+    });
+    expect(
+      await verifyConfirmToken('test-secret', `${payload}.not+valid/b64=`, claims, 1_000_000),
+    ).toEqual({
+      ok: false,
+      reason: 'bad-signature',
+    });
+    expect(await verifyConfirmToken('test-secret', `${token}.extra`, claims, 1_000_000)).toEqual({
+      ok: false,
+      reason: 'malformed',
+    });
+    expect(
+      await verifyConfirmToken('test-secret', token, { ...claims, guildId: 'g2' }, 1_000_000),
+    ).toEqual({
+      ok: false,
+      reason: 'mismatch',
+    });
   });
 
   describe('system-only commands', () => {

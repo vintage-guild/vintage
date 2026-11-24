@@ -99,6 +99,7 @@ export function createGuildRegistry<Deps>(
         command: name,
         inputHash: await hashInput(parsed.data),
         subject: subjectOf(caller),
+        guildId: caller.guildId,
       };
       if (!confirmToken) {
         const preview = await command.handler(parsed.data, context(true));

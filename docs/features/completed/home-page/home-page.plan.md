@@ -492,12 +492,12 @@ Questions 2, 4, and 9 are Bloodfen's optional polish.
 |---|---|---|
 | 1 | ~~Display and body typefaces (shortlist from research)~~ Settled: Bitter and IBM Plex | Bloodfen → GM |
 | 2 | How literal the chain motif gets (line only vs drawn links) | Bloodfen |
-| 3 | Discord invite link and whether recruiting is "apply" or "ask an officer" | GM |
+| 3 | Discord invite link and whether recruiting is "apply" or "ask an officer": a setting officers save (#341) | GM |
 | 4 | Does the parchment band stay a one-off, or do long-form pages (news, strategy) adopt it | later |
-| 5 | Ruleset (Normal / PvP / RP), realm, and start time with zone for the identity strip (PLAN Q2) | GM |
-| 6 | Enable the Discord server widget so the page can show online count and the invite without auth | GM |
-| 7 | Loot system line for the recruiting band (PLAN Q5); until decided, the band says "decided before the first raid" | GM + officers |
-| 8 | Should `progress-get` be public, so signed-out visitors see the ledger? Today it is member tier and the page falls back to the empty ledger | GM |
+| 5 | Ruleset (Normal / PvP / RP) and realm for the identity strip: guild profile pills (#341). Start time settled: Wed + Thu 8 pm ET (PLAN Q2) | GM |
+| 6 | Enable the Discord server widget so the page can show online count and the invite without auth (#341) | GM |
+| 7 | ~~Loot system line for the recruiting band~~ Settled 2026-11-23: mainspec over offspec (PLAN Q5); the copy is #341 | GM + officers |
+| 8 | ~~Should `progress-get` be public?~~ Settled 2026-11-23: yes; the change is #340 | GM |
 | 9 | A dev switch for the fixtures' "raiding" state (seed kills through `kill-record`), so the page can be checked filled without the gallery | Bloodfen |
 
 ## Sources

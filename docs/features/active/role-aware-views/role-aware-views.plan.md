@@ -170,8 +170,8 @@ New jobs for [docs/jtbd](../../../jtbd/README.md), each as a scenario test and a
    since it shows what joining gets them.
 2. Does the officer strip belong on every page or only the home page? Proposed: home page only;
    the quarters has the full picture.
-3. Trial length for recruits (the roster tab's clock). The band says "about two weeks"; the GM
-   should confirm (vintage-guild/vintage#30).
+3. ~~Trial length for recruits (the roster tab's clock).~~ Settled 2026-11-23: two weeks
+   (vintage-guild/vintage#30); the "due for review" flag is #244.
 4. ~~Whether `raid-leader` rank should see the Coordinator tab's config items.~~ Settled
    2026-10-27: leaders see Random's settings read-only and run everything else; saving is
    `officer` tier.

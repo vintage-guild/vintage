@@ -16,7 +16,7 @@ Docs change **in the same PR** as the code. A stale doc is worse than none: agen
 | Something from 📋/🚧 to built | `docs/architecture.md` status markers (✅ built and tested, 🚧 partly built, 📋 planned) |
 | Setup, env vars, or a new tool | `SETUP.md` (env names only, never values), the package README |
 | A design or product decision | The feature doc's Decisions table; repo-wide decisions also in `AGENTS.md` Decisions |
-| A spike or open question answered | Feature doc Spikes table, PLAN.md §9 row, and tick it in issue #30 |
+| A spike or open question answered | Feature doc Spikes table, PLAN.md §9 row, and the issue that tracks it (#30 is closed; each open question gets its own issue) |
 | A task in the plan | Phase checkboxes in `PLAN.md` §8 and the feature doc; close or comment on the GitHub issue |
 | A foundation gap (AFD, botcore, Violet, FAST-AF, Mechanic, FenUI/FenCore) | File it upstream, link it, update PLAN.md §7.5 |
 | `vendor/` (re-synced FAST-AF) | The pinned commit in `vendor/VENDORED.md` and its "Known upstream gaps"; `pnpm check:vendor` |

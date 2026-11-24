@@ -14,7 +14,7 @@ Job ids (`J01`…) are shared: the doc, the test name, and the live run all use 
 
 | Suite | Jobs | Automated | Live |
 |---|---|---|---|
-| [Raid night](raid-night.md) | J01–J15, J19, J20, J24, J28, J31, J32, J39–J41, J44–J47, J50–J70, J72–J75, J78 | ✅ `raid-night.jtbd.test.ts` | ✅ checklist |
+| [Raid night](raid-night.md) | J01–J15, J19, J20, J24, J28, J31, J32, J39–J41, J44–J47, J50–J70, J72–J75, J78, J80 | ✅ `raid-night.jtbd.test.ts` | ✅ checklist |
 | [Progression](progression.md) | J16 | ✅ `progression.jtbd.test.ts` | ✅ checklist |
 | [Polls](polls.md) | J17, J18, J22, J43, J71 | ✅ `polls.jtbd.test.ts` | ✅ checklist (J17 partly run live on 2026-10-26) |
 | [Recruiting and the public site](recruiting.md) | J21, J23, J29, J34, J42, J76 | ✅ `recruiting.jtbd.test.ts` | ✅ checklist |

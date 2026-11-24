@@ -7,6 +7,10 @@ export {
   type AwardIntent,
   type CandidateTier,
   type CompletedRaid,
+  type CouncilCharTally,
+  type CouncilConfig,
+  type CouncilState,
+  DEFAULT_COUNCIL_CONFIG,
   DEFAULT_METHOD_ID,
   DEFAULT_MSOS_CONFIG,
   type LootAwardRecord,
@@ -22,6 +26,7 @@ export {
   type RankedCandidate,
   type Standing,
   type ValidationResult,
+  type WishlistSignal,
 } from '@vintage/loot-core';
 
 /**

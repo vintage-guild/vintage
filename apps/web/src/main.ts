@@ -74,6 +74,12 @@ if (menu && session) {
   menu.detail = rank.charAt(0).toUpperCase() + rank.slice(1);
   menu.avatarSrc = session.avatarUrl ?? '';
   menu.hidden = false;
+  if (currentView() !== 'visitor') {
+    const wishlistLink = document.createElement('a');
+    wishlistLink.href = '/wishlist';
+    wishlistLink.textContent = 'Wishlist';
+    menu.append(wishlistLink);
+  }
   if (canSignIn()) {
     const out = document.createElement('button');
     out.type = 'button';

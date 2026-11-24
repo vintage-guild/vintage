@@ -17,6 +17,7 @@
     "insights": { "paths": ["modules/insights/"], "owners": ["@Falkicon"] },
     "loot": { "paths": ["modules/loot/"], "owners": ["@Falkicon"] },
     "armory": { "paths": ["modules/armory/"], "owners": ["@Falkicon"] },
+    "wishlist": { "paths": ["modules/wishlist/"], "owners": ["@Falkicon"] },
     "ui-kit": { "paths": ["packages/ui-kit/"], "owners": ["@Falkicon"] },
     "api": { "paths": ["apps/api/"], "owners": ["@Falkicon"] },
     "gateway": { "paths": ["apps/gateway/"], "owners": ["@Falkicon"] },

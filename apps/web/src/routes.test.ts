@@ -25,6 +25,7 @@ describe('VintageRoutes', () => {
     ['terms', 'Terms'],
     ['profile', 'Profile'],
     ['characters', 'Characters'],
+    ['wishlist', 'Wishlist'],
     ['polls', 'Polls'],
     ['polls/j971cqgtxed9zmwk9nfvwafby18h1hwn', 'Polls'],
     ['raids/k572bq8d3w0g0x9m2fz1y7j4hd7tn1pa', 'Raid'],

@@ -93,4 +93,5 @@ export declare const components: {
   insights: import("@vintage/insights/_generated/component.js").ComponentApi<"insights">;
   loot: import("@vintage/loot/_generated/component.js").ComponentApi<"loot">;
   armory: import("@vintage/armory/_generated/component.js").ComponentApi<"armory">;
+  wishlist: import("@vintage/wishlist/_generated/component.js").ComponentApi<"wishlist">;
 };

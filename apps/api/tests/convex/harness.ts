@@ -23,6 +23,7 @@ const MODULE_COMPONENTS = [
   'insights',
   'loot',
   'armory',
+  'wishlist',
 ] as const;
 
 export type ComponentName = (typeof MODULE_COMPONENTS)[number];

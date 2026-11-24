@@ -9,6 +9,7 @@ import polls from '@vintage/polls/convex.config';
 import progress from '@vintage/progress/convex.config';
 import raids from '@vintage/raids/convex.config';
 import site from '@vintage/site/convex.config';
+import wishlist from '@vintage/wishlist/convex.config';
 import { defineApp } from 'convex/server';
 import betterAuth from './betterAuth/convex.config';
 
@@ -25,5 +26,6 @@ app.use(applications);
 app.use(insights);
 app.use(loot);
 app.use(armory);
+app.use(wishlist);
 
 export default app;

@@ -43,6 +43,7 @@ import { createMemoryRaidsStore, createRecordingEventSink } from '@vintage/raids
 import { STARTER_RECRUITING } from '@vintage/site/contract';
 import { createMemorySiteStore } from '@vintage/site/testing';
 import { fixedClock, testRegistry } from '@vintage/testing';
+import { createMemoryWishlistStore, createWishlistReader } from '@vintage/wishlist/testing';
 import { handleAgentInteraction } from '../../src/discord-agent';
 import { handleApplicationInteraction } from '../../src/discord-applications';
 import {
@@ -135,6 +136,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
   const armoryRosterStore = createMemoryRosterStore();
   /** Guild ids the guild-roster sync was asked for. */
   const rosterSyncs: string[] = [];
+  const wishlist = createMemoryWishlistStore();
   const deps: VintageDeps = {
     identity,
     memberRefresh: { request: async (_g, discordId) => void memberRefreshes.push(discordId) },
@@ -156,6 +158,20 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     },
     loot,
     lootRaids: createLootRaidReader({ raids, identity }),
+    lootWishlist: createWishlistReader(wishlist),
+    wishlist,
+    wishlistCharacters: {
+      getCharacter: async (g, id) => {
+        const c = await identity.getCharacter(g, id);
+        return c && { id: c.id, memberId: c.memberId, name: c.name };
+      },
+      listCharacters: async (g, filter) =>
+        (await identity.listCharacters(g, filter)).map(({ id, memberId, name }) => ({
+          id,
+          memberId,
+          name,
+        })),
+    },
     coordinator,
     tickSource,
     scheduler: { runTickNow: async (g) => void ticksRequested.push(g) },

@@ -1986,4 +1986,70 @@ describe('JTBD: raid night', () => {
     expect(thuCard.message.embeds?.[0]?.title).toBe('Cancelled · Raid night · Molten Core');
     expect(thuCard.message.components).toEqual([]);
   });
+
+  it('J80 · rank a character’s wishlist and feed loot council candidates', async () => {
+    const mc = await g.host.ok<RaidEvent>(g.ana, 'raid-create', {
+      name: 'Molten Core',
+      instance: 'Molten Core',
+      size: 40,
+      startsAt: WED,
+      lootMethodId: 'council',
+    });
+    await answer(g, g.ana, 'ana', mc.id, 'accepted');
+    await answer(g, g.bram, 'bram', mc.id, 'accepted');
+    await answer(g, g.aeryn, 'aeryn', mc.id, 'accepted');
+
+    // Bramble ranks Azuresong Mageblade #1; Anarra ranks it #2.
+    await g.host.ok(g.bram, 'wishlist-set', {
+      characterId: g.chars.bram,
+      items: [{ itemId: 17103, itemName: 'Azuresong Mageblade', rank: 1, note: 'BiS mainhand' }],
+    });
+    await g.host.ok(g.ana, 'wishlist-set', {
+      characterId: g.chars.ana,
+      items: [
+        { itemId: 18820, itemName: 'Talisman of Ephemeral Power', rank: 1 },
+        { itemId: 17103, itemName: 'Azuresong Mageblade', rank: 2, note: 'Upgrade' },
+      ],
+    });
+
+    // Another raider cannot overwrite someone else's wishlist; members can still read.
+    const refused = await g.host.run(g.aeryn, 'wishlist-set', {
+      characterId: g.chars.bram,
+      items: [],
+    });
+    expect(refused).toMatchObject({ success: false, error: { code: 'CHARACTER_NOT_FOUND' } });
+    const interest = await g.host.ok<{ entries: { characterName: string; rank: number }[] }>(
+      g.pip,
+      'wishlist-list',
+      { itemId: 17103 },
+    );
+    expect(interest.entries.map((e) => [e.characterName, e.rank])).toEqual([
+      ['Bramble', 1],
+      ['Anarra', 2],
+    ]);
+
+    // Loot Council candidates rank Bramble (#1) ahead of Anarra (#2), and Aeryn ineligible.
+    const cand = await g.host.ok<{
+      methodId: string;
+      candidates: {
+        characterName: string;
+        tier: string;
+        wishlistRank: number | null;
+        reason: string;
+      }[];
+    }>(g.rook, 'loot-candidates', {
+      eventId: mc.id,
+      itemId: 17103,
+      itemName: 'Azuresong Mageblade',
+      roles: ['healer'],
+      classes: ['priest', 'paladin', 'mage', 'warlock'],
+    });
+    expect(cand.methodId).toBe('council');
+    expect(cand.candidates.map((c) => [c.characterName, c.tier, c.wishlistRank])).toEqual([
+      ['Bramble', 'mainspec', 1],
+      ['Anarra', 'mainspec', 2],
+      ['Aeryn', 'ineligible', null],
+    ]);
+    expect(cand.candidates[0]?.reason).toContain('Wishlist #1 (BiS mainhand)');
+  });
 });

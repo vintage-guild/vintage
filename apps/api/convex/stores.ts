@@ -32,6 +32,8 @@ import type { KillRecorded } from '@vintage/progress/contract';
 import type { RaidsDeps, RaidsEventSink, RaidsStore } from '@vintage/raids/commands';
 import type { Signup } from '@vintage/raids/contract';
 import type { SiteDeps, SiteStore } from '@vintage/site/commands';
+import type { WishlistDeps, WishlistStore } from '@vintage/wishlist/commands';
+import type { WishlistReader } from '@vintage/wishlist/contract';
 import type { WowClass } from '@vintage/wow-data';
 import {
   type GenericMutationCtx,
@@ -272,6 +274,61 @@ export function lootStore(ctx: Ctx): LootStore {
   };
 }
 
+const wishlist = components.wishlist;
+
+export function wishlistStore(ctx: Ctx): WishlistStore {
+  return {
+    listByCharacter: (guildId, characterId) =>
+      ctx.runQuery(wishlist.entries.listByCharacter, { guildId, characterId }),
+    listByItem: (guildId, itemId) => ctx.runQuery(wishlist.entries.listByItem, { guildId, itemId }),
+    listAll: (guildId, filter = {}) =>
+      ctx.runQuery(wishlist.entries.listAll, { guildId, ...filter }),
+    replaceForCharacter: (guildId, characterId, entries) =>
+      writable(ctx).runMutation(wishlist.entries.replaceForCharacter, {
+        guildId,
+        characterId,
+        entries,
+      }),
+  };
+}
+
+export function wishlistReader(ctx: Ctx): WishlistReader {
+  const store = wishlistStore(ctx);
+  return {
+    listForItem: async (guildId, itemId) =>
+      (await store.listByItem(guildId, itemId)).map(
+        ({ characterId, memberId, itemId: id, itemName, rank, note }) => ({
+          characterId,
+          memberId,
+          itemId: id,
+          itemName,
+          rank,
+          note,
+        }),
+      ),
+    listForCharacter: (guildId, characterId) => store.listByCharacter(guildId, characterId),
+  };
+}
+
+export function wishlistDeps(ctx: Ctx): WishlistDeps {
+  const people = identityStore(ctx);
+  return {
+    wishlist: wishlistStore(ctx),
+    wishlistCharacters: {
+      getCharacter: async (guildId, characterId) => {
+        const c = await people.getCharacter(guildId, characterId);
+        return c && { id: c.id, memberId: c.memberId, name: c.name };
+      },
+      listCharacters: async (guildId, filter) =>
+        (await people.listCharacters(guildId, filter)).map(({ id, memberId, name }) => ({
+          id,
+          memberId,
+          name,
+        })),
+    },
+  };
+}
+
 export function lootDeps(ctx: Ctx): LootDeps {
   return {
     loot: lootStore(ctx),
@@ -279,6 +336,7 @@ export function lootDeps(ctx: Ctx): LootDeps {
       raids: raidsStore(ctx),
       identity: identityStore(ctx),
     }),
+    lootWishlist: wishlistReader(ctx),
   };
 }
 

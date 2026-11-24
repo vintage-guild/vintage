@@ -19,6 +19,7 @@ import {
   type RunCommand,
   raidsDeps,
   siteDeps,
+  wishlistDeps,
 } from '../../convex/stores';
 import { commands, type VintageDeps } from '../../src/registry';
 import { createConvexBackend, GUILD_A, GUILD_B } from './harness';
@@ -56,6 +57,7 @@ describe('commands over convex-test adapters', () => {
           ...insightsDeps(ctx),
           ...lootDeps(ctx),
           ...armoryDeps(ctx),
+          ...wishlistDeps(ctx),
         };
         return (await registry.execute({ name, input, caller, confirmToken }, deps)) as {
           success: boolean;

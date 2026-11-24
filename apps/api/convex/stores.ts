@@ -209,6 +209,8 @@ export function raidsStore(ctx: Ctx): RaidsStore {
     getRecord: (guildId, eventId) => ctx.runQuery(raids.records.get, { guildId, eventId }),
     listAttendance: (guildId, eventId) =>
       ctx.runQuery(raids.records.attendance, { guildId, eventId }),
+    listAttendanceByMember: (guildId, memberId, limit) =>
+      ctx.runQuery(raids.records.attendanceByMember, { guildId, memberId, limit }),
     putRecord: (record, attendance) =>
       writable(ctx).runMutation(raids.records.put, { record, attendance }),
 

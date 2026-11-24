@@ -85,15 +85,16 @@ directly. Maturity: **core**.
   change re-guesses the role unless one was picked for the signup; switching character clears
   both. The guessed role for a character's saved spec is its saved role (which may be picked).
   Comp, the card, the queue and the "needed" hints all read the signup's `role`.
-- **`signup-suggest`** (recruit, read-only) guesses the character in `domain/guess.ts`: this
+- **`signup-suggest`** (friend, read-only) guesses the character in `domain/guess.ts`: this
   raid's signup, then the main, then (only with no main) the one brought most in the member's
-  last `SERIES_WINDOW` (5) signups for the same schedule (one-offs: the same instance; declines
-  don't count; a tie goes to the most recent raid), then the only character; else null. The main
-  beats history because members set it on purpose (Bloodfen, 2026-10-27, #149), and the history
-  isn't read when there's a main. `reason` is shown to members,
-  so keep it short and plain. It reads `listSignupsByMember` (the component's `by_guild_member`
-  index, latest `signedUpAt` first). `rolesNeeded` (contract) is what the surfaces' "needed"
-  hints use.
+  last `SERIES_WINDOW` (5) raids for the same schedule (one-offs: the same instance; recorded
+  attendance from `listAttendanceByMember` overrides and ranks above signed-up-only nights, #185;
+  declines without attendance don't count; a tie goes to the most recent raid), then the only
+  character; else null. The main beats history because members set it on purpose (Bloodfen,
+  2026-10-27, #149), and history isn't read when there's a main. `reason` is shown to members,
+  so keep it short and plain. It reads `listSignupsByMember` and `listAttendanceByMember` (both
+  using `by_guild_member` indexes, newest first). `rolesNeeded` (contract) is what the surfaces'
+  "needed" hints use.
 - **`raid-export-check`** (leader, read-only, #29) matches an addon export to a raid: the
   caller's `eventId`, else the export's own when it's this guild's. Who was expected is
   `expectedSignups`: the roster once anyone is rostered (as `raid-complete` counts), else

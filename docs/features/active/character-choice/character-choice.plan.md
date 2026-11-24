@@ -1,7 +1,7 @@
 # Character choice: which character a raider brings
 
-**Status:** active (2026-11-01): §1–3 built, merged and deployed (#148, #149); §4 is #240, and
-learning from addon attendance is #185. A live Discord check is #241. **Owner modules:** raids (signups), identity (characters).
+**Status:** active (2026-11-23): §1–3 and addon attendance learning (#148, #149, #185) built and
+merged; §4 is #240, and a live Discord check is #241. **Owner modules:** raids (signups, attendance), identity (characters).
 
 Raiders and flex raiders often bring a different character, class or spec from one raid to the next: a
 main on Molten Core, an alt on the Rage Fire Chasm run, or the same druid as a tank one night and
@@ -57,10 +57,13 @@ guess. Discord, the site and the agent all use it. The guess, in order:
 1. **Already signed up for this raid:** that character, spec and role.
 2. **Main:** the character marked `isMain`. Members set it on purpose on the Characters page (or
    with `/random character main`), so it beats history (Bloodfen, 2026-10-27, #149).
-3. **Same series, only when there's no main:** the character used most often in the member's
-   last 5 signups for raids from the same schedule (`scheduleId`), newest raid first and declines
-   left out. For a one-off, it's raids in the same instance (an event with no instance has no
-   series). A tie goes to the most recent, and the spec comes from the newest of those nights.
+3. **Same series, only when there's no main:** the character brought most often in the member's
+   last 5 raids from the same schedule (`scheduleId`), newest raid first and declines (without
+   attendance) left out. Recorded addon attendance (`listAttendanceByMember`, #185) overrides the
+   raid's signup character when they differ and ranks attended characters above signed-up-only ones
+   in the same series. For a one-off, it's raids in the same instance (an event with no instance
+   has no series). A tie goes to the most recent, and the spec comes from the newest of those
+   nights (or the character's saved spec when attended on a different character than signed up).
 4. **Only character:** if they have just one.
 5. Otherwise there's no guess, and Discord shows the picker.
 
@@ -181,7 +184,7 @@ commands (`signup-suggest`, and `signup-set` with `spec`). The intent router sen
 | 5 | Series window: the member's last 5 signups for the same schedule; one-offs, the same instance | Decided by Bloodfen, 2026-10-27 (#148) |
 | 6 | Discord and the site both ship Switch character and Change spec in #148 | Decided by Bloodfen, 2026-10-27 |
 | 7 | Flex raiders get a "needed" hint in the picker and nothing more | Decided by Bloodfen, 2026-10-27 |
-| 8 | Addon attendance correcting the history is out of scope | Decided by Bloodfen, 2026-10-27; follow-up #185 |
+| 8 | Addon attendance correcting the history | Deferred from #148 (Bloodfen, 2026-10-27); shipped in #185 via `listAttendanceByMember` (`by_guild_member` on `attendance`), ranking attended characters above signed-up-only ones in the series window |
 | 9 | Role is optional and separate from spec, on characters and on signups | A Fury warrior can tank a dungeon with a shield. Decided by Bloodfen, 2026-10-27 (#149) |
 | 10 | Characters are edited on the site's Characters page (name, class, spec, role, main) | That page is where characters are managed. Decided by Bloodfen, 2026-10-27 (#149) |
 
@@ -201,4 +204,4 @@ None open; the four from the proposal are decisions 5–8.
   signups (Role menu and site control), Edit on the Characters page, the main before history in
   `signup-suggest`, and jobs J40 and J41.
 - [ ] **The agent** (§4, #240): `signup-suggest` and `signup-set` with `spec` and `role` in the agent's tools.
-- [ ] **Learn from addon attendance** (#185): count the character that actually came.
+- [x] **Learn from addon attendance** (#185): count the character that actually came above signups alone (`listAttendanceByMember`, `mergeHistory`).

@@ -39,6 +39,19 @@ export const attendance = query({
   },
 });
 
+/** One member's recorded attendance across raids, latest lastSeenAt first, at most `limit`. */
+export const attendanceByMember = query({
+  args: { guildId: v.string(), memberId: v.string(), limit: v.number() },
+  handler: async (ctx, { guildId, memberId, limit }) => {
+    const docs = await ctx.db
+      .query('attendance')
+      .withIndex('by_guild_member', (q) => q.eq('guildId', guildId).eq('memberId', memberId))
+      .order('desc')
+      .take(Math.max(0, Math.floor(limit)));
+    return docs.map(toAttendance);
+  },
+});
+
 /** Records an export for a raid in one transaction, replacing any earlier record. */
 export const put = mutation({
   args: { record: v.object(recordFields), attendance: v.array(v.object(personFields)) },

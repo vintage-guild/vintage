@@ -828,6 +828,106 @@ describe('raids commands', () => {
       expect(byId.get(daraSignup.id)).toMatchObject({ roster: 'benched', group: null });
     });
 
+    it('roster-approve rejects overcommitted rosters and roster-move blocks seating new players past size (#345)', async () => {
+      const event = await createRaid({
+        kind: 'other',
+        size: 4,
+        roleTargets: { tank: 1, healer: 1, dps: 2 },
+      });
+      const sAeryn = await ok<Signup>(
+        'signup-set',
+        { eventId: event.id, characterId: 'aeryn', status: 'accepted' },
+        as('aeryn'),
+      );
+      const sCade = await ok<Signup>(
+        'signup-set',
+        { eventId: event.id, characterId: 'cade', status: 'accepted' },
+        as('cade'),
+      );
+      const sDara = await ok<Signup>(
+        'signup-set',
+        { eventId: event.id, characterId: 'dara', status: 'accepted' },
+        as('dara', 'recruit'),
+      );
+      const sBram = await ok<Signup>(
+        'signup-set',
+        { eventId: event.id, characterId: 'bramble', status: 'accepted' },
+        leader,
+      );
+
+      // Roster 3 players while size is 4, then shrink size to 2 (overcommitted: 3 seated for 2 seats).
+      await ok<Signup>('roster-move', { signupId: sAeryn.id, group: 1 }, leader);
+      await ok<Signup>('roster-move', { signupId: sCade.id, group: 1 }, leader);
+      await ok<Signup>('roster-move', { signupId: sDara.id, group: 1 }, leader);
+      await ok<RaidEvent>(
+        'raid-update',
+        { eventId: event.id, size: 2, roleTargets: { tank: 1, healer: 1, dps: 0 } },
+        leader,
+      );
+
+      // roster-approve refuses while 3 are seated for 2 seats, without mutating signups or approving.
+      expect(await run('roster-approve', { eventId: event.id }, leader)).toMatchObject({
+        success: false,
+        error: { code: 'ROSTER_OVERCOMMITTED' },
+      });
+      const stillUnapproved = await ok<{ event: RaidEvent; signups: Signup[] }>(
+        'raid-get',
+        { eventId: event.id },
+        leader,
+      );
+      expect(stillUnapproved.event.rosterApprovedAt).toBeNull();
+      expect(stillUnapproved.signups.filter((s) => s.roster === 'rostered')).toHaveLength(3);
+
+      // roster-move refuses seating a 4th (unrostered) player while already at/over size 2.
+      expect(await run('roster-move', { signupId: sBram.id, group: 1 }, leader)).toMatchObject({
+        success: false,
+        error: { code: 'ROSTER_FULL' },
+      });
+
+      // Moving an ALREADY-rostered player into a valid group is still allowed.
+      expect(
+        await ok<Signup>('roster-move', { signupId: sDara.id, group: 1 }, leader),
+      ).toMatchObject({ roster: 'rostered', group: 1 });
+
+      // Bench 1 seated player (now 2/2 seated): roster-approve now succeeds.
+      await ok<Signup>('roster-bench', { signupId: sDara.id }, leader);
+      const approved = await ok<RaidEvent>('roster-approve', { eventId: event.id }, leader);
+      expect(approved.rosterApprovedAt).not.toBeNull();
+    });
+
+    it('roster-approve preserves leader-filled seats even when they differ from role targets (#345)', async () => {
+      const event = await createRaid({
+        kind: 'other',
+        size: 2,
+        roleTargets: { tank: 1, healer: 1, dps: 0 },
+      });
+      // Two tanks rostered explicitly by the leader + one pending healer (size 2).
+      const sAeryn = await ok<Signup>(
+        'signup-set',
+        { eventId: event.id, characterId: 'aeryn', status: 'accepted' },
+        as('aeryn'),
+      );
+      const sDara = await ok<Signup>(
+        'signup-set',
+        { eventId: event.id, characterId: 'dara', status: 'accepted', role: 'tank' },
+        as('dara', 'recruit'),
+      );
+      const sCade = await ok<Signup>(
+        'signup-set',
+        { eventId: event.id, characterId: 'cade', status: 'accepted' },
+        as('cade'),
+      );
+      await ok<Signup>('roster-move', { signupId: sAeryn.id, group: 1 }, leader);
+      await ok<Signup>('roster-move', { signupId: sDara.id, group: 1 }, leader);
+
+      await ok<RaidEvent>('roster-approve', { eventId: event.id }, leader);
+      const rows = await ok<Signup[]>('signup-list', { eventId: event.id }, leader);
+      const byId = new Map(rows.map((r) => [r.id, r]));
+      expect(byId.get(sAeryn.id)).toMatchObject({ roster: 'rostered', group: 1 });
+      expect(byId.get(sDara.id)).toMatchObject({ roster: 'rostered', group: 1 });
+      expect(byId.get(sCade.id)).toMatchObject({ roster: 'benched', group: null });
+    });
+
     it('is hidden below raider tier', async () => {
       const raid = await createRaid();
       expect(await run('comp-suggest', { eventId: raid.id }, as('dara', 'recruit'))).toMatchObject({

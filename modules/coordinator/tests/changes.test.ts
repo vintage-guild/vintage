@@ -1,5 +1,6 @@
 import { DEFAULT_TIMINGS, type RaidEvent, type Signup } from '@vintage/raids/contract';
 import { describe, expect, it } from 'vitest';
+import { renderPartyDraft } from '../src/domain/card';
 import {
   diffEventChanges,
   renderDropoutAlert,
@@ -584,12 +585,16 @@ describe('#leads post-digest change feed (changes.ts + runTick)', () => {
     );
     expect(shrinkPost).toContain('Raid night is now 10 people with 12 seated. Move 2 to Standby.');
 
-    // Approved party post preserves Group 4 as "(over size)" without dropping anyone.
-    const partyEdit = discord.sent
+    // Public party post is held while overcommitted (never updated with > event.size seated).
+    const overSizePublicEdit = discord.sent
       .filter((m) => m.to === 'ch_signups' && m.kind === 'edit')
       .map((m) => messageText(m.message))
       .find((t) => t.includes('Group 4 (over size)'));
-    expect(partyEdit).toBeDefined();
+    expect(overSizePublicEdit).toBeUndefined();
+
+    // Meanwhile the #leads draft preserves Group 4 as "(over size)" without dropping anyone.
+    const leadsDraft = renderPartyDraft({ event, timings: DEFAULT_TIMINGS, signups }, allMembers);
+    expect(messageText(leadsDraft)).toContain('Group 4 (over size)');
 
     // Rook grows approved raid 10 -> 20 -> opens seats and posts Standby-only Seat button to #leads.
     event = {
@@ -608,5 +613,83 @@ describe('#leads post-digest change feed (changes.ts + runTick)', () => {
     );
     expect(grewPost).toBeDefined();
     expect(buttonLabels(grewPost!.message)).toEqual(['Seat Ironhide']);
+  });
+
+  it('keeps 24h change and dropout alerts active in #leads while locked and awaiting over-cap officer approval (#345)', async () => {
+    const store = createMemoryCoordinatorStore();
+    await store.setConfig(
+      'g1',
+      { signupChannelId: 'ch_signups', leadsChannelId: 'ch_leads', opsChannelId: 'ch_ops' },
+      0,
+    );
+    const discord = createFakeDiscord();
+    let event = makeEvent({ size: 2, roleTargets: { tank: 1, healer: 1, melee: 0, ranged: 0 } });
+    const raids = createFakeRaids(() => {
+      event = { ...event, status: 'locked' };
+    });
+    const polls = createFakePolls();
+    const signups: Signup[] = [
+      makeSignup({
+        id: 's_aeryn',
+        memberId: 'm_aeryn',
+        characterName: 'Aeryn',
+        role: 'tank',
+        status: 'accepted',
+      }),
+      makeSignup({
+        id: 's_moon',
+        memberId: 'm_moon',
+        characterName: 'Moonglade',
+        class: 'druid',
+        spec: 'restoration',
+        role: 'healer',
+        status: 'accepted',
+      }),
+      makeSignup({
+        id: 's_gorrak',
+        memberId: 'm_gorrak',
+        characterName: 'Gorrak',
+        class: 'rogue',
+        spec: 'combat',
+        role: 'melee',
+        status: 'accepted',
+      }),
+    ];
+    const source = createStateSource(
+      () => ({
+        guildId: 'g1',
+        events: [{ event, timings: DEFAULT_TIMINGS, signups }],
+        members: MEMBERS,
+      }),
+      store,
+    );
+    const ports = { store, source, raids, discord, polls };
+
+    await runTick(ports, 'g1', RAID_START - 48 * HOUR);
+    await runTick(ports, 'g1', RAID_START - 24 * HOUR); // digest + party-draft
+    await runTick(ports, 'g1', RAID_START - 2 * HOUR); // locks, holds final-roster (3 going > 2)
+    expect(event.status).toBe('locked');
+
+    // While locked and awaiting officer approval, Aeryn (seated tank) drops out and Moonglade goes Late 15m.
+    signups[0] = {
+      ...signups[0]!,
+      status: 'declined',
+      note: 'power out',
+      updatedAt: RAID_START - 1 * HOUR,
+    };
+    signups[1] = {
+      ...signups[1]!,
+      status: 'late',
+      lateMinutes: 15,
+      updatedAt: RAID_START - 1 * HOUR,
+    };
+    const beforeLeads = discord.sent.filter((m) => m.to === 'ch_leads' && m.kind === 'post').length;
+    await runTick(ports, 'g1', RAID_START - 1 * HOUR);
+    const newLeads = discord.sent
+      .filter((m) => m.to === 'ch_leads' && m.kind === 'post')
+      .slice(beforeLeads)
+      .map((m) => messageText(m.message));
+    expect(newLeads.some((t) => t.includes('**Aeryn** dropped out'))).toBe(true);
+    expect(newLeads.some((t) => t.includes('**Moonglade** is now Late, 15 minutes.'))).toBe(true);
   });
 });

@@ -15,7 +15,13 @@ import {
   TimestampStyle,
 } from '@vintage/discord-kit';
 import type { GuildRank } from '@vintage/identity/contract';
-import { RANK_PRIORITY, type RaidEvent, type Signup, targetsOf } from '@vintage/raids/contract';
+import {
+  RANK_PRIORITY,
+  type RaidEvent,
+  rosteredSignups,
+  type Signup,
+  targetsOf,
+} from '@vintage/raids/contract';
 import type { Role } from '@vintage/wow-data';
 import type { AnnouncedMemberState } from '../contract';
 import type { TickEvent, TickMember } from '../store';
@@ -360,6 +366,16 @@ function recordApprovedSizeEffects(
   }
 }
 
+function recordUnapprovedShrinkWarning(tick: TickEvent, out: EventChangeDiff): void {
+  if (tick.event.size === null) return;
+  const seated = rosteredSignups(tick.signups).length;
+  if (seated <= tick.event.size) return;
+  const over = seated - tick.event.size;
+  out.lines.push(
+    `${tick.event.name} is now ${tick.event.size} people with ${seated} seated. Move ${over} to Standby.`,
+  );
+}
+
 function diffRaidMetaChange(
   tick: TickEvent,
   members: TickMember[],
@@ -386,8 +402,11 @@ function diffRaidMetaChange(
   out.lines.push(`**${leader}** set ${tick.event.name} to ${parts.join(', ')}.`);
   out.changedRows.push(currRaid);
 
-  if (tick.event.rosterApprovedAt !== null && sizeChanged) {
+  if (!sizeChanged) return;
+  if (tick.event.rosterApprovedAt !== null) {
     recordApprovedSizeEffects(tick, members, prevRaid.eventSize, out);
+  } else {
+    recordUnapprovedShrinkWarning(tick, out);
   }
 }
 

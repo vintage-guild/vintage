@@ -3,7 +3,13 @@
 import { BENCH_MAX, type BenchReason, encodeBridge } from '@vintage/bridge-format';
 import { type CompResult, compRoleOf } from '@vintage/comp-solver';
 import { discordTimestamp, type MessageData, TimestampStyle } from '@vintage/discord-kit';
-import { type Signup, solveEventComp } from '@vintage/raids/contract';
+import {
+  competingGoingSignups,
+  type RaidEvent,
+  rosteredSignups,
+  type Signup,
+  solveEventComp,
+} from '@vintage/raids/contract';
 import type { TickEvent, TickMember } from '../store';
 import { countOf, eventTitle, noun } from './kind-words';
 import type { NoteInput, NoteLabel } from './notes';
@@ -248,17 +254,18 @@ export function finalRoster(
   const rostered = tick.signups.filter((s) => s.roster === 'rostered' && s.status !== 'declined');
   const pendingGoing = tick.signups.some((s) => s.roster === 'pending' && GOING.has(s.status));
   const approved = tick.event.rosterApprovedAt !== null;
-  // Once leaders approved the roster (with materialized rostered seats) or explicitly rostered
-  // everyone going, keep every non-declined rostered seat even if it exceeds event.size so
-  // shrinking a raid never silently unseats anyone.
-  if (rostered.length && (approved || !pendingGoing)) {
+  const fullByRoster = tick.event.size !== null && rostered.length >= tick.event.size;
+  // Once leaders approved the roster (with materialized rostered seats), explicitly filled or
+  // exceeded the cap, or rostered everyone going, keep every non-declined rostered seat even if it
+  // exceeds event.size so shrinking a raid never silently unseats anyone.
+  if (rostered.length && (approved || !pendingGoing || fullByRoster)) {
     return {
       going: rostered,
       bench: tick.signups.filter(
         (s) =>
           s.roster === 'benched' ||
           (s.roster === 'pending' && s.status === 'bench') ||
-          (approved && s.roster === 'pending' && GOING.has(s.status)),
+          ((approved || fullByRoster) && s.roster === 'pending' && GOING.has(s.status)),
       ),
     };
   }
@@ -268,6 +275,58 @@ export function finalRoster(
   return {
     going: pick(comp.selected.map((d) => d.signup.id)),
     bench: pick(comp.bench.map((d) => d.signup.id)),
+  };
+}
+
+/**
+ * Going signups (`accepted` / `late`) that `finalRoster` placed on Standby before officer
+ * approval. Excludes voluntary Standby (`status: 'bench'`) and leader-benched (`roster: 'benched'`).
+ */
+export function recommendedSitsFromBench(
+  event: Pick<RaidEvent, 'rosterApprovedAt'>,
+  bench: readonly Signup[],
+): Signup[] {
+  if (event.rosterApprovedAt !== null) return [];
+  return bench.filter((s) => s.roster === 'pending' && GOING.has(s.status));
+}
+
+/**
+ * Leads-channel notice at lock when an unapproved event has more Going signups than seats:
+ * the public final roster is held until an officer reviews and approves the recommendation.
+ */
+export function renderOvercapApprovalNotice(tick: TickEvent, members: TickMember[]): MessageData {
+  const { bench } = finalRoster(tick, members);
+  const recSit = recommendedSitsFromBench(tick.event, bench);
+  const goingTotal = competingGoingSignups(tick.signups).length;
+  const sitNames = recSit.map((s) => `**${s.characterName}**`).join(', ');
+  const sitLine = sitNames ? ` Recommended to sit: ${sitNames}.` : '';
+  return {
+    content: (
+      `**${eventTitle(tick.event)}** locked with **${goingTotal} going** for **${tick.event.size} seats**. ` +
+      `The public final roster is held so no one is sat without officer approval.${sitLine} ` +
+      'Review the party draft and click **Approve and post**, or adjust in the quarters.'
+    ).slice(0, MAX_CONTENT),
+    allowed_mentions: { parse: [] },
+  };
+}
+
+/**
+ * Leads-channel notice at lock when explicitly seated players exceed `event.size`:
+ * the public final roster is held until seated count fits the cap.
+ */
+export function renderOvercommittedNotice(tick: TickEvent, members: TickMember[]): MessageData {
+  const explicitSeated = rosteredSignups(tick.signups).length;
+  const seated = Math.max(explicitSeated, finalRoster(tick, members).going.length);
+  const size = tick.event.size ?? seated;
+  const over = Math.max(1, seated - size);
+  const word = over === 1 ? 'player' : 'players';
+  return {
+    content: (
+      `**${eventTitle(tick.event)}** locked with **${seated} seated** for **${size} seats**. ` +
+      `The public final roster is held until ${over} seated ${word} ${over === 1 ? 'is' : 'are'} moved to Standby ` +
+      '(or the event size is increased).'
+    ).slice(0, MAX_CONTENT),
+    allowed_mentions: { parse: [] },
   };
 }
 

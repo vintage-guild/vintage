@@ -49,9 +49,12 @@ directly. Maturity: **core**.
   is always `null`). Before approval, `solveEventComp` seats going signups by comp requirements,
   role targets, and rank priority (`RANK_PRIORITY`: raiders/leaders/officers > recruits > flex
   raiders > members > friends); overflow and Flex Raiders on guild raids sit on Standby.
-  `roster-approve` materializes the drafted comp and `groupDraft` party groups onto `signups`
-  (`roster: 'rostered'` + `group` for seated players, `roster: 'benched'` + `group: null` for
-  Standby/overflow); after approval, new signups land on Standby until a leader seats them.
+  `roster-approve` refuses overcommitted rosters (`ROSTER_OVERCOMMITTED` when explicitly seated
+  players exceed `event.size`, #345) and otherwise materializes the drafted comp and `groupDraft`
+  party groups onto `signups` (`roster: 'rostered'` + `group` for seated players, `roster:
+  'benched'` + `group: null` for Standby/overflow); after approval, new signups land on Standby
+  until a leader seats them. `roster-move` blocks seating a new player past `event.size`
+  (`ROSTER_FULL`) while still letting leaders move already-seated players into valid groups.
 - **When signups lock** (`domain/timings.ts`): `locksAt` = start minus the schedule's
   `lockHours`, or `DEFAULT_TIMINGS` for a one-off, the same rule the coordinator's tick source
   uses. `raid-list` rows and `raid-get` carry it.

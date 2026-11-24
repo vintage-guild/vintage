@@ -269,6 +269,8 @@ describe('raid cards', () => {
     const draft = renderPartyDraft(raid, [], { siteUrl: 'https://vintage.guild' });
     expectWithinLimits(draft);
     expect(buttonLabels(draft)).toEqual(['Approve and post', 'Redraft', 'Edit in the quarters']);
+    expect(messageText(draft)).toContain('Recommended to sit (5)');
+    expect(messageText(draft)).toContain('Standby (4)');
     const partyPost = renderPartyPost(raid, [], { locked: true });
     expectWithinLimits(partyPost);
     expect((partyPost.embeds![0] as Embed).title).toContain('Final roster');
@@ -313,6 +315,34 @@ describe('raid cards', () => {
     expect((partyLocked.embeds![0] as Embed).description).toContain(`· ${expectedMd}`);
     const final = renderFinalRoster(coded, [], { siteUrl });
     expect((final.embeds![0] as Embed).description).toContain(`· ${expectedMd}`);
+  });
+
+  it('disables Approve and post on party draft when overcommitted (seated > size) (#345)', () => {
+    const smallEvent: RaidEvent = {
+      ...event,
+      size: 2,
+      roleTargets: { tank: 1, healer: 1, melee: 0, ranged: 0 },
+    };
+    const base = fullRaid();
+    const signups: Signup[] = base.signups.slice(0, 3).map((s, i) => ({
+      ...s,
+      status: 'accepted',
+      roster: 'rostered',
+      group: i < 2 ? 1 : 2,
+    }));
+    const draft = renderPartyDraft({ event: smallEvent, timings: DEFAULT_TIMINGS, signups }, [], {
+      locked: true,
+    });
+    expectWithinLimits(draft);
+    expect(messageText(draft)).toContain(
+      'Over size: 3/2 seated — move 1 to Standby before approving',
+    );
+    expect(messageText(draft)).toContain('Group 2 (over size)');
+    const row = draft.components?.[0] as {
+      components: { custom_id?: string; disabled?: boolean }[];
+    };
+    const approveBtn = row.components.find((c) => c.custom_id?.startsWith('party-approve:'));
+    expect(approveBtn?.disabled).toBe(true);
   });
 
   it("quotes the raid's notes under the lock line, a block per paragraph, within the limits", () => {

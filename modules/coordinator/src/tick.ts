@@ -44,6 +44,8 @@ import {
   renderDm,
   renderFailure,
   renderImportString,
+  renderOvercapApprovalNotice,
+  renderOvercommittedNotice,
   renderPromotion,
   renderReminder,
   renderStepFailure,
@@ -194,12 +196,17 @@ async function perform(
       return sent;
     }
     case 'party-draft': {
-      const message = renderPartyDraft(tick, state.members, cardOptions(ports));
+      const message = renderPartyDraft(tick, state.members, {
+        ...cardOptions(ports),
+        locked: action.locked,
+      });
       return { ...(await send(message)), renderHash: hashMessage(message) };
     }
     case 'party-post': {
-      const locked = tick.event.status === 'locked';
-      const message = renderPartyPost(tick, state.members, { locked, ...cardOptions(ports) });
+      const message = renderPartyPost(tick, state.members, {
+        locked: action.locked,
+        ...cardOptions(ports),
+      });
       return { ...(await send(message)), renderHash: hashMessage(message) };
     }
     case 'unapproved-notice':
@@ -207,6 +214,10 @@ async function perform(
         content: `Groups weren't approved before lock for **${tick.event.name}**; posted the 4-column final roster instead.`,
         allowed_mentions: { parse: [] },
       });
+    case 'overcap-approval':
+      return send(renderOvercapApprovalNotice(tick, state.members));
+    case 'overcommitted-notice':
+      return send(renderOvercommittedNotice(tick, state.members));
     case 'open-seats':
       return send(renderLockOpenSeats(tick, state.members, { reason: action.reason }));
     case 'lock':
@@ -615,7 +626,8 @@ export async function runTick(ports: TickPorts, guildId: string, now: number): P
     (tick) => hashMessage(renderSignupPost(tick, state.members, cardOptions(ports))),
     (tick) => hashServerEvent(serverEventFor(tick, ports)),
     (recorded) => hashMessage(renderRaidSummary(recorded)),
-    (tick) => hashMessage(renderPartyDraft(tick, state.members, cardOptions(ports))),
+    (tick, locked) =>
+      hashMessage(renderPartyDraft(tick, state.members, { ...cardOptions(ports), locked })),
     (tick, locked) =>
       hashMessage(renderPartyPost(tick, state.members, { locked, ...cardOptions(ports) })),
     (tick) => hashMessage(renderCancelledPost(tick.event)),
@@ -656,7 +668,10 @@ function runPlannedAction(
         'party-draft-update',
         action.tick,
         action.draft,
-        renderPartyDraft(action.tick, state.members, cardOptions(ports)),
+        renderPartyDraft(action.tick, state.members, {
+          ...cardOptions(ports),
+          locked: action.locked,
+        }),
         state,
         ports,
         now,

@@ -16,7 +16,14 @@
 //   raid-summary   once an officer records the addon's export: how the bosses went, who came, and
 //                  what dropped, to the signup channel; edited when a different export replaces
 //                  it (not logged, like refresh)
-import { accessOf, kindOf, type RaidEvent, type Signup } from '@vintage/raids/contract';
+import {
+  accessOf,
+  isRosterOverCap,
+  isRosterOvercommitted,
+  kindOf,
+  type RaidEvent,
+  type Signup,
+} from '@vintage/raids/contract';
 import type { AnnouncedMemberState, CoordinatorAction, CoordinatorConfig } from '../contract';
 import type { TickEvent, TickMember, TickRecorded, TickState } from '../store';
 import { type DropoutAlert, diffEventChanges } from './changes';
@@ -78,9 +85,9 @@ export type PlannedAction =
       lines: string[];
       changedRows: AnnouncedMemberState[];
     }
-  | { kind: 'party-draft'; tick: TickEvent; rule: 'party-draft'; target: string }
-  | { kind: 'party-draft-update'; tick: TickEvent; draft: CoordinatorAction }
-  | { kind: 'party-post'; tick: TickEvent; rule: 'party-post'; target: string }
+  | { kind: 'party-draft'; tick: TickEvent; rule: 'party-draft'; target: string; locked: boolean }
+  | { kind: 'party-draft-update'; tick: TickEvent; draft: CoordinatorAction; locked: boolean }
+  | { kind: 'party-post'; tick: TickEvent; rule: 'party-post'; target: string; locked: boolean }
   | {
       kind: 'party-post-update';
       tick: TickEvent;
@@ -88,6 +95,8 @@ export type PlannedAction =
       locked: boolean;
     }
   | { kind: 'unapproved-notice'; tick: TickEvent; rule: 'unapproved-notice'; target: string }
+  | { kind: 'overcap-approval'; tick: TickEvent; rule: 'overcap-approval'; target: string }
+  | { kind: 'overcommitted-notice'; tick: TickEvent; rule: 'overcommitted-notice'; target: string }
   | {
       kind: 'open-seats';
       tick: TickEvent;
@@ -312,26 +321,48 @@ function planChanges(
   return out;
 }
 
+/** True when explicitly rostered players or `finalRoster` going count exceed `event.size`. */
+function isOvercommitted(state: TickState, tick: TickEvent): boolean {
+  if (tick.event.size === null) return false;
+  if (isRosterOvercommitted(tick.event, tick.signups)) return true;
+  return finalRoster(tick, state.members).going.length > tick.event.size;
+}
+
+/**
+ * True when an unapproved event has more Going signups competing for seats than `event.size`,
+ * so posting automatically at lock would force the bot to sit someone without officer approval.
+ */
+function needsApprovalAtLock(tick: TickEvent): boolean {
+  return tick.event.rosterApprovedAt === null && isRosterOverCap(tick.event, tick.signups);
+}
+
 function planPartyDraft(
   state: TickState,
   tick: TickEvent,
   done: Set<string>,
   now: number,
   locked: boolean,
-  partyDraftHash?: (tick: TickEvent) => string,
+  partyDraftHash?: (tick: TickEvent, locked: boolean) => string,
 ): PlannedAction[] {
   const leads = leadsChannelFor(state.config);
-  const dueAt = tick.event.startsAt - (tick.timings.digestHours ?? 24) * HOUR;
-  if (!leads || now < dueAt) return [];
+  if (!leads) return [];
   const draft = sentAction(state, tick.event.id, 'party-draft');
+  const isRaid = kindOf(tick.event) === 'raid';
+  const heldForApproval =
+    locked &&
+    tick.event.rosterApprovedAt === null &&
+    (needsApprovalAtLock(tick) || isOvercommitted(state, tick));
   if (!draft) {
-    if (done.has(`party-draft|${leads}`) || tick.event.rosterApprovedAt !== null || locked) {
+    if (done.has(`party-draft|${leads}`) || tick.event.rosterApprovedAt !== null) {
       return [];
     }
-    return [{ kind: 'party-draft', tick, rule: 'party-draft', target: leads }];
+    const dueAt = tick.event.startsAt - (tick.timings.digestHours ?? 24) * HOUR;
+    const dueForRaid = isRaid && now >= dueAt && !locked;
+    if (!dueForRaid && !heldForApproval) return [];
+    return [{ kind: 'party-draft', tick, rule: 'party-draft', target: leads, locked }];
   }
-  if (partyDraftHash && draft.renderHash !== partyDraftHash(tick)) {
-    return [{ kind: 'party-draft-update', tick, draft }];
+  if (partyDraftHash && draft.renderHash !== partyDraftHash(tick, locked)) {
+    return [{ kind: 'party-draft-update', tick, draft, locked }];
   }
   return [];
 }
@@ -343,13 +374,16 @@ function planPartyPost(
   locked: boolean,
   partyPostHash?: (tick: TickEvent, locked: boolean) => string,
 ): PlannedAction[] {
+  if (kindOf(tick.event) !== 'raid') return [];
   const channel = signupChannelFor(state.config, tick.event);
   if (!channel || tick.event.rosterApprovedAt === null) return [];
+  // Never post or promote a public party post while seated count exceeds event.size.
+  if (isOvercommitted(state, tick)) return [];
   const partyPost = sentAction(state, tick.event.id, 'party-post');
   if (!partyPost) {
     return done.has(`party-post|${channel}`)
       ? []
-      : [{ kind: 'party-post', tick, rule: 'party-post', target: channel }];
+      : [{ kind: 'party-post', tick, rule: 'party-post', target: channel, locked }];
   }
   if (partyPostHash && partyPost.renderHash !== partyPostHash(tick, locked)) {
     return [{ kind: 'party-post-update', tick, partyPost, locked }];
@@ -362,17 +396,61 @@ function planParties(
   tick: TickEvent,
   done: Set<string>,
   now: number,
-  partyDraftHash?: (tick: TickEvent) => string,
+  partyDraftHash?: (tick: TickEvent, locked: boolean) => string,
   partyPostHash?: (tick: TickEvent, locked: boolean) => string,
 ): PlannedAction[] {
-  // Parties are for raids only (signup-improvements §1a).
-  if (kindOf(tick.event) !== 'raid') return [];
   const lockAt = tick.event.startsAt - tick.timings.lockHours * HOUR;
   const locked = now >= lockAt || tick.event.status === 'locked';
   return [
     ...planPartyDraft(state, tick, done, now, locked, partyDraftHash),
     ...planPartyPost(state, tick, done, locked, partyPostHash),
   ];
+}
+
+function planLockHold(
+  state: TickState,
+  tick: TickEvent,
+  done: Set<string>,
+  leads: string | null,
+): PlannedAction[] | null {
+  if (isOvercommitted(state, tick)) {
+    return leads && !done.has(`overcommitted-notice|${leads}`)
+      ? [{ kind: 'overcommitted-notice', tick, rule: 'overcommitted-notice', target: leads }]
+      : [];
+  }
+  if (needsApprovalAtLock(tick)) {
+    return leads && !done.has(`overcap-approval|${leads}`)
+      ? [{ kind: 'overcap-approval', tick, rule: 'overcap-approval', target: leads }]
+      : [];
+  }
+  return null;
+}
+
+function planLockLeadsFollowups(
+  state: TickState,
+  tick: TickEvent,
+  done: Set<string>,
+  leads: string,
+): PlannedAction[] {
+  const { event } = tick;
+  const out: PlannedAction[] = [];
+  if (
+    kindOf(event) === 'raid' &&
+    event.rosterApprovedAt === null &&
+    !done.has(`unapproved-notice|${leads}`)
+  ) {
+    out.push({ kind: 'unapproved-notice', tick, rule: 'unapproved-notice', target: leads });
+  }
+  if (event.size !== null && !done.has(`lock-open-seats|${leads}`)) {
+    const { going, bench } = finalRoster(tick, state.members);
+    if (going.length < event.size && bench.length > 0) {
+      out.push({ kind: 'open-seats', tick, rule: 'lock-open-seats', target: leads });
+    }
+  }
+  if (!done.has(`import-string|${leads}`)) {
+    out.push({ kind: 'import-string', tick, rule: 'import-string', target: leads });
+  }
+  return out;
 }
 
 function planLock(
@@ -384,32 +462,22 @@ function planLock(
   const { event, timings } = tick;
   if (now < event.startsAt - timings.lockHours * HOUR) return [];
   const out: PlannedAction[] = [];
-  if (!done.has(`lock|${event.id}`))
+  if (!done.has(`lock|${event.id}`)) {
     out.push({ kind: 'lock', tick, rule: 'lock', target: event.id });
+  }
+  const leads = leadsChannelFor(state.config);
+  const held = planLockHold(state, tick, done, leads);
+  if (held !== null) {
+    out.push(...held);
+    return out;
+  }
   const channel = signupChannelFor(state.config, event);
   const approvedRaid = kindOf(event) === 'raid' && event.rosterApprovedAt !== null;
   // An approved raid's party post becomes the final roster in place; otherwise post 4-column roster.
   if (channel && !approvedRaid && !done.has(`final-roster|${channel}`)) {
     out.push({ kind: 'final-roster', tick, rule: 'final-roster', target: channel });
   }
-  const leads = leadsChannelFor(state.config);
-  if (
-    leads &&
-    kindOf(event) === 'raid' &&
-    event.rosterApprovedAt === null &&
-    !done.has(`unapproved-notice|${leads}`)
-  ) {
-    out.push({ kind: 'unapproved-notice', tick, rule: 'unapproved-notice', target: leads });
-  }
-  if (leads && event.size !== null && !done.has(`lock-open-seats|${leads}`)) {
-    const { going, bench } = finalRoster(tick, state.members);
-    if (going.length < event.size && bench.length > 0) {
-      out.push({ kind: 'open-seats', tick, rule: 'lock-open-seats', target: leads });
-    }
-  }
-  if (leads && !done.has(`import-string|${leads}`)) {
-    out.push({ kind: 'import-string', tick, rule: 'import-string', target: leads });
-  }
+  if (leads) out.push(...planLockLeadsFollowups(state, tick, done, leads));
   return out;
 }
 
@@ -487,7 +555,7 @@ function planEvent(
   tick: TickEvent,
   now: number,
   renderHash: (tick: TickEvent) => string,
-  partyDraftHash?: (tick: TickEvent) => string,
+  partyDraftHash?: (tick: TickEvent, locked: boolean) => string,
   partyPostHash?: (tick: TickEvent, locked: boolean) => string,
 ): PlannedAction[] {
   if (
@@ -525,7 +593,7 @@ export function planTick(
   serverEventHash?: (tick: TickEvent, post: CoordinatorAction) => string,
   /** Hash of the summary a recorded raid should have; needed only when `recorded` has raids. */
   summaryHash?: (recorded: TickRecorded) => string,
-  partyDraftHash?: (tick: TickEvent) => string,
+  partyDraftHash?: (tick: TickEvent, locked: boolean) => string,
   partyPostHash?: (tick: TickEvent, locked: boolean) => string,
   /** Hash of a cancelled raid's post; needed only when `cancelled` has raids. */
   cancelledHash?: (tick: TickEvent) => string,

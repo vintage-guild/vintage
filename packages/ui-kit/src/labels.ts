@@ -37,6 +37,16 @@ const RULE_WORDS: [prefix: string, done: string, todo: string][] = [
   ['digest', 'Sent officers the comp digest', 'Send officers the comp digest'],
   ['lock', 'Locked the roster', 'Lock the roster'],
   ['final', 'Posted the final roster', 'Post the final roster'],
+  [
+    'overcap-approval',
+    'Asked officers to approve an over-cap roster',
+    'Ask officers to approve an over-cap roster',
+  ],
+  [
+    'overcommitted-notice',
+    'Warned officers the roster is over size',
+    'Warn officers the roster is over size',
+  ],
   ['import', 'Sent officers the addon import string', 'Send officers the addon import string'],
   ['promote', 'Told the next in line a spot opened', 'Tell the next in line a spot opened'],
 ];

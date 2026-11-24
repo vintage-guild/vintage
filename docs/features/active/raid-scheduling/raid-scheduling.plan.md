@@ -65,17 +65,20 @@ other) stays as created.
   the overflow and anyone in a party group past the new group count (Group 6 after 40 → 20) for
   leaders to move.
 - **Over-full / out-of-range mechanics after approval (Bloodfen, 2026-11-22, row 11):**
-  - `roster-approve` (#324) persists drafted seats/groups as `roster: 'rostered'`, and once
-    `rosterApprovedAt !== null`, `finalRoster()` always returns every non-declined `rostered`
-    signup without falling back to `solveComp` (so shrinking never silently unseats anyone).
+  - `roster-approve` (#324, #345) rejects approval (`ROSTER_OVERCOMMITTED`) when explicitly seated
+    players exceed `event.size`; otherwise it persists drafted seats/groups as `roster: 'rostered'`,
+    and once `rosterApprovedAt !== null`, `finalRoster()` always returns every non-declined
+    `rostered` signup without falling back to `solveComp` (so shrinking never silently unseats
+    anyone).
   - `groupDraft()` (`libs/comp-solver/src/groups.ts`) preserves leader-assigned groups past
     `groupCount` in `outOfRange: PartyGroup[]` and returns any extra seated players past capacity
-    in `overflow: string[]` instead of dropping them. `card.ts` (party draft & party post) and
-    the quarters roster desk render `Group N (over size)` and `Over size (move to Standby)` until
-    leaders move or bench them.
-  - `roster-move` keeps restricting *target* groups to `1..groupCount(event)` so leaders can only
-    move people *into* valid groups (e.g., Group 6 → Group 1–4) or onto Standby via
-    `roster-bench`.
+    in `overflow: string[]` instead of dropping them. The `#leads` party draft (`card.ts`) and the
+    quarters roster desk render `Group N (over size)` and `Over size (move to Standby)` until
+    leaders move or bench them, while public `party-post` / `final-roster` updates are held so an
+    overcommitted roster (`seated > event.size`) is never posted or finalized publicly (#345).
+  - `roster-move` keeps restricting *target* groups to `1..groupCount(event)` and blocks seating
+    a new player past `event.size` (`ROSTER_FULL`), so leaders can only move already-seated people
+    into valid groups (e.g., Group 6 → Group 1–4) or onto Standby via `roster-bench`.
 - **What updates:** the signup post (headers like "Healers 3/4", Missing, the size line) and the
   party post refresh on the next tick, and so does the Discord server event's description when
   server events are on. Note: `tick-source.ts` / `planEvent()` stop loading a raid once
@@ -196,7 +199,7 @@ TJ decides how it behaves; Bloodfen makes the technical calls. Dated rows are de
 | 8 | The link is visible text at the end of the subtext line, and the party post, final roster and server event use it too | A button can't be copied or shared; one link everywhere | TJ, 2026-11-22 |
 | 9 | A six-character `shortCode` (excluding `0/o/1/l/i`) on raids with `by_guild_short_code` index, `raid-get` accepting `shortCode`, `/r/<code>` route, masked markdown link in Discord embeds, and a backfill | Short to read and type, indexed, and keeps access checks inside the AFD command | Bloodfen, 2026-11-22 |
 | 10 | Track `updatedAt` / `updatedBy` on `RaidEvent` and raid-level metadata in `announcedState` for `#leads` edit lines | `announcedState` currently only diffs member signups/absences | Bloodfen, 2026-11-22 |
-| 11 | Shrinking a raid: before approval, clear out-of-range groups (`group > Math.ceil(size / 5)`) to `null`; after approval, `roster-approve` persists seats, `finalRoster()` keeps all `rostered` players, `groupDraft()` returns `outOfRange: PartyGroup[]` and `overflow: string[]` (never silently dropping anyone), and `roster-move` keeps destination bounds `1..groupCount(event)` | Prevents silent player drops or auto-unseating while guiding leaders to move overflow into valid groups or Standby | Bloodfen, 2026-11-22 |
+| 11 | Shrinking a raid: before approval, clear out-of-range groups (`group > Math.ceil(size / 5)`) to `null`; after approval, `roster-approve` rejects overcommitted rosters (`ROSTER_OVERCOMMITTED`) and otherwise persists seats, `finalRoster()` keeps all `rostered` players, `groupDraft()` returns `outOfRange: PartyGroup[]` and `overflow: string[]` (never silently dropping anyone) shown in the `#leads` draft and quarters desk while public `party-post`/`final-roster` posts stay held until `seated <= size` (#345), and `roster-move` keeps destination bounds `1..groupCount(event)` and blocks seating new players past `size` | Prevents silent player drops, auto-unseating, or posting an overcommitted roster publicly while guiding leaders to move overflow into valid groups or Standby | Bloodfen, 2026-11-22 (updated 2026-11-23, #345) |
 | 12 | Reminder DMs keep linking to the Discord signup post; the server event uses the short link | The DM's job is getting an answer, and the buttons are on the post | TJ, 2026-11-22 |
 | 13 | `raid-update` allows every edit after the raid starts (time, notes, size, comp); only completed and cancelled raids refuse | Nights change mid-raid too | TJ, 2026-11-22 |
 | 14 | Discord forms keep melee and ranged apart, for schedules and for `/vintage event create` (#323) | Same targets as the site | TJ, 2026-11-22 |

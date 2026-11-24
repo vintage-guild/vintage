@@ -36,7 +36,14 @@ export {
   type GuildClock,
   resolveGuildClock,
 } from './domain/clock';
-export { RANK_PRIORITY, solveEventComp } from './domain/comp';
+export {
+  competingGoingSignups,
+  isRosterOverCap,
+  isRosterOvercommitted,
+  RANK_PRIORITY,
+  rosteredSignups,
+  solveEventComp,
+} from './domain/comp';
 export {
   type CompRole,
   compRole,

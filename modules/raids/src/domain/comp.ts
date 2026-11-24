@@ -20,6 +20,43 @@ export const RANK_PRIORITY: Record<GuildRank, number> = {
 
 const GOING = new Set(['accepted', 'late']);
 
+/** Non-declined signups explicitly seated by a leader. */
+export function rosteredSignups(signups: readonly Signup[]): Signup[] {
+  return signups.filter((s) => s.roster === 'rostered' && s.status !== 'declined');
+}
+
+/**
+ * Signups competing for a raid seat: leader-rostered non-declined signups, plus pending Going
+ * (`accepted` / `late`) signups. Excludes voluntary Standby (`status: 'bench'`), tentative,
+ * declined, and leader-benched (`roster: 'benched'`) signups.
+ */
+export function competingGoingSignups(signups: readonly Signup[]): Signup[] {
+  return signups.filter(
+    (s) =>
+      (s.roster === 'rostered' && s.status !== 'declined') ||
+      (s.roster === 'pending' && GOING.has(s.status)),
+  );
+}
+
+/** True when explicitly rostered signups exceed `event.size`. */
+export function isRosterOvercommitted(
+  event: Pick<RaidEvent, 'size'>,
+  signups: readonly Signup[],
+): boolean {
+  return event.size !== null && rosteredSignups(signups).length > event.size;
+}
+
+/**
+ * True when more signups are competing for seats than `event.size` allows, so finalizing without
+ * officer approval would force the bot to sit at least one Going signup on its own.
+ */
+export function isRosterOverCap(
+  event: Pick<RaidEvent, 'size'>,
+  signups: readonly Signup[],
+): boolean {
+  return event.size !== null && competingGoingSignups(signups).length > event.size;
+}
+
 /**
  * Solve a raid's comp from its signups and member ranks (going-only by default):
  * - Leader-rostered signups get top priority (100) and count as accepted unless declined.

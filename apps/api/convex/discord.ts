@@ -24,6 +24,7 @@ import { handleHelpInteraction } from '../src/discord-help';
 import { handleLeadsInteraction } from '../src/discord-leads';
 import { handleManageInteraction } from '../src/discord-manage';
 import { handlePollInteraction } from '../src/discord-polls';
+import { handleRosterInteraction } from '../src/discord-roster';
 import { handleScheduleAutocomplete, handleScheduleInteraction } from '../src/discord-schedules';
 import { handleSignupInteraction } from '../src/discord-signups';
 import { internal } from './_generated/api';
@@ -82,6 +83,14 @@ export const interaction = internalMutation({
         runCommandAs(ctx, caller, name, input, confirmToken),
     });
     if (character) return character;
+
+    const roster = await handleRosterInteraction(incoming, {
+      discordGuildId,
+      guildId: GUILD_ID,
+      memberByDiscordId,
+      run: (caller, name, input) => runCommandAs(ctx, caller, name, input),
+    });
+    if (roster) return roster;
 
     const raids = raidsStore(ctx);
     const absence = await handleAbsenceInteraction(incoming, {

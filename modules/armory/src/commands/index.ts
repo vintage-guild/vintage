@@ -1,3 +1,4 @@
+import { rosterRankAudit } from './audit';
 import {
   armoryCatalogRecord,
   armoryCatalogSync,
@@ -20,6 +21,12 @@ import {
 } from './roster';
 import { armoryRecord, armorySweep } from './system';
 
+export {
+  auditRosterRanks,
+  expectedDiscordRank,
+  inGameRankName,
+  ranksCompatible,
+} from '../domain/audit';
 export { type CatalogClient, catalogProfessions, fetchCatalog } from '../domain/catalog';
 export { type ArmoryClient, fetchArmory } from '../domain/fetch';
 export {
@@ -41,6 +48,8 @@ export type {
   ArmoryCharacters,
   ArmoryDeps,
   ArmoryEffects,
+  ArmoryMember,
+  ArmoryMembers,
   ArmoryStore,
   CatalogEffects,
   CatalogStore,
@@ -61,6 +70,7 @@ export const armoryCommands = [
   armoryGuildRosterSync,
   armoryGuildRosterRecord,
   armoryGuildRosterRoleSet,
+  rosterRankAudit,
   armoryRecipeSearch,
   armoryCatalogSync,
   armoryCatalogRecord,

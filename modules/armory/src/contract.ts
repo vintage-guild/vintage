@@ -356,3 +356,76 @@ export interface CharacterRecipes {
 export const RECIPE_DETAIL_SYNC_LIMIT = 2500;
 /** Recipe details one record call carries. */
 export const RECIPE_DETAIL_BATCH = 50;
+
+/** Blizzard's in-game guild rank indices as Vintage names them (0 = GM). */
+export const IN_GAME_RANK_NAMES: Readonly<Record<number, string>> = {
+  0: 'Guild Master',
+  1: 'Officer',
+  2: 'Officer Alt',
+  3: 'Raider',
+  4: 'Flex Raider',
+  5: 'Members & Alts',
+  6: 'Recruit',
+};
+
+export const ROSTER_AUDIT_SECTIONS = ['mismatches', 'unlinked', 'departed', 'all'] as const;
+export type RosterAuditSection = (typeof ROSTER_AUDIT_SECTIONS)[number];
+
+/** One Discord member whose Discord rank differs from their highest in-game character's rank. */
+export interface RosterAuditMismatch {
+  memberId: string;
+  discordId: string;
+  displayName: string;
+  discordRank: string | null;
+  expectedRank: string;
+  characterName: string;
+  inGameRank: number;
+  inGameRankName: string;
+}
+
+/** One active Discord member with a guild role who has no matched character on the in-game roster. */
+export interface RosterAuditMissingInGame {
+  memberId: string;
+  discordId: string;
+  displayName: string;
+  discordRank: string;
+  registeredCharacters: string[];
+}
+
+/** One in-game roster character not matched to any Discord member. */
+export interface RosterAuditUnlinkedCharacter {
+  name: string;
+  surname: string;
+  slug: string;
+  level: number;
+  inGameRank: number;
+  inGameRankName: string;
+}
+
+/** One member who left Discord (`inServer: false`) but still has character(s) in-game. */
+export interface RosterAuditLeftDiscord {
+  memberId: string;
+  discordId: string;
+  displayName: string;
+  characters: string[];
+}
+
+export interface RosterAuditSummary {
+  discordMembersChecked: number;
+  inGameCharacters: number;
+  matchedMembers: number;
+  mismatches: number;
+  discordWithoutInGame: number;
+  inGameWithoutDiscord: number;
+  leftDiscordStillInGame: number;
+}
+
+/** What `roster-rank-audit` answers (#353). */
+export interface RosterRankAudit {
+  section: RosterAuditSection;
+  summary: RosterAuditSummary;
+  mismatches: RosterAuditMismatch[];
+  discordWithoutInGame: RosterAuditMissingInGame[];
+  inGameWithoutDiscord: RosterAuditUnlinkedCharacter[];
+  leftDiscordStillInGame: RosterAuditLeftDiscord[];
+}

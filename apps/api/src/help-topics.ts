@@ -166,4 +166,13 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
     ],
     sitePath: '/apply',
   },
+  {
+    key: 'roster',
+    title: 'Roster',
+    summary: 'Compare Discord roles against the synced in-game guild roster (officers).',
+    group: 'roster',
+    runs: { 'roster audit': 'roster-rank-audit' },
+    examples: ['/vintage roster audit', '/vintage roster audit section:unlinked'],
+    sitePath: '/officers?tab=roster',
+  },
 ];

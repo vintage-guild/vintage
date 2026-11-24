@@ -5,7 +5,14 @@ import type {
   RosterEntry,
   RosterRecipe,
 } from './contract';
-import type { ArmoryCharacter, ArmoryDeps, ArmoryStore, CatalogStore, RosterStore } from './store';
+import type {
+  ArmoryCharacter,
+  ArmoryDeps,
+  ArmoryMember,
+  ArmoryStore,
+  CatalogStore,
+  RosterStore,
+} from './store';
 
 /** Code-point order, like the component's `by_guild_name` index (not the locale's). */
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
@@ -158,6 +165,8 @@ export interface MemoryArmoryDeps extends ArmoryDeps {
   armoryCatalog: ReturnType<typeof createMemoryCatalogStore>;
   /** Registered characters by guild; tests add and remove them. */
   characters: Map<string, ArmoryCharacter[]>;
+  /** Synced Discord members by guild; tests add and remove them (#353). */
+  auditMembers: Map<string, ArmoryMember[]>;
   /** Every fetch asked for, in order. */
   fetches: { guildId: string; linkIds: string[] }[];
   /** Every roster sync asked for, in order. */
@@ -168,6 +177,7 @@ export interface MemoryArmoryDeps extends ArmoryDeps {
 
 export function createMemoryArmoryDeps(): MemoryArmoryDeps {
   const characters = new Map<string, ArmoryCharacter[]>();
+  const auditMembers = new Map<string, ArmoryMember[]>();
   const fetches: MemoryArmoryDeps['fetches'] = [];
   const rosterSyncs: MemoryArmoryDeps['rosterSyncs'] = [];
   const catalogSyncs: MemoryArmoryDeps['catalogSyncs'] = [];
@@ -176,6 +186,7 @@ export function createMemoryArmoryDeps(): MemoryArmoryDeps {
     armoryRoster: createMemoryRosterStore(),
     armoryCatalog: createMemoryCatalogStore(),
     characters,
+    auditMembers,
     fetches,
     rosterSyncs,
     catalogSyncs,
@@ -190,6 +201,11 @@ export function createMemoryArmoryDeps(): MemoryArmoryDeps {
       },
       async listCharacters(guildId) {
         return [...(characters.get(guildId) ?? [])];
+      },
+    },
+    armoryMembers: {
+      async listMembers(guildId) {
+        return [...(auditMembers.get(guildId) ?? [])];
       },
     },
     armoryEffects: {

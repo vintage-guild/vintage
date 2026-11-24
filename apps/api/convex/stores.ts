@@ -360,6 +360,18 @@ export function armoryDeps(ctx: Ctx): ArmoryDeps {
       listCharacters: async (guildId) =>
         (await identityStore(ctx).listCharacters(guildId)).map(asArmoryCharacter),
     },
+    armoryMembers: {
+      listMembers: async (guildId) =>
+        (await identityStore(ctx).listMembers(guildId)).map(
+          ({ id, discordId, displayName, rank, inServer }) => ({
+            id,
+            discordId,
+            displayName,
+            rank,
+            inServer,
+          }),
+        ),
+    },
     armoryEffects: {
       fetch: async (_guildId, linkIds) => {
         await writable(ctx).scheduler.runAfter(0, refreshArmory, { linkIds: [...linkIds] });

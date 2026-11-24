@@ -17,6 +17,7 @@ import {
   WORDING_INSTRUCTIONS,
 } from './domain/assessment';
 import {
+  raidSiteLink,
   renderFinalRoster,
   renderPartyDraft,
   renderPartyPost,
@@ -87,15 +88,12 @@ type Logged = Exclude<PlannedAction, Unlogged>;
 /** Discord 50013: the bot lacks a permission. For server events that is CREATE_EVENTS. */
 const MISSING_PERMISSIONS = 50013;
 
-/** Card options shared across post, refresh, and party draft renders. */
+/** Card options shared across signup, party draft, party post, and final roster renders. */
 const cardOptions = (ports: TickPorts) => ({ siteUrl: ports.links?.siteUrl ?? null });
 
-/** The server event a raid should have, linking to its signup post. */
-function serverEventFor(tick: TickEvent, post: CoordinatorAction, ports: TickPorts) {
-  return renderServerEvent(
-    tick,
-    signupLink(ports.links, { channelId: post.target, messageId: post.discordMessageId }),
-  );
+/** The server event a raid should have, using its short site link when VINTAGE_SITE_URL is set. */
+function serverEventFor(tick: TickEvent, ports: TickPorts) {
+  return renderServerEvent(tick, raidSiteLink(ports.links?.siteUrl, tick.event)?.url ?? null);
 }
 
 /** Name the missing permission instead of Discord's bare "Missing Permissions". */
@@ -199,7 +197,7 @@ async function perform(
     }
     case 'party-post': {
       const locked = tick.event.status === 'locked';
-      const message = renderPartyPost(tick, state.members, { locked });
+      const message = renderPartyPost(tick, state.members, { locked, ...cardOptions(ports) });
       return { ...(await send(message)), renderHash: hashMessage(message) };
     }
     case 'unapproved-notice':
@@ -213,12 +211,12 @@ async function perform(
       await ports.raids.lock(state.guildId, tick.event.id);
       return { status: 'sent' };
     case 'final-roster':
-      return send(renderFinalRoster(tick, state.members));
+      return send(renderFinalRoster(tick, state.members, cardOptions(ports)));
     case 'import-string':
       return send(renderImportString(tick, state.members, state.guildId, now));
     case 'server-event': {
       // The Discord event id is stored where posts keep their message id.
-      const data = serverEventFor(tick, action.post, ports);
+      const data = serverEventFor(tick, ports);
       const { id } = await ports.discord.createEvent(data).catch(explainEventError);
       return { status: 'sent', messageId: id, renderHash: hashServerEvent(data) };
     }
@@ -327,12 +325,12 @@ async function updateServerEvent(
   ports: TickPorts,
   now: number,
 ): Promise<TickOutcome> {
-  const { tick, serverEvent, post } = action;
+  const { tick, serverEvent } = action;
   const base = { eventId: tick.event.id, rule: 'server-event-update', target: serverEvent.target };
   if (!serverEvent.discordMessageId) {
     return { ...base, status: 'skipped', detail: 'server event has no Discord id' };
   }
-  const data = serverEventFor(tick, post, ports);
+  const data = serverEventFor(tick, ports);
   try {
     await ports.discord.editEvent(serverEvent.discordMessageId, data);
     await ports.store.setRenderHash(state.guildId, serverEvent.id, hashServerEvent(data));
@@ -613,10 +611,11 @@ export async function runTick(ports: TickPorts, guildId: string, now: number): P
     state,
     now,
     (tick) => hashMessage(renderSignupPost(tick, state.members, cardOptions(ports))),
-    (tick, post) => hashServerEvent(serverEventFor(tick, post, ports)),
+    (tick) => hashServerEvent(serverEventFor(tick, ports)),
     (recorded) => hashMessage(renderRaidSummary(recorded)),
     (tick) => hashMessage(renderPartyDraft(tick, state.members, cardOptions(ports))),
-    (tick, locked) => hashMessage(renderPartyPost(tick, state.members, { locked })),
+    (tick, locked) =>
+      hashMessage(renderPartyPost(tick, state.members, { locked, ...cardOptions(ports) })),
   );
   // In order: a raid's post goes out before its reminders, the lock before the final roster.
   for (const action of plan) {
@@ -654,7 +653,10 @@ function runPlannedAction(
         'party-post-update',
         action.tick,
         action.partyPost,
-        renderPartyPost(action.tick, state.members, { locked: action.locked }),
+        renderPartyPost(action.tick, state.members, {
+          locked: action.locked,
+          ...cardOptions(ports),
+        }),
         state,
         ports,
         now,

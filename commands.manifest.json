@@ -3280,7 +3280,7 @@
     },
     {
       "name": "raid-get",
-      "description": "One raid with signup counts, when signups lock, and your own signup. Recruits and up see the full signup list; Friends see open raids only.",
+      "description": "One raid (by eventId or case-insensitive shortCode) with signup counts, when signups lock, and your own signup. Recruits and up see the full signup list; Friends see open raids only.",
       "tier": "friend",
       "mutation": false,
       "destructive": false,
@@ -3291,11 +3291,12 @@
           "eventId": {
             "type": "string",
             "minLength": 1
+          },
+          "shortCode": {
+            "type": "string",
+            "minLength": 1
           }
-        },
-        "required": [
-          "eventId"
-        ]
+        }
       }
     },
     {

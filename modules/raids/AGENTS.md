@@ -55,6 +55,11 @@ directly. Maturity: **core**.
 - **When signups lock** (`domain/timings.ts`): `locksAt` = start minus the schedule's
   `lockHours`, or `DEFAULT_TIMINGS` for a one-off, the same rule the coordinator's tick source
   uses. `raid-list` rows and `raid-get` carry it.
+- **Short site links** (`domain/short-code.ts`): every new raid gets a 6-character lowercase
+  `shortCode` from the unambiguous alphabet `23456789abcdefghjkmnpqrstuvwxyz` (no `0/o/1/l/i`),
+  unique per guild with collision retry on insert (`by_guild_short_code` index; optional in Convex
+  until backfilled via `coordinator:backfillRaidShortCodes`). `raid-get` accepts `eventId` or
+  case-insensitive `shortCode` and enforces the same `access` / `friend`-tier visibility check.
 - **Raid notes and post-creation edits** ("what to bring", J19, J71, J72): `notes` on events and
   schedules, at most `RAID_NOTES_MAX` (500) characters, trimmed, blank or null for none
   (`notesSchema`). Set by `raid-create`, changed by `raid-update` (`startsAt`, `notes`, `size`,

@@ -12,7 +12,7 @@ import { createDiscordRest } from '@vintage/discord-kit';
 import { STARTER_RECRUITING } from '@vintage/site/contract';
 import { v } from 'convex/values';
 import { describeError } from '../src/ops-alerts';
-import { internal } from './_generated/api';
+import { components, internal } from './_generated/api';
 import { internalAction, internalMutation, internalQuery } from './_generated/server';
 import { GUILD_ID, runSystemCommand } from './commands';
 import { decisionsFor } from './decisions';
@@ -38,6 +38,16 @@ export const migrateReminderHours = internalMutation({
     }
     return { scanned: schedules.length, updated };
   },
+});
+
+/** One-time backfill (raid-scheduling plan §3): assign shortCode to older raids that lack one. */
+export const backfillRaidShortCodes = internalMutation({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, { limit }) =>
+    ctx.runMutation(components.raids.raidEvents.backfillShortCodes, {
+      guildId: GUILD_ID,
+      ...(limit === undefined ? {} : { limit }),
+    }),
 });
 
 export const state = internalQuery({

@@ -109,6 +109,8 @@ export const eventFields = {
   // Optional so rows written before raid-update tracking existed stay valid; read as null.
   updatedAt: v.optional(v.union(v.number(), v.null())),
   updatedBy: v.optional(v.union(v.string(), v.null())),
+  // Optional so rows written before short site links existed stay valid until backfilled.
+  shortCode: v.optional(v.union(v.string(), v.null())),
   configVersion: v.number(),
 };
 
@@ -211,7 +213,8 @@ export default defineSchema({
   schedules: defineTable(scheduleFields).index('by_guild', ['guildId']),
   raidEvents: defineTable(eventFields)
     .index('by_guild_start', ['guildId', 'startsAt'])
-    .index('by_guild_schedule_start', ['guildId', 'scheduleId', 'startsAt']),
+    .index('by_guild_schedule_start', ['guildId', 'scheduleId', 'startsAt'])
+    .index('by_guild_short_code', ['guildId', 'shortCode']),
   signups: defineTable(signupFields)
     .index('by_guild_event', ['guildId', 'eventId'])
     .index('by_guild_event_member', ['guildId', 'eventId', 'memberId'])

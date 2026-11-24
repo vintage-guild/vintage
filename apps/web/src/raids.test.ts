@@ -1,6 +1,14 @@
 import type { RaidEvent } from '@vintage/raids/contract';
 import { describe, expect, it } from 'vitest';
-import { raidFacts, raidHref, raidIdFromPath, refusedNote, rosterComp } from './raids';
+import {
+  raidFacts,
+  raidHref,
+  raidIdFromPath,
+  raidShortCodeFromPath,
+  raidShortHref,
+  refusedNote,
+  rosterComp,
+} from './raids';
 
 const event = {
   id: 'r1',
@@ -19,6 +27,11 @@ describe('raid page helpers', () => {
     expect(raidIdFromPath('/raids')).toBe('');
     expect(raidIdFromPath('/polls/k57abc')).toBe('');
     expect(raidIdFromPath(raidHref('a b'))).toBe('a b');
+    expect(raidShortCodeFromPath('/r/k3m9qz')).toBe('k3m9qz');
+    expect(raidShortCodeFromPath('/r/k3m9qz/')).toBe('k3m9qz');
+    expect(raidShortCodeFromPath('/r')).toBe('');
+    expect(raidShortCodeFromPath('/raids/k3m9qz')).toBe('');
+    expect(raidShortCodeFromPath(raidShortHref('k3m9qz'))).toBe('k3m9qz');
   });
 
   it('says when, where, how many, and the status, in the member’s zone', () => {

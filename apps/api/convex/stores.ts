@@ -155,6 +155,8 @@ export function raidsStore(ctx: Ctx): RaidsStore {
     listEvents: (guildId, filter = {}) =>
       ctx.runQuery(raids.raidEvents.list, { guildId, ...filter }),
     getEvent: (guildId, eventId) => ctx.runQuery(raids.raidEvents.get, { guildId, eventId }),
+    getEventByShortCode: (guildId, shortCode) =>
+      ctx.runQuery(raids.raidEvents.byShortCode, { guildId, shortCode }),
     insertEvent: (event) => writable(ctx).runMutation(raids.raidEvents.insert, event),
     updateEvent: (guildId, eventId, patch) =>
       writable(ctx).runMutation(raids.raidEvents.update, { guildId, eventId, patch }),

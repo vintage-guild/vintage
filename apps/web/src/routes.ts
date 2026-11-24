@@ -34,6 +34,7 @@ export class VintageRoutes extends RouterConfiguration {
       },
       { path: 'polls/{id?}', title: 'Polls', element: page(() => import('./pages/polls')) },
       { path: 'raids/{id}', title: 'Raid', element: page(() => import('./pages/raid')) },
+      { path: 'r/{code}', title: 'Raid', element: page(() => import('./pages/raid')) },
       { path: 'apply', title: 'Apply', element: page(() => import('./pages/apply')) },
       // Connecting an MCP client (#9): Better Auth sends the member here with a signed query.
       {

@@ -261,7 +261,7 @@ const GALLERY_ROSTER_DESK: RosterDeskMember[] = [
         : (m.rank ?? 'public'),
   rankSince:
     m.rank === 'recruit'
-      ? CALENDAR_NOW - (m.main ? 9 : 2) * GALLERY_DAY
+      ? CALENDAR_NOW - (m.main ? 16 : 2) * GALLERY_DAY
       : i % 2
         ? CALENDAR_NOW - 60 * GALLERY_DAY
         : null,

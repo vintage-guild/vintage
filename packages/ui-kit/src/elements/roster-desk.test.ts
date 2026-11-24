@@ -2,7 +2,13 @@ import type { CommandResult } from '@vintage/guild-kit';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { type CommandClient, setCommandClient } from '../client';
 import { cleanup, mount, settle, shadowText } from '../test-helpers';
-import { describeRoleDiff, type RosterDeskMember, type VintageRosterDesk } from './roster-desk';
+import {
+  describeRoleDiff,
+  isTrialDue,
+  type RosterDeskMember,
+  TRIAL_LENGTH_DAYS,
+  type VintageRosterDesk,
+} from './roster-desk';
 import './roster-desk';
 
 let restore: CommandClient | undefined;
@@ -80,6 +86,47 @@ describe('vintage-roster-desk', () => {
       'Pip on trial 3 days (since Nov 17) no character yet',
       'Old on trial since before tracking began',
     ]);
+    expect($$(el, '[part="trial"] .due')).toHaveLength(0);
+    expect(text($(el, '[part="trial"] .note'))).toContain(`Trials run ${TRIAL_LENGTH_DAYS} days`);
+  });
+
+  it('flags recruits at or past the two-week trial length as due for review, oldest first (#244)', async () => {
+    const el = await desk({
+      members: [
+        member({ displayName: 'Aeryn', rank: 'officer', tier: 'officer' }),
+        member({
+          displayName: 'Wren',
+          rank: 'recruit',
+          tier: 'recruit',
+          rankSince: NOW - 12 * DAY,
+        }),
+        member({
+          displayName: 'Tamsin',
+          rank: 'recruit',
+          tier: 'recruit',
+          rankSince: NOW - 14 * DAY,
+        }),
+        member({
+          displayName: 'Bram',
+          rank: 'recruit',
+          tier: 'recruit',
+          rankSince: NOW - 21 * DAY,
+          main: null,
+        }),
+        member({ displayName: 'Old', rank: 'recruit', tier: 'recruit', rankSince: null }),
+      ],
+    });
+    const trials = $$(el, '[part="trial"] li').map(text);
+    expect(trials).toEqual([
+      'Bram on trial 21 days (since Oct 30) due for review no character yet',
+      'Tamsin on trial 14 days (since Nov 6) due for review',
+      'Wren on trial 12 days (since Nov 8)',
+      'Old on trial since before tracking began',
+    ]);
+    expect($$(el, '[part="trial"] .due')).toHaveLength(2);
+    expect(isTrialDue(NOW - 14 * DAY, NOW)).toBe(true);
+    expect(isTrialDue(NOW - 14 * DAY + 1, NOW)).toBe(false);
+    expect(isTrialDue(null, NOW)).toBe(false);
   });
 
   it('names who has no character, and lists everyone by rank with the date they got it', async () => {

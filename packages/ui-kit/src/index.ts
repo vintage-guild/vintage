@@ -124,10 +124,12 @@ export {
 export { VintageRoleBadge } from './elements/role-badge';
 export {
   describeRoleDiff,
+  isTrialDue,
   ROLE_SYNC_MINUTES,
   ROSTER_RANKS,
   type RosterDeskMember,
   type RosterDeskRoles,
+  TRIAL_LENGTH_DAYS,
   VintageRosterDesk,
 } from './elements/roster-desk';
 export { RANK_GROUPS, type RosterMember, VintageRosterWall } from './elements/roster-wall';

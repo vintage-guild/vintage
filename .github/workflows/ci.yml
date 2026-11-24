@@ -3,8 +3,10 @@ name: CI
 on:
   pull_request:
     branches: [main]
-    # labeled/unlabeled: adding breaking-contract or ci:full-validation re-runs the checks
-    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
+    # Deliberately excludes labeled/unlabeled so routine labels (area:*, type:*) never start a
+    # second run that cancels the opened run (#254). Live PR labels are read via the GitHub API
+    # in select/contract so adding breaking-contract or ci:full-validation works on re-run.
+    types: [opened, synchronize, reopened, edited]
   push:
     branches: [main]
   schedule:
@@ -13,6 +15,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 # A newer push to a PR replaces its run. A running push to main is never cancelled (it validates
 # and deploys what Vercel already shipped); a newer pending push replaces an older pending one,
@@ -63,10 +66,24 @@ jobs:
           EVENT: ${{ github.event_name }}
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
-          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
-        run: >
-          node scripts/ci-selection.mjs --event "$EVENT" --base "$BASE" --head "$HEAD"
-          --labels "$LABELS" --output "$RUNNER_TEMP/ci-selection.json" --github-output "$GITHUB_OUTPUT"
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+          FALLBACK_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: |
+          LABELS="$FALLBACK_LABELS"
+          if [ "$EVENT" = "pull_request" ] && [ -n "$PR_NUMBER" ] && [ -n "$GH_TOKEN" ]; then
+            LIVE=$(node -e '
+              fetch(`https://api.github.com/repos/${process.env.REPO}/issues/${process.env.PR_NUMBER}/labels`, {
+                headers: { Authorization: `Bearer ${process.env.GH_TOKEN}`, Accept: "application/vnd.github+json" }
+              }).then(r => r.ok ? r.json() : null).then(xs => {
+                if (Array.isArray(xs)) process.stdout.write(xs.map(l => l.name).join(","));
+              }).catch(() => {});
+            ')
+            if [ -n "$LIVE" ]; then LABELS="$LIVE"; fi
+          fi
+          node scripts/ci-selection.mjs --event "$EVENT" --base "$BASE" --head "$HEAD" \
+            --labels "$LABELS" --output "$RUNNER_TEMP/ci-selection.json" --github-output "$GITHUB_OUTPUT"
 
   ts:
     needs: select
@@ -112,8 +129,23 @@ jobs:
         if: github.event_name == 'pull_request'
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
-          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
-        run: node scripts/check-contract-break.mjs --base "$BASE" --labels "$LABELS"
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+          FALLBACK_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: |
+          LABELS="$FALLBACK_LABELS"
+          if [ -n "$PR_NUMBER" ] && [ -n "$GH_TOKEN" ]; then
+            LIVE=$(node -e '
+              fetch(`https://api.github.com/repos/${process.env.REPO}/issues/${process.env.PR_NUMBER}/labels`, {
+                headers: { Authorization: `Bearer ${process.env.GH_TOKEN}`, Accept: "application/vnd.github+json" }
+              }).then(r => r.ok ? r.json() : null).then(xs => {
+                if (Array.isArray(xs)) process.stdout.write(xs.map(l => l.name).join(","));
+              }).catch(() => {});
+            ')
+            if [ -n "$LIVE" ]; then LABELS="$LIVE"; fi
+          fi
+          node scripts/check-contract-break.mjs --base "$BASE" --labels "$LABELS"
 
   addon:
     needs: select
@@ -153,7 +185,9 @@ jobs:
       - run: node --test 'scripts/*.test.mjs'
 
   ci-ok:
-    if: always()
+    # Run when any lane passed, failed, or was skipped, but never on a cancelled run (e.g. a
+    # superseded PR run cancelled by concurrency), which would otherwise emit a bogus red check (#254).
+    if: ${{ always() && !cancelled() && !contains(needs.*.result, 'cancelled') }}
     needs: [select, ts, contract, addon, botcore, workflow-contracts]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -185,7 +219,7 @@ jobs:
   # this job sees the deploy key; it lives in the production environment, never in PR runs.
   deploy-convex:
     needs: ci-ok
-    if: always() && needs.ci-ok.result == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     environment: production

@@ -8,6 +8,7 @@ import {
   mcpCaller,
   type StoredAccessToken,
   type StoredClient,
+  type StoredConsent,
 } from '../src/mcp-caller';
 import { callFor, type McpCall, type McpTools, toolsFor } from '../src/mcp-gateway';
 import { checkMcpRateLimit, rateLimitSubject } from '../src/mcp-rate-limit';
@@ -35,6 +36,14 @@ const resolve = (ctx: QueryCtx, token: string | undefined): Promise<McpCallerRes
         model: 'oauthClient',
         where: [{ field: 'clientId', value: clientId }],
       })) as StoredClient | null,
+    consent: async (clientId, userId) =>
+      (await ctx.runQuery(components.betterAuth.adapter.findOne, {
+        model: 'oauthConsent',
+        where: [
+          { field: 'clientId', value: clientId },
+          { field: 'userId', value: userId },
+        ],
+      })) as StoredConsent | null,
     discordIdOfUser: (userId) => discordIdOfUser(ctx, userId),
     memberByDiscordId: (discordId) => identityStore(ctx).getMemberByDiscordId(GUILD_ID, discordId),
     now: () => Date.now(),

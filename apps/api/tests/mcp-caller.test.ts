@@ -48,6 +48,10 @@ async function ports(
   return {
     accessToken: async (h) => (h === hashed ? row : null),
     client: async (id) => (id === 'claude' ? { disabled: false } : null),
+    consent: async (clientId, userId) =>
+      clientId === 'claude' && userId === 'user-1'
+        ? { scopes: [MCP_SCOPE, 'offline_access'] }
+        : null,
     discordIdOfUser: async (id) => (id === 'user-1' ? DISCORD : null),
     memberByDiscordId: async (id) => (id === DISCORD ? member : null),
     now: () => NOW,
@@ -117,6 +121,17 @@ describe('mcpCaller', () => {
     expect(await mcpCaller(TEST_GUILD_ID, 'tok', noUser)).toEqual({ refused: 'no-user' });
     const noDiscord = await ports('tok', {}, { discordIdOfUser: async () => null });
     expect(await mcpCaller(TEST_GUILD_ID, 'tok', noDiscord)).toEqual({ refused: 'no-user' });
+  });
+
+  it('refuses a token when the member disconnected the app or removed the commands scope (#174)', async () => {
+    const disconnected = await ports('tok', {}, { consent: async () => null });
+    expect(await mcpCaller(TEST_GUILD_ID, 'tok', disconnected)).toEqual({ refused: 'unknown' });
+    const narrowed = await ports(
+      'tok',
+      {},
+      { consent: async () => ({ scopes: ['offline_access'] }) },
+    );
+    expect(await mcpCaller(TEST_GUILD_ID, 'tok', narrowed)).toEqual({ refused: 'scope' });
   });
 });
 

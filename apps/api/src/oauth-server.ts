@@ -8,7 +8,7 @@
 // (reproduced in tests/oauth-server.test.ts).
 import { oauthProvider } from '@better-auth/oauth-provider';
 import type { BetterAuthPlugin } from 'better-auth';
-import { APIError, createAuthMiddleware } from 'better-auth/api';
+import { APIError, createAuthMiddleware, isAPIError } from 'better-auth/api';
 import { allowedResource, hashToken, MCP_SCOPE } from './mcp-caller';
 
 /** The environment variables the auth server reads (Convex env in production). */
@@ -193,6 +193,211 @@ function legacyOAuthClientColumns(): BetterAuthPlugin {
   };
 }
 
+interface PendingConsentDelete {
+  id: string;
+  clientId: string;
+  userId: string;
+}
+
+const pendingConsentDeletes = new WeakMap<object, PendingConsentDelete>();
+
+/**
+ * Stable per-request WeakMap key across Better Auth's before/after hooks: `createAuthMiddleware`
+ * shallow-copies `ctx.context` per hook and endpoint schema validation replaces `ctx.body`.
+ * Prefer `ctx.request` (never allocated or replaced mid-pipeline) over `ctx.headers` (which a
+ * downstream before-hook like `crossDomain` may allocate when `input.headers` was omitted).
+ */
+function hookRequestKey(ctx: {
+  headers?: Headers;
+  request?: Request;
+  body?: unknown;
+}): object | null {
+  if (ctx.request) return ctx.request;
+  if (ctx.headers) return ctx.headers;
+  return ctx.body && typeof ctx.body === 'object' ? ctx.body : null;
+}
+
+type TokenAdapter = {
+  findOne<T>(data: { model: string; where: { field: string; value: string }[] }): Promise<T | null>;
+  deleteMany(data: { model: string; where: { field: string; value: string }[] }): Promise<number>;
+};
+
+/**
+ * Remove every access and refresh token for one `(clientId, userId)` grant (#174). Deletes
+ * access tokens before and after refresh tokens (matching @better-auth/oauth-provider's
+ * `invalidateRefreshFamily`) to close the concurrent-refresh window and trigger the provider's
+ * own `refreshTokenExists` guard during issuance.
+ */
+async function revokeClientTokens(
+  adapter: Pick<TokenAdapter, 'deleteMany'>,
+  clientId: string,
+  userId: string,
+): Promise<void> {
+  const where = [
+    { field: 'clientId', value: clientId },
+    { field: 'userId', value: userId },
+  ];
+  await adapter.deleteMany({ model: 'oauthAccessToken', where });
+  await adapter.deleteMany({ model: 'oauthRefreshToken', where });
+  await adapter.deleteMany({ model: 'oauthAccessToken', where });
+}
+
+const consentRevokedError = () =>
+  new APIError('BAD_REQUEST', {
+    error: 'invalid_grant',
+    error_description: 'consent revoked',
+  });
+
+/** Clean up a surviving refresh token when its companion access token disappeared mid-issuance. */
+async function revokeOrphanedRefreshToken(
+  adapter: TokenAdapter,
+  refreshToken: unknown,
+): Promise<void> {
+  if (typeof refreshToken !== 'string' || refreshToken.length === 0) return;
+  const hashed = await hashToken(refreshToken);
+  const row = await adapter.findOne<{ clientId?: string; userId?: string | null }>({
+    model: 'oauthRefreshToken',
+    where: [{ field: 'token', value: hashed }],
+  });
+  if (row?.clientId && row.userId) {
+    await revokeClientTokens(adapter, row.clientId, row.userId);
+  } else {
+    await adapter.deleteMany({
+      model: 'oauthRefreshToken',
+      where: [{ field: 'token', value: hashed }],
+    });
+  }
+}
+
+/**
+ * Verify a freshly minted opaque token still has a live consent covering its scopes. Fails closed
+ * if the access token vanished during a concurrent disconnect or if consent is missing/narrowed.
+ */
+async function verifyIssuedTokenConsent(adapter: TokenAdapter, returned: unknown): Promise<void> {
+  if (
+    !returned ||
+    isAPIError(returned) ||
+    returned instanceof Error ||
+    typeof returned !== 'object'
+  )
+    return;
+  const body = returned as { access_token?: unknown; refresh_token?: unknown };
+  if (typeof body.access_token !== 'string' || body.access_token.length === 0) return;
+
+  const stored = await adapter.findOne<{
+    clientId?: string;
+    userId?: string | null;
+    scopes?: string[];
+  }>({
+    model: 'oauthAccessToken',
+    where: [{ field: 'token', value: await hashToken(body.access_token) }],
+  });
+  if (!stored) {
+    // With disableJwtPlugin: true, every issued access_token has a backing row unless a
+    // concurrent disconnect deleted it mid-flight. Clean up any surviving refresh token and fail
+    // closed so the race cannot leak a refresh token.
+    await revokeOrphanedRefreshToken(adapter, body.refresh_token);
+    throw consentRevokedError();
+  }
+  if (!stored.clientId || !stored.userId) return;
+
+  const consent = await adapter.findOne<{ scopes?: string[] }>({
+    model: 'oauthConsent',
+    where: [
+      { field: 'clientId', value: stored.clientId },
+      { field: 'userId', value: stored.userId },
+    ],
+  });
+  const consentScopes = consent?.scopes ?? [];
+  const tokenScopes = stored.scopes ?? [];
+  const needsOffline = typeof body.refresh_token === 'string';
+  const covered =
+    consent !== null &&
+    tokenScopes.every((scope) => consentScopes.includes(scope)) &&
+    (!needsOffline || consentScopes.includes('offline_access'));
+  if (covered) return;
+
+  await revokeClientTokens(adapter, stored.clientId, stored.userId);
+  throw consentRevokedError();
+}
+
+/**
+ * Disconnecting an app (`/oauth2/delete-consent`) cascades to revoke all of that client's access
+ * and refresh tokens for the member (#174). As defense-in-depth, `/oauth2/token` also requires a
+ * live consent covering the issued token's scopes (catching in-flight authorization codes and
+ * out-of-band consent deletion). Declares `(clientId, userId)` indexes on both token tables so
+ * Convex serves the cascade without scanning.
+ */
+export function consentRevocation(): BetterAuthPlugin {
+  return {
+    id: 'vintage-consent-revocation',
+    schema: {
+      oauthAccessToken: {
+        fields: {},
+        indexes: [{ fields: ['clientId', 'userId'] }],
+      },
+      oauthRefreshToken: {
+        fields: {},
+        indexes: [{ fields: ['clientId', 'userId'] }],
+      },
+    },
+    hooks: {
+      before: [
+        {
+          matcher: (ctx) => ctx.path === '/oauth2/delete-consent',
+          handler: createAuthMiddleware(async (ctx) => {
+            const key = hookRequestKey(ctx);
+            const id = (ctx.body as Body)?.id;
+            if (!key || typeof id !== 'string' || id.length === 0) return;
+            const consent = await ctx.context.adapter.findOne<{
+              clientId?: string;
+              userId?: string | null;
+            }>({
+              model: 'oauthConsent',
+              where: [{ field: 'id', value: id }],
+            });
+            if (!consent?.clientId || !consent.userId) return;
+            // Read-only capture before the endpoint verifies ownership and deletes the row.
+            pendingConsentDeletes.set(key, {
+              id,
+              clientId: consent.clientId,
+              userId: consent.userId,
+            });
+          }),
+        },
+      ],
+      after: [
+        {
+          matcher: (ctx) => ctx.path === '/oauth2/delete-consent',
+          handler: createAuthMiddleware(async (ctx) => {
+            const key = hookRequestKey(ctx);
+            if (!key) return;
+            const pending = pendingConsentDeletes.get(key);
+            pendingConsentDeletes.delete(key);
+            if (!pending) return;
+            // Better Auth still runs after-hooks when an endpoint throws an APIError.
+            const returned = ctx.context.returned;
+            if (isAPIError(returned) || returned instanceof Error) return;
+            // Confirm the consent row was actually removed before cascading.
+            const stillExists = await ctx.context.adapter.findOne({
+              model: 'oauthConsent',
+              where: [{ field: 'id', value: pending.id }],
+            });
+            if (stillExists) return;
+            await revokeClientTokens(ctx.context.adapter, pending.clientId, pending.userId);
+          }),
+        },
+        {
+          matcher: (ctx) => ctx.path === '/oauth2/token',
+          handler: createAuthMiddleware(async (ctx) => {
+            await verifyIssuedTokenConsent(ctx.context.adapter, ctx.context.returned);
+          }),
+        },
+      ],
+    },
+  };
+}
+
 /** The plugins, in order. They go before the cross-domain plugin in Better Auth's options. */
 export function oauthPlugins(o: OAuthServerOptions) {
   return [
@@ -216,6 +421,7 @@ export function oauthPlugins(o: OAuthServerOptions) {
       storeTokens: { hash: hashToken },
     }),
     legacyOAuthClientColumns(),
+    consentRevocation(),
     callbackGuard(o),
   ] as const;
 }

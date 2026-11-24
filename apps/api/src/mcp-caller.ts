@@ -33,7 +33,7 @@ export function allowedResource(resource: unknown, allowed: readonly string[]): 
   return requested.every((r) => typeof r === 'string' && allowed.includes(r));
 }
 
-/** The fields of the OAuth provider's `oauthAccessToken` and `oauthClient` rows read here. */
+/** The fields of the OAuth provider's `oauthAccessToken`, `oauthClient`, and `oauthConsent` rows read here. */
 export interface StoredAccessToken {
   clientId: string;
   userId?: string | null;
@@ -44,10 +44,14 @@ export interface StoredAccessToken {
 export interface StoredClient {
   disabled?: boolean | null;
 }
+export interface StoredConsent {
+  scopes: string[];
+}
 
 export interface McpCallerPorts {
   accessToken(hashed: string): Promise<StoredAccessToken | null>;
   client(clientId: string): Promise<StoredClient | null>;
+  consent(clientId: string, userId: string): Promise<StoredConsent | null>;
   /** The Discord id behind a Better Auth user, from their linked Discord account. */
   discordIdOfUser(userId: string): Promise<string | null>;
   memberByDiscordId(discordId: string): Promise<Member | null>;
@@ -79,6 +83,11 @@ export async function mcpCaller(
   if (!client || client.disabled) return { refused: 'client' };
   if (!stored.scopes.includes(MCP_SCOPE)) return { refused: 'scope' };
   if (!stored.userId) return { refused: 'no-user' };
+  // Defense-in-depth (#174): disconnecting an app deletes its tokens, and requiring a live consent
+  // row here also catches out-of-band deletions or narrowed scopes.
+  const consent = await ports.consent(stored.clientId, stored.userId);
+  if (!consent) return { refused: 'unknown' };
+  if (!consent.scopes.includes(MCP_SCOPE)) return { refused: 'scope' };
   const discordId = await ports.discordIdOfUser(stored.userId);
   if (!discordId) return { refused: 'no-user' };
   const member = await ports.memberByDiscordId(discordId);

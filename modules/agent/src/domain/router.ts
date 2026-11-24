@@ -47,7 +47,7 @@ export function routeRequest(question: string, cacheKey: string): DecisionReques
           {
             value: 'own-change',
             description:
-              'Asks to change something of their own: their signup, absences or weekly availability, characters, preferences, a vote',
+              'Asks to change something of their own: their signup (including which character, spec, or role they are bringing), absences or weekly availability, characters, preferences, a vote',
           },
           {
             value: 'officer-action',

@@ -103,3 +103,18 @@ Live checklist (https://vintageguild.gg/officers, signed in as an officer):
       Tonight shows the raid locked without a reload.
 - [ ] **Stop** (or Escape) on a long question ends it as "Stopped".
 - [ ] A page reload keeps the panel open and the conversation; **New chat** starts over.
+
+### J79 · Sign up with a character, spec, or role by asking
+
+When I want to sign up for a raid with a specific character, spec, or role without clicking
+through menus, I want to tell Random in plain words and confirm the signup it prepares, so my
+chosen character, spec, and role are recorded for that raid only.
+
+Live checklist:
+
+- [ ] `/vintage ask question: put me down as a tank on my warrior for <raid>` routes through as
+      my own change, reads `signup-suggest` and `character-list`, and replies with the character,
+      spec, and role plus **Change 1** (`signup-set: status accepted, spec …, role tank`) and
+      Confirm / Drop buttons; my signup has not changed yet.
+- [ ] Pressing Confirm updates the reply to "Done.", records the signup with that character, spec,
+      and role, and leaves the saved character's own spec and role unchanged.

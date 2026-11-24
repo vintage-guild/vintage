@@ -62,6 +62,13 @@ describe('decideRoute', () => {
     });
   });
 
+  it('lets own-change requests through to the agent for raiders', () => {
+    expect(decideRoute(result('own-change'), 'raider')).toEqual({
+      label: 'own-change',
+      reply: null,
+    });
+  });
+
   it('fails open below the threshold and on no answer', () => {
     expect(decideRoute(result('off-topic', 0.6), 'raider')).toEqual({ label: null, reply: null });
     expect(decideRoute(null, 'raider')).toEqual({ label: null, reply: null });
@@ -76,7 +83,12 @@ describe('routeQuestion', () => {
       reply: null,
     });
     expect(fake.requests[0]?.input).toContain('when is raid?');
-    expect(routeRequest('x', 'g').questions).toHaveLength(1);
+    const req = routeRequest('I am bringing my priest Thursday', 'g');
+    expect(req.questions).toHaveLength(1);
+    const routeQ = req.questions[0];
+    const ownChange =
+      routeQ?.type === 'choice' ? routeQ.choices.find((c) => c.value === 'own-change') : undefined;
+    expect(ownChange?.description).toContain('character, spec, or role');
     fake.failNext();
     expect(await routeQuestion(fake, 'q', 'raider', 'g')).toEqual({ label: null, reply: null });
     expect(await routeQuestion(null, 'q', 'raider', 'g')).toEqual({ label: null, reply: null });

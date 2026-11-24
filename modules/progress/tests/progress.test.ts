@@ -260,3 +260,115 @@ describe('kill-record', () => {
     expect((await progress(elsewhere)).killed).toBe(0);
   });
 });
+
+describe('kill-list and kill-remove (#242)', () => {
+  const officer = makeCaller('officer');
+
+  it('kill-list returns every kill newest first with recorder and first flag, leader+ only', async () => {
+    const first = Date.parse('2026-12-10T21:40:00-05:00');
+    const second = first + 7 * DAY;
+    await run(
+      'kill-record',
+      { raidId: 'barrow-deeps', bossId: 'chillhowl', killedAt: first, note: 'first pull' },
+      leader,
+    );
+    await run(
+      'kill-record',
+      { raidId: 'barrow-deeps', bossId: 'chillhowl', killedAt: second, note: 'farm kill' },
+      officer,
+    );
+    await run(
+      'kill-record',
+      { raidId: 'onyxias-lair', bossId: 'onyxia', killedAt: first + DAY },
+      leader,
+    );
+
+    expect(code(await run('kill-list', {}, raider))).toBe('COMMAND_NOT_FOUND');
+
+    const listed = await run('kill-list', { raidId: 'barrow-deeps', bossId: 'chillhowl' }, leader);
+    expect(listed.success).toBe(true);
+    const { kills } = listed.data as {
+      kills: {
+        id: string;
+        killedAt: number;
+        recordedBy: string;
+        bossName: string;
+        raidName: string;
+        first: boolean;
+      }[];
+    };
+    expect(kills.map((k) => [k.killedAt, k.first, k.recordedBy])).toEqual([
+      [second, false, 'member-officer'],
+      [first, true, 'member-leader'],
+    ]);
+    expect(kills[0]).toMatchObject({ bossName: 'Chillhowl', raidName: 'Barrow Deeps' });
+  });
+
+  it('kill-remove is officer-only, previews ledger shift, and moves first kill on confirm', async () => {
+    const first = Date.parse('2026-12-10T21:40:00-05:00');
+    const second = first + 7 * DAY;
+    const r1 = await run(
+      'kill-record',
+      { raidId: 'barrow-deeps', bossId: 'chillhowl', killedAt: first },
+      leader,
+    );
+    const r2 = await run(
+      'kill-record',
+      { raidId: 'barrow-deeps', bossId: 'chillhowl', killedAt: second },
+      leader,
+    );
+    const firstId = (r1.data as { kill: Kill }).kill.id;
+    const secondId = (r2.data as { kill: Kill }).kill.id;
+
+    // Leaders cannot remove kills.
+    expect(code(await run('kill-remove', { killId: firstId }, leader))).toBe('COMMAND_NOT_FOUND');
+
+    // Preview does not delete and reports that the first kill will move to the second kill.
+    const preview = await run('kill-remove', { killId: firstId }, officer);
+    expect(preview.success).toBe(true);
+    expect(await deps.progress.listKills('guild-test')).toHaveLength(2);
+    expect(preview.data).toMatchObject({
+      confirmToken: expect.any(String),
+      preview: {
+        willRemove: {
+          id: firstId,
+          bossName: 'Chillhowl',
+          raidName: 'Barrow Deeps',
+          killedAt: first,
+        },
+        wasFirstKill: true,
+        nextFirstKillAt: second,
+      },
+    });
+
+    // Confirm removes the first kill and shifts the ledger to the second kill.
+    const { confirmToken } = preview.data as { confirmToken: string };
+    const confirmed = await registry.execute(
+      { name: 'kill-remove', input: { killId: firstId }, caller: officer, confirmToken },
+      deps,
+    );
+    expect(confirmed).toMatchObject({
+      success: true,
+      data: { removed: { id: firstId }, wasFirstKill: true, nextFirstKillAt: second },
+    });
+    expect((await progress()).raids[0]!.bosses[0]!.firstKillAt).toBe(second);
+
+    // Removing the last remaining kill returns the boss to unkilled.
+    const lastPreview = await run('kill-remove', { killId: secondId }, officer);
+    expect(lastPreview.data).toMatchObject({
+      preview: { wasFirstKill: true, nextFirstKillAt: null },
+    });
+    const lastToken = (lastPreview.data as { confirmToken: string }).confirmToken;
+    await registry.execute(
+      {
+        name: 'kill-remove',
+        input: { killId: secondId },
+        caller: officer,
+        confirmToken: lastToken,
+      },
+      deps,
+    );
+    expect((await progress()).raids[0]!.bosses[0]!.firstKillAt).toBeNull();
+    expect(code(await run('kill-remove', { killId: secondId }, officer))).toBe('KILL_NOT_FOUND');
+  });
+});

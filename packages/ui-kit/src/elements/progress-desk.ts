@@ -5,6 +5,7 @@ import {
   html,
   observable,
   repeat,
+  Updates,
   volatile,
   when,
 } from '@lushly-dev/fast-element';
@@ -34,6 +35,38 @@ interface DropRow {
 interface KillRecorded {
   kill: { killedAt: number };
   first: boolean;
+}
+
+/** One recorded kill from `kill-list`, newest first. */
+export interface ProgressKillEntry {
+  id: string;
+  raidId: string;
+  raidName: string;
+  bossId: string;
+  bossName: string;
+  killedAt: number;
+  loot: { name: string; quality: LootQuality }[];
+  note: string | null;
+  recordedBy: string;
+  first: boolean;
+}
+
+interface KillRemovePreview {
+  willRemove: {
+    id: string;
+    raidName: string;
+    bossName: string;
+    killedAt: number;
+  };
+  wasFirstKill: boolean;
+  nextFirstKillAt: number | null;
+}
+
+interface PendingKillRemove {
+  killId: string;
+  token: string;
+  summary: string;
+  detail: string;
 }
 
 const QUALITY_LABELS: Record<LootQuality, string> = {
@@ -196,6 +229,72 @@ const template = html<VintageProgressDesk>`
             html`<p class="note">Raid leaders and officers record kills.</p>`,
           )}
         </div>
+
+        ${when(
+          (x) => x.kills.length > 0,
+          html<VintageProgressDesk>`
+            <section class="log" part="log" aria-labelledby="h-kill-log">
+              <h3 id="h-kill-log">Kill log${(x) => (x.raid ? ` · ${x.raid.name}` : '')}</h3>
+              ${when(
+                (x) => !x.raidKills.length,
+                html`<p class="note">No kills recorded for this raid yet.</p>`,
+              )}
+              ${when(
+                (x) => x.pendingRemove,
+                html<VintageProgressDesk>`
+                  <div class="confirm" role="alertdialog" aria-labelledby="kill-remove-heading" aria-describedby="kill-remove-detail">
+                    <p id="kill-remove-heading"><strong>${(x) => x.pendingRemove?.summary}</strong></p>
+                    <p id="kill-remove-detail" class="note">${(x) => x.pendingRemove?.detail}</p>
+                    <p class="actions">
+                      <button type="button" class="danger" ?disabled="${(x) => x.busy}" @click="${(x) => x.confirmRemove()}">Remove kill</button>
+                      <button type="button" ?disabled="${(x) => x.busy}" @click="${(x) => x.cancelRemove()}">Keep kill</button>
+                    </p>
+                  </div>
+                `,
+              )}
+              <ol class="kill-rows">
+                ${repeat(
+                  (x) => x.raidKills,
+                  html<ProgressKillEntry, VintageProgressDesk>`
+                    <li class="kill-row">
+                      <div class="kill-main">
+                        <strong>${(k) => k.bossName}</strong>
+                        ${when((k) => k.first, html`<small class="badge">first kill</small>`)}
+                        <span class="meta">${(k, c) => c.parent.whenLabel(k.killedAt)}</span>
+                        <span class="meta">by ${(k) => k.recordedBy}</span>
+                        ${when(
+                          (k) => k.loot.length > 0,
+                          html<ProgressKillEntry>`<span class="meta">· ${(k) => k.loot.map((l) => l.name).join(', ')}</span>`,
+                        )}
+                        ${when(
+                          (k) => k.note,
+                          html<ProgressKillEntry>`<span class="meta">· ${(k) => k.note}</span>`,
+                        )}
+                      </div>
+                      ${when(
+                        (_k, c) => c.parent.canRemove,
+                        html<ProgressKillEntry, VintageProgressDesk>`
+                          <button
+                            type="button"
+                            class="remove"
+                            ?disabled="${(_k, c) => c.parent.busy}"
+                            @click="${(k, c) => c.parent.requestRemove(k)}"
+                          >
+                            Remove
+                          </button>
+                        `,
+                      )}
+                    </li>
+                  `,
+                )}
+              </ol>
+              ${when(
+                (x) => x.removeStatusText,
+                html<VintageProgressDesk>`<p class="status ${(x) => x.removeStatusKind}" role="status" aria-live="polite">${(x) => x.removeStatusText}</p>`,
+              )}
+            </section>
+          `,
+        )}
       `,
     )}
   </div>
@@ -295,6 +394,64 @@ const styles = css`
     font-size: var(--font-size-sm);
     text-wrap: pretty;
   }
+
+  .log {
+    display: grid;
+    gap: var(--space-sm);
+  }
+
+  .kill-rows {
+    display: grid;
+    gap: var(--space-xs);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .kill-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-xs) var(--space-sm);
+    padding: var(--space-xs) var(--space-sm);
+    border: var(--border-width-thin) solid var(--color-border-default);
+    border-radius: 0.375rem;
+    font-size: var(--font-size-sm);
+  }
+
+  .kill-main {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-xs);
+  }
+
+  .badge {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
+    letter-spacing: var(--font-tracking-wide);
+    text-transform: uppercase;
+    color: var(--color-text-accent);
+  }
+
+  .confirm {
+    display: grid;
+    gap: var(--space-xs);
+    padding: var(--space-md);
+    border: var(--border-width-thin) solid var(--color-feedback-danger);
+    border-radius: 0.5rem;
+  }
+
+  .confirm p {
+    margin: 0;
+  }
+
+  button.danger {
+    background: var(--color-feedback-danger);
+    border-color: transparent;
+    color: var(--color-surface-canvas);
+  }
 `;
 
 /**
@@ -311,6 +468,7 @@ const styles = css`
  * @csspart desk - The whole desk.
  * @csspart ledger - The boss ledger.
  * @csspart form - The record-a-kill form.
+ * @csspart log - The recorded kill log.
  * @csspart summary - What the form will record, in words.
  * @csspart status - What just happened.
  */
@@ -319,6 +477,8 @@ export class VintageProgressDesk extends FASTElement {
   @observable raids: LedgerRaid[] = [];
   /** `progress-get` → `latest`. */
   @observable latest: LedgerKill | null = null;
+  /** `kill-list` → `kills` (newest first, with recorder and first-kill flag). */
+  @observable kills: ProgressKillEntry[] = [];
   /** `progress-get` → `open`: whether the raids have unlocked. */
   @attr({ mode: 'boolean' }) open = false;
   /** `progress-get` → `opensOn` (`2026-12-09`). */
@@ -327,6 +487,8 @@ export class VintageProgressDesk extends FASTElement {
   @attr({ attribute: 'time-zone' }) timeZone = '';
   /** Record a kill (leader tier). */
   @attr({ attribute: 'can-record', mode: 'boolean' }) canRecord = false;
+  /** Remove a recorded kill (officer tier). */
+  @attr({ attribute: 'can-remove', mode: 'boolean' }) canRemove = false;
   @attr({ mode: 'boolean' }) loading = false;
   /** Why the ledger could not be read. */
   @attr error = '';
@@ -341,6 +503,9 @@ export class VintageProgressDesk extends FASTElement {
   @observable busy = false;
   @observable statusText = '';
   @observable statusKind: 'idle' | 'error' | 'success' = 'idle';
+  @observable pendingRemove: PendingKillRemove | null = null;
+  @observable removeStatusText = '';
+  @observable removeStatusKind: 'idle' | 'error' | 'success' = 'idle';
   /** The officer chose the boss; until then it follows the raid's next target. */
   private bossPicked = false;
 
@@ -366,6 +531,17 @@ export class VintageProgressDesk extends FASTElement {
   @volatile
   get boss(): LedgerBoss | undefined {
     return this.raid?.bosses.find((b) => b.id === this.bossId);
+  }
+
+  /** Recorded kills for the selected raid, newest first. */
+  @volatile
+  get raidKills(): ProgressKillEntry[] {
+    if (!this.raidId) return this.kills;
+    return this.kills.filter((k) => k.raidId === this.raidId);
+  }
+
+  whenLabel(ms: number): string {
+    return formatWhen(ms, this.zone);
   }
 
   @volatile
@@ -577,6 +753,97 @@ export class VintageProgressDesk extends FASTElement {
   private say(kind: 'error' | 'success', text: string): void {
     this.statusKind = kind;
     this.statusText = text;
+  }
+
+  private sayRemove(kind: 'idle' | 'error' | 'success', text: string): void {
+    this.removeStatusKind = kind;
+    this.removeStatusText = text;
+  }
+
+  @command('vintage.kill-remove', {
+    label: 'Remove a recorded kill',
+    description:
+      'Preview removing a recorded boss kill (naming the boss, raid, time, and ledger effect) before confirming.',
+    category: 'Officers',
+  })
+  async requestRemove(kill: ProgressKillEntry): Promise<ElementResult<unknown>> {
+    if (!this.canRemove) {
+      return failure({ code: 'COMMAND_DISABLED', message: 'Officers remove recorded kills' });
+    }
+    if (this.busy) return failure({ code: 'COMMAND_DISABLED', message: 'Busy' });
+    this.busy = true;
+    try {
+      const raw = await getCommandClient().run<{
+        preview?: KillRemovePreview;
+        confirmToken?: string;
+      }>('kill-remove', { killId: kill.id });
+      const result = toElementResult(raw);
+      if (!result.success) {
+        this.sayRemove('error', describeError(result));
+        return result;
+      }
+      const token = raw.success ? raw.data?.confirmToken : undefined;
+      const preview = raw.success ? raw.data?.preview : undefined;
+      if (!token || !preview) {
+        this.pendingRemove = null;
+        this.sayRemove('success', `Removed ${kill.bossName} (${kill.raidName}).`);
+        this.$emit('progress-changed');
+        return result;
+      }
+      const when = formatWhen(preview.willRemove.killedAt, this.zone);
+      let detail = 'The guild’s first kill stays on the ledger.';
+      if (preview.wasFirstKill && preview.nextFirstKillAt !== null) {
+        detail = `This is the current first kill. Removing it moves the ledger’s first kill to ${formatWhen(preview.nextFirstKillAt, this.zone)}.`;
+      } else if (preview.wasFirstKill) {
+        detail = `This is the only recorded kill of ${preview.willRemove.bossName}. Removing it returns the boss to unkilled on the ledger.`;
+      }
+      this.pendingRemove = {
+        killId: kill.id,
+        token,
+        summary: `Remove ${preview.willRemove.bossName} in ${preview.willRemove.raidName} (${when})?`,
+        detail,
+      };
+      this.sayRemove('idle', '');
+      return result;
+    } finally {
+      this.busy = false;
+      if (this.pendingRemove) {
+        Updates.enqueue(() =>
+          this.shadowRoot?.querySelector<HTMLButtonElement>('.confirm button.danger')?.focus(),
+        );
+      }
+    }
+  }
+
+  async confirmRemove(): Promise<ElementResult<unknown>> {
+    const pending = this.pendingRemove;
+    if (!pending) return failure({ code: 'NOTHING_TO_CONFIRM', message: 'Nothing waiting' });
+    if (this.busy) return failure({ code: 'COMMAND_DISABLED', message: 'Busy' });
+    this.busy = true;
+    try {
+      const result = toElementResult(
+        await getCommandClient().run(
+          'kill-remove',
+          { killId: pending.killId },
+          { confirmToken: pending.token },
+        ),
+      );
+      this.pendingRemove = null;
+      if (!result.success) {
+        this.sayRemove('error', describeError(result));
+        return result;
+      }
+      this.sayRemove('success', 'Kill removed.');
+      this.$emit('progress-changed');
+      return result;
+    } finally {
+      this.busy = false;
+    }
+  }
+
+  cancelRemove(): void {
+    this.pendingRemove = null;
+    this.sayRemove('idle', '');
   }
 }
 

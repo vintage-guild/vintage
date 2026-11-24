@@ -9,7 +9,7 @@ import {
 } from '@lushly-dev/fast-element';
 import type { CoordinatorAction } from '@vintage/coordinator/contract';
 import { type Tier, tierAllows } from '@vintage/guild-kit';
-import type { Progress } from '@vintage/progress/contract';
+import type { KillLogEntry, Progress } from '@vintage/progress/contract';
 import { accessOf, type RaidEvent, type Schedule, type Signup } from '@vintage/raids/contract';
 import type { GuildProfile, Recruiting } from '@vintage/site/contract';
 import {
@@ -299,10 +299,12 @@ const template = html<Page>`
             <vintage-progress-desk
               time-zone="${() => preferredTimeZone() ?? ''}"
               ?can-record="${(x) => x.canLead}"
+              ?can-remove="${(x) => x.canEditRecruiting}"
               ?loading="${(x) => !x.progressLoaded}"
               error="${(x) => x.progressError}"
               :raids="${(x) => x.progress?.raids ?? []}"
               :latest="${(x) => x.progress?.latest ?? null}"
+              :kills="${(x) => x.progressKills}"
               ?open="${(x) => x.progress?.open ?? false}"
               opens-on="${(x) => x.progress?.opensOn ?? ''}"
               @progress-changed="${(x) => x.loadProgress()}"
@@ -622,6 +624,7 @@ export class Page extends FASTElement {
   /** Bumped per Random read, as the calendar's is. */
   private coordinatorRead = 0;
   @observable progress: Progress | null = null;
+  @observable progressKills: KillLogEntry[] = [];
   @observable progressError = '';
   @observable progressLoaded = false;
   /** Bumped per ledger read, as the calendar's is. */
@@ -832,11 +835,15 @@ export class Page extends FASTElement {
     }
   }
 
-  /** The ledger from `progress-get`. Only the latest read is kept. */
+  /** The ledger from `progress-get` and kill log from `kill-list`. Only the latest read is kept. */
   async loadProgress(): Promise<void> {
     const read = ++this.progressRead;
     try {
-      const result = await getCommandClient().read<Progress>('progress-get', {});
+      const client = getCommandClient();
+      const [result, list] = await Promise.all([
+        client.read<Progress>('progress-get', {}),
+        client.read<{ kills: KillLogEntry[] }>('kill-list', {}),
+      ]);
       if (read !== this.progressRead) return;
       if (!result.success || !result.data) {
         this.progressError = `Couldn’t read the ledger: ${result.error?.message ?? 'the server didn’t answer'}.`;
@@ -844,6 +851,7 @@ export class Page extends FASTElement {
       }
       this.progressError = '';
       this.progress = result.data;
+      this.progressKills = list.success && list.data ? list.data.kills : [];
     } finally {
       if (read === this.progressRead) this.progressLoaded = true;
     }

@@ -8,7 +8,9 @@ import type { Kill, RaidId } from './contract';
 export interface ProgressStore {
   /** Sorted by kill time, then record time. */
   listKills(guildId: string, filter?: { raidId?: RaidId }): Promise<Kill[]>;
+  getKill(guildId: string, killId: string): Promise<Kill | null>;
   insertKill(kill: Omit<Kill, 'id'>): Promise<Kill>;
+  deleteKill(guildId: string, killId: string): Promise<void>;
 }
 
 /** Keyed `progress` so it never collides with another module's deps in apps/api. */

@@ -30,7 +30,13 @@ dropped, **so I can** have the guild's progression on the site without a screens
   visitors (`public`) — can read `progress-get` and see the ledger on the home page, with no
   recorder ids or kill notes exposed.
 - [ ] Recording the same boss a week later answers `first: false` and leaves the ledger date alone.
+  `kill-list` as a raid leader shows both kills newest first with who recorded each one.
+- [ ] An officer removes a mistaken first kill with `kill-remove` (preview names the boss, raid,
+  time, and whether the ledger's first kill moves to the next-earliest kill; confirm deletes it);
+  the ledger moves to the second kill (or unkilled if none remain). A raid leader calling
+  `kill-remove` gets `COMMAND_NOT_FOUND`.
 - [ ] On the site, `/officers?tab=progress` as the raid leader: before Dec 9 the form is closed
   and says when kills can be recorded; after, recording Chillhowl with two drops answers "First
-  kill of Chillhowl in Barrow Deeps. It's on the ledger." and the ledger beside the form fills.
+  kill of Chillhowl in Barrow Deeps. It's on the ledger." and the ledger beside the form fills,
+  with the kill log below listing every kill (and officers see **Remove** with a confirm step).
   A raider doesn't get the quarters at all.

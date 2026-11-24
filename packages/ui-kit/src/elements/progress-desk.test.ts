@@ -211,4 +211,86 @@ describe('vintage-progress-desk', () => {
     expect((await el.record()).success).toBe(false);
     expect(client.run).not.toHaveBeenCalled();
   });
+
+  it('lists recorded kills and removes one through preview and confirm for officers (#242)', async () => {
+    const DEC_19 = DEC_12 + 7 * 86_400_000;
+    const client: CommandClient = {
+      read: vi.fn(),
+      run: vi.fn(async (_name: string, _input?: unknown, opts?: { confirmToken?: string }) =>
+        opts?.confirmToken
+          ? {
+              success: true,
+              data: { removed: { id: 'k1' }, wasFirstKill: true, nextFirstKillAt: DEC_19 },
+            }
+          : {
+              success: true,
+              data: {
+                confirmToken: 'tok_remove',
+                preview: {
+                  willRemove: {
+                    id: 'k1',
+                    raidName: 'Barrow Deeps',
+                    bossName: 'Chillhowl',
+                    killedAt: DEC_12,
+                  },
+                  wasFirstKill: true,
+                  nextFirstKillAt: DEC_19,
+                },
+              },
+            },
+      ) as CommandClient['run'],
+    };
+    restore = setCommandClient(client);
+
+    const el = await desk();
+    el.canRemove = true;
+    el.kills = [
+      {
+        id: 'k2',
+        raidId: 'barrow-deeps',
+        raidName: 'Barrow Deeps',
+        bossId: 'chillhowl',
+        bossName: 'Chillhowl',
+        killedAt: DEC_19,
+        loot: [],
+        note: 'Farm night',
+        recordedBy: 'm_rook',
+        first: false,
+      },
+      {
+        id: 'k1',
+        raidId: 'barrow-deeps',
+        raidName: 'Barrow Deeps',
+        bossId: 'chillhowl',
+        bossName: 'Chillhowl',
+        killedAt: DEC_12,
+        loot: [{ name: 'Frostfang Greaves', quality: 'epic' }],
+        note: null,
+        recordedBy: 'm_ana',
+        first: true,
+      },
+    ];
+    await settle();
+
+    expect($$(el, '.kill-row')).toHaveLength(2);
+    expect(shadowText(el)).toContain('first kill');
+    expect(shadowText(el)).toContain('by m_rook');
+
+    const changed = vi.fn();
+    el.addEventListener('progress-changed', changed);
+    const removeButtons = $$(el, '.kill-row button.remove') as HTMLButtonElement[];
+    removeButtons[1]!.click();
+    await vi.waitFor(() => expect(el.pendingRemove).not.toBeNull());
+    await settle();
+    expect(shadowText(el)).toContain('Remove Chillhowl in Barrow Deeps');
+    expect(shadowText(el)).toContain('moves the ledger’s first kill');
+
+    button(el, 'Remove kill')?.click();
+    await vi.waitFor(() => expect(changed).toHaveBeenCalled());
+    expect(client.run).toHaveBeenLastCalledWith(
+      'kill-remove',
+      { killId: 'k1' },
+      { confirmToken: 'tok_remove' },
+    );
+  });
 });

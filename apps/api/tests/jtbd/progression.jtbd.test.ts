@@ -14,6 +14,7 @@ const PRE_LAUNCH = Date.UTC(2026, 10, 18, 17);
 
 interface Guild {
   host: Host;
+  ana: Caller; // officer
   rook: Caller; // raid leader
   aeryn: Caller; // raider
   pip: Caller; // member
@@ -25,6 +26,7 @@ async function createGuild(start: number): Promise<Guild> {
     host.discordMember(`50000000000000000${id}`, name, [role]);
   return {
     host,
+    ana: await join('1', 'Ana', ROLES.officer),
     rook: await join('2', 'Rook', ROLES.raidLeader),
     aeryn: await join('3', 'Aeryn', ROLES.raider),
     pip: await join('7', 'Pip', ROLES.member),
@@ -100,11 +102,35 @@ describe('JTBD: progression', () => {
 
     // A week later the same boss dies again: logged, but the ledger keeps the first date.
     g.host.clock.advance(7 * DAY);
+    const secondTime = g.host.clock.now();
     const again = await g.host.ok<{ first: boolean }>(g.rook, 'kill-record', {
       raidId: 'barrow-deeps',
       bossId: 'chillhowl',
     });
     expect(again.first).toBe(false);
     expect((await ledger(g, g.pip)).raids[0]!.bosses[0]!.firstKillAt).toBe(FIRST_KILL);
+
+    // Leaders read every kill newest first; officers can remove a mistaken first kill (preview + confirm).
+    const log = await g.host.ok<{
+      kills: { id: string; killedAt: number; first: boolean; recordedBy: string }[];
+    }>(g.rook, 'kill-list', { raidId: 'barrow-deeps', bossId: 'chillhowl' });
+    expect(log.kills.map((k) => [k.killedAt, k.first])).toEqual([
+      [secondTime, false],
+      [FIRST_KILL, true],
+    ]);
+    expect(log.kills[0]!.recordedBy).toBeTruthy();
+
+    const firstKillId = log.kills[1]!.id;
+    expect(await g.host.run(g.rook, 'kill-remove', { killId: firstKillId })).toMatchObject({
+      success: false,
+      error: { code: 'COMMAND_NOT_FOUND' },
+    });
+    const removePreview = await g.host.preview<{
+      wasFirstKill: boolean;
+      nextFirstKillAt: number | null;
+    }>(g.ana, 'kill-remove', { killId: firstKillId });
+    expect(removePreview).toMatchObject({ wasFirstKill: true, nextFirstKillAt: secondTime });
+    await g.host.ok(g.ana, 'kill-remove', { killId: firstKillId });
+    expect((await ledger(g, g.pip)).raids[0]!.bosses[0]!.firstKillAt).toBe(secondTime);
   });
 });

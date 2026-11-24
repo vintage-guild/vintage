@@ -1,6 +1,6 @@
 // Component functions for kills. Called only by apps/api through `components.progress`.
 import { v } from 'convex/values';
-import type { Doc } from './_generated/dataModel';
+import type { Doc, Id } from './_generated/dataModel';
 import { mutation, query } from './_generated/server';
 import { killFields, raidId } from './schema';
 
@@ -8,6 +8,16 @@ const toKill = (doc: Doc<'kills'>) => {
   const { _id, _creationTime, ...rest } = doc;
   return { id: _id as string, ...rest };
 };
+
+export const get = query({
+  args: { guildId: v.string(), killId: v.string() },
+  handler: async (ctx, { guildId, killId }) => {
+    const id = ctx.db.normalizeId('kills', killId);
+    if (!id) return null;
+    const doc = await ctx.db.get(id);
+    return doc && doc.guildId === guildId ? toKill(doc) : null;
+  },
+});
 
 export const list = query({
   args: { guildId: v.string(), raidId: v.optional(raidId) },
@@ -32,5 +42,15 @@ export const insert = mutation({
   handler: async (ctx, args) => {
     const id = await ctx.db.insert('kills', args);
     return toKill((await ctx.db.get(id))!);
+  },
+});
+
+export const remove = mutation({
+  args: { guildId: v.string(), killId: v.string() },
+  handler: async (ctx, { guildId, killId }) => {
+    const id = ctx.db.normalizeId('kills', killId) as Id<'kills'> | null;
+    if (!id) return;
+    const doc = await ctx.db.get(id);
+    if (doc && doc.guildId === guildId) await ctx.db.delete(id);
   },
 });

@@ -11,8 +11,8 @@ Maturity: **official**.
 |---|---|
 | `src/contract.ts` | `LAUNCH_RAIDS` (Barrow Deeps 10/8, Hyjal Summit 20/13, Onyxia's Lair 40/1), `findBoss`, `RAIDS_OPEN_AT`, `Kill`, `KillRecorded`, the `Progress` view, item qualities. The only import other modules may use |
 | `src/domain/ledger.ts` | Pure: kills → first kill per boss → `Progress` (per-raid rows, next target, totals, latest first kill) |
-| `src/store.ts` | `ProgressStore` port (`listKills`, `insertKill`), `ProgressDeps`, `command` |
-| `src/commands/` | `kill-record` (leader) and `progress-get` (public) |
+| `src/store.ts` | `ProgressStore` port (`listKills`, `getKill`, `insertKill`, `deleteKill`), `ProgressDeps`, `command` |
+| `src/commands/` | `kill-record` (leader), `kill-list` (leader), `kill-remove` (officer, `destructive: true`), and `progress-get` (public) |
 | `src/testing.ts` | Memory store, same behavior as the component |
 | `convex/` | The `progress` Convex component: the `kills` table |
 
@@ -45,6 +45,11 @@ Maturity: **official**.
 - `kill-record` answers `{ kill, first, duplicate }`: `first` is true when this kill is now the
   ledger entry. The same raid, boss, and time again changes nothing and answers the kill on
   record with `duplicate: true`, so a re-recorded export never doubles the log. Error codes: `BOSS_NOT_FOUND` (ids from `progress-get`), `INVALID_TIME`.
+- `kill-list` (leader) returns every recorded kill (filtered by optional `raidId` / `bossId`),
+  newest first, with `raidName`, `bossName`, `recordedBy`, `loot`, `note`, and `first`.
+- `kill-remove` (officer, `destructive: true`) previews the boss, raid, time, and whether the
+  ledger's first kill moves to the next-earliest remaining kill (or returns to unkilled), then
+  deletes the kill on confirm. Error codes: `KILL_NOT_FOUND`.
 - `progress-get` is `public` tier (#340) so signed-out visitors see the guild's progression ledger
   on the home page; it exposes only raid/boss first-kill dates and first-kill loot (never
   `recordedBy`, `recordedAt`, or `note`).

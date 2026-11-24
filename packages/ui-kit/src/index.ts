@@ -106,6 +106,7 @@ export {
   LOOT_QUALITIES,
   type LootQuality,
   MAX_DROPS,
+  type ProgressKillEntry,
   VintageProgressDesk,
 } from './elements/progress-desk';
 export { VintageRaidMonth } from './elements/raid-month';

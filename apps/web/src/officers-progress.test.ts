@@ -62,12 +62,17 @@ describe('the Progress tab’s reads', () => {
   it('keeps the newest ledger when an older read finishes last', async () => {
     const answers: ((r: CommandResult) => void)[] = [];
     restore = setCommandClient({
-      read: (() => new Promise<CommandResult>((resolve) => answers.push(resolve))) as never,
+      read: ((name: string) =>
+        new Promise<CommandResult>((resolve) => {
+          if (name === 'progress-get') answers.push(resolve);
+          else resolve({ success: true, data: { kills: [] } });
+        })) as never,
       run: async () => ({ success: true }),
     });
     const p = page();
     const older = p.loadProgress();
     const newer = p.loadProgress();
+    await Promise.resolve();
     answers[1]?.({ success: true, data: { killed: 2 } });
     await newer;
     answers[0]?.({ success: true, data: { killed: 1 } });
@@ -88,5 +93,38 @@ describe('the Progress tab’s reads', () => {
     await p.loadProgress();
     expect(p.progressError).toBe('Couldn’t read the ledger: Unknown command.');
     expect(p.progressLoaded).toBe(true);
+  });
+
+  it('loads the kill log and lets an officer remove a kill through preview and confirm (#242)', async () => {
+    const host = createFixtureHost(undefined, { now: () => AFTER_UNLOCK });
+    const officer: Caller = {
+      surface: 'web',
+      guildId: host.guildId,
+      tier: 'officer',
+      memberId: 'm-aeryn',
+    };
+    restore = setCommandClient(createHostClient(host, officer));
+    const p = page() as Page & { progressKills: { id: string }[] };
+    const desk = document.createElement('vintage-progress-desk') as VintageProgressDesk;
+    desk.canRecord = true;
+    desk.canRemove = true;
+    desk.open = true;
+    desk.timeZone = 'UTC';
+    await p.loadProgress();
+    desk.raids = p.progress?.raids ?? [];
+    desk.pickRaid('onyxias-lair');
+    const died = new Date(AFTER_UNLOCK - 3_600_000).toISOString();
+    desk.edit('date', died.slice(0, 10));
+    desk.edit('time', died.slice(11, 16));
+    expect((await desk.record()).success).toBe(true);
+    await p.loadProgress();
+    expect(p.progressKills).toHaveLength(1);
+    desk.kills = p.progressKills as VintageProgressDesk['kills'];
+    expect((await desk.requestRemove(desk.kills[0]!)).success).toBe(true);
+    expect(desk.pendingRemove?.summary).toContain('Onyxia');
+    expect((await desk.confirmRemove()).success).toBe(true);
+    await p.loadProgress();
+    expect(p.progressKills).toHaveLength(0);
+    expect(p.progress?.killed).toBe(0);
   });
 });

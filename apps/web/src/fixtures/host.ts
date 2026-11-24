@@ -219,6 +219,29 @@ export function createFixtureHost(
     },
     events: createRecordingEventSink(),
     loot,
+    lootRaids: {
+      getRaidContext: async (g, eventId) => {
+        const event = await raids.getEvent(g, eventId);
+        if (!event) return null;
+        const signups = await raids.listSignups(g, eventId);
+        const rostered = signups.filter((s) => s.roster === 'rostered');
+        const active = rostered.length ? rostered : signups.filter((s) => s.status !== 'declined');
+        return {
+          eventId: event.id,
+          name: event.name,
+          lootMethodId: event.lootMethodId,
+          attendees: active.map((s) => ({
+            characterId: s.characterId,
+            characterName: s.characterName,
+            memberId: s.memberId,
+            class: s.class,
+            spec: s.spec,
+            role: s.role,
+            alsoRoles: s.alsoRoles,
+          })),
+        };
+      },
+    },
     raidLoot: loot,
     // Like apps/api: an export's kills go on the ledger through kill-record.
     raidProgress: {

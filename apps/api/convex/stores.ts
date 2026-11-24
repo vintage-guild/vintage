@@ -38,6 +38,7 @@ import {
   type GenericQueryCtx,
   makeFunctionReference,
 } from 'convex/server';
+import { createLootRaidReader } from '../src/loot-raids';
 import { createTickSource } from '../src/tick-source';
 import { components } from './_generated/api';
 import type { DataModel } from './_generated/dataModel';
@@ -237,11 +238,22 @@ export function lootStore(ctx: Ctx): LootStore {
     listDrops: (guildId, eventId) => ctx.runQuery(loot.drops.list, { guildId, eventId }),
     replaceDrops: (guildId, eventId, drops) =>
       writable(ctx).runMutation(loot.drops.replace, { guildId, eventId, drops }),
+    getMethodConfig: (guildId, methodId) => ctx.runQuery(loot.configs.get, { guildId, methodId }),
+    listMethodConfigs: (guildId) => ctx.runQuery(loot.configs.list, { guildId }),
+    upsertMethodConfig: (record) => writable(ctx).runMutation(loot.configs.upsert, record),
+    listAwards: (guildId, filter = {}) => ctx.runQuery(loot.awards.list, { guildId, ...filter }),
+    insertAward: (award) => writable(ctx).runMutation(loot.awards.insert, award),
   };
 }
 
 export function lootDeps(ctx: Ctx): LootDeps {
-  return { loot: lootStore(ctx) };
+  return {
+    loot: lootStore(ctx),
+    lootRaids: createLootRaidReader({
+      raids: raidsStore(ctx),
+      identity: identityStore(ctx),
+    }),
+  };
 }
 
 const armory = components.armory;

@@ -732,7 +732,7 @@ Phase 0 has about ten days and one maintainer, so it is cut to the minimum that 
 - [x] `libs/bridge-format` + Lua side with shared fixtures (#23: TS side #49; Lua side `addon/Vintage/Core/BridgeFormat`, 2026-10-27)
 - [ ] Addon: import roster → invite all → arrange groups (FenUI), attendance snapshot, loot capture, item data capture, export string; `vintage-addon` skill
 - [ ] CurseForge project **Vintage**; `release-addon.yml` with `BigWigsMods/packager@v2` (workflow built 2026-10-29, not yet run; the project and secret are human steps, #25)
-- [ ] `loot` host module + `libs/loot-core`; first method mainspec over offspec (MS/OS, Q5), then soft-reserve and council (#26)
+- [x] `loot` host module + `libs/loot-core`; first method mainspec over offspec (`msos`, Q5), with `loot-methods-list`, `loot-method-configure`, `loot-candidates`, `loot-award`, and `loot-history` (#26); soft-reserve and council follow later
 - [ ] `wishlist` module; wishlists feed council candidates
 - [ ] Addon loot popup showing precomputed candidates
 - [x] Post-raid: paste export → attendance + loot recorded → bot posts raid summary (#29: `raid-export-check` J44, `raid-export-record` + `loot` module J46, first kills on the progress ledger + raid summary post J47/#221, standby credit #235, and website recording in `/officers` Tonight tab + attendance/loot report on `/raids/<id>`)

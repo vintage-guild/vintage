@@ -1,4 +1,28 @@
 // Public surface of the loot module. Other modules import only this file.
+import type { LootAwardRecord } from '@vintage/loot-core';
+
+export {
+  AWARD_INTENTS,
+  type AwardDraft,
+  type AwardIntent,
+  type CandidateTier,
+  type CompletedRaid,
+  DEFAULT_METHOD_ID,
+  DEFAULT_MSOS_CONFIG,
+  type LootAwardRecord,
+  type LootItem,
+  type LootMethod,
+  type LootMethodInfo,
+  type MethodContext,
+  type MsosCharTally,
+  type MsosConfig,
+  type MsosState,
+  type RaidAttendee,
+  type RaidContext,
+  type RankedCandidate,
+  type Standing,
+  type ValidationResult,
+} from '@vintage/loot-core';
 
 /**
  * An item someone looted in a raid, as the addon saw it (PLAN §5.1 "drops"). Recorded from a
@@ -29,7 +53,38 @@ export interface LootDrop {
 /** A drop to record for a raid; the store adds the id, guild, and raid. */
 export type LootDropInput = Omit<LootDrop, 'id' | 'guildId' | 'eventId'>;
 
-export const LOOT_COMMANDS = ['loot-list'] as const;
+/** One guild-scoped award in the loot ledger (PLAN §5.3: stamps method + versions). */
+export interface LootAward extends LootAwardRecord {
+  guildId: string;
+}
+
+/** An award to persist; the store assigns its id. */
+export type LootAwardInput = Omit<LootAward, 'id'>;
+
+/** Per-guild configuration and opaque method state for one loot method. */
+export interface LootMethodConfigRecord {
+  id: string;
+  guildId: string;
+  methodId: string;
+  methodVersion: number;
+  /** Starts at 0 (unconfigured defaults) and bumps by 1 on every `loot-method-configure`. */
+  configVersion: number;
+  config: unknown;
+  state: unknown;
+  updatedAt: number;
+  updatedBy: string;
+}
+
+export type LootMethodConfigInput = Omit<LootMethodConfigRecord, 'id'>;
+
+export const LOOT_COMMANDS = [
+  'loot-list',
+  'loot-methods-list',
+  'loot-method-configure',
+  'loot-candidates',
+  'loot-award',
+  'loot-history',
+] as const;
 export type LootCommandName = (typeof LOOT_COMMANDS)[number];
 
 /** Events loot emits on the core event bus (PLAN §4.3). None yet. */

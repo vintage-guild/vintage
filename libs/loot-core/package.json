@@ -1,0 +1,21 @@
+{
+  "name": "@vintage/loot-core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Pure LootMethod contract and swappable raid loot methods (mainspec over offspec first, PLAN §5).",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "type-check": "tsc6 -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@vintage/wow-data": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@vintage/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

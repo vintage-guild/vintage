@@ -8,6 +8,8 @@
  * @module
  */
 
+import type * as awards from "../awards.js";
+import type * as configs from "../configs.js";
 import type * as drops from "../drops.js";
 
 import type {
@@ -18,6 +20,8 @@ import type {
 import { anyApi, componentsGeneric } from "convex/server";
 
 const fullApi: ApiFromModules<{
+  awards: typeof awards;
+  configs: typeof configs;
   drops: typeof drops;
 }> = anyApi as any;
 

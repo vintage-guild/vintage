@@ -361,6 +361,22 @@ importers:
         specifier: 'catalog:'
         version: '@typescript/typescript6@6.0.2'
 
+  libs/loot-core:
+    dependencies:
+      '@vintage/wow-data':
+        specifier: workspace:*
+        version: link:../wow-data
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.7
+    devDependencies:
+      '@vintage/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      typescript:
+        specifier: 'catalog:'
+        version: '@typescript/typescript6@6.0.2'
+
   libs/wow-data:
     dependencies:
       zod:
@@ -577,6 +593,12 @@ importers:
       '@vintage/guild-kit':
         specifier: workspace:*
         version: link:../../packages/guild-kit
+      '@vintage/loot-core':
+        specifier: workspace:*
+        version: link:../../libs/loot-core
+      '@vintage/wow-data':
+        specifier: workspace:*
+        version: link:../../libs/wow-data
       convex:
         specifier: 'catalog:'
         version: 1.47.0(react@19.3.1)

@@ -44,6 +44,7 @@ const template = html<Page>`
         html<Page>`
           <p class="links">
             ${when((x) => x.pollId, html`<a href="/polls">All polls</a>`)}
+            <a href="/surveys">Surveys</a>
             ${when(
               (x) => x.view === 'officer',
               html`<a href="/officers?tab=polls">Close and manage in the quarters</a>`,

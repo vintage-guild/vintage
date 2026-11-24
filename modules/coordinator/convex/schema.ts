@@ -36,6 +36,8 @@ export const configFields = {
   serverEvents: v.optional(v.boolean()),
   /** Optional so rows saved before #130 still load; read as false (officers turn it on). */
   weeklyAssessment: v.optional(v.boolean()),
+  /** Optional so rows saved before #65 still load; read as false (officers turn it on). */
+  postRaidFeedbackSurvey: v.optional(v.boolean()),
   paused: v.boolean(),
   updatedAt: v.number(),
 };

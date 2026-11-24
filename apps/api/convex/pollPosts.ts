@@ -4,7 +4,14 @@
 //   npx convex run pollPosts:refresh '{"pollId":"…"}'
 
 import { createDiscordRest } from '@vintage/discord-kit';
-import { buildPollCard, renderKey, renderPollPost } from '@vintage/polls/commands';
+import {
+  buildPollCard,
+  buildSurveyCard,
+  renderKey,
+  renderPollPost,
+  renderSurveyInvite,
+  surveyRenderKey,
+} from '@vintage/polls/commands';
 import { v } from 'convex/values';
 import { runPollRefreshWithAlerts } from '../src/ops-alerts';
 import { internal } from './_generated/api';
@@ -100,6 +107,95 @@ export const refresh = internalAction({
             body: now.message,
           });
           await ctx.runMutation(internal.pollPosts.setRenderedKey, {
+            postId: p.id,
+            renderedKey: now.key,
+          });
+          edited++;
+        }
+        return { edited };
+      },
+      (alert, at) => reportCronFailure(ctx, alert, at),
+    ),
+});
+
+const surveyUrl = (surveyId: string) => {
+  const site = process.env.VINTAGE_SITE_URL;
+  return site ? `${site.replace(/\/$/, '')}/surveys/${surveyId}` : null;
+};
+
+/** Survey invite embed, key, and recorded Discord posts (#65). */
+export const surveyCard = internalQuery({
+  args: { surveyId: v.string() },
+  handler: async (ctx, { surveyId }) => {
+    const store = pollsStore(ctx);
+    const survey = await store.getSurvey(GUILD_ID, surveyId);
+    if (!survey) return null;
+    const [responses, members, posts] = await Promise.all([
+      store.listSurveyResponses(GUILD_ID, surveyId),
+      identityStore(ctx).listMembers(GUILD_ID),
+      store.listSurveyPosts(GUILD_ID, surveyId),
+    ]);
+    const built = buildSurveyCard(survey, responses, members, surveyUrl(surveyId));
+    return { message: renderSurveyInvite(built), key: surveyRenderKey(built), posts };
+  },
+});
+
+export const recordSurveyPost = internalMutation({
+  args: {
+    surveyId: v.string(),
+    channelId: v.string(),
+    messageId: v.string(),
+    renderedKey: v.string(),
+  },
+  handler: (ctx, args) => pollsStore(ctx).insertSurveyPost({ guildId: GUILD_ID, ...args }),
+});
+
+export const setSurveyRenderedKey = internalMutation({
+  args: { postId: v.string(), renderedKey: v.string() },
+  handler: (ctx, { postId, renderedKey }) =>
+    pollsStore(ctx).updateSurveyPost(GUILD_ID, postId, { renderedKey }),
+});
+
+/** Post a survey invite embed with link button and responded count (#65). */
+export const postSurvey = internalAction({
+  args: { surveyId: v.string(), channelId: v.string() },
+  handler: async (ctx, { surveyId, channelId }) => {
+    const discord = rest();
+    if (!discord) return { skipped: 'DISCORD_BOT_TOKEN is not set' };
+    const now = await ctx.runQuery(internal.pollPosts.surveyCard, { surveyId });
+    if (!now) return { skipped: 'no such survey' };
+    const message = (await discord.createMessage(channelId, now.message)) as { id: string };
+    await ctx.runMutation(internal.pollPosts.recordSurveyPost, {
+      surveyId,
+      channelId,
+      messageId: message.id,
+      renderedKey: now.key,
+    });
+    return { posted: message.id };
+  },
+});
+
+/** Refresh every Discord invite post for a survey when its responded count or status changed (#65). */
+export const refreshSurvey = internalAction({
+  args: { surveyId: v.string() },
+  handler: async (
+    ctx,
+    { surveyId },
+  ): Promise<{ edited: number } | { skipped: string } | { failed: string }> =>
+    runPollRefreshWithAlerts(
+      `survey:${surveyId}`,
+      async () => {
+        const discord = rest();
+        if (!discord) return { skipped: 'DISCORD_BOT_TOKEN is not set' };
+        const now = await ctx.runQuery(internal.pollPosts.surveyCard, { surveyId });
+        if (!now) return { skipped: 'no such survey' };
+        let edited = 0;
+        for (const p of now.posts) {
+          if (p.renderedKey === now.key) continue;
+          await discord.request('PATCH', `/channels/${p.channelId}/messages/${p.messageId}`, {
+            body: now.message,
+          });
+          await ctx.runMutation(internal.pollPosts.setSurveyRenderedKey, {
             postId: p.id,
             renderedKey: now.key,
           });

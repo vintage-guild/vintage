@@ -142,6 +142,38 @@ export const poll = internalQuery({
   handler: (ctx, { guildId, pollId }) => pollsStore(ctx).getPoll(guildId, pollId),
 });
 
+export const openSurveys = internalQuery({
+  args: { guildId: v.string() },
+  handler: async (ctx, { guildId }) => {
+    const store = pollsStore(ctx);
+    const list = await store.listSurveys(guildId, { statuses: ['open'] });
+    return Promise.all(
+      list.map(async (survey) => ({
+        survey,
+        respondedMemberIds: (await store.listSurveyResponses(guildId, survey.id)).map(
+          (r) => r.memberId,
+        ),
+      })),
+    );
+  },
+});
+
+export const createFeedbackSurvey = internalMutation({
+  args: {
+    input: v.any(),
+    channelId: v.union(v.string(), v.null()),
+  },
+  handler: async (ctx, { input, channelId }) => {
+    const result = await runSystemCommand(ctx, 'survey-create', input);
+    if (!result.success) throw new Error(`survey-create failed: ${result.error?.message}`);
+    const { id } = result.data as { id: string };
+    if (channelId) {
+      await ctx.scheduler.runAfter(0, internal.pollPosts.postSurvey, { surveyId: id, channelId });
+    }
+    return { id };
+  },
+});
+
 export const lock = internalMutation({
   args: { eventId: v.string() },
   handler: async (ctx, { eventId }) => {
@@ -293,6 +325,11 @@ export const tick = internalAction({
           },
           polls: {
             get: (guildId, pollId) => ctx.runQuery(internal.coordinator.poll, { guildId, pollId }),
+          },
+          surveys: {
+            createFeedback: (_guildId, input, channelId) =>
+              ctx.runMutation(internal.coordinator.createFeedbackSurvey, { input, channelId }),
+            listOpen: (guildId) => ctx.runQuery(internal.coordinator.openSurveys, { guildId }),
           },
           source: {
             load: (guildId, at) => ctx.runQuery(internal.coordinator.state, { guildId, now: at }),

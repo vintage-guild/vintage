@@ -112,8 +112,11 @@ export function createTickSource(stores: {
   loot: Pick<LootStore, 'listDrops'>;
 }): TickSource {
   const { raids, identity, coordinator, loot } = stores;
-  /** Raids that started in the summary window and have a recorded export (#221). */
-  const recordedRaids = async (guildId: string, now: number): Promise<TickRecorded[]> => {
+  /** Recently completed raids in the summary window, plus those with recorded exports (#221, #65). */
+  const completedAndRecorded = async (
+    guildId: string,
+    now: number,
+  ): Promise<{ completed: RaidEvent[]; recorded: TickRecorded[] }> => {
     const done = await raids.listEvents(guildId, {
       from: now - SUMMARY_WINDOW_MS,
       to: now,
@@ -139,7 +142,7 @@ export function createTickSource(stores: {
         })),
       });
     }
-    return out;
+    return { completed: done, recorded: out };
   };
   return {
     load: async (guildId, now) => {
@@ -179,10 +182,8 @@ export function createTickSource(stores: {
         };
       };
       const ticks = await Promise.all(events.map(toTick));
-      const recorded = await recordedRaids(guildId, now);
-      const eventIds = [...events, ...cancelled, ...recorded.map((r) => r.tick.event)].map(
-        (e) => e.id,
-      );
+      const { completed, recorded } = await completedAndRecorded(guildId, now);
+      const eventIds = [...events, ...cancelled, ...completed].map((e) => e.id);
       const liveEventIds = events.map((e) => e.id);
       const [actions, announced] = await Promise.all([
         eventIds.length ? coordinator.listActions(guildId, { eventIds }) : Promise.resolve([]),
@@ -197,6 +198,7 @@ export function createTickSource(stores: {
         // A cancelled raid needs no signups or timings, only its id for the action log.
         cancelled: cancelled.map((event) => ({ event, timings: DEFAULT_TIMINGS, signups: [] })),
         recorded,
+        completed,
         members,
         actions,
         announced,

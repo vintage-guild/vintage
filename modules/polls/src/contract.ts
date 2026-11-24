@@ -128,7 +128,113 @@ export interface PollPost {
   renderedKey: string;
 }
 
-/** Command names polls will expose. They land in #60; the names are the agreed contract. */
+export const SURVEY_QUESTION_KINDS = ['single', 'multi', 'ranked', 'text'] as const;
+/** Choice questions reuse poll methods (`single`, `multi`, `ranked`); `text` takes free text up to 500 chars. */
+export type SurveyQuestionKind = (typeof SURVEY_QUESTION_KINDS)[number];
+
+export const SURVEY_LIMITS = {
+  title: 200,
+  description: 1000,
+  minQuestions: 1,
+  maxQuestions: 20,
+  prompt: 300,
+  textAnswer: 500,
+} as const;
+
+export interface SurveyQuestion {
+  /** Stable within the survey (`q1`, `q2`, ...). */
+  id: string;
+  prompt: string;
+  kind: SurveyQuestionKind;
+  required: boolean;
+  /** Non-empty (2–25) for choice kinds; empty for `text`. */
+  options: PollOption[];
+  /** `multi` only. */
+  maxChoices: number | null;
+}
+
+export interface SurveyTextAnswerView {
+  text: string;
+  /** Always null when `survey.anonymous` is true. */
+  memberId: string | null;
+  displayName: string | null;
+}
+
+export type SurveyQuestionResults =
+  | {
+      questionId: string;
+      prompt: string;
+      kind: PollMethod;
+      tally: PollResults;
+    }
+  | {
+      questionId: string;
+      prompt: string;
+      kind: 'text';
+      responses: number;
+      answers: SurveyTextAnswerView[];
+    };
+
+export interface SurveyResults {
+  /** Total members who submitted a response. */
+  responses: number;
+  questions: SurveyQuestionResults[];
+}
+
+/** A multi-question survey answered on the website, with Discord invites and non-responder nudges (#65). */
+export interface Survey {
+  id: string;
+  guildId: string;
+  title: string;
+  description: string | null;
+  questions: SurveyQuestion[];
+  eligibleTier: Tier;
+  /** No command, render, export, or event names respondents, officers included. */
+  anonymous: boolean;
+  resultsVisible: ResultsVisibility;
+  status: PollStatus;
+  opensAt: number | null;
+  closesAt: number | null;
+  createdBy: string;
+  closedBy: string | null;
+  createdAt: number;
+  closedAt: number | null;
+  tags: string[];
+  configVersion: number;
+  /** Frozen on close; null while draft/open or cancelled. */
+  results: SurveyResults | null;
+}
+
+export interface SurveyAnswer {
+  questionId: string;
+  /** Option ids for choice questions; empty for `text`. */
+  choices: string[];
+  /** Trimmed text ≤ 500 chars for `text` questions; null for choice questions. */
+  text: string | null;
+}
+
+/** One member's response to a survey. One per member per survey; updating replaces it. */
+export interface SurveyResponse {
+  id: string;
+  guildId: string;
+  surveyId: string;
+  memberId: string;
+  answers: SurveyAnswer[];
+  submittedAt: number;
+  updatedAt: number;
+}
+
+/** Where a survey invite embed is posted in Discord, so its responded count refreshes in place. */
+export interface SurveyPost {
+  id: string;
+  guildId: string;
+  surveyId: string;
+  channelId: string;
+  messageId: string;
+  renderedKey: string;
+}
+
+/** Command names polls exposes. */
 export const POLLS_COMMANDS = [
   'poll-create',
   'poll-update',
@@ -141,6 +247,14 @@ export const POLLS_COMMANDS = [
   'poll-sweep',
   'vote-cast',
   'vote-retract',
+  'survey-create',
+  'survey-open',
+  'survey-close',
+  'survey-get',
+  'survey-list',
+  'survey-results',
+  'survey-export',
+  'response-set',
 ] as const;
 export type PollsCommandName = (typeof POLLS_COMMANDS)[number];
 
@@ -166,5 +280,24 @@ export interface PollsEvents {
     pollId: string;
     tags: string[];
     results: PollResults;
+  };
+  /** A survey started taking website responses; Discord posts an invite embed. */
+  'survey-opened': {
+    surveyId: string;
+    title: string;
+    closesAt: number | null;
+    eligibleTier: Tier;
+    tags: string[];
+  };
+  /** A member submitted or updated a survey response. `memberId` is null when anonymous. */
+  'response-set': {
+    surveyId: string;
+    memberId: string | null;
+  };
+  /** A survey closed with its frozen results. */
+  'survey-closed': {
+    surveyId: string;
+    tags: string[];
+    results: SurveyResults;
   };
 }

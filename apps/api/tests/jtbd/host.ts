@@ -30,8 +30,14 @@ import type { Character } from '@vintage/identity/contract';
 import { createMemoryIdentityDeps } from '@vintage/identity/testing';
 import { createMemoryInsightsStore } from '@vintage/insights/testing';
 import { createMemoryLootStore } from '@vintage/loot/testing';
-import { buildPollCard, renderPollPost } from '@vintage/polls/commands';
-import type { Poll } from '@vintage/polls/contract';
+import {
+  buildPollCard,
+  buildSurveyCard,
+  renderPollPost,
+  renderSurveyInvite,
+  surveyRenderKey,
+} from '@vintage/polls/commands';
+import type { Poll, Survey } from '@vintage/polls/contract';
 import {
   createMemoryPollsStore,
   createRecordingEventSink as createPollEventSink,
@@ -372,6 +378,38 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
         },
         discord,
         polls: { get: (g, id) => polls.getPoll(g, id) },
+        surveys: {
+          createFeedback: async (g, input, channelId) => {
+            const created = await ok<Survey>(system, 'survey-create', input);
+            if (channelId) {
+              const members = await identity.listMembers(g);
+              const url = options.siteUrl
+                ? `${options.siteUrl.replace(/\/$/, '')}/surveys/${created.id}`
+                : null;
+              const card = buildSurveyCard(created, [], members, url);
+              const sent = await discord.post(channelId, renderSurveyInvite(card));
+              await polls.insertSurveyPost({
+                guildId: g,
+                surveyId: created.id,
+                channelId,
+                messageId: sent.id,
+                renderedKey: surveyRenderKey(card),
+              });
+            }
+            return { id: created.id };
+          },
+          listOpen: async (g) => {
+            const list = await polls.listSurveys(g, { statuses: ['open'] });
+            return Promise.all(
+              list.map(async (survey) => ({
+                survey,
+                respondedMemberIds: (await polls.listSurveyResponses(g, survey.id)).map(
+                  (r) => r.memberId,
+                ),
+              })),
+            );
+          },
+        },
         decisions,
         links: { discordGuildId: DISCORD_GUILD, siteUrl: options.siteUrl ?? null },
         recruiting: {

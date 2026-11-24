@@ -1,6 +1,15 @@
 import { commandsFor } from '@vintage/guild-kit';
 import type { Member } from '@vintage/identity/contract';
-import type { Poll, PollPost, PollStatus, PollsEvents, Vote } from './contract';
+import type {
+  Poll,
+  PollPost,
+  PollStatus,
+  PollsEvents,
+  Survey,
+  SurveyPost,
+  SurveyResponse,
+  Vote,
+} from './contract';
 
 /**
  * The polls module's data port. Commands depend on this, not on Convex: production wires it
@@ -43,6 +52,37 @@ export interface PollsStore {
     postId: string,
     patch: Partial<Pick<PollPost, 'renderedKey'>>,
   ): Promise<PollPost>;
+
+  /** Surveys (#65), sorted by close time (open-ended last), then creation time. */
+  listSurveys(
+    guildId: string,
+    filter?: { statuses?: PollStatus[]; tag?: string; closesBy?: number },
+  ): Promise<Survey[]>;
+  getSurvey(guildId: string, surveyId: string): Promise<Survey | null>;
+  insertSurvey(survey: Omit<Survey, 'id'>): Promise<Survey>;
+  updateSurvey(
+    guildId: string,
+    surveyId: string,
+    patch: Partial<Omit<Survey, 'id' | 'guildId'>>,
+  ): Promise<Survey>;
+
+  /** One response per member per survey; sorted by first submission time. */
+  listSurveyResponses(guildId: string, surveyId: string): Promise<SurveyResponse[]>;
+  countSurveyResponses(guildId: string, surveyId: string): Promise<number>;
+  getSurveyResponseByMember(
+    guildId: string,
+    surveyId: string,
+    memberId: string,
+  ): Promise<SurveyResponse | null>;
+  upsertSurveyResponse(response: Omit<SurveyResponse, 'id'>): Promise<SurveyResponse>;
+
+  listSurveyPosts(guildId: string, surveyId: string): Promise<SurveyPost[]>;
+  insertSurveyPost(post: Omit<SurveyPost, 'id'>): Promise<SurveyPost>;
+  updateSurveyPost(
+    guildId: string,
+    postId: string,
+    patch: Partial<Pick<SurveyPost, 'renderedKey'>>,
+  ): Promise<SurveyPost>;
 }
 
 /**

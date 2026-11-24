@@ -2,7 +2,7 @@ import type { DecisionsPort } from '@vintage/decisions';
 import type { MessageData, ScheduledEventData } from '@vintage/discord-kit';
 import { type Caller, type CommandResult, commandsFor } from '@vintage/guild-kit';
 import type { GuildRank } from '@vintage/identity/contract';
-import type { Poll } from '@vintage/polls/contract';
+import type { Poll, Survey } from '@vintage/polls/contract';
 import type {
   EventKind,
   LateMinutes,
@@ -158,6 +158,11 @@ export interface TickState {
    */
   recorded?: TickRecorded[];
   /**
+   * Recently completed raids within `SUMMARY_WINDOW_MS`, for optional post-raid feedback surveys
+   * (`config.postRaidFeedbackSurvey`, #65). Absent means none.
+   */
+  completed?: RaidEvent[];
+  /**
    * Last announced per-member state for upcoming raids, for `#leads` post-digest change alerts.
    * Absent on legacy sources; empty array means no rows seeded yet.
    */
@@ -268,6 +273,28 @@ export interface TickPorts {
   wording?: { write(instructions: string, facts: string): Promise<string | null> };
   /** Deduplicated ops-channel error reporting (#262). Absent: falls back to posting once per action. */
   opsAlert?: OpsAlertPort;
+  /** Optional survey port for post-raid feedback surveys and non-responder nudges (#65). */
+  surveys?: {
+    createFeedback(
+      guildId: string,
+      input: {
+        title: string;
+        description: string;
+        questions: {
+          prompt: string;
+          kind: 'single' | 'multi' | 'ranked' | 'text';
+          required: boolean;
+          options?: string[];
+        }[];
+        eligibleTier: 'raider';
+        anonymous: boolean;
+        closesAt: number;
+        tags: string[];
+      },
+      channelId: string | null,
+    ): Promise<{ id: string }>;
+    listOpen(guildId: string): Promise<{ survey: Survey; respondedMemberIds: string[] }[]>;
+  };
 }
 
 export const command = commandsFor<CoordinatorDeps>();

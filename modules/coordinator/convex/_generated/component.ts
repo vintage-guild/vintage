@@ -147,6 +147,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             openSignupChannelId?: string | null;
             opsChannelId: string | null;
             paused: boolean;
+            postRaidFeedbackSurvey?: boolean;
             reminderRoleIds?: Array<string>;
             serverEvents?: boolean;
             signupChannelId: string | null;

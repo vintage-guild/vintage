@@ -477,6 +477,27 @@ export function pollsStore(ctx: Ctx): PollsStore {
     insertPost: (post) => writable(ctx).runMutation(polls.posts.insert, post),
     updatePost: (guildId, postId, patch) =>
       writable(ctx).runMutation(polls.posts.update, { guildId, postId, patch }),
+
+    listSurveys: (guildId, filter = {}) => ctx.runQuery(polls.surveys.list, { guildId, ...filter }),
+    getSurvey: (guildId, surveyId) => ctx.runQuery(polls.surveys.get, { guildId, surveyId }),
+    insertSurvey: (survey) => writable(ctx).runMutation(polls.surveys.insert, survey),
+    updateSurvey: (guildId, surveyId, patch) =>
+      writable(ctx).runMutation(polls.surveys.update, { guildId, surveyId, patch }),
+
+    listSurveyResponses: (guildId, surveyId) =>
+      ctx.runQuery(polls.surveys.listResponses, { guildId, surveyId }),
+    countSurveyResponses: (guildId, surveyId) =>
+      ctx.runQuery(polls.surveys.countResponses, { guildId, surveyId }),
+    getSurveyResponseByMember: (guildId, surveyId, memberId) =>
+      ctx.runQuery(polls.surveys.responseByMember, { guildId, surveyId, memberId }),
+    upsertSurveyResponse: (response) =>
+      writable(ctx).runMutation(polls.surveys.upsertResponse, response),
+
+    listSurveyPosts: (guildId, surveyId) =>
+      ctx.runQuery(polls.surveys.listPosts, { guildId, surveyId }),
+    insertSurveyPost: (post) => writable(ctx).runMutation(polls.surveys.insertPost, post),
+    updateSurveyPost: (guildId, postId, patch) =>
+      writable(ctx).runMutation(polls.surveys.updatePost, { guildId, postId, patch }),
   };
 }
 

@@ -44,6 +44,8 @@ export interface CoordinatorConfig {
   serverEvents: boolean;
   /** Post the weekly roster and recruitment check to the ops channel (Mondays from 16:00 UTC). Off until an officer turns it on. */
   weeklyAssessment: boolean;
+  /** Open a short anonymous feedback survey when a raid completes (#65). Off by default. */
+  postRaidFeedbackSurvey: boolean;
   /** Paused: ticks do nothing until resumed. */
   paused: boolean;
   updatedAt: number;
@@ -69,6 +71,7 @@ export function defaultConfig(guildId: string): CoordinatorConfig {
     dmRanks: null,
     serverEvents: false,
     weeklyAssessment: false,
+    postRaidFeedbackSurvey: false,
     paused: false,
     updatedAt: 0,
   };

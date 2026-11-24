@@ -13,6 +13,7 @@ import { onboardAfterSync } from '../src/onboarding';
 import { refuseMutationInRead } from '../src/read-only';
 import { commands, type VintageDeps } from '../src/registry';
 import { discordIdOf, webCaller } from '../src/web-caller';
+import { internal } from './_generated/api';
 import { internalMutation, mutation, query } from './_generated/server';
 import {
   agentDeps,
@@ -125,6 +126,20 @@ async function runAs(ctx: Ctx, caller: Caller, { name, input, confirmToken }: Ru
     'confirmToken' in result.data;
   if (result.success && !isPreview && TICK_TRIGGERS.has(name) && 'runMutation' in ctx) {
     await scheduleCoalescedTick(ctx, caller.guildId);
+  }
+  if (
+    result.success &&
+    !isPreview &&
+    (name === 'response-set' || name === 'survey-close') &&
+    'runMutation' in ctx
+  ) {
+    const surveyId =
+      typeof input === 'object' && input !== null && 'surveyId' in input
+        ? String((input as { surveyId: unknown }).surveyId)
+        : null;
+    if (surveyId) {
+      await ctx.scheduler.runAfter(3000, internal.pollPosts.refreshSurvey, { surveyId });
+    }
   }
   return toConvex(result);
 }

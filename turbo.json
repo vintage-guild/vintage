@@ -4,7 +4,7 @@
   "globalDependencies": ["tsconfig.base.json"],
   "globalPassThroughEnv": ["CI", "NODE_ENV", "CONVEX_DEPLOYMENT", "CONVEX_AGENT_MODE"],
   "tasks": {
-    "build": { "dependsOn": ["^build"], "outputs": ["dist/**"] },
+    "build": { "dependsOn": ["^build"], "outputs": ["dist/**", ".vercel/output/**"] },
     "dev": { "cache": false, "persistent": true },
     "type-check": { "dependsOn": ["^build"] }
   }

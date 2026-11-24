@@ -141,10 +141,10 @@ The local anonymous backend (`dev:local`) is still there for offline work.
 
 The buttons on signup posts need the gateway deployed (Vercel) and pointed at Convex:
 
-1. Pick a long random secret. Set `VINTAGE_GATEWAY_SECRET` to it in the Convex env
-   (`npx convex env set …` in `apps/api`) and in Vercel.
-2. In Vercel also set `VINTAGE_CONVEX_SITE_URL` (the deployment's `https://<name>.convex.site`)
-   and `DISCORD_PUBLIC_KEY`.
+1. Pick a long random secret. Set `VINTAGE_GATEWAY_SECRET` and `DISCORD_PUBLIC_KEY` in the Convex
+   env (`npx convex env set …` in `apps/api`) and in Vercel. Convex re-verifies Discord's Ed25519
+   signature over the raw body with `DISCORD_PUBLIC_KEY` in addition to the bearer secret (#263).
+2. In Vercel also set `VINTAGE_CONVEX_SITE_URL` (the deployment's `https://<name>.convex.site`).
 3. In the Developer Portal → General Information, set **Interactions Endpoint URL** to
    `https://<gateway>/discord/interactions` and save. Discord checks it with a signed PING.
 

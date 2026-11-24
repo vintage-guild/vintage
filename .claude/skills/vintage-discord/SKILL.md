@@ -78,8 +78,10 @@ commands). Everything runs serverless: no always-on gateway process.
   environment variables. Never commit values or echo the token in output.
 - Portal settings (Public Bot, intents, install link) change who can install the bot: a human
   officer changes them, not an agent. The bot needs the **Server Members** intent for role sync.
-- **Signup buttons:** the gateway verifies, then forwards components and modals to Convex
-  (`convex/http.ts` → `convex/discord.ts` → `src/discord-signups.ts`) with `VINTAGE_GATEWAY_SECRET`.
+- **Signup buttons:** the gateway verifies, then forwards the exact raw body plus
+  `X-Signature-Ed25519` and `X-Signature-Timestamp` to Convex (`convex/http.ts` → `convex/discord.ts`
+  → `src/discord-signups.ts`) with `VINTAGE_GATEWAY_SECRET`. Convex re-verifies the Ed25519
+  signature with `DISCORD_PUBLIC_KEY` before parsing JSON (#263).
   Custom ids: `signup:<event>:<status>`, `signup-pick:<event>:<status>`,
   `signup-note:<event>:<status>:<character>`, and the reply's menus
   `signup-char:<event>` (Switch character), `signup-spec:<event>` (Change spec) and

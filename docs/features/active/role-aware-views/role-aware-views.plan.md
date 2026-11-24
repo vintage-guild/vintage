@@ -269,6 +269,6 @@ is `public`, so visitors see the live progression ledger on the home page.)
 - [x] Trial start date on identity (`rankSince`, set by `member-sync`)
 - [x] Roster tab (`vintage-roster-desk`)
 - [x] J19 in `docs/jtbd/raid-night.md` and `raid-night.jtbd.test.ts`, with "what to bring" (raid notes)
-- [ ] J20 in `docs/jtbd` and `apps/api/tests/jtbd` (J21 done: `docs/jtbd/recruiting.md`)
+- [x] J20 in `docs/jtbd` and `apps/api/tests/jtbd` (J21 done: `docs/jtbd/recruiting.md`)
 - [x] About for visitors on the home page, from the guild profile
 - [ ] Docs: `apps/web/README.md` routes table, `packages/ui-kit/README.md`, architecture status

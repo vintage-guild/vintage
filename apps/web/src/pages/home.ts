@@ -82,9 +82,6 @@ import { pageStyles } from './page-styles';
 const CALENDAR_DAYS = 60;
 const DAY_MS = 86_400_000;
 
-/** One row of `member-list`. */
-type MemberRow = RosterMember;
-
 /** One row of `raid-list`. */
 interface RaidRow {
   event: RaidEvent;
@@ -415,7 +412,7 @@ const template = html<Page>`
                 )}
                 <a class="btn ${(x) => (x.profile.discordInvite ? '' : 'primary')}" href="/apply">Apply to raid</a>
                 <a class="btn" href="/about">How we raid</a>
-                <a class="btn" href="/#roster" data-section-link="roster">Who’s in</a>
+                <a class="btn" href="/roster">Who’s in</a>
               </p>
               ${when(
                 (x) => !x.profile.discordInvite,
@@ -449,33 +446,6 @@ const template = html<Page>`
               </tbody>
             </table>
           </div>
-        </div>
-      </section>
-    `,
-  )}
-
-  ${when(
-    (x) => x.shows('roster'),
-    html<Page>`
-      <section
-        class="sec"
-        id="roster"
-        data-section
-        data-section-eyebrow="Roster"
-        data-section-title="On the rolls"
-        data-section-action="Find me"
-        aria-labelledby="h-roster"
-      >
-        <div class="wrap">
-          <header>
-            <div class="lead"><span class="eyebrow">Roster</span><h2 id="h-roster">On the rolls</h2></div>
-            <span class="mono">${(x) => x.rosterNote}</span>
-          </header>
-          ${when(
-            (x) => !x.membersFailed,
-            html<Page>`<vintage-roster-wall :members="${(x) => x.members}" me="${(x) => x.meId}"></vintage-roster-wall>`,
-          )}
-          ${when((x) => x.membersFailed, html<Page>`<p class="muted">${(x) => x.rosterRefused}</p>`)}
         </div>
       </section>
     `,
@@ -714,7 +684,7 @@ const styles = css`
 
   /* sections: one rhythm, a rule between them, no bands of empty space */
   /* Block, not the shared page styles' grid: in a grid the centered .wrap shrinks to its
-     content, so a short section (a one-member roster) would sit narrow and centered. */
+     content, so a short section would sit narrow and centered. */
   .sec {
     display: block;
     padding-block: var(--space-xl) var(--space-2xl);
@@ -1215,14 +1185,13 @@ const styles = css`
 `;
 
 /**
- * The home page: the hero, the next-raid section, and the progression ledger; recruiting, the
- * roster, and the coordinator feed follow (docs/features/proposed/home-page). Everything shown
- * comes through the command client: `member-list`, `raid-list`, `signup-list`,
+ * The home page: the hero, the next-raid section, and the progression ledger; recruiting and the
+ * coordinator feed follow (docs/features/proposed/home-page). The full roster lives at `/roster`.
+ * Everything shown comes through the command client: `member-list`, `raid-list`, `signup-list`,
  * `character-list`, `progress-get`.
  */
 export class Page extends FASTElement {
   @observable memberCount: number | null = null;
-  @observable members: MemberRow[] = [];
   @observable feed: FeedItem[] = [];
   /** The open poll the member may vote on, as the card shows it. */
   @observable poll: PollCardModel | null = null;
@@ -1249,8 +1218,6 @@ export class Page extends FASTElement {
   @observable progressFailed = false;
   /** `raid-list` was refused (visitors): the calendar, the counts, and the log say so. */
   @observable raidsFailed = false;
-  /** `member-list` was refused (visitors and `member` tier): the roster says why. */
-  @observable membersFailed = false;
   /** `poll-list` was refused (visitors): the poll card says polls are for members. */
   @observable pollFailed = false;
   /**
@@ -1399,12 +1366,6 @@ export class Page extends FASTElement {
       : { caption: 'recruits and up sign up', tone: 'default' };
   }
 
-  get rosterRefused(): string {
-    return this.view === 'visitor'
-      ? 'The roster is for members. Sign in with Discord to see who’s in.'
-      : 'The roster opens to recruits and up. Ask an officer about raiding with us.';
-  }
-
   get later(): RaidRow[] {
     return this.raids.slice(1);
   }
@@ -1463,11 +1424,6 @@ export class Page extends FASTElement {
 
   get meId(): string {
     return currentSession()?.memberId ?? '';
-  }
-
-  get rosterNote(): string {
-    if (this.memberCount === null) return '';
-    return `${this.memberCount} members · ranks from Discord`;
   }
 
   /** "Eastern Time (your profile)" or "your browser's time zone". */
@@ -1723,11 +1679,10 @@ export class Page extends FASTElement {
     this.officerLoaded = true;
   }
 
+  /** How many are on the rolls, for the hero figure. The full roster lives at `/roster`. */
   async loadMembers(): Promise<void> {
-    const result = await getCommandClient().read<MemberRow[]>('member-list');
-    this.members = result.success ? (result.data ?? []) : [];
-    this.memberCount = result.success ? this.members.length : null;
-    this.membersFailed = !result.success;
+    const result = await getCommandClient().read<RosterMember[]>('member-list');
+    this.memberCount = result.success ? (result.data ?? []).length : null;
   }
 
   /** The coordinator's log across the upcoming raids, newest first. */

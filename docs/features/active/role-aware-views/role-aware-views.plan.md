@@ -45,8 +45,8 @@ where their commands are buttons.
 ### Visitor (`public`)
 
 What the home page is now: the recruiting hero with Apply and Discord, then raids, progress,
-recruiting, roster, news. Also what a `friend`-ranked Discord member sees, since friends are
-`public` tier.
+recruiting, news. Also what a `friend`-ranked Discord member sees, since friends are `public`
+tier.
 
 ### Member and raider (`member`, `recruit`, `raider`)
 
@@ -63,8 +63,8 @@ recruiting, roster, news. Also what a `friend`-ranked Discord member sees, since
   headline and standfirst go; the visitor already read them.
 - **Recruiting collapses** to one line at the bottom: "We need two healers for the twenties.
   Know anyone?" with the Discord link. The needs table stays reachable on `/about`.
-- **Progress, roster, news** stay as they are. On the roster wall the member's own row is already
-  marked.
+- **Progress and news** stay as they are. The roster wall was dropped from the home page (below):
+  the guild's full roster lives at `/roster`, open to everyone.
 
 ### Officer and raid leader (`leader`, `officer`)
 
@@ -162,6 +162,7 @@ New jobs for [docs/jtbd](../../../jtbd/README.md), each as a scenario test and a
 | 2026-10-27 | Raid notes are edited through `raid-reschedule` (its `startsAt` became optional, `notes` added; one of them required), not a new `raid-update`: the Calendar tab's one raid form saves time and notes in one call, and a second command doing half of the same edit would split the contract. Schedules carry default notes that each new raid copies (raid nights repeat the same "flasks, on at 7:45"); editing a schedule's notes leaves raids already created alone, as with its time. |
 | 2026-10-26 | The Progress tab records kills only; there is no way to correct or remove one yet. The form says what it will record, and whether it becomes the ledger entry, before it is sent. A `kill-remove` command (officer, destructive, with the confirm step) is the follow-up if a wrong kill gets recorded. Repeat kills are kept but not listed: `progress-get` answers first kills only. |
 | 2026-10-26 | The site module's commands are `recruiting-get` / `recruiting-set`, not `site-recruiting-*`: names say the noun, as `progress-get` and `kill-record` do, not the module. Until an officer saves, `recruiting-get` answers the copy the site shipped with. |
+| 2026-11-23 | The member/recruit home composition drops the "On the rolls" roster-wall section (TJ): it duplicated `/roster` (open to everyone, Blizzard armory data with search and filters) under the same word for a different, narrower dataset (`member-list`, mains only, Discord rank groups). The home page keeps the member count in its hero figure and links out to `/roster`; `HOME_SECTIONS` no longer has a `roster` entry. |
 
 ## Open questions
 

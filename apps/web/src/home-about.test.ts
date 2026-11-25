@@ -146,3 +146,45 @@ describe('the home page’s public Progress section (#340)', () => {
     }
   });
 });
+
+describe('the home page without its roster section', () => {
+  it('sends visitors to /roster from the recruiting band, not to a home section', async () => {
+    client();
+    const page = await mountHome();
+    try {
+      const link = page.shadowRoot?.querySelector('#recruiting a[href="/roster"]');
+      expect(link).not.toBeNull();
+      expect(link?.hasAttribute('data-section-link')).toBe(false);
+      expect(page.shadowRoot?.querySelector('#roster')).toBeNull();
+    } finally {
+      page.remove();
+    }
+  });
+
+  it('shows a signed-in raider no roster section but keeps the member count', async () => {
+    restore = setCommandClient({
+      read: (async (name: string): Promise<CommandResult> => {
+        if (name === 'guild-profile-get') return { success: true, data: PROFILE };
+        if (name === 'member-list') {
+          return { success: true, data: [{ memberId: 'm1' }, { memberId: 'm2' }] };
+        }
+        return {
+          success: false,
+          error: { code: 'COMMAND_NOT_FOUND', message: 'Unknown command' },
+        };
+      }) as never,
+      run: async () => ({ success: true }),
+    });
+    setSession({ memberId: 'm1', displayName: 'Bloodfen', tier: 'raider', rank: 'raider' });
+    const page = await mountHome();
+    try {
+      expect(page.shadowRoot?.querySelector('#roster')).toBeNull();
+      const members = [
+        ...(page.shadowRoot?.querySelectorAll('vintage-hero vintage-figure') ?? []),
+      ].find((el) => el.getAttribute('caption')?.startsWith('on the rolls'));
+      expect(members?.getAttribute('value')).toBe('2');
+    } finally {
+      page.remove();
+    }
+  });
+});

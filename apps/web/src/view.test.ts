@@ -91,8 +91,8 @@ describe('sectionsFor', () => {
     expect(list(null)).toEqual(['about', 'progress', 'recruiting']);
     expect(list('public')).toEqual(['about', 'progress', 'recruiting']);
     expect(list('member')).toEqual(['news', 'progress', 'raids', 'recruiting']);
-    expect(list('recruit')).toEqual(['news', 'progress', 'raids', 'recruiting', 'roster']);
-    expect(list('officer')).toEqual(['news', 'progress', 'raids', 'recruiting', 'roster']);
+    expect(list('recruit')).toEqual(['news', 'progress', 'raids', 'recruiting']);
+    expect(list('officer')).toEqual(['news', 'progress', 'raids', 'recruiting']);
   });
 
   it('gives an unknown tier the storefront, never nothing', () => {

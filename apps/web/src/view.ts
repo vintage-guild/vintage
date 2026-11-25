@@ -41,7 +41,6 @@ export const HOME_SECTIONS = {
   raids: 'member', // raid-list, signup-list
   progress: 'public', // progress-get
   recruiting: 'public', // recruiting-get
-  roster: 'recruit', // member-list
   news: 'member', // coordinator-log, poll-list
 } as const satisfies Record<string, Tier>;
 

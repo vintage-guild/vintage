@@ -61,21 +61,33 @@ const NOT_YET = reply(
   },
 );
 
-const post = (convex: ConvexForward, interaction: Interaction, signal?: AbortSignal) =>
+/** The verified raw request forwarded verbatim so Convex can re-verify Discord's signature (#263). */
+interface SignedRawInteraction {
+  body: string;
+  signature: string;
+  timestamp: string;
+}
+
+const post = (convex: ConvexForward, raw: SignedRawInteraction, signal?: AbortSignal) =>
   (convex.fetch ?? fetch)(`${convex.siteUrl.replace(/\/$/, '')}/gateway/interaction`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', authorization: `Bearer ${convex.secret}` },
-    body: JSON.stringify(interaction),
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${convex.secret}`,
+      [SIGNATURE_HEADER]: raw.signature,
+      [TIMESTAMP_HEADER]: raw.timestamp,
+    },
+    body: raw.body,
     ...(signal ? { signal } : {}),
   });
 
 /** Send a verified component or modal interaction to Convex and return its response. */
-async function forward(convex: ConvexForward | undefined, interaction: Interaction) {
+async function forward(convex: ConvexForward | undefined, raw: SignedRawInteraction) {
   if (!convex) {
     return reply('This part of Random is not set up in Discord yet.', { ephemeral: true });
   }
   try {
-    const res = await post(convex, interaction);
+    const res = await post(convex, raw);
     if (res.status === 404) return NOT_YET;
     if (!res.ok) return TROUBLE;
     return (await res.json()) as InteractionResponse;
@@ -90,14 +102,14 @@ async function forward(convex: ConvexForward | undefined, interaction: Interacti
  */
 async function forwardAutocomplete(
   convex: ConvexForward | undefined,
-  interaction: Interaction,
+  raw: SignedRawInteraction,
   timeoutMs: number,
 ): Promise<InteractionResponse> {
   if (!convex) return NO_SUGGESTIONS;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await post(convex, interaction, controller.signal);
+    const res = await post(convex, raw, controller.signal);
     if (!res.ok) return NO_SUGGESTIONS;
     const body = (await res.json()) as InteractionResponse;
     return body?.type === InteractionResponseType.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT
@@ -131,6 +143,7 @@ function parse(body: string): Interaction | undefined {
 
 async function route(
   interaction: Interaction,
+  raw: SignedRawInteraction,
   now: Date,
   convex: ConvexForward | undefined,
   autocompleteTimeoutMs: number,
@@ -142,14 +155,14 @@ async function route(
   ) {
     const [group] = subcommandPath(interaction);
     return group && AUTOCOMPLETED_GROUPS.has(group)
-      ? forwardAutocomplete(convex, interaction, autocompleteTimeoutMs)
+      ? forwardAutocomplete(convex, raw, autocompleteTimeoutMs)
       : NO_SUGGESTIONS;
   }
   if (
     interaction.type === InteractionType.MESSAGE_COMPONENT ||
     interaction.type === InteractionType.MODAL_SUBMIT
   ) {
-    return forward(convex, interaction);
+    return forward(convex, raw);
   }
   if (
     interaction.type === InteractionType.APPLICATION_COMMAND &&
@@ -157,7 +170,7 @@ async function route(
   ) {
     const [sub] = subcommandPath(interaction);
     if (sub === 'ping') return reply(`pong · ${discordTimestamp(now)}`, { ephemeral: true });
-    if (sub && FORWARDED_GROUPS.has(sub)) return forward(convex, interaction);
+    if (sub && FORWARDED_GROUPS.has(sub)) return forward(convex, raw);
     return NOT_YET;
   }
   return undefined;
@@ -177,20 +190,15 @@ export function createInteractionHandler({
     const key = await keyPromise;
     if (!key) return problem(500, 'interactions endpoint is misconfigured');
     const body = await request.text();
-    const valid = await verifyInteraction(
-      key,
-      {
-        signature: request.headers.get(SIGNATURE_HEADER),
-        timestamp: request.headers.get(TIMESTAMP_HEADER),
-        body,
-      },
-      { now },
-    );
-    if (!valid) return problem(401, 'invalid request signature');
+    const signature = request.headers.get(SIGNATURE_HEADER);
+    const timestamp = request.headers.get(TIMESTAMP_HEADER);
+    const valid = await verifyInteraction(key, { signature, timestamp, body }, { now });
+    if (!valid || !signature || !timestamp) return problem(401, 'invalid request signature');
 
     const interaction = parse(body);
+    const raw: SignedRawInteraction = { body, signature, timestamp };
     const response =
-      interaction && (await route(interaction, now(), convex, autocompleteTimeoutMs));
+      interaction && (await route(interaction, raw, now(), convex, autocompleteTimeoutMs));
     return response ? json(response) : problem(400, 'unknown interaction');
   };
 }

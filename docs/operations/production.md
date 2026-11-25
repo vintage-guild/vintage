@@ -76,7 +76,9 @@ scheduled backups) is still open (PLAN.md §8, Phase 0).
   Random tab in `/officers`).
 - **Vercel:** each project's Logs for the gateway's interaction errors and 401s.
 - **Discord:** Random answers in the test server. A slash command that times out usually means
-  the gateway can't reach Convex: check `VINTAGE_CONVEX_SITE_URL` and `VINTAGE_GATEWAY_SECRET`.
+  the gateway can't reach Convex: check `VINTAGE_CONVEX_SITE_URL`, `VINTAGE_GATEWAY_SECRET`, and
+  `DISCORD_PUBLIC_KEY` (Convex re-verifies Discord's Ed25519 signature on `/gateway/interaction`,
+  #263).
 - **Sign-in:** a hosted deployment missing `BETTER_AUTH_SECRET`, `SITE_URL`, `DISCORD_CLIENT_ID`,
   or `DISCORD_CLIENT_SECRET` refuses sign-in with an error naming them (`apps/api/src/auth-env.ts`)
   instead of falling back to defaults.
@@ -133,6 +135,7 @@ keep the production bot token off machines that run agents where you can.
 |---|---|---|
 | `BETTER_AUTH_SECRET` | Signs everyone out | Convex |
 | `VINTAGE_GATEWAY_SECRET` | Must change in both places at once; Discord buttons fail between the two edits | Convex and the gateway's Vercel env (Production only) |
+| `DISCORD_PUBLIC_KEY` | Not secret, but required in both places so Convex can re-verify forwarded Discord signatures (#263); set it in Convex before deploying signature enforcement | Convex and the gateway's Vercel env |
 | `DISCORD_BOT_TOKEN` | Reset in the Developer Portal, then update everywhere it's set | Convex, `apps/api/.env.local` |
 | `VINTAGE_CONFIRM_SECRET` | Pending confirm tokens stop working (they expire in 5 minutes anyway) | Convex |
 | `BLIZZARD_CLIENT_SECRET` | Generate a new secret for the client on develop.battle.net, then update Convex; armory fetches record an error in between | Convex |

@@ -45,7 +45,9 @@ Clicks on the coordinator's signup posts (`signup:…`), the character picker (`
 reason form (`signup-note:…`), the reply's Switch character, Change spec and Role menus
 (`signup-char:…`, `signup-spec:…`, `signup-role:…`), the New character form (`signup-new:…`) and
 the character remove confirm (`char-rm:…`) are verified here, then forwarded to Convex at
-`POST /gateway/interaction` with `Authorization: Bearer $VINTAGE_GATEWAY_SECRET`. Convex runs the
+`POST /gateway/interaction` with `Authorization: Bearer $VINTAGE_GATEWAY_SECRET`, forwarding the
+exact raw body plus `X-Signature-Ed25519` and `X-Signature-Timestamp` so Convex re-verifies
+Discord's signature with `DISCORD_PUBLIC_KEY` (#263). Convex runs the
 flow (`apps/api/src/discord-signups.ts`) and returns the response this endpoint sends back to
 Discord. Without the two variables, members get a private "not set up yet" reply.
 

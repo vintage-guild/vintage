@@ -1,9 +1,9 @@
 // Convex HTTP routes: Better Auth's sign-in endpoints under /api/auth (#7), and the gateway's
-// interaction route, called with a shared secret. The public Discord endpoint (signature checks,
-// PING) stays in apps/gateway.
+// interaction route, which checks both the shared bearer secret and Discord's Ed25519 signature
+// (#263). The public Discord endpoint (PING, slash routing) stays in apps/gateway.
 import { oauthProviderAuthServerMetadata } from '@better-auth/oauth-provider';
 import { httpRouter } from 'convex/server';
-import { isAutocomplete, json, refuseUnlessGateway } from '../src/gateway-auth';
+import { isAutocomplete, json, verifyGatewayInteraction } from '../src/gateway-auth';
 import { createMcpGatewayRoutes } from '../src/mcp-gateway';
 import { internal } from './_generated/api';
 import { httpAction } from './_generated/server';
@@ -40,14 +40,12 @@ http.route({
   path: '/gateway/interaction',
   method: 'POST',
   handler: httpAction(async (ctx, request) => {
-    const refused = refuseUnlessGateway(request, process.env.VINTAGE_GATEWAY_SECRET);
-    if (refused) return refused;
-    let interaction: unknown;
-    try {
-      interaction = await request.json();
-    } catch {
-      return json({ error: 'invalid JSON' }, 400);
-    }
+    const verified = await verifyGatewayInteraction(request, {
+      secret: process.env.VINTAGE_GATEWAY_SECRET,
+      publicKey: process.env.DISCORD_PUBLIC_KEY,
+    });
+    if (verified instanceof Response) return verified;
+    const { interaction } = verified;
     // Autocomplete only reads (a query); everything else may change data (a mutation).
     const response = isAutocomplete(interaction)
       ? await ctx.runQuery(internal.discord.autocomplete, { interaction })

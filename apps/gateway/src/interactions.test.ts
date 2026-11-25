@@ -1,4 +1,10 @@
-import { InteractionType, signedMessage } from '@vintage/discord-kit';
+import {
+  InteractionType,
+  SIGNATURE_HEADER,
+  signedMessage,
+  TIMESTAMP_HEADER,
+  verifyInteraction,
+} from '@vintage/discord-kit';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createInteractionHandler } from './interactions';
 
@@ -20,8 +26,8 @@ beforeAll(async () => {
   privateKey = pair.privateKey;
 });
 
-async function signedRequest(payload: unknown, opts: { tamper?: boolean } = {}) {
-  const body = JSON.stringify(payload);
+async function signedRequest(payload: unknown, opts: { tamper?: boolean; rawBody?: string } = {}) {
+  const body = opts.rawBody ?? JSON.stringify(payload);
   const timestamp = String(Math.floor(NOW.getTime() / 1000));
   const signature = toHex(
     await crypto.subtle.sign({ name: 'Ed25519' }, privateKey, signedMessage(timestamp, body)),
@@ -30,8 +36,8 @@ async function signedRequest(payload: unknown, opts: { tamper?: boolean } = {}) 
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      'x-signature-ed25519': signature,
-      'x-signature-timestamp': timestamp,
+      [SIGNATURE_HEADER]: signature,
+      [TIMESTAMP_HEADER]: timestamp,
     },
     // Tampering: send different bytes than were signed (still valid JSON).
     body: opts.tamper ? `${body} ` : body,
@@ -127,7 +133,7 @@ describe('interactions endpoint', () => {
     };
     const convexReply = { type: 4, data: { content: 'Aeryn: accepted', flags: 64 } };
 
-    it('forwards to the Convex route with the shared secret and returns its response', async () => {
+    it('forwards to the Convex route with the shared secret, signature headers, and exact raw body (#263)', async () => {
       const calls: { url: string; init: RequestInit }[] = [];
       const fakeFetch = (async (url: string, init: RequestInit) => {
         calls.push({ url, init });
@@ -138,13 +144,31 @@ describe('interactions endpoint', () => {
         now: () => NOW,
         convex: { siteUrl: 'https://vintage.convex.site/', secret: 's3cret', fetch: fakeFetch },
       });
-      const res = await handle(await signedRequest(click));
+      // Non-canonical whitespace: re-serializing with JSON.stringify would invalidate the signature.
+      const rawBody = `${JSON.stringify(click, null, 2)}\n`;
+      const incoming = await signedRequest(click, { rawBody });
+      const expectedSig = incoming.headers.get(SIGNATURE_HEADER);
+      const expectedTs = incoming.headers.get(TIMESTAMP_HEADER);
+
+      const res = await handle(incoming);
       expect(await res.json()).toEqual(convexReply);
       expect(calls[0]!.url).toBe('https://vintage.convex.site/gateway/interaction');
-      expect((calls[0]!.init.headers as Record<string, string>).authorization).toBe(
-        'Bearer s3cret',
-      );
-      expect(JSON.parse(calls[0]!.init.body as string)).toEqual(click);
+      const headers = calls[0]!.init.headers as Record<string, string>;
+      expect(headers.authorization).toBe('Bearer s3cret');
+      expect(headers[SIGNATURE_HEADER]).toBe(expectedSig);
+      expect(headers[TIMESTAMP_HEADER]).toBe(expectedTs);
+      expect(calls[0]!.init.body).toBe(rawBody);
+      expect(
+        await verifyInteraction(
+          publicKey,
+          {
+            signature: headers[SIGNATURE_HEADER],
+            timestamp: headers[TIMESTAMP_HEADER],
+            body: calls[0]!.init.body as string,
+          },
+          { now: () => NOW },
+        ),
+      ).toBe(true);
     });
 
     it('answers privately when Convex is down or not configured', async () => {
@@ -392,15 +416,32 @@ describe('interactions endpoint', () => {
         ...(autocompleteTimeoutMs ? { autocompleteTimeoutMs } : {}),
       });
 
-    it('forwards the character group and its autocomplete to Convex', async () => {
-      const bodies: unknown[] = [];
+    it('forwards the character group and its autocomplete with signature headers and raw body', async () => {
+      const calls: { body: string; headers: Record<string, string> }[] = [];
       const fakeFetch = (async (_url: string, init: RequestInit) => {
-        bodies.push(JSON.parse(init.body as string));
+        calls.push({
+          body: init.body as string,
+          headers: init.headers as Record<string, string>,
+        });
         return new Response(JSON.stringify(suggestions));
       }) as typeof fetch;
-      const res = await withFetch(fakeFetch)(await signedRequest(typing()));
+      const rawTyping = `${JSON.stringify(typing(), null, 2)} `;
+      const res = await withFetch(fakeFetch)(await signedRequest(typing(), { rawBody: rawTyping }));
       expect(res.status).toBe(200);
       expect(await res.json()).toEqual(suggestions);
+      expect(calls[0]!.body).toBe(rawTyping);
+      expect(
+        await verifyInteraction(
+          publicKey,
+          {
+            signature: calls[0]!.headers[SIGNATURE_HEADER],
+            timestamp: calls[0]!.headers[TIMESTAMP_HEADER],
+            body: calls[0]!.body,
+          },
+          { now: () => NOW },
+        ),
+      ).toBe(true);
+
       const list = {
         ...base,
         type: InteractionType.APPLICATION_COMMAND,
@@ -411,7 +452,7 @@ describe('interactions endpoint', () => {
         },
       };
       await withFetch(fakeFetch)(await signedRequest(list));
-      expect(bodies).toEqual([typing(), list]);
+      expect(calls.map((c) => JSON.parse(c.body))).toEqual([typing(), list]);
     });
 
     it('answers no suggestions when Convex is slow, down, unknown, or answers the wrong type', async () => {

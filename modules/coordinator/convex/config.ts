@@ -12,6 +12,7 @@ const toConfig = (doc: Doc<'config'>) => {
     leadsChannelId: rest.leadsChannelId ?? null,
     weeklyAssessment: rest.weeklyAssessment ?? false,
     postRaidFeedbackSurvey: rest.postRaidFeedbackSurvey ?? false,
+    tentativeCheck: rest.tentativeCheck ?? false,
     reminderRoleIds: rest.reminderRoleIds ?? [],
     dmRanks: rest.dmRanks ?? null,
   };

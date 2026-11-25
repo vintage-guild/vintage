@@ -1858,7 +1858,7 @@
     },
     {
       "name": "coordinator-config-set",
-      "description": "Set where the coordinator posts (signup and officer channels), whose answers it chases (expectedRanks), whether it DMs non-responders (dmReminders) and which ranks get the DM (dmRanks; null for every rank), which Discord roles the reminder pings instead of each non-responder (reminderRoleIds; empty pings people), whether it posts the weekly roster and recruitment check (weeklyAssessment), and whether each posted raid also gets a Discord server event (serverEvents; the bot needs the Create Events permission).",
+      "description": "Set where the coordinator posts (signup and officer channels), whose answers it chases (expectedRanks), whether it DMs non-responders (dmReminders) and which ranks get the DM (dmRanks; null for every rank), which Discord roles the reminder pings instead of each non-responder (reminderRoleIds; empty pings people), whether it posts the weekly roster and recruitment check (weeklyAssessment), whether each posted raid also gets a Discord server event (serverEvents; the bot needs the Create Events permission), and whether Tentative signups get a DM asking if they can make it once the leads get the party draft (tentativeCheck).",
       "tier": "officer",
       "mutation": true,
       "destructive": false,
@@ -1967,6 +1967,9 @@
             "type": "boolean"
           },
           "postRaidFeedbackSurvey": {
+            "type": "boolean"
+          },
+          "tentativeCheck": {
             "type": "boolean"
           }
         }

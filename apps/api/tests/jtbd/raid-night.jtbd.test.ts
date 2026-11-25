@@ -1987,6 +1987,44 @@ describe('JTBD: raid night', () => {
     expect(thuCard.message.components).toEqual([]);
   });
 
+  it('J82 · Tentative signups confirm by DM once the leads have the party draft', async () => {
+    const { wed } = await scheduleRaidNights(g);
+    await g.host.ok(g.ana, 'coordinator-config-set', { tentativeCheck: true });
+    await answer(g, g.bram, 'bram', wed.id, 'accepted');
+    await answer(g, g.aeryn, 'aeryn', wed.id, 'tentative');
+    await answer(g, g.dara, 'dara', wed.id, 'tentative');
+    await answer(g, g.cade, 'cade', wed.id, 'tentative'); // Cade turned DMs off
+    const checks = (who: Caller) =>
+      g.host.sentTo(who.discordId!).filter((m) => m.message.content?.includes('Tentative on'));
+
+    // Nothing before the party draft.
+    g.host.clock.advance(WED - 30 * HOUR - g.host.clock.now());
+    await g.host.tick();
+    expect(checks(g.aeryn)).toEqual([]);
+
+    // The draft goes to the leads; the check after it DMs Aeryn and Dara once each.
+    g.host.clock.advance(WED - 24 * HOUR - g.host.clock.now());
+    await g.host.tick();
+    g.host.clock.advance(HOUR);
+    await g.host.tick();
+    await g.host.tick();
+    expect(checks(g.aeryn)).toHaveLength(1);
+    expect(checks(g.dara)).toHaveLength(1);
+    expect(checks(g.cade)).toEqual([]);
+
+    const text = (r: unknown) => (r as { data?: { content?: string } }).data?.content ?? '';
+    expect(
+      text(await g.host.tentativeUi(g.aeryn.discordId!, `tentative-check:${wed.id}:yes`)),
+    ).toMatch(/^Thanks! You're Going/);
+    expect(
+      text(await g.host.tentativeUi(g.dara.discordId!, `tentative-check:${wed.id}:unsure`)),
+    ).toMatch(/still Tentative/);
+    const signups = await g.host.ok<Signup[]>(g.ana, 'signup-list', { eventId: wed.id });
+    const status = (key: string) => signups.find((s) => s.characterId === g.chars[key])?.status;
+    expect(status('aeryn')).toBe('accepted');
+    expect(status('dara')).toBe('tentative');
+  });
+
   it('J80 · rank a character’s wishlist and feed loot council candidates', async () => {
     const mc = await g.host.ok<RaidEvent>(g.ana, 'raid-create', {
       name: 'Molten Core',

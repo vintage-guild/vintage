@@ -35,6 +35,11 @@ const RULE_WORDS: [prefix: string, done: string, todo: string][] = [
   ['remind', 'Reminded the people who haven’t answered', 'Remind the people who haven’t answered'],
   ['dm', 'Sent reminder DMs', 'Send reminder DMs'],
   ['digest', 'Sent officers the comp digest', 'Send officers the comp digest'],
+  [
+    'tentative-check',
+    'Asked Tentative signups if they can make it',
+    'Ask Tentative signups if they can make it',
+  ],
   ['lock', 'Locked the roster', 'Lock the roster'],
   ['final', 'Posted the final roster', 'Post the final roster'],
   [

@@ -27,6 +27,7 @@ import { handlePollInteraction } from '../src/discord-polls';
 import { handleRosterInteraction } from '../src/discord-roster';
 import { handleScheduleAutocomplete, handleScheduleInteraction } from '../src/discord-schedules';
 import { handleSignupInteraction } from '../src/discord-signups';
+import { handleTentativeInteraction } from '../src/discord-tentative';
 import { internal } from './_generated/api';
 import { internalMutation, internalQuery } from './_generated/server';
 import { askAs, GUILD_ID, runCommandAs, runSystemCommand } from './commands';
@@ -145,6 +146,19 @@ export const interaction = internalMutation({
       now: () => Date.now(),
     });
     if (manage) return manage;
+
+    // The tentative-check DM's buttons; clicked in a DM, so they carry no guild id.
+    const tentative = await handleTentativeInteraction(incoming, {
+      discordGuildId,
+      guildId: GUILD_ID,
+      memberByDiscordId,
+      event: (eventId) => raids.getEvent(GUILD_ID, eventId),
+      signup: (eventId, memberId) => raids.getSignupByMember(GUILD_ID, eventId, memberId),
+      signupSet: (caller: Caller, input) =>
+        runCommandAs(ctx, caller, 'signup-set', input) as Promise<CommandResult<Signup>>,
+      afterChange: () => coordinatorScheduler(ctx).runTickNow(GUILD_ID),
+    });
+    if (tentative) return tentative;
 
     const signup = await handleSignupInteraction(incoming, {
       discordGuildId,

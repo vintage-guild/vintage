@@ -297,7 +297,9 @@ it did and what is due. DMs to non-responders are on by default (`dmReminders`);
 limits them to some ranks (`["officer"]` while testing, `null` for everyone). Reminders ping each
 non-responder unless `reminderRoleIds` lists Discord roles to ping instead (the reminder then
 names who hasn't answered without notifying them). The bot's Mention Everyone permission lets it
-ping roles that aren't mentionable.
+ping roles that aren't mentionable. With `tentativeCheck` on (off by default; the quarters' Vintage
+tab has the checkbox), members signed up as Tentative get a DM once the leads have the party draft,
+with buttons that answer Going or Absent, or leave them Tentative.
 
 **Raids in the server's Events list (optional, off by default).** With `serverEvents` on, each
 posted raid also gets a Discord server event at its instance, linking to the signup card; it moves

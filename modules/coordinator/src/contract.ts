@@ -46,6 +46,11 @@ export interface CoordinatorConfig {
   weeklyAssessment: boolean;
   /** Open a short anonymous feedback survey when a raid completes (#65). Off by default. */
   postRaidFeedbackSurvey: boolean;
+  /**
+   * Once the leads get the party draft, DM everyone signed up as Tentative to ask whether they
+   * can make it, with buttons that update their signup. Off until an officer turns it on.
+   */
+  tentativeCheck: boolean;
   /** Paused: ticks do nothing until resumed. */
   paused: boolean;
   updatedAt: number;
@@ -72,13 +77,14 @@ export function defaultConfig(guildId: string): CoordinatorConfig {
     serverEvents: false,
     weeklyAssessment: false,
     postRaidFeedbackSurvey: false,
+    tentativeCheck: false,
     paused: false,
     updatedAt: 0,
   };
 }
 
 /**
- * What triggered an action: `post`, `remind-72h`, `dm-24h`, `digest`, `lock`, `final-roster`,
+ * What triggered an action: `post`, `remind-72h`, `dm-24h`, `digest`, `tentative-check`, `lock`, `final-roster`,
  * `import-string`, `server-event`, `server-event-cancel`, or `raid-summary`. Together with the event and target it is the idempotency key.
  */
 export type CoordinatorRule = string;
@@ -119,6 +125,14 @@ export const COORDINATOR_COMMANDS = [
   'addon-import-get',
 ] as const;
 export type CoordinatorCommandName = (typeof COORDINATOR_COMMANDS)[number];
+
+/**
+ * The tentative-check DM's buttons: `tentative-check:<eventId>:<answer>`. `yes` answers Going,
+ * `no` answers Absent, and `unsure` leaves the signup Tentative (apps/api/src/discord-tentative.ts).
+ */
+export const TENTATIVE_CHECK_PREFIX = 'tentative-check';
+export const TENTATIVE_ANSWERS = ['yes', 'no', 'unsure'] as const;
+export type TentativeAnswer = (typeof TENTATIVE_ANSWERS)[number];
 
 /** The polls tag the coordinator owns: polls it opened to pick a raid night. */
 export const RAID_NIGHT_TAG = 'raid-night';

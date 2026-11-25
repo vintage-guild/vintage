@@ -123,6 +123,7 @@ describe('rule words', () => {
     expect(ruleLead('dm-1h')).toBe('1 hour before');
     expect(ruleLead('lock')).toBe('');
     expect(ruleWords('final-roster', 'todo')).toBe('Post the final roster');
+    expect(ruleWords('tentative-check')).toBe('Asked Tentative signups if they can make it');
   });
 
   it('summarizes a raid’s sends by kind, with lead times and per-member counts', () => {
@@ -236,6 +237,21 @@ describe('vintage-coordinator-desk', () => {
       opsChannelId: null,
       expectedRanks: ['officer', 'raid-leader', 'raider', 'flex-raider', 'recruit'],
     });
+  });
+
+  it('turns the Tentative check on, read as off when the server leaves it out', async () => {
+    const client = useClient();
+    const el = await desk();
+    const box = $$(el, 'label.check')
+      .find((l) => text(l).startsWith('DM Tentative'))
+      ?.querySelector('input') as HTMLInputElement;
+    expect(box.checked).toBe(false);
+    box.checked = true;
+    box.dispatchEvent(new Event('change'));
+    await settle();
+    button(el, 'Save settings')?.click();
+    await vi.waitFor(() => expect(client.run).toHaveBeenCalled());
+    expect(client.run).toHaveBeenCalledWith('coordinator-config-set', { tentativeCheck: true });
   });
 
   it('refuses a channel id that isn’t one, and an empty rank list, without asking the server', async () => {

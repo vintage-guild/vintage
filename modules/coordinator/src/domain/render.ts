@@ -2,7 +2,14 @@
 // Discord timestamp markup so everyone sees their own local time (PLAN §6.2).
 import { BENCH_MAX, type BenchReason, encodeBridge } from '@vintage/bridge-format';
 import { type CompResult, compRoleOf } from '@vintage/comp-solver';
-import { discordTimestamp, type MessageData, TimestampStyle } from '@vintage/discord-kit';
+import {
+  actionRow,
+  ButtonStyle,
+  button,
+  discordTimestamp,
+  type MessageData,
+  TimestampStyle,
+} from '@vintage/discord-kit';
 import {
   competingGoingSignups,
   type RaidEvent,
@@ -10,6 +17,7 @@ import {
   type Signup,
   solveEventComp,
 } from '@vintage/raids/contract';
+import { TENTATIVE_CHECK_PREFIX } from '../contract';
 import type { TickEvent, TickMember } from '../store';
 import { countOf, eventTitle, noun } from './kind-words';
 import type { NoteInput, NoteLabel } from './notes';
@@ -127,6 +135,33 @@ export function renderDm(
       `haven't answered yet. ${where} ` +
       'You can turn these DMs off in your profile on the guild site.',
     allowed_mentions: { parse: [] },
+  };
+}
+
+/**
+ * The tentative-check DM (`tentativeCheck`): sent once the leads have the party draft, with three
+ * buttons that answer for the member (apps/api/src/discord-tentative.ts).
+ */
+export function renderTentativeCheck(
+  tick: TickEvent,
+  member: TickMember,
+  signup: Signup,
+): MessageData {
+  const id = (answer: string) => `${TENTATIVE_CHECK_PREFIX}:${tick.event.id}:${answer}`;
+  return {
+    content:
+      `Hi ${member.displayName}, you're Tentative on ${signup.characterName} for ` +
+      `**${eventTitle(tick.event)}** ${when(tick.event.startsAt)}. The raid leaders are setting ` +
+      'the groups now. Can you make it?\n' +
+      '-# You can turn these DMs off in your profile on the guild site.',
+    allowed_mentions: { parse: [] },
+    components: [
+      actionRow(
+        button(id('yes'), 'I can make it', ButtonStyle.SUCCESS),
+        button(id('no'), "I can't make it", ButtonStyle.DANGER),
+        button(id('unsure'), "Still don't know", ButtonStyle.SECONDARY),
+      ),
+    ],
   };
 }
 

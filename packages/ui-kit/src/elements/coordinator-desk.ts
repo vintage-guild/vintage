@@ -23,6 +23,8 @@ export interface CoordinatorDeskConfig {
   opsChannelId: string | null;
   expectedRanks: string[];
   dmReminders: boolean;
+  /** Older servers leave it out; read as off. */
+  tentativeCheck?: boolean;
   paused: boolean;
 }
 
@@ -258,7 +260,15 @@ const template = html<VintageCoordinatorDesk>`
               />
               DM whoever hasn’t answered at the last reminder
             </label>
-            <small>Members can still turn DMs off for themselves on their own page.</small>
+            <label class="check">
+              <input
+                type="checkbox"
+                ?checked="${(x) => x.tentativeCheck}"
+                @change="${(x, c) => x.edit('tentativeCheck', (c.event.target as HTMLInputElement).checked)}"
+              />
+              DM Tentative signups when the leads get the party draft
+            </label>
+            <small>Their answer in the DM updates their signup. Members can still turn DMs off for themselves on their own page.</small>
           </fieldset>
           ${when(
             (x) => x.canConfigure,
@@ -456,6 +466,7 @@ export class VintageCoordinatorDesk extends FASTElement {
   @observable opsChannel = '';
   @observable ranks: string[] = [];
   @observable dmReminders = true;
+  @observable tentativeCheck = false;
   @observable dirty = false;
   @observable busy = false;
   @observable statusText = '';
@@ -538,13 +549,17 @@ export class VintageCoordinatorDesk extends FASTElement {
     this.opsChannel = this.config?.opsChannelId ?? '';
     this.ranks = [...(this.config?.expectedRanks ?? [])];
     this.dmReminders = this.config?.dmReminders ?? true;
+    this.tentativeCheck = this.config?.tentativeCheck ?? false;
     this.dirty = false;
   }
 
   edit(field: 'signupChannel' | 'opsChannel', value: string): void;
-  edit(field: 'dmReminders', value: boolean): void;
-  edit(field: 'signupChannel' | 'opsChannel' | 'dmReminders', value: string | boolean): void {
-    if (field === 'dmReminders') this.dmReminders = value as boolean;
+  edit(field: 'dmReminders' | 'tentativeCheck', value: boolean): void;
+  edit(
+    field: 'signupChannel' | 'opsChannel' | 'dmReminders' | 'tentativeCheck',
+    value: string | boolean,
+  ): void {
+    if (field === 'dmReminders' || field === 'tentativeCheck') this[field] = value as boolean;
     else this[field] = value as string;
     this.dirty = true;
   }
@@ -581,14 +596,23 @@ export class VintageCoordinatorDesk extends FASTElement {
     if ((signup || null) !== saved.signupChannelId) input.signupChannelId = signup || null;
     if ((ops || null) !== saved.opsChannelId) input.opsChannelId = ops || null;
     if (this.ranks.join() !== saved.expectedRanks.join()) input.expectedRanks = this.ranks;
-    if (this.dmReminders !== saved.dmReminders) input.dmReminders = this.dmReminders;
-    return { input };
+    return { input: { ...input, ...this.changedToggles(saved) } };
+  }
+
+  /** The checkboxes that differ from the saved config (an older server leaves tentativeCheck out). */
+  private changedToggles(saved: CoordinatorDeskConfig): Record<string, boolean> {
+    const was = { dmReminders: saved.dmReminders, tentativeCheck: saved.tentativeCheck ?? false };
+    const changed: Record<string, boolean> = {};
+    for (const key of ['dmReminders', 'tentativeCheck'] as const) {
+      if (this[key] !== was[key]) changed[key] = this[key];
+    }
+    return changed;
   }
 
   @command('vintage.coordinator-config-save', {
     label: 'Save Vintage’s settings',
     description:
-      'Save the channels, the ranks Vintage chases, and DM reminders as the form shows them.',
+      'Save the channels, the ranks Vintage chases, DM reminders, and the Tentative check as the form shows them.',
     category: 'Officers',
   })
   async save(): Promise<ElementResult<unknown>> {

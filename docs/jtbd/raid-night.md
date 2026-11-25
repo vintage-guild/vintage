@@ -533,6 +533,14 @@ its Discord signup card, without the website.
   signups; Cancel asks first. The card follows on the next tick: the new time, or a Cancelled
   card with no buttons.
 
+### J82 · Tentative signups confirm by DM
+**When** the leads get the party draft and some signups are still Tentative, **I (raider) want** a
+DM asking if I can make it, so I can answer with one button instead of finding the signup post.
+- [x] With `tentativeCheck` on (the quarters' Vintage tab), each member who was Tentative when the
+  draft went out gets one DM before lock (not members who turned DMs off). **I can make it**
+  answers Going, **I can't make it** answers Absent, **Still don't know** changes nothing; the
+  DM loses its buttons once answered.
+
 ### J80 · Rank a character's wishlist and feed loot council candidates
 **When** I want loot council to know which raid drops matter most to my character, **I (raider)
 want** to rank items on my character's wishlist so officers see my priority when an item drops.

@@ -62,7 +62,7 @@ const EXPORT_AHEAD_MS = 86_400_000;
 const TABS = [
   { id: 'tonight', label: 'Tonight', ready: true, hint: '' },
   { id: 'calendar', label: 'Calendar', ready: true, hint: '' },
-  { id: 'coordinator', label: 'Vintage', ready: true, hint: '' },
+  { id: 'coordinator', label: 'Bot', ready: true, hint: '' },
   { id: 'roster', label: 'Roster', ready: true, hint: '' },
   { id: 'guild', label: 'Guild', ready: true, hint: '' },
   { id: 'recruiting', label: 'Recruiting', ready: true, hint: '' },
@@ -137,16 +137,16 @@ export function calendarSchedule(s: Schedule): CalendarSchedule {
   };
 }
 
-/** How far back the Random tab reads its log: the raids of the last week, after they started. */
+/** How far back the Bot tab reads its log: the raids of the last week, after they started. */
 const LOG_BEHIND_MS = 7 * 86_400_000;
 
-/** `coordinator-status` as the Random tab reads it. */
+/** `coordinator-status` as the Bot and Calendar tabs read it. */
 interface CoordinatorStatus {
   config: CoordinatorDeskConfig;
   upcoming: CoordinatorDeskRaid[];
 }
 
-/** A `coordinator-log` row as the Random tab's log reads it. */
+/** A `coordinator-log` row as the Bot tab's log reads it. */
 export function coordinatorEntry(
   action: CoordinatorAction,
   raidName: string,
@@ -256,6 +256,7 @@ const template = html<Page>`
               error="${(x) => x.calendarError}"
               :raids="${(x) => x.calendarRaids}"
               :schedules="${(x) => x.calendarSchedules}"
+              :bot="${(x) => x.calendarBot}"
               @calendar-changed="${(x) => x.loadCalendar()}"
             ></vintage-calendar-desk>
           `,
@@ -271,7 +272,6 @@ const template = html<Page>`
               ?loading="${(x) => !x.coordinatorLoaded}"
               error="${(x) => x.coordinatorError}"
               :config="${(x) => x.coordinatorConfig}"
-              :upcoming="${(x) => x.coordinatorUpcoming}"
               :entries="${(x) => x.coordinatorEntries}"
               @coordinator-changed="${(x) => x.loadCoordinator()}"
             ></vintage-coordinator-desk>
@@ -570,7 +570,8 @@ const styles = css`
  * to show the room; every action inside is a command that checks its own tier, so an under-tier
  * caller who got here would be refused anyway. Tonight reads `raid-list`, `signup-list`,
  * `comp-suggest`, and `coordinator-status`; Polls reads `poll-list` and `poll-results`;
- * Random reads `coordinator-status` and `coordinator-log` and runs the coordinator's leader
+ * Calendar reads `raid-list`, `schedule-list`, and `coordinator-status`; Bot reads
+ * `coordinator-status` and `coordinator-log` and runs the coordinator's leader
  * commands; Recruiting reads `recruiting-get` and saves with `recruiting-set`; Guild reads
  * `guild-profile-get` and saves with `guild-profile-set` (both officers only to save); Progress
  * reads `progress-get` and records with `kill-record`; Roster reads `member-list` and
@@ -612,16 +613,17 @@ export class Page extends FASTElement {
   @observable profileError = '';
   @observable calendarRaids: CalendarRaid[] = [];
   @observable calendarSchedules: CalendarSchedule[] = [];
+  /** Vintage's progress on the raids coming up, shown on their rows; empty if it can't be read. */
+  @observable calendarBot: CoordinatorDeskRaid[] = [];
   @observable calendarError = '';
   @observable calendarLoaded = false;
   /** Bumped per calendar read, so a slow earlier read never lands over a newer one. */
   private calendarRead = 0;
   @observable coordinatorConfig: CoordinatorDeskConfig | null = null;
-  @observable coordinatorUpcoming: CoordinatorDeskRaid[] = [];
   @observable coordinatorEntries: CoordinatorDeskEntry[] = [];
   @observable coordinatorError = '';
   @observable coordinatorLoaded = false;
-  /** Bumped per Random read, as the calendar's is. */
+  /** Bumped per Bot tab read, as the calendar's is. */
   private coordinatorRead = 0;
   @observable progress: Progress | null = null;
   @observable progressKills: KillLogEntry[] = [];
@@ -740,34 +742,37 @@ export class Page extends FASTElement {
 
   /**
    * Every raid from a month back to two months ahead, whatever its status, with signup counts,
-   * and every schedule, paused ones included. Each change on the desk reads again; only the
-   * latest read is kept.
+   * every schedule, paused ones included, and Vintage's progress on the raids coming up
+   * (`coordinator-status`; a failed read just leaves it off the rows). Each change on the desk
+   * reads again; only the latest read is kept.
    */
   async loadCalendar(): Promise<void> {
     const client = getCommandClient();
     const now = Date.now();
     const read = ++this.calendarRead;
     try {
-      const [raids, schedules] = await Promise.all([
+      const [raids, schedules, bot] = await Promise.all([
         client.read<RaidRow[]>('raid-list', {
           from: now - CALENDAR_BEHIND_MS,
           to: now + CALENDAR_AHEAD_MS,
           statuses: ['open', 'locked', 'cancelled', 'completed'],
         }),
         client.read<Schedule[]>('schedule-list', { includeInactive: true }),
+        client.read<CoordinatorStatus>('coordinator-status', {}),
       ]);
       if (read !== this.calendarRead) return;
       const failed = !raids.success ? raids : !schedules.success ? schedules : null;
       this.calendarError = failed ? (failed.error?.message ?? 'Could not read the calendar') : '';
       if (raids.success) this.calendarRaids = (raids.data ?? []).map(calendarRaid);
       if (schedules.success) this.calendarSchedules = (schedules.data ?? []).map(calendarSchedule);
+      this.calendarBot = bot.success ? (bot.data?.upcoming ?? []) : [];
     } finally {
       this.calendarLoaded = true;
     }
   }
 
   /**
-   * Random's status and settings from `coordinator-status`, and its log for the upcoming raids
+   * The Bot tab: Random's status and settings from `coordinator-status`, and its log for the upcoming raids
    * and the last week's (a raid leaves `upcoming` once it starts, but its final roster is
    * worth reading after). Only the latest read is kept.
    */
@@ -804,7 +809,6 @@ export class Page extends FASTElement {
       if (read !== this.coordinatorRead) return;
       this.coordinatorError = '';
       this.coordinatorConfig = status.data.config;
-      this.coordinatorUpcoming = status.data.upcoming;
       this.coordinatorEntries = logs.flat();
     } finally {
       if (read === this.coordinatorRead) this.coordinatorLoaded = true;

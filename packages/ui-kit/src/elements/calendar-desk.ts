@@ -13,6 +13,7 @@ import {
 import { command, failure } from '@lushly-dev/fast-element/command.js';
 import { EVENT_KINDS, type EventKind, KIND_LABELS, kindNoun } from '@vintage/comp-solver';
 import { getCommandClient } from '../client';
+import { summarizeRules } from '../labels';
 import { describeError, type ElementResult, toElementResult } from '../result';
 import { browserTimeZone, dayKey } from '../zoned';
 import './calendar-forms';
@@ -33,6 +34,7 @@ import {
   overlapping,
   STATUS_LABEL,
 } from './calendar-shared';
+import type { CoordinatorDeskRaid } from './coordinator-desk';
 import { deskStyles } from './desk-styles';
 import './raid-month';
 
@@ -50,6 +52,18 @@ export interface AgendaRow {
   canChange: boolean;
   canCancel: boolean;
   canComplete: boolean;
+  /** What Vintage did and has still to do for this raid, while it is coming up. */
+  bot: BotLine | null;
+}
+
+/** Vintage's progress on one raid, worded. */
+export interface BotLine {
+  done: string;
+  due: string;
+  /** "3: Elowen, Fenwick, Thistle", or empty once everyone it chases has answered. */
+  waiting: string;
+  /** Vintage has posted the signups, so there is a post to replace. */
+  canRepost: boolean;
 }
 
 /** A day heading in the agenda with its raids. */
@@ -89,9 +103,27 @@ const agendaRow = html<AgendaRow, AgendaDay>`
         (r) => r.warnings,
         html<string>`<p class="warning"><span aria-hidden="true">⚠ </span>${(w) => w}</p>`,
       )}
+      ${when(
+        (r) => r.bot,
+        html<AgendaRow>`
+          <dl class="bot">
+            <dt>Vintage did</dt>
+            <dd>${(r) => r.bot?.done || 'Nothing yet'}</dd>
+            ${when(
+              (r) => r.bot?.due,
+              html<AgendaRow>`
+                <dt>Due now</dt>
+                <dd>${(r) => r.bot?.due}</dd>
+              `,
+            )}
+            <dt>Hasn’t answered</dt>
+            <dd>${(r) => r.bot?.waiting || 'Nobody'}</dd>
+          </dl>
+        `,
+      )}
     </div>
     ${when(
-      (r, c) => host(c).canEdit && (r.canChange || r.canCancel || r.canComplete),
+      (r, c) => host(c).canEdit && (r.canChange || r.canCancel || r.canComplete || !!r.bot),
       html<AgendaRow, AgendaDay>`
         <p class="actions">
           ${when(
@@ -114,6 +146,17 @@ const agendaRow = html<AgendaRow, AgendaDay>`
               AgendaRow,
               AgendaDay
             >`<button type="button" class="danger-outline" ?disabled="${(_, c) => host(c).busy}" @click="${(r, c) => host(c).cancel(r.raid.id)}">Cancel</button>`,
+          )}
+          ${when(
+            (r) => r.bot,
+            html<AgendaRow, AgendaDay>`
+              <button
+                type="button"
+                ?disabled="${(r, c) => host(c).busy || !r.bot?.canRepost}"
+                title="${(r) => (r.bot?.canRepost ? '' : 'Vintage hasn’t posted this raid yet')}"
+                @click="${(r, c) => host(c).repost(r.raid.id)}"
+              >Replace the signup post</button>
+            `,
           )}
         </p>
       `,
@@ -423,6 +466,33 @@ const styles = css`
     font-size: var(--font-size-sm);
   }
 
+  dl.bot {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 0.1rem var(--space-sm);
+    margin: var(--space-xs) 0 0;
+    font-size: var(--font-size-sm);
+  }
+
+  dl.bot dt {
+    color: var(--color-text-secondary);
+  }
+
+  dl.bot dd {
+    margin: 0;
+    text-wrap: pretty;
+  }
+
+  @media (max-width: 30rem) {
+    dl.bot {
+      grid-template-columns: 1fr;
+    }
+
+    dl.bot dd {
+      margin-block-end: var(--space-xs);
+    }
+  }
+
   .empty {
     margin: 0;
     color: var(--color-text-secondary);
@@ -479,6 +549,10 @@ const DAY_MS = 86_400_000;
  * has started, add or edit a schedule, pause or resume one, and create its raids now. Each change
  * raises `calendar-changed` so the page reads the calendar again.
  *
+ * Feed it `coordinator-status` → `upcoming` as `bot` and each of those raids shows what Vintage,
+ * the coordinator bot, did, what is due, and who hasn't answered, with Replace the signup post
+ * for leaders.
+ *
  * Times show in the viewer's zone, with the guild's clock alongside when they differ, and a note
  * when a raid lands an hour off from usual because the two zones change clocks on different
  * dates. Overlapping live raids are flagged, not blocked.
@@ -495,6 +569,8 @@ export class VintageCalendarDesk extends FASTElement {
   @attr error = '';
   @observable raids: CalendarRaid[] = [];
   @observable schedules: CalendarSchedule[] = [];
+  /** `coordinator-status` → `upcoming`: Vintage's progress on the raids coming up. */
+  @observable bot: CoordinatorDeskRaid[] = [];
   /** The clock (tests pin it). */
   @observable now = Date.now();
   /** `agenda` (the default) or `month`. */
@@ -621,6 +697,20 @@ export class VintageCalendarDesk extends FASTElement {
       canChange: live && !started,
       canCancel: live,
       canComplete: live && started,
+      bot: this.botLine(raid.id),
+    };
+  }
+
+  private botLine(eventId: string): BotLine | null {
+    const raid = this.bot.find((b) => b.eventId === eventId);
+    if (!raid) return null;
+    return {
+      done: summarizeRules(raid.done.filter((d) => d.status === 'sent').map((d) => d.rule)),
+      due: summarizeRules(raid.dueNow, 'todo'),
+      waiting: raid.waiting.length
+        ? `${raid.waiting.length}: ${raid.waiting.map((w) => w.displayName).join(', ')}`
+        : '',
+      canRepost: raid.done.some((d) => d.rule === 'post' && d.status === 'sent'),
     };
   }
 
@@ -904,6 +994,26 @@ export class VintageCalendarDesk extends FASTElement {
       'schedule-update',
       { scheduleId, active },
       active ? `${name} resumed` : `${name} paused; raids already created stay`,
+    );
+  }
+
+  @command('vintage.coordinator-repost', {
+    label: 'Replace a signup post',
+    description: 'Delete a raid’s signup post and have Vintage post a fresh one. Signups are kept.',
+    category: 'Officers',
+    parameters: {
+      type: 'object',
+      properties: { eventId: { type: 'string' } },
+      required: ['eventId'],
+    },
+  })
+  async repost(eventId: unknown): Promise<ElementResult<unknown>> {
+    const raid = this.bot.find((r) => r.eventId === eventId);
+    if (!raid) return failure({ code: 'COMMAND_DISABLED', message: 'That raid isn’t coming up' });
+    return this.change(
+      'coordinator-repost',
+      { eventId: raid.eventId },
+      `A fresh signup post for ${raid.name} goes out on the next check. Signups are kept`,
     );
   }
 

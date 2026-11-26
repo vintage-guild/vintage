@@ -1,13 +1,11 @@
 import type { CommandResult } from '@vintage/guild-kit';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { type CommandClient, setCommandClient } from '../client';
-import { ruleLead, ruleWords } from '../labels';
+import { ruleLead, ruleWords, summarizeRules } from '../labels';
 import { cleanup, mount, settle, shadowText } from '../test-helpers';
 import {
   type CoordinatorDeskConfig,
-  type CoordinatorDeskRaid,
   RUN_REREAD_MS,
-  summarizeRules,
   type VintageCoordinatorDesk,
 } from './coordinator-desk';
 import './coordinator-desk';
@@ -43,32 +41,8 @@ const config = (over: Partial<CoordinatorDeskConfig> = {}): CoordinatorDeskConfi
   ...over,
 });
 
-const upcoming = (over: Partial<CoordinatorDeskRaid> = {}): CoordinatorDeskRaid => ({
-  eventId: 'r1',
-  name: 'Raid night',
-  startsAt: Date.UTC(2026, 10, 5, 1),
-  status: 'open',
-  done: [
-    { rule: 'post', status: 'sent', at: 1 },
-    { rule: 'dm-24h', status: 'sent', at: 2 },
-    { rule: 'dm-24h', status: 'sent', at: 3 },
-    { rule: 'remind-72h', status: 'skipped', at: 4 },
-  ],
-  dueNow: ['lock'],
-  waiting: [
-    { memberId: 'm1', displayName: 'Aeryn' },
-    { memberId: 'm2', displayName: 'Borin' },
-  ],
-  ...over,
-});
-
 async function desk(
-  opts: {
-    act?: boolean;
-    configure?: boolean;
-    config?: CoordinatorDeskConfig;
-    raids?: CoordinatorDeskRaid[];
-  } = {},
+  opts: { act?: boolean; configure?: boolean; config?: CoordinatorDeskConfig } = {},
 ) {
   const flags = [
     opts.act === false ? '' : 'can-act',
@@ -78,7 +52,6 @@ async function desk(
     `<vintage-coordinator-desk time-zone="America/New_York" ${flags.join(' ')}></vintage-coordinator-desk>`,
   );
   el.config = opts.config ?? config();
-  el.upcoming = opts.raids ?? [upcoming()];
   el.entries = [
     {
       id: 'a1',
@@ -135,14 +108,14 @@ describe('rule words', () => {
 });
 
 describe('vintage-coordinator-desk', () => {
-  it('says Vintage is running and what it did and will do for each raid', async () => {
+  it('says Vintage is running, then shows the settings and the log after them', async () => {
     const el = await desk();
     expect(text($(el, '#h-state'))).toBe('Vintage is running');
-    const card = text($(el, '.raid'));
-    expect(card).toContain('Posted the signups, Sent reminder DMs ×2 (24 hours before)');
-    expect(card).not.toContain('Reminded'); // skipped, so not "done"
-    expect(card).toContain('Due now Lock the roster');
-    expect(card).toContain('2: Aeryn, Borin');
+    expect(text($(el, '.state .meta'))).toBe(
+      'It checks every few minutes. Each raid’s progress is on the Calendar tab.',
+    );
+    expect($$(el, 'h2').map(text)).toEqual(['Vintage is running', 'Settings', 'Vintage’s log']);
+    expect($(el, '.raid')).toBeNull();
   });
 
   it('logs newest first with the reason and a flag for anything not sent', async () => {
@@ -190,21 +163,6 @@ describe('vintage-coordinator-desk', () => {
     expect(changed).toHaveBeenCalledTimes(1);
     vi.advanceTimersByTime(RUN_REREAD_MS);
     expect(changed).toHaveBeenCalledTimes(2);
-  });
-
-  it('replaces a signup post only once Random has posted one', async () => {
-    const client = useClient();
-    const el = await desk({
-      raids: [upcoming(), upcoming({ eventId: 'r2', name: 'Alt night', done: [] })],
-    });
-    const [first, second] = $$(el, '.raid button') as HTMLButtonElement[];
-    expect(second?.disabled).toBe(true);
-    first?.click();
-    await vi.waitFor(() =>
-      expect(client.run).toHaveBeenCalledWith('coordinator-repost', { eventId: 'r1' }),
-    );
-    await settle();
-    expect(text($(el, '.status'))).toContain('A fresh signup post for Raid night');
   });
 
   it('shows a server refusal in the status line', async () => {

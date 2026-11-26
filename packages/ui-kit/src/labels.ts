@@ -77,3 +77,29 @@ export function ruleLead(rule: string): string {
   const hours = ruleHours(rule);
   return hours === null ? '' : `${hours} hour${hours === 1 ? '' : 's'} before`;
 }
+
+/**
+ * "Posted the signups, Reminded the people who haven’t answered (72 and 24 hours before), Sent
+ * reminder DMs ×3 (24 hours before)": each kind once, in order, with its lead times, and a
+ * count where one lead time covers several sends (a DM per member).
+ */
+export function summarizeRules(rules: string[], form: 'done' | 'todo' = 'done'): string {
+  const kinds = new Map<string, { n: number; hours: number[] }>();
+  for (const rule of rules) {
+    const words = ruleWords(rule, form);
+    const kind = kinds.get(words) ?? { n: 0, hours: [] };
+    kind.n += 1;
+    const hours = ruleHours(rule);
+    if (hours !== null && !kind.hours.includes(hours)) kind.hours.push(hours);
+    kinds.set(words, kind);
+  }
+  return [...kinds]
+    .map(([words, { n, hours }]) => {
+      const count = n > Math.max(hours.length, 1) ? ` ×${n}` : '';
+      const lead = hours.length
+        ? ` (${hours.join(' and ')} hour${hours.length === 1 && hours[0] === 1 ? '' : 's'} before)`
+        : '';
+      return `${words}${count}${lead}`;
+    })
+    .join(', ');
+}

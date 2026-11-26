@@ -388,13 +388,14 @@ const template = html<Page>`
     </section>
     <section>
       <h2>Calendar</h2>
-      <p>The quarters' Calendar tab, in London on Oct 26: the guild's clock beside the viewer's, the week the clocks disagree, an overlap, a paused schedule, and history folded under Earlier. Actions report the gallery client's refusal.</p>
+      <p>The quarters' Calendar tab, in London on Oct 26: the guild's clock beside the viewer's, the week the clocks disagree, an overlap, a paused schedule, Vintage's progress on the next two raids, and history folded under Earlier. Actions report the gallery client's refusal.</p>
       <vintage-calendar-desk
         can-edit
         time-zone="Europe/London"
         :now="${() => CALENDAR_NOW}"
         :raids="${() => GALLERY_RAIDS}"
         :schedules="${() => GALLERY_SCHEDULES}"
+        :bot="${() => GALLERY_COORDINATOR_RAIDS}"
       ></vintage-calendar-desk>
       <h3>Month</h3>
       <vintage-calendar-desk
@@ -417,14 +418,13 @@ const template = html<Page>`
       </div>
     </section>
     <section>
-      <h2>Vintage</h2>
-      <p>The quarters' Vintage tab: what the coordinator did and will do for each raid, who it's chasing, its log with the reason for each entry, and its settings. Actions report the gallery client's refusal.</p>
+      <h2>Bot</h2>
+      <p>The quarters' Bot tab: whether the coordinator is running, its settings, then its log with the reason for each entry. Actions report the gallery client's refusal.</p>
       <vintage-coordinator-desk
         can-act
         can-configure
         time-zone="America/New_York"
         :config="${() => GALLERY_COORDINATOR}"
-        :upcoming="${() => GALLERY_COORDINATOR_RAIDS}"
         :entries="${() => GALLERY_COORDINATOR_LOG}"
       ></vintage-coordinator-desk>
       <h3>Paused, as a raid leader sees it</h3>

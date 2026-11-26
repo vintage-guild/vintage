@@ -63,7 +63,7 @@ afterEach(() => {
   restore = undefined;
 });
 
-describe('the Random tab’s reads', () => {
+describe('the Bot tab’s reads', () => {
   it('maps a log row, timing it by when it finished or else when it was claimed', () => {
     expect(coordinatorEntry(action(), 'Raid night')).toEqual({
       id: 'a1',

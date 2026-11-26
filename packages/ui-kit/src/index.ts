@@ -163,7 +163,14 @@ export {
   type TonightSignup,
   VintageTonight,
 } from './elements/tonight';
-export { roleLabel, ruleHours, ruleLead, ruleWords, titleCase } from './labels';
+export {
+  roleLabel,
+  ruleHours,
+  ruleLead,
+  ruleWords,
+  summarizeRules,
+  titleCase,
+} from './labels';
 export { type Block, type Inline, parseInline, parseMarkdown, renderMarkdown } from './markdown';
 export { describeError, type ElementResult, toElementResult } from './result';
 export {

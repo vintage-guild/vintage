@@ -55,6 +55,7 @@ import {
   renderPromotion,
   renderReminder,
   renderStepFailure,
+  renderTentativeCheck,
 } from './domain/render';
 import { hashServerEvent, renderServerEvent, signupLink } from './domain/server-event';
 import { renderRaidSummary } from './domain/summary';
@@ -178,6 +179,19 @@ async function perform(
         return { status: 'sent', messageId: id };
       } catch (err) {
         // 50007: the member doesn't accept DMs from this server. Not worth retrying.
+        if (err instanceof DiscordRestError && err.code === 50007) {
+          return { status: 'skipped', detail: 'member does not accept DMs' };
+        }
+        throw err;
+      }
+    case 'tentative-check':
+      try {
+        const { id } = await ports.discord.dm(
+          action.member.discordId,
+          renderTentativeCheck(tick, action.member, action.signup),
+        );
+        return { status: 'sent', messageId: id };
+      } catch (err) {
         if (err instanceof DiscordRestError && err.code === 50007) {
           return { status: 'skipped', detail: 'member does not accept DMs' };
         }

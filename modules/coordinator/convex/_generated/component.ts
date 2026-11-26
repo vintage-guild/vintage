@@ -151,6 +151,7 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
             reminderRoleIds?: Array<string>;
             serverEvents?: boolean;
             signupChannelId: string | null;
+            tentativeCheck?: boolean;
             weeklyAssessment?: boolean;
           };
           guildId: string;

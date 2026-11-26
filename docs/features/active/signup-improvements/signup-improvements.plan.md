@@ -459,6 +459,8 @@ calls. Dated rows are decided; "(proposed)" rows wait on their owner.
 | 42 | Columns are capped by a per-field character budget, never cut mid-emoji | Long names and emoji reach 1,024 characters before 20 names | Bloodfen, 2026-11-20 |
 | 43 | Seat buttons are for Standby only, seat into the dropout's group, and set the role when seating through "can also play" | A click never opens a hole elsewhere | Bloodfen, 2026-11-20 |
 | 44 | `secondaryRole` (#301) migrates into `alsoRoles`; internal status and roster names stay as they are | One model for other roles; addon and bridge-format compatibility | Bloodfen, 2026-11-20 |
+| 45 | Once the leads get the party draft, Tentative signups get a DM asking if they can make it: **I can make it** answers Going, **I can't make it** answers Absent, **Still don't know** changes nothing. Officers turn it on or off on the quarters' Vintage tab (`tentativeCheck`) | Leads know who is really coming while they set the groups | TJ, 2026-11-25 |
+| 46 | The check is off until an officer turns it on. One DM per raid, before lock, only to members who were Tentative when the draft went out; DM opt-outs and `dmRanks` apply as for reminder DMs. Going clears the Tentative reason; Absent keeps it | Nobody gets a DM they didn't expect, and a locked raid can't take the answer | TJ, 2026-11-25 |
 
 ## Open questions
 
@@ -538,3 +540,5 @@ cleanup).
   migrating #301's `secondaryRole`, the Can also play menu and site control, the leads'
   suggestions.
 - [x] **Jobs** J58–J70 in `raid-night.md` and the scenario test.
+- [x] **Tentative check** (coordinator, apps/api, ui-kit): rows 45 and 46, the `tentative-check`
+  rule and DM, its buttons (`apps/api/src/discord-tentative.ts`), and the Vintage tab checkbox.

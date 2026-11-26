@@ -67,6 +67,7 @@ import { handleManageInteraction } from '../../src/discord-manage';
 import { handlePollInteraction } from '../../src/discord-polls';
 import { handleScheduleAutocomplete, handleScheduleInteraction } from '../../src/discord-schedules';
 import { handleSignupInteraction } from '../../src/discord-signups';
+import { handleTentativeInteraction } from '../../src/discord-tentative';
 import { createLootRaidReader } from '../../src/loot-raids';
 import { callFor, toolsFor } from '../../src/mcp-gateway';
 import { onboardAfterSync, onboardIfPromoted } from '../../src/onboarding';
@@ -677,6 +678,31 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
       },
     );
 
+  /** A button on the tentative-check DM: from a DM, so no guild id (src/discord-tentative.ts). */
+  const tentativeUi = (discordId: string, customId: string) =>
+    handleTentativeInteraction(
+      {
+        id: 'i',
+        application_id: 'app',
+        token: 'token',
+        type: InteractionType.MESSAGE_COMPONENT,
+        user: { id: discordId, username: discordId },
+        data: { custom_id: customId, component_type: 2 },
+      } as Interaction,
+      {
+        discordGuildId: DISCORD_GUILD,
+        guildId: GUILD,
+        memberByDiscordId,
+        event: (eventId) => raids.getEvent(GUILD, eventId),
+        signup: (eventId, memberId) => raids.getSignupByMember(GUILD, eventId, memberId),
+        signupSet: (caller, input) =>
+          registry.execute({ name: 'signup-set', input, caller }, deps) as Promise<
+            CommandResult<Signup>
+          >,
+        afterChange: () => deps.scheduler.runTickNow(GUILD),
+      },
+    );
+
   /** `/vintage event create` and `/vintage event pick-night`, run through src/discord-events.ts. */
   const eventUi = {
     /** `/vintage event event:` suggestions while typing, as convex/discord.ts's autocomplete. */
@@ -1226,6 +1252,7 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
     eventUi,
     scheduleUi,
     manageUi,
+    tentativeUi,
     pollUi,
     clock,
     deps,

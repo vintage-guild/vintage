@@ -38,6 +38,8 @@ export const configFields = {
   weeklyAssessment: v.optional(v.boolean()),
   /** Optional so rows saved before #65 still load; read as false (officers turn it on). */
   postRaidFeedbackSurvey: v.optional(v.boolean()),
+  /** Optional so rows saved before the tentative check still load; read as false. */
+  tentativeCheck: v.optional(v.boolean()),
   paused: v.boolean(),
   updatedAt: v.number(),
 };

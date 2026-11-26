@@ -6,6 +6,8 @@
 //   remind-<h>h    at each reminder offset before lock, ping only the non-responders
 //   dm-<h>h        at the last reminder, DM non-responders who haven't opted out (if enabled)
 //   digest         at the last reminder, comp gaps and non-responders to the officer channel
+//   tentative-check  if `tentativeCheck`, once the party draft is out and before lock: DM each
+//                  member who was Tentative when it went out, asking if they can make it
 //   lock           at the lock offset: signups lock
 //   final-roster   after lock, the roster to the signup channel
 //   import-string  after lock, the addon import string to the officer channel
@@ -70,6 +72,15 @@ export type PlannedAction =
       post: CoordinatorAction;
     }
   | { kind: 'digest'; tick: TickEvent; rule: 'digest'; target: string; waiting: TickMember[] }
+  | {
+      kind: 'tentative-check';
+      tick: TickEvent;
+      rule: 'tentative-check';
+      /** The member's id, like reminder DMs. */
+      target: string;
+      member: TickMember;
+      signup: Signup;
+    }
   | {
       kind: 'dropout';
       tick: TickEvent;
@@ -407,6 +418,56 @@ function planParties(
   ];
 }
 
+/**
+ * The member changed their own answer after `at`. A leader seating or benching them also moves
+ * `updatedAt`, but that isn't an answer.
+ */
+const answeredSince = (signup: Signup, at: number) =>
+  signup.updatedAt > at && signup.updatedBy === signup.memberId;
+
+/** Whether a member takes coordinator DMs: not opted out, and in `dmRanks` when it's set. */
+function canDm(config: CoordinatorConfig, member: TickMember): boolean {
+  if (member.dmOptOut) return false;
+  return !config.dmRanks || (member.rank !== null && config.dmRanks.includes(member.rank));
+}
+
+/**
+ * After the leads get the party draft, ask each member who was Tentative then whether they can
+ * make it (`tentativeCheck`). Before lock only, since a locked raid refuses their answer. Someone
+ * who answers Tentative after the draft isn't asked: they just answered. Members who opted out of
+ * DMs, and ranks outside `dmRanks` when it's set, are left alone, as with reminder DMs.
+ */
+function planTentativeChecks(
+  state: TickState,
+  tick: TickEvent,
+  done: Set<string>,
+  now: number,
+): PlannedAction[] {
+  if (!state.config.tentativeCheck) return [];
+  const { event } = tick;
+  if (event.status !== 'open' || now >= event.startsAt - tick.timings.lockHours * HOUR) return [];
+  const draft = sentAction(state, event.id, 'party-draft');
+  if (!draft) return [];
+  const draftedAt = draft.finishedAt ?? draft.claimedAt;
+  const byId = new Map(state.members.map((m) => [m.memberId, m]));
+  const out: PlannedAction[] = [];
+  for (const signup of tick.signups) {
+    if (signup.status !== 'tentative' || answeredSince(signup, draftedAt)) continue;
+    const member = byId.get(signup.memberId);
+    if (!member || !canDm(state.config, member)) continue;
+    if (done.has(`tentative-check|${member.memberId}`)) continue;
+    out.push({
+      kind: 'tentative-check',
+      tick,
+      rule: 'tentative-check',
+      target: member.memberId,
+      member,
+      signup,
+    });
+  }
+  return out;
+}
+
 function planLockHold(
   state: TickState,
   tick: TickEvent,
@@ -579,6 +640,7 @@ function planEvent(
     ...planDigest(state, tick, done, now),
     ...planChanges(state, tick, done, now),
     ...planParties(state, tick, done, now, partyDraftHash, partyPostHash),
+    ...planTentativeChecks(state, tick, done, now),
     ...planLock(state, tick, done, now),
   );
   return out;

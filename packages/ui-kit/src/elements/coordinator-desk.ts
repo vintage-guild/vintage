@@ -10,7 +10,7 @@ import {
 } from '@lushly-dev/fast-element';
 import { command, failure } from '@lushly-dev/fast-element/command.js';
 import { getCommandClient } from '../client';
-import { ruleHours, ruleLead, ruleWords } from '../labels';
+import { ruleLead, ruleWords } from '../labels';
 import { describeError, type ElementResult, toElementResult } from '../result';
 import { browserTimeZone } from '../zoned';
 import { formatWhen } from './calendar-shared';
@@ -28,7 +28,7 @@ export interface CoordinatorDeskConfig {
   paused: boolean;
 }
 
-/** One upcoming raid from `coordinator-status` → `upcoming`. */
+/** One upcoming raid from `coordinator-status` → `upcoming`, as the Calendar tab shows it. */
 export interface CoordinatorDeskRaid {
   eventId: string;
   name: string;
@@ -68,16 +68,6 @@ const SNOWFLAKE = /^\d{17,20}$/;
 /** How long after "Run now" the desk reads again: the tick runs after the command returns. */
 export const RUN_REREAD_MS = 5000;
 
-/** An upcoming raid as its card reads it, everything worded already. */
-interface RaidCard {
-  raid: CoordinatorDeskRaid;
-  when: string;
-  done: string;
-  due: string;
-  waiting: string;
-  canRepost: boolean;
-}
-
 /** A log line, worded. */
 interface LogLine {
   entry: CoordinatorDeskEntry;
@@ -85,65 +75,6 @@ interface LogLine {
   what: string;
   flag: string;
 }
-
-/**
- * "Posted the signups, Reminded the people who haven’t answered (72 and 24 hours before), Sent
- * reminder DMs ×3 (24 hours before)": each kind once, in order, with its lead times, and a
- * count where one lead time covers several sends (a DM per member).
- */
-export function summarizeRules(rules: string[], form: 'done' | 'todo' = 'done'): string {
-  const kinds = new Map<string, { n: number; hours: number[] }>();
-  for (const rule of rules) {
-    const words = ruleWords(rule, form);
-    const kind = kinds.get(words) ?? { n: 0, hours: [] };
-    kind.n += 1;
-    const hours = ruleHours(rule);
-    if (hours !== null && !kind.hours.includes(hours)) kind.hours.push(hours);
-    kinds.set(words, kind);
-  }
-  return [...kinds]
-    .map(([words, { n, hours }]) => {
-      const count = n > Math.max(hours.length, 1) ? ` ×${n}` : '';
-      const lead = hours.length
-        ? ` (${hours.join(' and ')} hour${hours.length === 1 && hours[0] === 1 ? '' : 's'} before)`
-        : '';
-      return `${words}${count}${lead}`;
-    })
-    .join(', ');
-}
-
-const raidCard = html<RaidCard, VintageCoordinatorDesk>`
-  <li class="raid" part="raid">
-    <div class="raid-head">
-      <strong>${(r) => r.raid.name}</strong>
-      <time datetime="${(r) => new Date(r.raid.startsAt).toISOString()}">${(r) => r.when}</time>
-    </div>
-    <dl>
-      <dt>Done</dt>
-      <dd>${(r) => r.done || 'Nothing yet'}</dd>
-      ${when(
-        (r) => r.due,
-        html<RaidCard>`<dt>Due now</dt>
-        <dd>${(r) => r.due}</dd>`,
-      )}
-      <dt>Hasn’t answered</dt>
-      <dd>${(r) => r.waiting || 'Everyone Vintage chases has answered'}</dd>
-    </dl>
-    ${when(
-      (_r, c) => c.parent.canAct,
-      html<RaidCard, VintageCoordinatorDesk>`
-        <p class="actions">
-          <button
-            type="button"
-            ?disabled="${(r, c) => c.parent.busy || !r.canRepost}"
-            title="${(r) => (r.canRepost ? '' : 'Vintage hasn’t posted this raid yet')}"
-            @click="${(r, c) => c.parent.repost(r.raid.eventId)}"
-          >Replace the signup post</button>
-        </p>
-      `,
-    )}
-  </li>
-`;
 
 const logLine = html<LogLine>`
   <li class="${(l) => `entry ${l.entry.status}`}">
@@ -191,22 +122,6 @@ const template = html<VintageCoordinatorDesk>`
         </section>
 
         <p class="status ${(x) => x.statusKind}" part="status" role="status" aria-live="polite">${(x) => x.statusText}</p>
-
-        <section aria-labelledby="h-upcoming">
-          <h2 id="h-upcoming">Coming up</h2>
-          ${when(
-            (x) => !x.cards.length,
-            html`<p class="note">No open raids coming up. Vintage starts on a raid once it’s on the calendar.</p>`,
-          )}
-          <ul class="raids">${repeat((x) => x.cards, raidCard)}</ul>
-        </section>
-
-        <section aria-labelledby="h-log">
-          <h2 id="h-log">Vintage’s log</h2>
-          <p class="note">What Vintage did for these raids and why, newest first. It answers “why did the bot ping me?”.</p>
-          ${when((x) => !x.lines.length, html`<p class="note">Nothing logged yet.</p>`)}
-          <ol class="log" part="log">${repeat((x) => x.lines, logLine)}</ol>
-        </section>
 
         <form class="settings" part="settings" @submit="${(x, c) => x.submit(c.event)}">
           <h2>Settings</h2>
@@ -284,6 +199,12 @@ const template = html<VintageCoordinatorDesk>`
             html`<p class="note">Officers change Vintage’s settings. You can read them here.</p>`,
           )}
         </form>
+
+        <section aria-labelledby="h-log">
+          <h2 id="h-log">Vintage’s log</h2>
+          ${when((x) => !x.lines.length, html`<p class="note">Nothing logged yet.</p>`)}
+          <ol class="log" part="log">${repeat((x) => x.lines, logLine)}</ol>
+        </section>
       `,
     )}
   </div>
@@ -320,60 +241,12 @@ const styles = css`
     border-inline-start-color: var(--color-accent-primary);
   }
 
-  .raids,
   .log {
     display: grid;
     gap: var(--space-sm);
     margin: 0;
     padding: 0;
     list-style: none;
-  }
-
-  .raid {
-    display: grid;
-    gap: var(--space-xs);
-    padding: var(--space-sm) var(--space-md);
-    border: var(--border-width-thin) solid var(--color-border-default);
-    border-radius: 0.5rem;
-  }
-
-  .raid-head {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: var(--space-xs) var(--space-sm);
-  }
-
-  .raid-head time {
-    color: var(--color-text-secondary);
-    font-size: var(--font-size-sm);
-  }
-
-  dl {
-    display: grid;
-    grid-template-columns: max-content minmax(0, 1fr);
-    gap: 0.2rem var(--space-sm);
-    margin: 0;
-    font-size: var(--font-size-sm);
-  }
-
-  dt {
-    color: var(--color-text-secondary);
-  }
-
-  dd {
-    margin: 0;
-    text-wrap: pretty;
-  }
-
-  @media (max-width: 30rem) {
-    dl {
-      grid-template-columns: 1fr;
-    }
-
-    dd {
-      margin-block-end: var(--space-xs);
-    }
   }
 
   .entry {
@@ -431,31 +304,29 @@ const styles = css`
 `;
 
 /**
- * The officers' view of Random, the coordinator bot: whether it is running, what it has done
- * and will do for each upcoming raid, who it is still chasing, its log with the reason for
- * every entry, and its settings. Feed it `coordinator-status` (`config`, `upcoming`) and the
- * `coordinator-log` rows for those raids. Pause, resume, run a check, and replace a signup post
- * need `can-act` (leaders); saving the settings needs `can-configure` (officers). After every
- * change it emits `coordinator-changed` so the page reads again.
+ * The officers' Bot tab, for Random, the coordinator bot: whether it is running, its settings,
+ * then its log with the reason for every entry. Each raid's progress (what it did, what is due,
+ * who it is chasing, replacing a signup post) is on the Calendar tab's raids instead. Feed it
+ * `coordinator-status` → `config` and the `coordinator-log` rows for the recent raids. Pause,
+ * resume, and run a check need `can-act` (leaders); saving the settings needs `can-configure`
+ * (officers). After every change it emits `coordinator-changed` so the page reads again.
  *
  * @tagname vintage-coordinator-desk
- * @summary Random's status, upcoming work, log, and settings.
+ * @summary Random's status, settings, and log.
  * @fires coordinator-changed - After an action succeeds, and when Refresh is pressed.
  * @csspart desk - The whole desk.
  * @csspart state - Running, paused, or not set up, with the controls.
  * @csspart status - What just happened.
- * @csspart raid - One upcoming raid.
  * @csspart log - Random's log.
  * @csspart settings - The settings form.
  */
 export class VintageCoordinatorDesk extends FASTElement {
   /** `coordinator-status` → `config`; null until it is read. */
   @observable config: CoordinatorDeskConfig | null = null;
-  @observable upcoming: CoordinatorDeskRaid[] = [];
   @observable entries: CoordinatorDeskEntry[] = [];
   /** Optional IANA zone for times; the viewer's zone when empty. */
   @attr({ attribute: 'time-zone' }) timeZone = '';
-  /** Pause, resume, run, and repost (leader tier). */
+  /** Pause, resume, and run a check (leader tier). */
   @attr({ attribute: 'can-act', mode: 'boolean' }) canAct = false;
   /** Save the settings (officer tier). */
   @attr({ attribute: 'can-configure', mode: 'boolean' }) canConfigure = false;
@@ -510,22 +381,7 @@ export class VintageCoordinatorDesk extends FASTElement {
         ? 'Give it a signup channel below and it starts on its next check.'
         : 'An officer needs to give it a signup channel before it posts anything.';
     }
-    const n = this.upcoming.length;
-    return `It checks every few minutes: posts signups, reminds whoever hasn’t answered, and locks the roster. ${n} raid${n === 1 ? '' : 's'} coming up.`;
-  }
-
-  @volatile
-  get cards(): RaidCard[] {
-    return this.upcoming.map((raid) => ({
-      raid,
-      when: formatWhen(raid.startsAt, this.zone),
-      done: summarizeRules(raid.done.filter((d) => d.status === 'sent').map((d) => d.rule)),
-      due: summarizeRules(raid.dueNow, 'todo'),
-      waiting: raid.waiting.length
-        ? `${raid.waiting.length}: ${raid.waiting.map((w) => w.displayName).join(', ')}`
-        : '',
-      canRepost: raid.done.some((d) => d.rule === 'post' && d.status === 'sent'),
-    }));
+    return 'It checks every few minutes. Each raid’s progress is on the Calendar tab.';
   }
 
   @volatile
@@ -679,21 +535,6 @@ export class VintageCoordinatorDesk extends FASTElement {
         clearTimeout(this.reread);
         this.reread = setTimeout(() => this.$emit('coordinator-changed'), RUN_REREAD_MS);
       },
-    );
-  }
-
-  @command('vintage.coordinator-repost', {
-    label: 'Replace a signup post',
-    description: 'Delete a raid’s signup post and have Vintage post a fresh one. Signups are kept.',
-    category: 'Officers',
-  })
-  async repost(eventId: string): Promise<ElementResult<unknown>> {
-    const raid = this.upcoming.find((r) => r.eventId === eventId);
-    if (!raid) return failure({ code: 'COMMAND_DISABLED', message: 'That raid isn’t coming up' });
-    return this.act(
-      'coordinator-repost',
-      { eventId },
-      `A fresh signup post for ${raid.name} goes out on the next check. Signups are kept.`,
     );
   }
 

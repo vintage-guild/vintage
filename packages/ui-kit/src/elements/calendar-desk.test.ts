@@ -5,6 +5,7 @@ import { cleanup, mount, settle, shadowText } from '../test-helpers';
 import type { VintageCalendarDesk } from './calendar-desk';
 import type { VintageRaidForm, VintageScheduleForm } from './calendar-forms';
 import type { CalendarRaid, CalendarSchedule } from './calendar-shared';
+import type { CoordinatorDeskRaid } from './coordinator-desk';
 import './calendar-desk';
 
 let restore: CommandClient | undefined;
@@ -158,6 +159,75 @@ describe('vintage-calendar-desk agenda', () => {
     const el = await desk({ raids: [] });
     expect($(el, 'h2').textContent).toBe('No raids coming up');
     expect(text($(el, '.agenda'))).toContain('Create raids now');
+  });
+});
+
+describe('vintage-calendar-desk with Vintage’s progress', () => {
+  const bot = (over: Partial<CoordinatorDeskRaid> = {}): CoordinatorDeskRaid => ({
+    eventId: 'r1',
+    name: 'Raid night',
+    startsAt: Date.UTC(2026, 10, 5, 1),
+    status: 'open',
+    done: [
+      { rule: 'post', status: 'sent', at: 1 },
+      { rule: 'dm-24h', status: 'sent', at: 2 },
+      { rule: 'dm-24h', status: 'sent', at: 3 },
+      { rule: 'remind-72h', status: 'skipped', at: 4 },
+    ],
+    dueNow: ['lock'],
+    waiting: [
+      { memberId: 'm1', displayName: 'Aeryn' },
+      { memberId: 'm2', displayName: 'Borin' },
+    ],
+    ...over,
+  });
+
+  it('shows what Vintage did, what is due, and who hasn’t answered on the raid’s row', async () => {
+    const el = await desk({
+      raids: [raid(), raid({ id: 'r2', startsAt: Date.UTC(2026, 10, 6, 1) })],
+    });
+    el.bot = [bot()];
+    await settle();
+    const [first, second] = $$(el, '.raid');
+    expect(text(first?.querySelector('dl.bot'))).toBe(
+      'Vintage did Posted the signups, Sent reminder DMs ×2 (24 hours before) Due now Lock the roster Hasn’t answered 2: Aeryn, Borin',
+    );
+    expect(second?.querySelector('dl.bot')).toBeNull();
+    el.bot = [bot({ done: [], dueNow: [], waiting: [] })];
+    await settle();
+    expect(text($(el, 'dl.bot'))).toBe('Vintage did Nothing yet Hasn’t answered Nobody');
+  });
+
+  it('replaces a signup post only once Vintage has posted one', async () => {
+    const client = useClient(() => ({ success: true }));
+    const el = await desk({
+      raids: [raid(), raid({ id: 'r2', startsAt: Date.UTC(2026, 10, 6, 1) })],
+    });
+    el.bot = [bot(), bot({ eventId: 'r2', done: [] })];
+    await settle();
+    const replace = $$(el, 'button').filter(
+      (b) => b.textContent?.trim() === 'Replace the signup post',
+    ) as HTMLButtonElement[];
+    expect(replace.map((b) => b.disabled)).toEqual([false, true]);
+    const changed = vi.fn();
+    el.addEventListener('calendar-changed', changed);
+    replace[0]?.click();
+    await vi.waitFor(() =>
+      expect(client.run).toHaveBeenCalledWith('coordinator-repost', { eventId: 'r1' }),
+    );
+    await settle();
+    expect(text($(el, '.status'))).toBe(
+      'A fresh signup post for Raid night goes out on the next check. Signups are kept',
+    );
+    expect(changed).toHaveBeenCalled();
+  });
+
+  it('leaves the button off without can-edit', async () => {
+    const el = await desk({ canEdit: false });
+    el.bot = [bot()];
+    await settle();
+    expect($(el, 'dl.bot')).toBeTruthy();
+    expect(button(el, 'Replace the signup post')).toBeUndefined();
   });
 });
 

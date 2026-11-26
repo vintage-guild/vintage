@@ -73,7 +73,7 @@ scheduled backups) is still open (PLAN.md §8, Phase 0).
   member-sync failures) are caught and posted to the coordinator's `opsChannelId`, deduplicated
   to at most once per failure kind per hour (`apps/api/convex/opsAlerts.ts`, #262). The full
   error still prints to Convex Logs. Set `opsChannelId` via `coordinator-config-set` (or the
-  Random tab in `/officers`).
+  Bot tab in `/officers`).
 - **Vercel:** each project's Logs for the gateway's interaction errors and 401s.
 - **Discord:** Random answers in the test server. A slash command that times out usually means
   the gateway can't reach Convex: check `VINTAGE_CONVEX_SITE_URL` and `VINTAGE_GATEWAY_SECRET`.

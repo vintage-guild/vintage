@@ -536,7 +536,7 @@ its Discord signup card, without the website.
 ### J82 · Tentative signups confirm by DM
 **When** the leads get the party draft and some signups are still Tentative, **I (raider) want** a
 DM asking if I can make it, so I can answer with one button instead of finding the signup post.
-- [x] With `tentativeCheck` on (the quarters' Vintage tab), each member who was Tentative when the
+- [x] With `tentativeCheck` on (the quarters' Bot tab), each member who was Tentative when the
   draft went out gets one DM before lock (not members who turned DMs off). **I can make it**
   answers Going, **I can't make it** answers Absent, **Still don't know** changes nothing; the
   DM loses its buttons once answered.

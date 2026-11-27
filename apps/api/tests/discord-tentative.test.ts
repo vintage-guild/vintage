@@ -79,6 +79,7 @@ const click = (customId: string, overrides: Partial<Interaction> = {}): Interact
 
 function setup(signup: Signup | null = TENTATIVE) {
   const calls: { caller: Caller; input: unknown }[] = [];
+  const logged: [eventId: string, memberId: string, detail: string][] = [];
   let changed = 0;
   const ports: TentativePorts = {
     discordGuildId: DISCORD_GUILD,
@@ -93,8 +94,11 @@ function setup(signup: Signup | null = TENTATIVE) {
     afterChange: async () => {
       changed++;
     },
+    logAnswer: async (eventId, memberId, detail) => {
+      logged.push([eventId, memberId, detail]);
+    },
   };
-  return { ports, calls, changed: () => changed };
+  return { ports, calls, logged, changed: () => changed };
 }
 
 const text = (res: unknown) =>
@@ -110,8 +114,9 @@ describe('the tentative-check DM buttons', () => {
   });
 
   it('answers Going for "I can make it", clears the reason, and drops the buttons', async () => {
-    const { ports, calls, changed } = setup();
+    const { ports, calls, logged, changed } = setup();
     const res = await handleTentativeInteraction(click('tentative-check:evt_mc:yes'), ports);
+    expect(logged).toEqual([['evt_mc', 'm_bram', 'Can make it, now Going']]);
     expect(calls).toEqual([
       {
         caller: expect.objectContaining({ memberId: 'm_bram', tier: 'raider', surface: 'discord' }),
@@ -125,8 +130,9 @@ describe('the tentative-check DM buttons', () => {
   });
 
   it('answers Absent for "I can\'t make it" and keeps the reason', async () => {
-    const { ports, calls } = setup();
+    const { ports, calls, logged } = setup();
     const res = await handleTentativeInteraction(click('tentative-check:evt_mc:no'), ports);
+    expect(logged).toEqual([['evt_mc', 'm_bram', 'Can’t make it, now Absent']]);
     expect(calls[0]?.input).toEqual({
       eventId: 'evt_mc',
       characterId: 'c_bram',
@@ -136,17 +142,19 @@ describe('the tentative-check DM buttons', () => {
   });
 
   it('changes nothing for "Still don\'t know"', async () => {
-    const { ports, calls, changed } = setup();
+    const { ports, calls, logged, changed } = setup();
     const res = await handleTentativeInteraction(click('tentative-check:evt_mc:unsure'), ports);
+    expect(logged).toEqual([['evt_mc', 'm_bram', 'Still doesn’t know, stays Tentative']]);
     expect(calls).toEqual([]);
     expect(changed()).toBe(0);
     expect(text(res)?.content).toMatch(/still Tentative/);
   });
 
   it('leaves an answer changed since the DM alone', async () => {
-    const { ports, calls } = setup({ ...TENTATIVE, status: 'declined' });
+    const { ports, calls, logged } = setup({ ...TENTATIVE, status: 'declined' });
     const res = await handleTentativeInteraction(click('tentative-check:evt_mc:yes'), ports);
     expect(calls).toEqual([]);
+    expect(logged).toEqual([]);
     expect(text(res)?.content).toMatch(/you're Absent/);
   });
 
@@ -166,10 +174,11 @@ describe('the tentative-check DM buttons', () => {
   });
 
   it('says why when signup-set refuses, such as a locked raid', async () => {
-    const { ports } = setup();
+    const { ports, logged } = setup();
     ports.signupSet = async () =>
       error('SIGNUPS_LOCKED', 'Signups for Molten Core are locked') as never;
     const res = await handleTentativeInteraction(click('tentative-check:evt_mc:yes'), ports);
+    expect(logged).toEqual([]);
     expect(text(res)?.content).toBe(
       "I couldn't change your signup. Signups for Molten Core are locked. Use the signup post instead.",
     );

@@ -97,6 +97,7 @@ describe('rule words', () => {
     expect(ruleLead('lock')).toBe('');
     expect(ruleWords('final-roster', 'todo')).toBe('Post the final roster');
     expect(ruleWords('tentative-check')).toBe('Asked Tentative signups if they can make it');
+    expect(ruleWords('tentative-answer')).toBe('Got an answer to the Tentative check');
   });
 
   it('summarizes a raid’s sends by kind, with lead times and per-member counts', () => {

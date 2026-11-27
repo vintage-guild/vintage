@@ -8,6 +8,7 @@ import {
   type RaidExport,
 } from '@vintage/bridge-format';
 import luaMade from '@vintage/bridge-format/fixtures/lua-made.json';
+import type { CoordinatorAction } from '@vintage/coordinator/contract';
 import { buttonLabels, messageText } from '@vintage/coordinator/testing';
 import { type Interaction, InteractionType, ScheduledEventStatus } from '@vintage/discord-kit';
 import type { Caller } from '@vintage/guild-kit';
@@ -2023,6 +2024,26 @@ describe('JTBD: raid night', () => {
     const status = (key: string) => signups.find((s) => s.characterId === g.chars[key])?.status;
     expect(status('aeryn')).toBe('accepted');
     expect(status('dara')).toBe('tentative');
+
+    // The Bot tab's log has each DM and each answer, with what they chose.
+    const log = await g.host.ok<CoordinatorAction[]>(g.ana, 'coordinator-log', { eventId: wed.id });
+    const of = (rule: string) =>
+      log
+        .filter((a) => a.rule === rule)
+        .map((a) => [a.target, a.status, a.detail])
+        .sort();
+    expect(of('tentative-check').map(([target, status]) => [target, status])).toEqual(
+      [
+        [g.aeryn.memberId, 'sent'],
+        [g.dara.memberId, 'sent'],
+      ].sort(),
+    );
+    expect(of('tentative-answer')).toEqual(
+      [
+        [g.aeryn.memberId, 'sent', 'Can make it, now Going'],
+        [g.dara.memberId, 'sent', 'Still doesn’t know, stays Tentative'],
+      ].sort(),
+    );
   });
 
   it('J80 · rank a character’s wishlist and feed loot council candidates', async () => {

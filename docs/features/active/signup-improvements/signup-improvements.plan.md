@@ -541,4 +541,5 @@ cleanup).
   suggestions.
 - [x] **Jobs** J58–J70 in `raid-night.md` and the scenario test.
 - [x] **Tentative check** (coordinator, apps/api, ui-kit): rows 45 and 46, the `tentative-check`
-  rule and DM, its buttons (`apps/api/src/discord-tentative.ts`), and the checkbox on the quarters' coordinator tab (now Bot).
+  rule and DM, its buttons (`apps/api/src/discord-tentative.ts`), and the checkbox on the quarters' coordinator tab (now Bot). Each answer is logged as
+  `tentative-answer` for the Bot tab's log (TJ, 2026-11-27).

@@ -4,6 +4,7 @@ import type { Character } from '@vintage/identity/contract';
 import { type ArmoryCardEntry, type CommandClient, setCommandClient } from '@vintage/ui-kit';
 import { afterEach, describe, expect, it } from 'vitest';
 import { inFlight } from './armory';
+import { FIXTURE_NOW } from './fixtures/data';
 import { createFixtureHost, createHostClient } from './fixtures/host';
 import { seedFixtures } from './fixtures/seed';
 
@@ -27,8 +28,8 @@ afterEach(() => {
   open = undefined;
 });
 
-async function pageAs(displayName: string) {
-  const host = createFixtureHost();
+async function pageAs(displayName: string, now?: () => number) {
+  const host = createFixtureHost(undefined, { now });
   await seedFixtures(host);
   const member = await host.member(displayName);
   if (!member) throw new Error(`no ${displayName}`);
@@ -68,6 +69,37 @@ describe('the characters page’s armory', () => {
     await page.loadArmory();
     expect(page.armory[character!.id]).toMatchObject({ status: 'found', surname: 'Ashgrove' });
     expect(inFlight(page.armory[character!.id]!)).toBe(false);
+  });
+
+  it('says a surname corrected within the cooldown is saved, not looked up yet', async () => {
+    let at = FIXTURE_NOW;
+    const { host, page, caller } = await pageAs('Morwenna', () => at);
+    const [character] = page.characters;
+    const id = character!.id;
+    await host.execute(caller, 'armory-link', { characterId: id, surname: 'Unknown' });
+    await host.armoryIdle();
+    at += 2 * 60_000;
+    const fixed = await host.execute(caller, 'armory-link', {
+      characterId: id,
+      surname: 'Ashgrove',
+    });
+    expect(fixed.success).toBe(true);
+    await page.loadArmory();
+    const entry = page.armory[id]!;
+    expect(entry).toMatchObject({ status: 'pending', surname: 'Ashgrove' });
+    expect(inFlight(entry)).toBe(false);
+
+    const card = document.createElement('vintage-armory-card') as HTMLElement & {
+      character: unknown;
+      entry: unknown;
+      now: number;
+      note: string;
+    };
+    card.character = character;
+    card.entry = entry;
+    card.now = at;
+    expect(card.note).toContain('Saved as Morwenna Ashgrove');
+    expect(card.note).toContain('press Refresh in 8 minutes');
   });
 });
 
@@ -125,5 +157,9 @@ describe('inFlight', () => {
     expect(inFlight({ status: 'found', requestedAt: 5, checkedAt: 3 })).toBe(true);
     expect(inFlight({ status: 'found', requestedAt: 3, checkedAt: 5 })).toBe(false);
     expect(inFlight({ status: 'not-found', requestedAt: 3, checkedAt: 5 })).toBe(false);
+    // Saved within the cooldown: no fetch was started, so nothing to wait on.
+    expect(inFlight({ status: 'pending', requestedAt: 3, checkedAt: null, linkedAt: 5 })).toBe(
+      false,
+    );
   });
 });

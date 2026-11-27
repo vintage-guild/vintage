@@ -23,6 +23,12 @@ export async function readArmory(): Promise<ArmoryRead> {
   return { ok: true, byCharacter: Object.fromEntries(result.data.map((e) => [e.characterId, e])) };
 }
 
-/** A link waiting on the armory: never checked, or asked again since the last check. */
-export const inFlight = (e: Pick<ArmoryCardEntry, 'status' | 'requestedAt' | 'checkedAt'>) =>
-  e.status === 'pending' || e.checkedAt === null || e.requestedAt > e.checkedAt;
+/**
+ * A link waiting on the armory: never checked, or asked again since the last check. Not one saved
+ * after its last request (relinked within the cooldown): no fetch was started for it.
+ */
+export const inFlight = (
+  e: Pick<ArmoryCardEntry, 'status' | 'requestedAt' | 'checkedAt' | 'linkedAt'>,
+) =>
+  (e.linkedAt ?? 0) <= e.requestedAt &&
+  (e.status === 'pending' || e.checkedAt === null || e.requestedAt > e.checkedAt);

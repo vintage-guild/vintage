@@ -61,8 +61,11 @@ recruit for the night.
 ### J07 · Lock, post the final roster, hand officers the addon string
 **When** the raid is two hours out, **I (raid leader) want** signups frozen and a roster I can
 import, **so I can** form the raid quickly.
-- [ ] At T-2h the raid locks, the post's buttons grey out, `#raid-signups` gets the final roster,
-  and `#vintage-ops` gets an import string that decodes to the roster and groups.
+- [ ] At T-2h, if no raid leader or officer has approved the roster, the raid stays open, nothing
+  final is posted, and the leads channel is asked to approve (raid-scheduling decision 17).
+- [ ] Once a leader clicks **Approve and post**, the next check locks the raid, the post's buttons
+  grey out, `#raid-signups` gets the final roster, and `#vintage-ops` gets an import string that
+  decodes to the roster and groups.
 - [ ] After lock a raider's `signup-set` is refused; a raid leader's works.
 
 ### J08 · Cancel one night and have it stay cancelled

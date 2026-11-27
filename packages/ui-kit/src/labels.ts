@@ -46,6 +46,12 @@ const RULE_WORDS: [prefix: string, done: string, todo: string][] = [
     'Get an answer to the Tentative check',
   ],
   ['lock', 'Locked the roster', 'Lock the roster'],
+  ['approval-hold', 'Asked the leads to approve the roster', 'Ask the leads to approve the roster'],
+  [
+    'unapproved-notice',
+    'Told the leads the roster went out unapproved',
+    'Tell the leads the roster went out unapproved',
+  ],
   ['final', 'Posted the final roster', 'Post the final roster'],
   [
     'overcap-approval',

@@ -220,7 +220,7 @@ describe('JTBD: raid night', () => {
     expect(comp.reasoning).toMatch(/no Mark of the Wild/);
   });
 
-  it('J07 · at T-2h signups lock, the final roster posts, and officers get the addon string', async () => {
+  it('J07 · at T-2h a raid waits for a leader’s approval, then signups lock, the final roster posts, and officers get the addon string', async () => {
     const { wed } = await scheduleRaidNights(g);
     const tank = await answer(g, g.aeryn, 'aeryn', wed.id, 'accepted');
     const healer = await answer(g, g.bram, 'bram', wed.id, 'accepted');
@@ -229,8 +229,25 @@ describe('JTBD: raid night', () => {
     g.host.clock.advance(WED - 2 * HOUR - g.host.clock.now());
     await g.host.tick();
 
-    const raid = await g.host.ok<{ event: RaidEvent }>(g.aeryn, 'raid-get', { eventId: wed.id });
-    expect(raid.event.status).toBe('locked');
+    // Nobody approved yet: signups stay open, nothing final goes out, and the leads are asked.
+    const status = async () =>
+      (await g.host.ok<{ event: RaidEvent }>(g.aeryn, 'raid-get', { eventId: wed.id })).event
+        .status;
+    expect(await status()).toBe('open');
+    const finals = () =>
+      g.host.sentTo(SIGNUP_CHANNEL).filter((m) => messageText(m.message).includes('Final roster'));
+    expect(finals()).toEqual([]);
+    expect(
+      g.host
+        .sentTo(OPS_CHANNEL)
+        .some((m) => m.message.content?.includes('without an approved roster')),
+    ).toBe(true);
+
+    // The raid leader approves the draft; the next check locks signups and posts.
+    await g.host.ok(g.rook, 'roster-approve', { eventId: wed.id });
+    g.host.clock.advance(30 * 60 * 1000);
+    await g.host.tick();
+    expect(await status()).toBe('locked');
     const final = g.host
       .sentTo(SIGNUP_CHANNEL)
       .find((m) => messageText(m.message).includes('Final roster'));
@@ -1929,7 +1946,7 @@ describe('JTBD: raid night', () => {
       error: { code: 'RAID_NOT_FOUND' },
     });
 
-    // At lock without approval, the Final Roster carries the same short link while reminder DMs
+    // At lock (once approved), the Final Roster carries the same short link while reminder DMs
     // keep the Discord channel/message link.
     g.host.clock.advance(wed.startsAt - 30 * HOUR - g.host.clock.now());
     await g.host.tick({ siteUrl: 'https://vintageguild.gg' });
@@ -1938,6 +1955,7 @@ describe('JTBD: raid night', () => {
       `https://discord.com/channels/${DISCORD_GUILD}/${SIGNUP_CHANNEL}/`,
     );
 
+    await g.host.ok(g.rook, 'roster-approve', { eventId: wed.id });
     g.host.clock.advance(wed.startsAt - 2 * HOUR - g.host.clock.now());
     await g.host.tick({ siteUrl: 'https://vintageguild.gg' });
     const finalPost = g.host

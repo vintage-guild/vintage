@@ -270,7 +270,7 @@ describe('runTick', () => {
     expect(discord.sent.filter((m) => m.message.content?.includes('Still waiting'))).toEqual([]);
   });
 
-  it('locks at T-2h, posts the final roster and the addon import string', async () => {
+  it('holds a raid at T-2h until a leader approves, then locks and posts the roster and import string', async () => {
     signups = [
       signup('aeryn', { roster: 'rostered', group: 1 }),
       signup('bram', {
@@ -284,11 +284,34 @@ describe('runTick', () => {
     ];
     await tick(START - 100 * HOUR);
     await tick(START - 2 * HOUR);
+
+    // Unapproved at lock time: signups stay open, nothing final goes out, the leads are asked once.
+    expect(raids.calls).not.toContain('lock:raid-1');
+    const finals = () =>
+      discord.sent.filter(
+        (s) => s.to === SIGNUPS && messageText(s.message).includes('Final roster'),
+      );
+    expect(finals()).toEqual([]);
+    expect(discord.sent.filter((s) => s.message.content?.includes('Addon import'))).toEqual([]);
+    const holds = () =>
+      discord.sent.filter(
+        (s) => s.to === OPS && s.message.content?.includes('without an approved roster'),
+      );
+    expect(holds()).toHaveLength(1);
+    expect(holds()[0]!.message.content).toContain('Approve and post');
+    await tick(START - 1.75 * HOUR);
+    expect(holds()).toHaveLength(1);
+    expect(raids.calls).not.toContain('lock:raid-1');
+
+    // A raid leader approves: the next tick locks and posts.
+    event = { ...event, rosterApprovedAt: START - 1.5 * HOUR, rosterApprovedBy: 'rook' };
+    await tick(START - 1.5 * HOUR);
     expect(raids.calls).toContain('lock:raid-1');
     const final = discord.sent.find(
       (s) => s.to === SIGNUPS && messageText(s.message).includes('Final roster'),
     );
     expect(messageText(final!.message)).toMatch(/Final roster · MC nights[\s\S]*2\/10/);
+    expect(finals()).toHaveLength(1);
 
     const imported = discord.sent.find(
       (s) => s.to === OPS && s.message.content?.includes('Addon import'),
@@ -306,6 +329,7 @@ describe('runTick', () => {
     // Running it again changes nothing (apart from refreshing the now-locked post).
     const before = discord.sent.filter((s) => s.kind !== 'edit').length;
     await tick(START - 1 * HOUR);
+    expect(holds()).toHaveLength(1);
     expect(discord.sent.filter((s) => s.kind !== 'edit').length).toBe(before);
     expect(raids.calls.filter((c) => c.startsWith('lock')).length).toBe(1);
   });
@@ -675,7 +699,8 @@ describe('runTick', () => {
       throw new Error('raid-create failed: invalid size');
     };
 
-    // 2. roster-lock failure.
+    // 2. roster-lock failure (an approved raid, so the bot locks it at T-2h).
+    event = { ...event, rosterApprovedAt: START - 3 * HOUR, rosterApprovedBy: 'rook' };
     raids.lock = async () => {
       throw new Error('roster-lock failed: already locked');
     };
@@ -742,10 +767,16 @@ describe('runTick', () => {
     });
   });
 
-  it('auto-posts final-roster at lock when Going signups are at cap with voluntary Standby (#345)', async () => {
+  it('posts an approved raid’s final roster at lock when Going is at cap with voluntary Standby (#345)', async () => {
     const LEADS_CH = '100000000000000088';
     await store.setConfig(G, { leadsChannelId: LEADS_CH }, 0);
-    event = { ...event, size: 2, roleTargets: { tank: 1, healer: 1, melee: 0, ranged: 0 } };
+    event = {
+      ...event,
+      size: 2,
+      roleTargets: { tank: 1, healer: 1, melee: 0, ranged: 0 },
+      rosterApprovedAt: START - 3 * HOUR,
+      rosterApprovedBy: 'rook',
+    };
     signups = [
       signup('aeryn', { role: 'tank', status: 'accepted' }),
       signup('cade', { class: 'priest', spec: 'holy', role: 'healer', status: 'accepted' }),
@@ -773,7 +804,7 @@ describe('runTick', () => {
     ).toHaveLength(0);
   });
 
-  it('locks at T-2h, holds final-roster when unapproved and over cap, asks leads with recommendation, and posts after approval (#345)', async () => {
+  it('holds an over-cap raid open at T-2h, asks leads with the recommendation, and locks and posts after approval (#345)', async () => {
     const LEADS_CH = '100000000000000088';
     await store.setConfig(G, { leadsChannelId: LEADS_CH }, 0);
     ports = {
@@ -803,10 +834,10 @@ describe('runTick', () => {
     expect(messageText(draft!.message)).toContain('Standby (1)');
     expect(messageText(draft!.message)).toContain('Bram');
 
-    // At T-2h lock: signups lock, public final-roster is HELD, Standby is NOT pinged.
+    // At T-2h: signups stay open, public final-roster is HELD, Standby is NOT pinged.
     await tick(START - 2 * HOUR);
-    expect(raids.calls).toContain('lock:raid-1');
-    expect(event.status).toBe('locked');
+    expect(raids.calls).not.toContain('lock:raid-1');
+    expect(event.status).toBe('open');
     const publicFinalsBefore = discord.sent.filter(
       (s) => s.to === SIGNUPS && messageText(s.message).includes('Final roster'),
     );
@@ -817,19 +848,25 @@ describe('runTick', () => {
     ).toHaveLength(0);
     expect(discord.sent.filter((s) => s.message.content?.includes('Addon import'))).toHaveLength(0);
 
-    // Leads got the updated locked draft (with action buttons) + overcap-approval notice.
-    const draftLockEdit = discord.sent.find(
-      (s) => s.kind === 'edit' && s.messageId === draft!.messageId,
-    );
-    expect(draftLockEdit).toBeDefined();
-    expect(messageText(draftLockEdit!.message)).toContain('Final roster held for officer approval');
-    expect(buttonLabels(draftLockEdit!.message)).toEqual([
+    // The draft keeps its buttons and still says it's waiting; the leads get one approval notice.
+    expect(buttonLabels(draft!.message)).toEqual([
       'Approve and post',
       'Redraft',
       'Edit in the quarters',
     ]);
+    expect(
+      discord.sent.some(
+        (s) =>
+          s.kind === 'edit' &&
+          s.messageId === draft!.messageId &&
+          messageText(s.message).includes('Signups locked'),
+      ),
+    ).toBe(false);
     const approvalNotice = discord.sent.find(
-      (s) => s.kind === 'post' && s.to === LEADS_CH && s.message.content?.includes('3 going'),
+      (s) =>
+        s.kind === 'post' &&
+        s.to === LEADS_CH &&
+        s.message.content?.includes('without an approved roster'),
     );
     expect(approvalNotice).toBeDefined();
     expect(approvalNotice!.message.content).toContain('Recommended to sit: **Pip**');

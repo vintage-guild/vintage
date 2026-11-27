@@ -8,7 +8,9 @@
 //   digest         at the last reminder, comp gaps and non-responders to the officer channel
 //   tentative-check  if `tentativeCheck`, once the party draft is out and before lock: DM each
 //                  member who was Tentative when it went out, asking if they can make it
-//   lock           at the lock offset: signups lock
+//   lock           at the lock offset: signups lock. A raid waits for a leader to approve its
+//                  roster (party draft, Approve and post) first; until then signups stay open
+//   approval-hold  a raid at its lock offset with no approved roster: one notice to the leads
 //   final-roster   after lock, the roster to the signup channel
 //   import-string  after lock, the addon import string to the officer channel
 //   server-event   if `serverEvents`, once the post is up: a Discord server event for the raid;
@@ -105,7 +107,7 @@ export type PlannedAction =
       partyPost: CoordinatorAction;
       locked: boolean;
     }
-  | { kind: 'unapproved-notice'; tick: TickEvent; rule: 'unapproved-notice'; target: string }
+  | { kind: 'approval-hold'; tick: TickEvent; rule: 'approval-hold'; target: string }
   | { kind: 'overcap-approval'; tick: TickEvent; rule: 'overcap-approval'; target: string }
   | { kind: 'overcommitted-notice'; tick: TickEvent; rule: 'overcommitted-notice'; target: string }
   | {
@@ -353,16 +355,19 @@ function planPartyDraft(
   done: Set<string>,
   now: number,
   locked: boolean,
+  pastLock: boolean,
   partyDraftHash?: (tick: TickEvent, locked: boolean) => string,
 ): PlannedAction[] {
   const leads = leadsChannelFor(state.config);
   if (!leads) return [];
   const draft = sentAction(state, tick.event.id, 'party-draft');
   const isRaid = kindOf(tick.event) === 'raid';
+  // Past lock with no approved roster, the leads need a draft to approve: always for a raid
+  // (it waits for approval), and for anything else when the roster is over its size.
   const heldForApproval =
-    locked &&
+    pastLock &&
     tick.event.rosterApprovedAt === null &&
-    (needsApprovalAtLock(tick) || isOvercommitted(state, tick));
+    (isRaid || needsApprovalAtLock(tick) || isOvercommitted(state, tick));
   if (!draft) {
     if (done.has(`party-draft|${leads}`) || tick.event.rosterApprovedAt !== null) {
       return [];
@@ -411,9 +416,12 @@ function planParties(
   partyPostHash?: (tick: TickEvent, locked: boolean) => string,
 ): PlannedAction[] {
   const lockAt = tick.event.startsAt - tick.timings.lockHours * HOUR;
-  const locked = now >= lockAt || tick.event.status === 'locked';
+  const pastLock = now >= lockAt;
+  // An unapproved raid stays open past its lock time, so its cards don't say "locked" yet.
+  const waiting = kindOf(tick.event) === 'raid' && tick.event.rosterApprovedAt === null;
+  const locked = tick.event.status === 'locked' || (pastLock && !waiting);
   return [
-    ...planPartyDraft(state, tick, done, now, locked, partyDraftHash),
+    ...planPartyDraft(state, tick, done, now, locked, pastLock, partyDraftHash),
     ...planPartyPost(state, tick, done, locked, partyPostHash),
   ];
 }
@@ -495,13 +503,6 @@ function planLockLeadsFollowups(
 ): PlannedAction[] {
   const { event } = tick;
   const out: PlannedAction[] = [];
-  if (
-    kindOf(event) === 'raid' &&
-    event.rosterApprovedAt === null &&
-    !done.has(`unapproved-notice|${leads}`)
-  ) {
-    out.push({ kind: 'unapproved-notice', tick, rule: 'unapproved-notice', target: leads });
-  }
   if (event.size !== null && !done.has(`lock-open-seats|${leads}`)) {
     const { going, bench } = finalRoster(tick, state.members);
     if (going.length < event.size && bench.length > 0) {
@@ -522,11 +523,18 @@ function planLock(
 ): PlannedAction[] {
   const { event, timings } = tick;
   if (now < event.startsAt - timings.lockHours * HOUR) return [];
+  const leads = leadsChannelFor(state.config);
+  // A raid never locks or posts its roster until a raid leader or officer approves it in the
+  // leads channel (TJ, 2026-11-27). Until then signups stay open and the leads get one notice.
+  if (kindOf(event) === 'raid' && event.rosterApprovedAt === null) {
+    return leads && !done.has(`approval-hold|${leads}`)
+      ? [{ kind: 'approval-hold', tick, rule: 'approval-hold', target: leads }]
+      : [];
+  }
   const out: PlannedAction[] = [];
   if (!done.has(`lock|${event.id}`)) {
     out.push({ kind: 'lock', tick, rule: 'lock', target: event.id });
   }
-  const leads = leadsChannelFor(state.config);
   const held = planLockHold(state, tick, done, leads);
   if (held !== null) {
     out.push(...held);

@@ -346,6 +346,32 @@ export function renderOvercapApprovalNotice(tick: TickEvent, members: TickMember
 }
 
 /**
+ * Leads-channel notice when a raid reaches its lock time with no approved roster. The bot leaves
+ * signups open and posts nothing final until a raid leader or officer approves the party draft.
+ */
+export function renderApprovalHoldNotice(tick: TickEvent, members: TickMember[]): MessageData {
+  const { event } = tick;
+  const { going, bench } = finalRoster(tick, members);
+  const seated = Math.max(rosteredSignups(tick.signups).length, going.length);
+  let next = '';
+  if (event.size !== null && seated > event.size) {
+    const over = seated - event.size;
+    next = ` ${seated} are seated for ${event.size} seats, so move ${over} to Standby first.`;
+  } else {
+    const sits = recommendedSitsFromBench(event, bench).map((s) => `**${s.characterName}**`);
+    if (sits.length) next = ` Recommended to sit: ${sits.join(', ')}.`;
+  }
+  return {
+    content: (
+      `**${eventTitle(event)}** is at its lock time without an approved roster. Signups stay open ` +
+      'and nothing goes out to the raid until a raid leader or officer clicks **Approve and post** ' +
+      `on the party draft.${next}`
+    ).slice(0, MAX_CONTENT),
+    allowed_mentions: { parse: [] },
+  };
+}
+
+/**
  * Leads-channel notice at lock when explicitly seated players exceed `event.size`:
  * the public final roster is held until seated count fits the cap.
  */

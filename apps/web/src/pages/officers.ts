@@ -146,10 +146,14 @@ interface CoordinatorStatus {
   upcoming: CoordinatorDeskRaid[];
 }
 
-/** A `coordinator-log` row as the Bot tab's log reads it. */
+/**
+ * A `coordinator-log` row as the Bot tab's log reads it. A DM's target is a member id, so
+ * `names` (member id → display name) turns it into who got it.
+ */
 export function coordinatorEntry(
   action: CoordinatorAction,
   raidName: string,
+  names: ReadonlyMap<string, string> = new Map(),
 ): CoordinatorDeskEntry {
   return {
     id: action.id,
@@ -159,6 +163,7 @@ export function coordinatorEntry(
     status: action.status,
     detail: action.detail,
     at: action.finishedAt ?? action.claimedAt,
+    who: names.get(action.target) ?? null,
   };
 }
 
@@ -772,7 +777,8 @@ export class Page extends FASTElement {
   }
 
   /**
-   * The Bot tab: Random's status and settings from `coordinator-status`, and its log for the upcoming raids
+   * The Bot tab: Random's status and settings from `coordinator-status`, and its log (DMs named from
+   * `member-list`) for the upcoming raids
    * and the last week's (a raid leaves `upcoming` once it starts, but its final roster is
    * worth reading after). Only the latest read is kept.
    */
@@ -781,13 +787,14 @@ export class Page extends FASTElement {
     const now = Date.now();
     const read = ++this.coordinatorRead;
     try {
-      const [status, recent] = await Promise.all([
+      const [status, recent, members] = await Promise.all([
         client.read<CoordinatorStatus>('coordinator-status', {}),
         client.read<RaidRow[]>('raid-list', {
           from: now - LOG_BEHIND_MS,
           to: now,
           statuses: ['open', 'locked', 'cancelled', 'completed'],
         }),
+        client.read<{ id: string; displayName: string }[]>('member-list', {}),
       ]);
       if (read !== this.coordinatorRead) return;
       if (!status.success || !status.data) {
@@ -797,13 +804,17 @@ export class Page extends FASTElement {
       const raids = new Map<string, string>(status.data.upcoming.map((u) => [u.eventId, u.name]));
       for (const r of recent.success ? (recent.data ?? []) : [])
         raids.set(r.event.id, r.event.name);
+      // Who each DM went to; a failed read just leaves the names off.
+      const names = new Map(
+        (members.success ? (members.data ?? []) : []).map((m) => [m.id, m.displayName]),
+      );
       const logs = await Promise.all(
         [...raids].map(async ([eventId, name]) => {
           const log = await client.read<CoordinatorAction[]>('coordinator-log', {
             eventId,
             limit: 50,
           });
-          return (log.success ? (log.data ?? []) : []).map((a) => coordinatorEntry(a, name));
+          return (log.success ? (log.data ?? []) : []).map((a) => coordinatorEntry(a, name, names));
         }),
       );
       if (read !== this.coordinatorRead) return;

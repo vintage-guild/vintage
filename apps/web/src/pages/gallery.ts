@@ -144,15 +144,22 @@ const GALLERY_COORDINATOR_RAIDS: CoordinatorDeskRaid[] = [
   },
 ];
 
-/** Random's log for those raids: a skip and a failure among the sends, each with its reason. */
+/** Random's log for those raids: DMs named, and a skip and a failure, each with its reason. */
 const GALLERY_COORDINATOR_LOG: CoordinatorDeskEntry[] = [
-  ['post', 'sent', null, 22],
-  ['remind-72h', 'sent', null, 25],
-  ['digest', 'sent', null, 25],
-  ['dm-24h', 'skipped', 'Thistle turned reminder DMs off', 27],
-  ['dm-24h', 'failed', 'Discord refused the DM: Elowen doesn’t accept DMs from server members', 27],
-  ['lock', 'sent', null, 28],
-].map(([rule, status, detail, day], i) => ({
+  ['post', 'sent', null, 22, null],
+  ['remind-72h', 'sent', null, 25, null],
+  ['digest', 'sent', null, 25, null],
+  ['dm-24h', 'sent', null, 27, 'Aeryn'],
+  ['dm-24h', 'skipped', 'Thistle turned reminder DMs off', 27, 'Thistle'],
+  [
+    'dm-24h',
+    'failed',
+    'Discord refused the DM: Elowen doesn’t accept DMs from server members',
+    27,
+    'Elowen',
+  ],
+  ['lock', 'sent', null, 28, null],
+].map(([rule, status, detail, day, who], i) => ({
   id: `a${i}`,
   eventId: 'r1',
   raidName: 'Raid night',
@@ -160,6 +167,7 @@ const GALLERY_COORDINATOR_LOG: CoordinatorDeskEntry[] = [
   status: status as string,
   detail: detail as string | null,
   at: nyEvening(9, day as number) - 3 * 3_600_000,
+  who: who as string | null,
 }));
 
 const firstSpec = (c: WowClass) => Object.keys(CLASSES[c])[0] ?? '';

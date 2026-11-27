@@ -55,6 +55,12 @@ export interface CalendarSchedule {
 }
 
 /** Sunday first, as the guild's calendar reads in the US. */
+/** The guild's clock when it has no schedule yet (raids' `FALLBACK_TIME_ZONE`). */
+export const GUILD_ZONE = 'America/Chicago';
+
+/** The nights a new schedule starts with: Monday and Wednesday. */
+export const GUILD_RAID_NIGHTS: readonly WallWeekday[] = ['mon', 'wed'];
+
 export const WEEK: readonly { day: WallWeekday; short: string; long: string }[] = [
   { day: 'sun', short: 'Sun', long: 'Sunday' },
   { day: 'mon', short: 'Mon', long: 'Monday' },
@@ -122,7 +128,7 @@ export function formatDuration(minutes: number): string {
 const list = (items: string[]) =>
   items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`;
 
-/** "Wednesday and Thursday at 20:00 New York time". */
+/** "Monday and Wednesday at 20:00 Chicago time". */
 export function describeRecurrence(s: CalendarSchedule): string {
   const days = WEEK.filter((w) => s.recurrence.weekdays.includes(w.day)).map((w) => w.long);
   const city = s.recurrence.timeZone.split('/').at(-1)?.replaceAll('_', ' ') ?? '';

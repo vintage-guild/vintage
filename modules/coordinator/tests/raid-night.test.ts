@@ -18,11 +18,11 @@ const G = TEST_GUILD_ID;
 const HOUR = 60 * 60 * 1000;
 const SIGNUPS = '400000000000000001';
 const OPS = '400000000000000002';
-/** Wed 4 Nov 2026, 18:00 New York. */
+/** Wed 4 Nov 2026, 17:00 Chicago. */
 const NOW = Date.UTC(2026, 10, 4, 23);
-/** Tue 10 Nov and Thu 12 Nov 2026, 20:00 New York (EST, after the DST change). */
-const TUE = Date.UTC(2026, 10, 11, 1);
-const THU = Date.UTC(2026, 10, 13, 1);
+/** Tue 10 Nov and Thu 12 Nov 2026, 20:00 Chicago (CST, after the DST change). */
+const TUE = Date.UTC(2026, 10, 11, 2);
+const THU = Date.UTC(2026, 10, 13, 2);
 
 const leader = makeCaller('leader');
 
@@ -59,8 +59,8 @@ const code = (r: Awaited<ReturnType<typeof ask>>) => (r.success ? 'OK' : r.error
 
 describe('startLabel', () => {
   it('names the time in the guild zone, short enough for a button', () => {
-    expect(startLabel(TUE, 'America/New_York')).toBe('Tue 10 Nov, 8:00 PM EST');
-    expect(startLabel(TUE, 'Europe/Berlin')).toBe('Wed 11 Nov, 2:00 AM GMT+1');
+    expect(startLabel(TUE, 'America/Chicago')).toBe('Tue 10 Nov, 8:00 PM CST');
+    expect(startLabel(TUE, 'Europe/Berlin')).toBe('Wed 11 Nov, 3:00 AM GMT+1');
   });
 });
 
@@ -77,8 +77,8 @@ describe('raid-night-poll', () => {
       createdBy: leader.memberId,
     });
     expect(poll?.options.map((o) => [o.label, o.value])).toEqual([
-      ['Tue 10 Nov, 8:00 PM EST', String(TUE)],
-      ['Thu 12 Nov, 8:00 PM EST', String(THU)],
+      ['Tue 10 Nov, 8:00 PM CST', String(TUE)],
+      ['Thu 12 Nov, 8:00 PM CST', String(THU)],
     ]);
     expect(poll?.description).toContain(`<t:${TUE / 1000}:F>`);
     expect(deps.coordinatorPolls.posted).toEqual([{ pollId: poll?.id, channelId: SIGNUPS }]);
@@ -178,7 +178,7 @@ describe('the tick settles raid nights', () => {
     expect(report.outcomes[0]).toMatchObject({
       rule: 'raid-night',
       status: 'sent',
-      detail: 'created raid raid_1 for Thu 12 Nov, 8:00 PM EST',
+      detail: 'created raid raid_1 for Thu 12 Nov, 8:00 PM CST',
     });
     expect(night()).toMatchObject({ outcome: 'created', raidEventId: 'raid_1' });
     expect((await deps.coordinator.listActions(G, { eventIds: [poll.id] }))[0]).toMatchObject({
@@ -215,7 +215,7 @@ describe('the tick settles raid nights', () => {
   });
 
   it.each([
-    ['a tie', { winners: ['o1', 'o2'] }, 'it tied between Tue 10 Nov, 8:00 PM EST and Thu 12 Nov'],
+    ['a tie', { winners: ['o1', 'o2'] }, 'it tied between Tue 10 Nov, 8:00 PM CST and Thu 12 Nov'],
     ['a missed quorum', { quorumMet: false, ballots: 2 }, 'only 2 voted, short of the quorum'],
     ['no votes', { ballots: 0, winners: [] }, 'nobody voted'],
   ])('tells the ops channel instead of guessing on %s', async (_label, results, reason) => {

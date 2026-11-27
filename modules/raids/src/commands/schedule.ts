@@ -20,7 +20,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const timeSchema = z.string().refine(isValidTime, { message: 'Use 24-hour HH:MM, e.g. "20:00"' });
 const timeZoneSchema = z
   .string()
-  .refine(isValidTimeZone, { message: 'Use an IANA time zone, e.g. "America/New_York"' });
+  .refine(isValidTimeZone, { message: 'Use an IANA time zone, e.g. "America/Chicago"' });
 const weekdaysSchema = z.array(z.enum(WEEKDAYS)).min(1);
 const reminderHoursSchema = z
   .array(
@@ -76,7 +76,7 @@ const digestBeforeLock = (digestHours: number, lockHours: number) =>
 export const scheduleCreate = command({
   name: 'schedule-create',
   description:
-    'Create a recurring raid night, e.g. Molten Core every Tuesday and Thursday at 20:00 New York ' +
+    'Create a recurring raid night, e.g. Molten Core every Monday and Wednesday at 20:00 Chicago ' +
     'time, or a weekly dungeon, battleground, or other event with kind (default raid; other may ' +
     'leave out size and instance). notes (what to bring, when to be on) are copied to each raid. ' +
     'Events are created ahead of time by schedule-materialize.',

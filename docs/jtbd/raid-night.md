@@ -22,7 +22,7 @@ Leader), Aeryn (Raider), Bram (Flex Raider), Cade (Raider, DMs off), Dara (Recru
 ### J01 · Set up raid nights once
 **When** the guild agrees on raid nights, **I (officer) want** to set them up once, **so I can**
 stop posting signups by hand.
-- [ ] `schedule-create` (Wed/Thu 20:00 America/New_York), then a tick.
+- [ ] `schedule-create` (Mon/Wed 20:00 America/Chicago), then a tick.
 - [ ] `#raid-signups` shows one post per raid in the next 7 days, each with the start time in my
   local time and Accept / Tentative / Bench / Decline buttons.
 - [ ] A second tick posts nothing new.
@@ -230,7 +230,7 @@ command, **so I can** open signups without going to the site.
   the time as a Discord timestamp, says what was made ("40-player raid", "looking for 4 tanks · 10
   healers · 26 DPS"), and the signup card goes up within seconds (no wait for the tick).
 - [ ] The time is read in the guild's clock (the zone the site's calendar uses: the first active
-  schedule's, else the first schedule's, else New York).
+  schedule's, else the first schedule's, else Chicago).
 - [ ] With `serverEvents` on, the new raid also shows in the server's Events list (J24).
 - [ ] `kind: battleground` with `healers: 3` makes a 10-player battleground looking for 0 tanks,
   3 healers and 7 DPS; its server event is named "Battleground · …". A 10-player dungeon is
@@ -246,7 +246,7 @@ command, **so I can** open signups without going to the site.
 remembering a slash command's options, **so I can** check the event before anyone sees it.
 - [ ] Rook runs `/random event create` with nothing typed. The **New event** form asks for Name
   (its note says "Submit to set up the event."), Kind (four radio buttons: Raid, Dungeon,
-  Battleground, Event), Where, Date, and Time named for the guild's zone, like "Time (New York)".
+  Battleground, Event), Where, Date, and Time named for the guild's zone, like "Time (Chicago)".
 - [ ] Date lists the next 25 days in the guild's clock: "Today", "Tomorrow", then "Wed, Oct 28"
   and on, with nothing picked yet. Its note says to type `start:` for a date further ahead. Time
   goes in half hours from 12:00 PM to 11:30 PM and starts on the guild's usual raid time (8:00 PM

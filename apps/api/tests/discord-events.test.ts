@@ -30,6 +30,8 @@ const NY = 'America/New_York';
 const NOW = Date.UTC(2026, 9, 26, 16);
 /** Tue 10 Nov 2026, 20:00 New York (EST). */
 const TUE_8PM = Date.UTC(2026, 10, 11, 1);
+/** Tue 10 Nov 2026, 20:00 Chicago (CST): the guild's clock when it has no schedule yet. */
+const GUILD_8PM = Date.UTC(2026, 10, 11, 2);
 const HOUR = 60 * 60 * 1000;
 
 const member = (id: string, tier: Tier): Member => ({
@@ -143,13 +145,13 @@ describe('/vintage event create', () => {
       name: 'Onyxia run',
       instance: 'Onyxia’s Lair',
       size: 40,
-      startsAt: TUE_8PM,
+      startsAt: GUILD_8PM,
       durationMinutes: 180,
       status: 'open',
     });
     expect(ticks).toBe(1);
     expect(reply.flags).toBe(MessageFlags.EPHEMERAL);
-    expect(reply.content).toContain(`<t:${TUE_8PM / 1000}:F>`);
+    expect(reply.content).toContain(`<t:${GUILD_8PM / 1000}:F>`);
     expect(reply.content).toContain('signup card goes up');
   });
 
@@ -341,13 +343,16 @@ describe('/vintage event pick-night', () => {
     );
     const [poll] = [...deps.coordinatorPolls.polls.values()];
     expect(poll).toMatchObject({ tags: ['raid-night'], closesAt: NOW + 48 * HOUR });
-    expect(poll?.options.map((o) => Number(o.value))).toEqual([TUE_8PM, TUE_8PM + 2 * 24 * HOUR]);
+    expect(poll?.options.map((o) => Number(o.value))).toEqual([
+      GUILD_8PM,
+      GUILD_8PM + 2 * 24 * HOUR,
+    ]);
     expect([...deps.coordinator.raidNights.values()]).toEqual([
       expect.objectContaining({ name: 'Onyxia run', size: 40, outcome: 'pending' }),
     ]);
     expect(reply.content).toContain('vote on **Onyxia run**’s night is up');
-    expect(reply.content?.indexOf(`<t:${TUE_8PM / 1000}:F>`)).toBeLessThan(
-      reply.content?.indexOf(`<t:${(TUE_8PM + 2 * 24 * HOUR) / 1000}:F>`) ?? 0,
+    expect(reply.content?.indexOf(`<t:${GUILD_8PM / 1000}:F>`)).toBeLessThan(
+      reply.content?.indexOf(`<t:${(GUILD_8PM + 2 * 24 * HOUR) / 1000}:F>`) ?? 0,
     );
   });
 

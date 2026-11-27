@@ -253,9 +253,9 @@ describe('JTBD: polls', () => {
   });
 
   describe('J18 · pick the raid night by vote', () => {
-    /** Tue 3 Nov and Thu 5 Nov 2026, 20:00 New York (EST). */
-    const TUE = Date.UTC(2026, 10, 4, 1);
-    const THU = Date.UTC(2026, 10, 6, 1);
+    /** Tue 3 Nov and Thu 5 Nov 2026, 20:00 Chicago (CST). */
+    const TUE = Date.UTC(2026, 10, 4, 2);
+    const THU = Date.UTC(2026, 10, 6, 2);
 
     async function askWhichNight() {
       await g.host.configureCoordinator();
@@ -279,10 +279,10 @@ describe('JTBD: polls', () => {
       (await g.host.ok<{ event: RaidEvent }[]>(g.aeryn, 'raid-list')).map((r) => r.event);
 
     it('J18 · a raid leader asks which night works, and the winner becomes the raid', async () => {
-      // The poll goes up in the signup channel with the two times, labelled in New York time.
+      // The poll goes up in the signup channel with the two times, labelled in Chicago time.
       const poll = await askWhichNight();
       expect(ui.pollPosts.get(poll.id)?.channelId).toBe(SIGNUP_CHANNEL);
-      expect(ui.postText(poll.id)).toContain('Thu 5 Nov, 8:00 PM EST');
+      expect(ui.postText(poll.id)).toContain('Thu 5 Nov, 8:00 PM CST');
       expect(ui.postText(poll.id)).toContain(`<t:${THU / 1000}:F>`);
 
       // Raiders vote from the post; Thursday wins two to one.
@@ -414,8 +414,8 @@ describe('JTBD: polls', () => {
     expect(ui.pollPosts.size).toBe(3);
 
     // A raid-night poll targeting leaders cannot be posted to the public signup channel either.
-    const TUE = Date.UTC(2026, 10, 4, 1);
-    const THU = Date.UTC(2026, 10, 6, 1);
+    const TUE = Date.UTC(2026, 10, 4, 2);
+    const THU = Date.UTC(2026, 10, 6, 2);
     const badNight = await g.host.run(g.rook, 'raid-night-poll', {
       name: 'Leads sync',
       instance: 'Onyxia',

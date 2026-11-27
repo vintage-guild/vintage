@@ -10,7 +10,7 @@ directly. Maturity: **core**.
 |---|---|
 | `src/contract.ts` | Public types (`Schedule`, `RaidEvent`, `Signup`), command names, events. The only import other modules may use |
 | `src/domain/recurrence.ts` | Pure: a weekly recurrence in an IANA zone → start times (DST-safe) |
-| `src/domain/clock.ts` | Pure: `resolveGuildClock` (first active schedule's zone and start time, else first schedule's, else New York / 20:00) |
+| `src/domain/clock.ts` | Pure: `resolveGuildClock` (first active schedule's zone and start time, else first schedule's, else Chicago / 20:00) |
 | `src/domain/comp.ts` | Pure: `RANK_PRIORITY` and `solveEventComp` (shared by `comp-suggest`, `roster-approve`, coordinator cards/lock, and Discord signup replies) |
 | `src/domain/absence.ts` | Pure: `absenceCovers`, `resolveAbsenceCoverage` (`away` beats `late`), `excusedAtLock`, calendar date validation |
 | `src/domain/export-check.ts` | Pure: an addon export (`@vintage/bridge-format` `raid-export`) matched to a raid's signups by name, with or without the realm |

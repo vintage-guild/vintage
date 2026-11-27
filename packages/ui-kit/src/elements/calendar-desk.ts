@@ -30,6 +30,7 @@ import {
   formatDay,
   formatDuration,
   formatWhen,
+  GUILD_ZONE,
   isLive,
   overlapping,
   STATUS_LABEL,
@@ -602,11 +603,11 @@ export class VintageCalendarDesk extends FASTElement {
     return this.viewerZone.replaceAll('_', ' ');
   }
 
-  /** The guild's clock: the first active schedule's zone, else the viewer's. */
+  /** The guild's clock: the first active schedule's zone, else the first one's, else Chicago. */
   @volatile
   get guildZone(): string {
     const s = this.schedules.find((x) => x.active) ?? this.schedules[0];
-    return s?.recurrence.timeZone ?? this.viewerZone;
+    return s?.recurrence.timeZone ?? GUILD_ZONE;
   }
 
   @volatile

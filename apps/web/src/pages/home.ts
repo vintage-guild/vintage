@@ -1742,7 +1742,7 @@ export class Page extends FASTElement {
     this.schedulesLoaded = true;
   }
 
-  /** "Raid nights are Wednesday and Thursday at 8:00 PM EST.", or how one-off raids appear. */
+  /** "Raid nights are Monday and Wednesday at 8:00 PM CST.", or how one-off raids appear. */
   @volatile
   get nightsText(): string {
     return (

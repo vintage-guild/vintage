@@ -388,7 +388,7 @@ const template = html<Page>`
     </section>
     <section>
       <h2>Calendar</h2>
-      <p>The quarters' Calendar tab, in London on Oct 26: the guild's clock beside the viewer's, the week the clocks disagree, an overlap, a paused schedule, Vintage's progress on the next two raids, and history folded under Earlier. Actions report the gallery client's refusal.</p>
+      <p>The quarters' Calendar tab, in London on Oct 26. It opens on the month; choose a raid for its card. The agenda below has the guild's clock beside the viewer's, the week the clocks disagree, an overlap, a paused schedule, Vintage's progress on the next two raids, and history folded under Earlier. Actions report the gallery client's refusal.</p>
       <vintage-calendar-desk
         can-edit
         time-zone="Europe/London"
@@ -397,14 +397,15 @@ const template = html<Page>`
         :schedules="${() => GALLERY_SCHEDULES}"
         :bot="${() => GALLERY_COORDINATOR_RAIDS}"
       ></vintage-calendar-desk>
-      <h3>Month</h3>
+      <h3>Agenda</h3>
       <vintage-calendar-desk
         can-edit
-        view="month"
-        time-zone="America/New_York"
+        view="agenda"
+        time-zone="Europe/London"
         :now="${() => CALENDAR_NOW}"
         :raids="${() => GALLERY_RAIDS}"
         :schedules="${() => GALLERY_SCHEDULES}"
+        :bot="${() => GALLERY_COORDINATOR_RAIDS}"
       ></vintage-calendar-desk>
       <h3>Before any schedule, read-only</h3>
       <vintage-calendar-desk time-zone="America/New_York" :now="${() => CALENDAR_NOW}"></vintage-calendar-desk>

@@ -62,9 +62,16 @@ const raid = (over: Partial<CalendarRaid> = {}): CalendarRaid => ({
   ...over,
 });
 
-async function desk(opts: { zone?: string; canEdit?: boolean; raids?: CalendarRaid[] } = {}) {
+async function desk(
+  opts: {
+    zone?: string;
+    canEdit?: boolean;
+    raids?: CalendarRaid[];
+    view?: 'agenda' | 'month';
+  } = {},
+) {
   const el = await mount<VintageCalendarDesk>(
-    `<vintage-calendar-desk time-zone="${opts.zone ?? 'America/New_York'}" ${opts.canEdit === false ? '' : 'can-edit'}></vintage-calendar-desk>`,
+    `<vintage-calendar-desk time-zone="${opts.zone ?? 'America/New_York'}" view="${opts.view ?? 'agenda'}" ${opts.canEdit === false ? '' : 'can-edit'}></vintage-calendar-desk>`,
   );
   el.now = NOW;
   el.schedules = [SCHEDULE];
@@ -140,19 +147,48 @@ describe('vintage-calendar-desk agenda', () => {
     expect(shadowText(el)).toContain('Raid leaders and officers change the calendar');
   });
 
-  it('switches to the month and back to the agenda on a raid', async () => {
-    const el = await desk();
+  it('opens on the month, and switches to the agenda and back', async () => {
+    const el = await mount<VintageCalendarDesk>(
+      '<vintage-calendar-desk can-edit></vintage-calendar-desk>',
+    );
+    el.now = NOW;
+    el.raids = [raid()];
+    await settle();
+    expect(el.view).toBe('month');
+    expect($(el, 'vintage-raid-month')).toBeTruthy();
+    expect($$(el, '.views button').map(text)).toEqual(['Month', 'Agenda']);
+    expect(button(el, 'Month')?.getAttribute('aria-pressed')).toBe('true');
+    button(el, 'Agenda')?.click();
+    await settle();
+    expect($(el, 'vintage-raid-month')).toBeNull();
+    expect($(el, '#raid-r1')).toBeTruthy();
     button(el, 'Month')?.click();
     await settle();
+    expect($(el, 'vintage-raid-month')).toBeTruthy();
+  });
+
+  it('opens a card for a raid chosen in the month, with its buttons, until Close', async () => {
+    const el = await desk({ view: 'month' });
     const month = $(el, 'vintage-raid-month');
-    expect(month).toBeTruthy();
-    expect(button(el, 'Month')?.getAttribute('aria-pressed')).toBe('true');
+    expect($(el, '.picked')).toBeNull();
     month.shadowRoot?.querySelector<HTMLElement>('[aria-label="Next month"]')?.click();
     await settle();
     month.shadowRoot?.querySelector<HTMLElement>('[data-raid="r1"]')?.click();
     await settle();
-    expect(el.view).toBe('agenda');
-    expect($(el, '#raid-r1')).toBeTruthy();
+    expect(el.view).toBe('month');
+    const card = $(el, '.picked');
+    expect(card?.querySelectorAll('.raid')).toHaveLength(1);
+    expect(text(card?.querySelector('h4'))).toMatch(/Wednesday, November 4/);
+    expect(text(card?.querySelector('.raid'))).toContain('40-player Onyxia');
+    const labels = [...(card?.querySelectorAll('button') ?? [])].map(text);
+    expect(labels).toEqual(expect.arrayContaining(['Edit', 'Cancel', 'Close']));
+    [...(card?.querySelectorAll('button') ?? [])].find((b) => text(b) === 'Edit')?.click();
+    await settle();
+    expect($(el, 'vintage-raid-form')).toBeTruthy();
+    [...(card?.querySelectorAll('button') ?? [])].find((b) => text(b) === 'Close')?.click();
+    await settle();
+    expect($(el, '.picked')).toBeNull();
+    expect($(el, 'vintage-raid-month')).toBeTruthy();
   });
 
   it('says what to do when nothing is coming up', async () => {

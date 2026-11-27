@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { CommandResult } from '@vintage/guild-kit';
 import type { CommandClient } from '@vintage/ui-kit';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -135,5 +137,19 @@ describe('commandTiers', () => {
     expect(tiers['recruiting-get']).toBe('public');
     expect(tiers['recruiting-set']).toBe('officer');
     expect(Object.keys(tiers).length).toBeGreaterThan(40);
+  });
+
+  it('has every module command the server registers, at the manifest’s tier', async () => {
+    // A command left out is refused as officer-only: visitor preview broke Roster and
+    // Professions this way while armory was missing from the list.
+    const manifest = JSON.parse(
+      readFileSync(join(__dirname, '../../../commands.manifest.json'), 'utf8'),
+    ) as { commands: { name: string; tier: string }[] };
+    const tiers = await commandTiers();
+    // help-get is apps/api's own, not a module's, and the site doesn't call it.
+    const expected = manifest.commands.filter((c) => c.name !== 'help-get');
+    expect(Object.fromEntries(expected.map((c) => [c.name, tiers[c.name]]))).toEqual(
+      Object.fromEntries(expected.map((c) => [c.name, c.tier])),
+    );
   });
 });

@@ -257,6 +257,9 @@ importers:
       '@vintage/identity':
         specifier: workspace:*
         version: link:../../modules/identity
+      '@vintage/insights':
+        specifier: workspace:*
+        version: link:../../modules/insights
       '@vintage/loot':
         specifier: workspace:*
         version: link:../../modules/loot

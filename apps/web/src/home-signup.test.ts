@@ -25,7 +25,17 @@ const event = {
   roleTargets: { tank: 1, healer: 1, dps: 3 },
 } as RaidEvent;
 const signup = (memberId: string, role: Signup['role']) =>
-  ({ memberId, role, status: 'accepted', queued: false }) as Signup;
+  ({
+    memberId,
+    characterName: memberId,
+    class: 'warrior',
+    spec: 'protection',
+    role,
+    status: 'accepted',
+    roster: 'pending',
+    queued: false,
+    lateMinutes: null,
+  }) as Signup;
 
 type HomePage = HTMLElement & {
   loadRaids(): Promise<void>;
@@ -227,5 +237,36 @@ describe('the home signup card on raid day', () => {
     }
     expect(unsubCount).toBe(unsubs.length);
     expect(unsubs.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe('the home signup card laid out like the Discord post', () => {
+  type PostPage = HomePage & {
+    nextRosterOk: boolean;
+    nextRows: Signup[];
+    nextTargets: unknown;
+  };
+
+  it('hands the post the next raid’s signups and role targets when signup-list answers', async () => {
+    client(reader);
+    setSession({ memberId: 'm1', tier: 'raider', rank: 'raider' } as never);
+    const page = document.createElement('vintage-home-page') as PostPage;
+    await page.loadRaids();
+    expect(page.nextRosterOk).toBe(true);
+    expect(page.nextRows.map((s) => s.memberId)).toEqual(['m1', 'm2']);
+    expect(page.nextTargets).toEqual({ tank: 1, healer: 1, dps: 3 });
+  });
+
+  it('keeps the card’s own counts when signup-list is refused', async () => {
+    client((name) =>
+      name === 'signup-list'
+        ? { success: false, error: { code: 'COMMAND_NOT_FOUND', message: 'No command' } }
+        : reader(name),
+    );
+    setSession({ memberId: 'm9', tier: 'member', rank: 'member' } as never);
+    const page = document.createElement('vintage-home-page') as PostPage;
+    await page.loadRaids();
+    expect(page.nextRosterOk).toBe(false);
+    expect(page.nextRows).toEqual([]);
   });
 });

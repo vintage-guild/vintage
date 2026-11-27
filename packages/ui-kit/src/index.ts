@@ -110,6 +110,7 @@ export {
   VintageProgressDesk,
 } from './elements/progress-desk';
 export { VintageRaidMonth } from './elements/raid-month';
+export { type RaidPostSignup, VintageRaidPost } from './elements/raid-post';
 export {
   type RaidRosterComp,
   type RaidRosterCounts,

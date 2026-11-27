@@ -309,6 +309,12 @@ const GALLERY_RAID_ROSTER: RaidRosterSignup[] = [
   group: group as number | null,
 }));
 
+/** The same ten as the raid post on the home card, with late minutes. */
+const GALLERY_RAID_POST = GALLERY_RAID_ROSTER.map((s) => ({
+  ...s,
+  lateMinutes: s.characterName === 'Morwenna' ? 15 : null,
+}));
+
 const GALLERY_TONIGHT_SIGNUPS: TonightSignup[] = [
   ['Stridulent', 'warrior', 'protection', 'tank', 'accepted', null, 1],
   ['Bloodfen Il', 'warrior', 'protection', 'tank', 'late', 'by 8:30', null],
@@ -393,6 +399,15 @@ const template = html<Page>`
         :raid="${() => ({ id: 'demo', size: 10, status: 'open' })}"
         :counts="${() => ({ accepted: 7, late: 1, tentative: 1, bench: 0, declined: 0 })}"
       ></vintage-raid-roster>
+    </section>
+    <section>
+      <h2>Raid post</h2>
+      <p>The next raid's signups on the home card, laid out like the Discord signup post: the status counts, the role columns with spec icons, Standby, Tentative, what's missing, and who's absent. The viewer's name is marked.</p>
+      <vintage-raid-post
+        me="me"
+        :signups="${() => GALLERY_RAID_POST}"
+        :targets="${() => ({ tank: 2, healer: 3, melee: 2, ranged: 3 })}"
+      ></vintage-raid-post>
     </section>
     <section>
       <h2>Calendar</h2>

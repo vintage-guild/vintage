@@ -103,25 +103,25 @@ const agendaRow = html<AgendaRow, AgendaDay>`
         (r) => r.warnings,
         html<string>`<p class="warning"><span aria-hidden="true">⚠ </span>${(w) => w}</p>`,
       )}
-      ${when(
-        (r) => r.bot,
-        html<AgendaRow>`
-          <dl class="bot">
-            <dt>Vintage did</dt>
-            <dd>${(r) => r.bot?.done || 'Nothing yet'}</dd>
-            ${when(
-              (r) => r.bot?.due,
-              html<AgendaRow>`
-                <dt>Due now</dt>
-                <dd>${(r) => r.bot?.due}</dd>
-              `,
-            )}
-            <dt>Hasn’t answered</dt>
-            <dd>${(r) => r.bot?.waiting || 'Nobody'}</dd>
-          </dl>
-        `,
-      )}
     </div>
+    ${when(
+      (r) => r.bot,
+      html<AgendaRow>`
+        <dl class="bot">
+          <dt>Vintage did</dt>
+          <dd>${(r) => r.bot?.done || 'Nothing yet'}</dd>
+          ${when(
+            (r) => r.bot?.due,
+            html<AgendaRow>`
+              <dt>Due now</dt>
+              <dd>${(r) => r.bot?.due}</dd>
+            `,
+          )}
+          <dt>Hasn’t answered</dt>
+          <dd>${(r) => r.bot?.waiting || 'Nobody'}</dd>
+        </dl>
+      `,
+    )}
     ${when(
       (r, c) => host(c).canEdit && (r.canChange || r.canCancel || r.canComplete || !!r.bot),
       html<AgendaRow, AgendaDay>`
@@ -466,7 +466,14 @@ const styles = css`
     font-size: var(--font-size-sm);
   }
 
+  /* The bot lines run under the details and the buttons, so a long list of names stays short. */
+  .raid > .actions {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
   dl.bot {
+    grid-column: 2 / -1;
     display: grid;
     grid-template-columns: max-content minmax(0, 1fr);
     gap: 0.1rem var(--space-sm);
@@ -536,6 +543,12 @@ const styles = css`
   @media (max-width: 40rem) {
     .raid {
       grid-template-columns: 1fr;
+    }
+
+    .raid > .actions,
+    dl.bot {
+      grid-column: auto;
+      grid-row: auto;
     }
   }
 `;

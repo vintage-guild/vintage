@@ -39,6 +39,67 @@ export function classRoles(wowClass: WowClass): Role[] {
   return ROLES.filter((r) => played.has(r));
 }
 
+/**
+ * Each spec's icon name on Wowhead's icon CDN (`wow.zamimg.com/images/wow/icons/<size>/<icon>.jpg`):
+ * the same icons as the bot's spec emoji, so the website and the Discord post look alike.
+ * `scripts/discord-emojis.json` lists them for the emoji upload; a test keeps the two equal.
+ */
+export const SPEC_ICONS: { readonly [C in WowClass]: Readonly<Record<Spec<C>, string>> } = {
+  warrior: {
+    arms: 'ability_warrior_savageblow',
+    fury: 'ability_warrior_innerrage',
+    protection: 'ability_warrior_defensivestance',
+  },
+  paladin: {
+    holy: 'spell_holy_holybolt',
+    protection: 'spell_holy_devotionaura',
+    retribution: 'spell_holy_auraoflight',
+  },
+  hunter: {
+    'beast-mastery': 'ability_hunter_beasttaming',
+    marksmanship: 'ability_marksmanship',
+    survival: 'ability_hunter_swiftstrike',
+  },
+  rogue: {
+    assassination: 'ability_rogue_eviscerate',
+    combat: 'ability_backstab',
+    subtlety: 'ability_stealth',
+  },
+  priest: {
+    discipline: 'spell_holy_wordfortitude',
+    holy: 'spell_holy_guardianspirit',
+    shadow: 'spell_shadow_shadowwordpain',
+  },
+  shaman: {
+    elemental: 'spell_nature_lightning',
+    enhancement: 'spell_nature_lightningshield',
+    restoration: 'spell_nature_magicimmunity',
+  },
+  mage: {
+    arcane: 'spell_holy_magicalsentry',
+    fire: 'spell_fire_firebolt02',
+    frost: 'spell_frost_frostbolt02',
+  },
+  warlock: {
+    affliction: 'spell_shadow_deathcoil',
+    demonology: 'spell_shadow_metamorphosis',
+    destruction: 'spell_shadow_rainoffire',
+  },
+  druid: {
+    balance: 'spell_nature_starfall',
+    feral: 'ability_druid_catform',
+    'feral-tank': 'ability_racial_bearform',
+    restoration: 'spell_nature_healingtouch',
+  },
+};
+
+/** A spec's Wowhead icon name, else the class icon (`classicon_<class>`), else null. */
+export function specIcon(wowClass: string, spec: string): string | null {
+  if (!isWowClass(wowClass)) return null;
+  const icons: Readonly<Record<string, string>> = SPEC_ICONS[wowClass];
+  return Object.hasOwn(icons, spec) ? icons[spec]! : `classicon_${wowClass}`;
+}
+
 /** Whether `value` is a class name (`warrior`, any case). */
 export function isWowClass(value: string): value is WowClass {
   return Object.hasOwn(CLASSES, value);

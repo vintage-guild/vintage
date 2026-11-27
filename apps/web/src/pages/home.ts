@@ -20,6 +20,7 @@ import {
   type Absence,
   accessOf,
   type CompRole,
+  hasRoleTargets,
   KIND_LABELS,
   kindOf,
   type RaidEvent,
@@ -29,6 +30,7 @@ import {
   type Signup,
   type SignupGuess,
   type SignupStatus,
+  targetsOf,
 } from '@vintage/raids/contract';
 import {
   type AboutSection,
@@ -219,6 +221,7 @@ const template = html<Page>`
               (x) => x.next,
               html<Page>`
                 <vintage-signup-card
+                  class="${(x) => (x.nextRosterOk ? 'posted' : '')}"
                   event-id="${(x) => x.next?.event.id}"
                   event-title="${(x) => x.next?.event.name}"
                   starts-at="${(x) => x.next?.event.startsAt}"
@@ -245,11 +248,21 @@ const template = html<Page>`
                   :counts="${(x) => x.nextCounts}"
                   @signup-changed="${(x) => x.onSignupChanged()}"
                 >
-                  <p class="note">${(x) => (x.next ? [x.next.event.instance, players(x.next.event)].filter(Boolean).join(' · ') : '')}</p>
-                  <p class="note"><a href="${(x) => raidHref(x.next?.event.id ?? '')}">See who’s coming</a></p>
+                  <p class="note">${(x) => (x.next ? [x.next.event.instance, players(x.next.event)].filter(Boolean).join(' · ') : '')} · <a href="${(x) => raidHref(x.next?.event.id ?? '')}">Raid page</a></p>
                   ${when(
                     (x) => x.next?.event.notes,
-                    html<Page>`<div class="raid-notes" aria-label="Raid notes">${repeat((x) => paragraphs(x.next?.event.notes ?? ''), html<string>`<p>${(p) => p}</p>`)}</div>`,
+                    html<Page>`<blockquote class="raid-notes" aria-label="Raid notes">${repeat((x) => paragraphs(x.next?.event.notes ?? ''), html<string>`<p>${(p) => p}</p>`)}</blockquote>`,
+                  )}
+                  ${when(
+                    (x) => x.nextRosterOk,
+                    html<Page>`
+                      <vintage-raid-post
+                        slot="roster"
+                        me="${(x) => x.meId}"
+                        :signups="${(x) => x.nextRows}"
+                        :targets="${(x) => x.nextTargets}"
+                      ></vintage-raid-post>
+                    `,
                   )}
                   ${when(
                     (x) => !x.signUpAllowed,
@@ -629,10 +642,19 @@ const styles = css`
     color: var(--color-text-secondary);
   }
 
-  /* An officer's notes for the raid (what to bring, when to be on): their line breaks kept. */
+  /* An officer's notes for the raid (what to bring, when to be on): their line breaks kept,
+     set off as a quote the way the Discord post shows them. */
   .raid-notes {
     display: grid;
     gap: var(--space-xs);
+    margin: 0;
+    padding-inline-start: var(--space-sm);
+    border-inline-start: var(--border-width-thick) solid var(--color-border-strong);
+  }
+
+  /* With the signups laid out like the Discord post, its status line replaces the card's counts. */
+  vintage-signup-card.posted::part(counts) {
+    display: none;
   }
 
   .raid-notes p {
@@ -850,6 +872,10 @@ export class Page extends FASTElement {
   @observable mySignup: SignupRow | null = null;
   /** Roles the next raid is short of, not counting the member (the card marks them). */
   @observable nextNeeded: CompRole[] = [];
+  /** The next raid's signups, for the Discord-style post in the card. */
+  @observable nextRows: SignupRow[] = [];
+  /** `signup-list` answered for the next raid (recruits and up); otherwise the card keeps its counts. */
+  @observable nextRosterOk = false;
   @observable progress: Progress | null = null;
   /** `recruiting-get`; null until it answers, so the band never shows text it then replaces. */
   @observable recruiting: Recruiting | null = null;
@@ -1000,6 +1026,14 @@ export class Page extends FASTElement {
       : { caption: 'recruits and up sign up', tone: 'default' };
   }
 
+  /** The next raid's role targets for the post's columns, or null for an event without them. */
+  get nextTargets(): ReturnType<typeof targetsOf> | null {
+    const event = this.next?.event;
+    if (!event) return null;
+    const targets = targetsOf(event);
+    return hasRoleTargets(targets) ? targets : null;
+  }
+
   get later(): RaidRow[] {
     return this.raids.slice(1);
   }
@@ -1148,6 +1182,7 @@ export class Page extends FASTElement {
 
   private applyNextSignups(next: RaidRow, rows: SignupRow[]): void {
     this.nextSignups = rows;
+    this.nextRows = rows;
     this.mySignup = rows.find((s) => s.memberId === this.meId) ?? null;
     this.nextNeeded = rolesNeeded(
       next.event,
@@ -1213,6 +1248,7 @@ export class Page extends FASTElement {
         }
         this.stopWatchingNextRaid();
         this.watchedNextId = next.event.id;
+        this.nextRosterOk = false;
         this.applyNextSignups(next, []);
         const eventId = next.event.id;
         const subs: Unsubscribe[] = [
@@ -1223,11 +1259,13 @@ export class Page extends FASTElement {
             (signups) => {
               const current = this.next;
               if (!current || current.event.id !== eventId) return;
+              this.nextRosterOk = signups.success;
               this.applyNextSignups(current, signups.success ? (signups.data ?? []) : []);
             },
             () => {
               const current = this.next;
               if (!current || current.event.id !== eventId) return;
+              this.nextRosterOk = false;
               this.applyNextSignups(current, []);
             },
           ),
@@ -1442,6 +1480,8 @@ export class Page extends FASTElement {
     this.guess = guess?.success ? (guess.data ?? null) : null;
     this.absences = absences?.success ? (absences.data?.absences ?? []) : [];
     const rows = signups.success ? (signups.data ?? []) : [];
+    this.nextRows = rows;
+    this.nextRosterOk = signups.success;
     this.mySignup = rows.find((s) => s.memberId === this.meId) ?? null;
     this.nextNeeded = rolesNeeded(
       next.event,

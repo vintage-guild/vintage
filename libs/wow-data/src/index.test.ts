@@ -1,13 +1,27 @@
 import { describe, expect, it } from 'vitest';
 import {
   CLASS_NAMES,
+  CLASSES,
   characterNameSchema,
   classRoles,
   cleanAlsoRoles,
   isWowClass,
   normalizeCharacterName,
   roleFor,
+  SPEC_ICONS,
+  specIcon,
 } from './index';
+
+describe('spec icons', () => {
+  it('cover every spec, and fall back to the class icon', () => {
+    for (const c of CLASS_NAMES) {
+      expect(Object.keys(SPEC_ICONS[c]).sort()).toEqual(Object.keys(CLASSES[c]).sort());
+    }
+    expect(specIcon('warrior', 'protection')).toBe('ability_warrior_defensivestance');
+    expect(specIcon('warrior', 'gladiator')).toBe('classicon_warrior');
+    expect(specIcon('monk', 'mistweaver')).toBeNull();
+  });
+});
 
 describe('wow-data', () => {
   it('maps class + spec to a raid role', () => {

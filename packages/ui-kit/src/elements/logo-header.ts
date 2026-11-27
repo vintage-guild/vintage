@@ -225,6 +225,14 @@ const styles = css`
     .context {
       display: none;
     }
+
+    /* Officers and leaders get enough header links (Roster, Professions, Polls, Officers) to
+       overflow at this width; fade the nav's trailing edge so scrolling for more reads as an
+       affordance, not a cut-off link. */
+    .nav {
+      mask-image: linear-gradient(to right, black calc(100% - 1.5rem), transparent);
+      -webkit-mask-image: linear-gradient(to right, black calc(100% - 1.5rem), transparent);
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {

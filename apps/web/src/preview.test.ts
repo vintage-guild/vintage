@@ -52,7 +52,7 @@ describe('the previewed session', () => {
     setSession(officer);
     setPreview('visitor');
     expect(currentSession()).toBeNull();
-    expect([...sectionsFor(currentSession())]).toEqual(['about', 'progress', 'recruiting']);
+    expect([...sectionsFor(currentSession())]).toEqual(['about', 'progress']);
   });
 
   it('only lets leaders and officers preview, and only below their own tier', () => {

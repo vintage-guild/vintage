@@ -544,15 +544,17 @@ describe('runTick', () => {
     expect(assessments()).toEqual([]); // off by default
     await store.setConfig(G, { weeklyAssessment: true }, 0);
     ports.recruiting = {
-      needs: async () => [{ wowClass: 'priest', specs: 'holy', need: 'medium' }],
+      needs: async () => [{ wowClass: 'priest', role: 'healer', specs: 'holy', need: 'medium' }],
     };
     ports.wording = { write: async () => null };
     await tick(START - 99 * HOUR);
     await tick(START - 98 * HOUR);
     expect(assessments()).toHaveLength(1);
-    expect(assessments()[0]?.message.content).toMatch(/Recruiting now: Priest \(holy\) medium/);
+    expect(assessments()[0]?.message.content).toMatch(
+      /Recruiting now: Priest healer \(holy\) medium/,
+    );
     const ids = JSON.stringify(assessments()[0]?.message.components ?? []);
-    expect(ids).toContain('recruit:hi:priest');
+    expect(ids).toContain('recruit:hi:priest:healer');
     // A new week, worded this time.
     ports.wording = { write: async () => 'Healers are thin.' };
     signups = [];

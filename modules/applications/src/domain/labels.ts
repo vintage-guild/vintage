@@ -17,6 +17,8 @@ export const LABEL_THRESHOLDS = { role: 0.8, complete: 0.7, fitConfidence: 0.6 }
 /** A recruiting need as the labeler reads it. */
 export interface NeedLine {
   wowClass: string;
+  /** The role the line recruits for, or `any`. */
+  role?: string;
   specs: string;
   need: string;
 }
@@ -31,7 +33,12 @@ export function labelRequest(
     'An application to raid with a World of Warcraft guild.',
     `Open recruiting needs: ${
       open.length
-        ? open.map((n) => `${n.wowClass} (${n.specs}, ${n.need})`).join('; ')
+        ? open
+            .map(
+              (n) =>
+                `${n.wowClass}${n.role && n.role !== 'any' ? ` ${n.role}` : ''} (${n.specs}, ${n.need})`,
+            )
+            .join('; ')
         : 'none listed'
     }.`,
     '',

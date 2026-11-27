@@ -304,18 +304,27 @@ describe('recruiting', () => {
     expect(content(byLeader)).toMatch(/app:start:0/);
   });
 
-  it('the assessment button raises one class to high, officers only', async () => {
+  it('the assessment button raises one class and role to high, officers only', async () => {
     const byLeader = await handleApplicationInteraction(
-      component('d-rook', raiseNeedCustomId('priest')),
+      component('d-rook', raiseNeedCustomId('priest', 'healer')),
       ports,
     );
     expect(content(byLeader)).toMatch(/Only officers change recruiting needs/);
     const done = await handleApplicationInteraction(
-      component('d-vex', raiseNeedCustomId('priest')),
+      component('d-vex', raiseNeedCustomId('priest', 'healer')),
       ports,
     );
-    expect(content(done)).toMatch(/Priest is now a high need on the site/);
+    expect(content(done)).toMatch(/Priest healer is now a high need on the site/);
     const band = await deps.site.getRecruiting(GUILD);
-    expect(band?.needs.find((n) => n.wowClass === 'priest')?.need).toBe('high');
+    expect(band?.needs.find((n) => n.wowClass === 'priest' && n.role === 'healer')?.need).toBe(
+      'high',
+    );
+  });
+
+  it('an assessment button posted before roles existed raises the class’s any-role line', async () => {
+    const done = await handleApplicationInteraction(component('d-vex', 'recruit:hi:mage'), ports);
+    expect(content(done)).toMatch(/Mage is now a high need on the site/);
+    const band = await deps.site.getRecruiting(GUILD);
+    expect(band?.needs.find((n) => n.wowClass === 'mage' && n.role === 'any')?.need).toBe('high');
   });
 });

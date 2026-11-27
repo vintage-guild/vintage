@@ -115,8 +115,9 @@ and posts the final roster and addon import string. Maturity: **core**.
 - **Weekly assessment (#130).** Off until `coordinator-config-set weeklyAssessment:true`. Then the
   first tick after Monday 16:00 UTC (`assessmentRule`, claimed per week) posts **Weekly roster
   check** to the ops channel: role gaps in the next three raids, the site's open needs (the
-  starter needs until saved), and one `recruit:hi:<class>` button per class that could fill a
-  tank or healer gap and isn't already high. Suggestions are code; the `wording` port may reword
+  starter needs until saved), and one `recruit:hi:<class>:<role>` button per class and role that
+  could fill a tank or healer gap and isn't already high (its line for that role, else its any
+  line). Buttons posted before roles existed carry only the class and raise its any line. Suggestions are code; the `wording` port may reword
   the facts (Terra at low effort, a `wording` run in the agent ledger) and falls back to them.
   The button runs `recruiting-set` as the clicking officer (`apps/api/src/discord-applications.ts`).
 - **Note triage (#132).** Before the digest goes out, one Decisions request labels every note on

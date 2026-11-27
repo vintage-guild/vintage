@@ -52,21 +52,51 @@ describe('recruiting-set', () => {
     expect(deps.site.recruiting.get(officer.guildId)?.updatedBy).toBe(officer.memberId);
   });
 
-  it('replaces the whole needs list, in the order given, specs defaulting to any', async () => {
+  it('replaces the whole needs list, in the order given, role and specs defaulting to any', async () => {
     await run(
       'recruiting-set',
       {
         needs: [
           { wowClass: 'druid', need: 'high' },
-          { wowClass: 'warrior', specs: 'protection', need: 'closed' },
+          { wowClass: 'warrior', role: 'tank', specs: 'protection', need: 'closed' },
         ],
       },
       officer,
     );
     expect((await read()).needs).toEqual([
-      { wowClass: 'druid', specs: 'any', need: 'high' },
-      { wowClass: 'warrior', specs: 'protection', need: 'closed' },
+      { wowClass: 'druid', role: 'any', specs: 'any', need: 'high' },
+      { wowClass: 'warrior', role: 'tank', specs: 'protection', need: 'closed' },
     ]);
+  });
+
+  it('lists one class once per role, with low between medium and closed', async () => {
+    await run(
+      'recruiting-set',
+      {
+        needs: [
+          { wowClass: 'druid', role: 'tank', specs: 'feral', need: 'low' },
+          { wowClass: 'hunter', role: 'ranged', need: 'closed' },
+          { wowClass: 'druid', role: 'healer', specs: 'restoration', need: 'high' },
+          { wowClass: 'mage', role: 'ranged', need: 'medium' },
+        ],
+      },
+      officer,
+    );
+    expect((await read()).needs.map((n) => `${n.wowClass} ${n.role} ${n.need}`)).toEqual([
+      'druid healer high',
+      'mage ranged medium',
+      'druid tank low',
+      'hunter ranged closed',
+    ]);
+  });
+
+  it('refuses a role the class can’t play', async () => {
+    const result = await run(
+      'recruiting-set',
+      { needs: [{ wowClass: 'mage', role: 'tank', need: 'high' }] },
+      officer,
+    );
+    expect(code(result)).toBe('ROLE_NOT_PLAYED');
   });
 
   it('answers needs high, medium, closed whatever order they were saved in', async () => {
@@ -98,13 +128,13 @@ describe('recruiting-set', () => {
     expect((await read()).headline).toBe(STARTER_RECRUITING.headline);
   });
 
-  it('refuses a class twice, an unknown class, and an empty change', async () => {
+  it('refuses a class and role twice, an unknown class, and an empty change', async () => {
     const twice = await run(
       'recruiting-set',
       {
         needs: [
-          { wowClass: 'mage', need: 'high' },
-          { wowClass: 'mage', specs: 'frost', need: 'medium' },
+          { wowClass: 'mage', role: 'ranged', need: 'high' },
+          { wowClass: 'mage', role: 'ranged', specs: 'frost', need: 'medium' },
         ],
       },
       officer,

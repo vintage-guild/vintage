@@ -23,18 +23,21 @@ the recruiting post to the onboarding DM. Automated in
 public recruiting band and the hero's figures change without a deploy.
 - [ ] Before anyone saves, `recruiting-get` as a visitor answers the starter band with
   `updatedAt: null`. The Recruitment page's eyebrow reads just "Recruiting".
-- [ ] In the quarters' Recruiting tab, Ana changes the headline, sets Hunter to Medium, and saves.
-  The tab says it saved and when; the class rows re-sort high, medium, closed.
+- [ ] In the quarters' Recruiting tab, Ana changes the headline, sets Hunter to Medium, adds a
+  Druid Healer line at High and a Druid Tank line at Low, and saves. The tab says it saved and
+  when; the lines re-sort high, medium, low, closed. The Role menu offers only the roles the
+  line's class plays, plus Any.
 - [ ] The Recruitment page (`/recruitment`, in the header nav) shows the new headline and
-  "Recruiting · updated" with today's date, and the class table has the new rows with their
-  icons. When the member count can't load, the visitor hero's "roles we need most" figure counts
+  "Recruiting · updated" with today's date, and the table has the new lines (class with its
+  icon, role, specs, demand). When the member count can't load, the visitor hero's "roles we need most" figure counts
   the high rows.
 - [ ] Ana sets Warrior to Closed and saves. The tab and the Recruitment page list Warrior with the
   closed classes at the bottom: whatever order the needs are saved in, `recruiting-get` answers
-  high, medium, closed.
+  high, medium, low, closed.
 - [ ] Rook sees the tab read-only ("Officers edit the recruiting band"); `recruiting-set` as Rook
   answers `COMMAND_NOT_FOUND`.
-- [ ] `recruiting-set` with a class listed twice answers `DUPLICATE_CLASS` and changes nothing.
+- [ ] `recruiting-set` with a class and role listed twice answers `DUPLICATE_CLASS`, and a role
+  the class can't play (a Mage tank) answers `ROLE_NOT_PLAYED`. Neither changes anything.
 
 ### J23 · Set the guild's public words without a deploy
 **When** our raid nights, style, or invite change, **I (officer) want** to edit the home page's
@@ -123,6 +126,6 @@ Live checklist:
 
 - [ ] With `coordinator-config-set weeklyAssessment:true`, the first tick after Monday 16:00 UTC
       posts **Weekly roster check** to the ops channel, once.
-- [ ] A healer gap offers "Raise <class> to high" buttons; an officer's click changes the band
+- [ ] A healer gap offers "Raise <class> healer to high" buttons; an officer's click changes the band
       on the site; a raid leader's click is refused.
 - [ ] With `agent-pause`, the note is the plain facts, not reworded.

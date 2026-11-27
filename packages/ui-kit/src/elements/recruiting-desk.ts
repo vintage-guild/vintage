@@ -1,55 +1,71 @@
 import { attr, css, FASTElement, html, observable, repeat, when } from '@lushly-dev/fast-element';
 import { command, failure } from '@lushly-dev/fast-element/command.js';
-import { CLASS_NAMES, type WowClass } from '@vintage/wow-data';
+import { CLASS_NAMES, classRoles, type Role, type WowClass } from '@vintage/wow-data';
 import { getCommandClient } from '../client';
 import { titleCase } from '../labels';
 import { describeError, type ElementResult, toElementResult } from '../result';
 import { deskStyles } from './desk-styles';
 
 /** How much the guild wants a class, as `recruiting-get` says it. */
-export type RecruitingNeed = 'high' | 'medium' | 'closed';
+export type RecruitingNeed = 'high' | 'medium' | 'low' | 'closed';
+/** The role a line recruits for, or `any`. */
+export type RecruitingRole = Role | 'any';
+
+/** One line of the band: a class, the role it's wanted for, the specs, and how much. */
+export interface RecruitingDeskNeed {
+  wowClass: WowClass;
+  role: RecruitingRole;
+  specs: string;
+  need: RecruitingNeed;
+}
 
 /** The slice of `recruiting-get` the desk reads (the site module's `Recruiting`). */
 export interface RecruitingDeskBand {
   headline: string;
   pitch: string;
-  needs: { wowClass: WowClass; specs: string; need: RecruitingNeed }[];
+  needs: RecruitingDeskNeed[];
   /** Null while the band still shows the starter text. */
   updatedAt: number | null;
 }
 
-/** One editable row: every class has one, `none` keeps it off the band. */
-interface Row {
-  wowClass: WowClass;
-  specs: string;
-  need: RecruitingNeed | 'none';
+/** One editable line. `key` only tells lines apart while the form is open. */
+interface Row extends RecruitingDeskNeed {
+  key: number;
 }
 
-const NEED_CHOICES: { value: Row['need']; label: string }[] = [
+const NEED_CHOICES: { value: RecruitingNeed; label: string }[] = [
   { value: 'high', label: 'High' },
   { value: 'medium', label: 'Medium' },
+  { value: 'low', label: 'Low' },
   { value: 'closed', label: 'Closed' },
-  { value: 'none', label: 'Not listed' },
 ];
 
-const NEED_ORDER: Record<RecruitingNeed, number> = { high: 0, medium: 1, closed: 2 };
+const NEED_ORDER: Record<RecruitingNeed, number> = { high: 0, medium: 1, low: 2, closed: 3 };
 
-/** The band's classes first, in its order, then the classes it leaves out. */
+/** Any, then the roles the class plays. */
+const roleChoices = (wowClass: WowClass): RecruitingRole[] => ['any', ...classRoles(wowClass)];
+/** Whether the line's class plays a role: the role menu hides the others. */
+const plays = (row: Row, role: Role) => classRoles(row.wowClass).includes(role);
+
+let nextKey = 0;
+const toRow = (n: RecruitingDeskNeed): Row => ({ ...n, key: nextKey++ });
+
+/** The band's lines, in its order. */
 function rowsFor(band: RecruitingDeskBand | null): Row[] {
-  const listed: Row[] = (band?.needs ?? []).map((n) => ({ ...n }));
-  const rest = CLASS_NAMES.filter((c) => !listed.some((r) => r.wowClass === c)).map(
-    (wowClass): Row => ({ wowClass, specs: 'any', need: 'none' }),
-  );
-  return [...listed, ...rest];
+  return (band?.needs ?? []).map((n) => toRow({ ...n, role: n.role ?? 'any' }));
 }
 
-/** What `recruiting-set` gets: listed classes, high before medium before closed. */
-function needsFrom(rows: Row[]): RecruitingDeskBand['needs'] {
+/** What `recruiting-set` gets: high before medium before low before closed. */
+function needsFrom(rows: Row[]): RecruitingDeskNeed[] {
   return rows
-    .filter((r): r is Row & { need: RecruitingNeed } => r.need !== 'none')
     .map((r, i) => ({ r, i }))
     .sort((a, b) => NEED_ORDER[a.r.need] - NEED_ORDER[b.r.need] || a.i - b.i)
-    .map(({ r }) => ({ wowClass: r.wowClass, specs: r.specs.trim() || 'any', need: r.need }));
+    .map(({ r }) => ({
+      wowClass: r.wowClass,
+      role: r.role,
+      specs: r.specs.trim() || 'any',
+      need: r.need,
+    }));
 }
 
 const template = html<VintageRecruitingDesk>`
@@ -92,37 +108,87 @@ const template = html<VintageRecruitingDesk>`
 
     <fieldset class="needs" part="needs" ?disabled="${(x) => !x.canEdit || x.busy}">
       <legend>Classes</legend>
-      <small>The band lists high first, then medium, then closed. Not listed keeps a class off it.</small>
+      <small>The page lists high first, then medium, low, and closed.</small>
+      ${when(
+        (x) => x.rows.length > 0,
+        html<VintageRecruitingDesk>`
+          <div class="row head" aria-hidden="true">
+            <span>Class</span><span>Role</span><span>Specs</span><span>Demand</span><span></span>
+          </div>
+        `,
+      )}
       <div class="rows">
         ${repeat(
           (x) => x.rows,
           html<Row, VintageRecruitingDesk>`
             <div class="row">
-              <span class="cls">${(r) => titleCase(r.wowClass)}</span>
               <select
-                aria-label="${(r) => `${titleCase(r.wowClass)} need`}"
-                :value="${(r) => r.need}"
-                @change="${(r, c) => c.parent.setNeed(r, (c.event.target as HTMLSelectElement).value)}"
+                class="cls"
+                aria-label="${(r) => `${titleCase(r.wowClass)} class`}"
+                :value="${(r) => r.wowClass}"
+                @change="${(r, c) => c.parent.setClass(r, (c.event.target as HTMLSelectElement).value)}"
               >
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="closed">Closed</option>
-                <option value="none">Not listed</option>
+                <option value="warrior">Warrior</option>
+                <option value="paladin">Paladin</option>
+                <option value="hunter">Hunter</option>
+                <option value="rogue">Rogue</option>
+                <option value="priest">Priest</option>
+                <option value="shaman">Shaman</option>
+                <option value="mage">Mage</option>
+                <option value="warlock">Warlock</option>
+                <option value="druid">Druid</option>
+              </select>
+              <select
+                class="role"
+                aria-label="${(r) => `${titleCase(r.wowClass)} role`}"
+                :value="${(r) => r.role}"
+                @change="${(r, c) => c.parent.setRole(r, (c.event.target as HTMLSelectElement).value)}"
+              >
+                <option value="any">Any</option>
+                <option value="tank" ?hidden="${(row) => !plays(row, 'tank')}" ?disabled="${(row) => !plays(row, 'tank')}">Tank</option>
+                <option value="healer" ?hidden="${(row) => !plays(row, 'healer')}" ?disabled="${(row) => !plays(row, 'healer')}">Healer</option>
+                <option value="melee" ?hidden="${(row) => !plays(row, 'melee')}" ?disabled="${(row) => !plays(row, 'melee')}">Melee</option>
+                <option value="ranged" ?hidden="${(row) => !plays(row, 'ranged')}" ?disabled="${(row) => !plays(row, 'ranged')}">Ranged</option>
               </select>
               <input
+                class="specs"
                 aria-label="${(r) => `${titleCase(r.wowClass)} specs`}"
                 maxlength="60"
                 placeholder="any"
                 :value="${(r) => r.specs}"
                 @input="${(r, c) => c.parent.setSpecs(r, (c.event.target as HTMLInputElement).value)}"
               />
+              <select
+                class="need"
+                aria-label="${(r) => `${titleCase(r.wowClass)} demand`}"
+                :value="${(r) => r.need}"
+                @change="${(r, c) => c.parent.setNeed(r, (c.event.target as HTMLSelectElement).value)}"
+              >
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+                <option value="closed">Closed</option>
+              </select>
+              <button
+                type="button"
+                class="remove"
+                aria-label="${(r) => `Remove ${titleCase(r.wowClass)} ${r.role === 'any' ? '' : r.role}`.trim()}"
+                @click="${(r, c) => c.parent.removeRow(r)}"
+              >Remove</button>
             </div>
           `,
-          // Fresh rows on every reset: a reused row would keep the need or specs typed into the
-          // class that sat there before the save re-sorted the list.
+          // Fresh rows on every reset: a reused row would keep the values typed into the line
+          // that sat there before the save re-sorted the list.
           { recycle: false },
         )}
       </div>
+      ${when(
+        (x) => x.rows.length === 0,
+        html`<p class="note">Nothing listed. The page says strong players of any class can apply.</p>`,
+      )}
+      <p class="add">
+        <button type="button" @click="${(x) => x.addRow()}">Add a line</button>
+      </p>
     </fieldset>
 
     ${when(
@@ -152,39 +218,56 @@ const styles = css`
 
   .row {
     display: grid;
-    grid-template-columns: 6rem 9rem minmax(0, 1fr);
+    grid-template-columns: 8rem 7rem minmax(0, 1fr) 7rem auto;
     align-items: center;
     gap: var(--space-sm);
   }
 
-  @media (max-width: 30rem) {
-    .row {
-      grid-template-columns: 1fr 1fr;
-    }
-
-    .row input {
-      grid-column: 1 / -1;
-    }
+  .row.head {
+    margin-block-start: var(--space-xs);
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xs);
+    letter-spacing: var(--font-tracking-wider);
+    text-transform: uppercase;
+    color: var(--color-text-muted);
   }
 
-  .cls {
-    font-weight: var(--font-weight-bold);
+  .add {
+    margin: 0;
+  }
+
+  /* Phones: class and role on one line, specs on the next, demand and Remove under it. */
+  @media (max-width: 36rem) {
+    .row {
+      grid-template-columns: 1fr 1fr;
+      padding-block-end: var(--space-xs);
+      border-block-end: var(--border-width-thin) solid var(--color-border);
+    }
+
+    .row.head {
+      display: none;
+    }
+
+    .row .specs {
+      grid-column: 1 / -1;
+    }
   }
 `;
 
 /**
- * The officers' editor for the home page's recruiting band: the headline, the pitch, and a
- * need and specs for each class. Feed it `recruiting-get`; Save runs `recruiting-set` with
- * all three and emits `recruiting-changed` so the page re-reads. Without `can-edit` (raid
- * leaders, who see the quarters but not this command) every field is read-only.
+ * The officers' editor for the Recruitment page's band: the headline, the pitch, and the lines
+ * it recruits for, each a class, a role (or any), the specs, and a demand. A class can have a
+ * line per role. Feed it `recruiting-get`; Save runs `recruiting-set` with all three and emits
+ * `recruiting-changed` so the page re-reads. Without `can-edit` (raid leaders, who see the
+ * quarters but not this command) every field is read-only.
  *
  * @tagname vintage-recruiting-desk
- * @summary Edit the recruiting band's headline, pitch, and class needs.
+ * @summary Edit the recruiting band's headline, pitch, and class and role lines.
  * @fires recruiting-changed - After a save succeeds.
  * @csspart desk - The whole form.
  * @csspart meta - When it was last saved, or that it shows the starter text.
  * @csspart error - Why the band could not be read; shown instead of the form.
- * @csspart needs - The class rows.
+ * @csspart needs - The class and role lines.
  * @csspart status - What just happened.
  */
 export class VintageRecruitingDesk extends FASTElement {
@@ -248,7 +331,38 @@ export class VintageRecruitingDesk extends FASTElement {
   /** Rows change in place so typing never re-renders the row under the cursor. */
   setNeed(row: Row, value: string): void {
     if (!NEED_CHOICES.some((o) => o.value === value)) return;
-    row.need = value as Row['need'];
+    row.need = value as RecruitingNeed;
+    this.dirty = true;
+  }
+
+  /**
+   * A new class replaces the line, so its role choices are the new class's. A role the new
+   * class can't play goes back to any.
+   */
+  setClass(row: Row, value: string): void {
+    if (!(CLASS_NAMES as readonly string[]).includes(value)) return;
+    const wowClass = value as WowClass;
+    const role = roleChoices(wowClass).includes(row.role) ? row.role : 'any';
+    this.rows = this.rows.map((r) => (r === row ? { ...r, wowClass, role } : r));
+    this.dirty = true;
+  }
+
+  setRole(row: Row, value: string): void {
+    if (!roleChoices(row.wowClass).includes(value as RecruitingRole)) return;
+    row.role = value as RecruitingRole;
+    this.dirty = true;
+  }
+
+  addRow(): void {
+    this.rows = [
+      ...this.rows,
+      toRow({ wowClass: 'warrior', role: 'any', specs: '', need: 'high' }),
+    ];
+    this.dirty = true;
+  }
+
+  removeRow(row: Row): void {
+    this.rows = this.rows.filter((r) => r !== row);
     this.dirty = true;
   }
 
@@ -264,7 +378,7 @@ export class VintageRecruitingDesk extends FASTElement {
 
   @command('vintage.recruiting-save', {
     label: 'Save the recruiting band',
-    description: 'Save the headline, pitch, and class needs as the form shows them.',
+    description: 'Save the headline, pitch, and class and role lines as the form shows them.',
     category: 'Officers',
   })
   async save(): Promise<ElementResult<unknown>> {
@@ -292,7 +406,7 @@ export class VintageRecruitingDesk extends FASTElement {
         return result;
       }
       this.dirty = false;
-      this.say('success', 'Saved. The home page shows it now.');
+      this.say('success', 'Saved. The Recruitment page shows it now.');
       this.$emit('recruiting-changed');
       return result;
     } finally {

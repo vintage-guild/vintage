@@ -20,8 +20,18 @@ export const recruitingFields = {
   needs: v.array(
     v.object({
       wowClass,
+      // Optional: lines saved before roles existed have none, and read as 'any'.
+      role: v.optional(
+        v.union(
+          v.literal('any'),
+          v.literal('tank'),
+          v.literal('healer'),
+          v.literal('melee'),
+          v.literal('ranged'),
+        ),
+      ),
       specs: v.string(),
-      need: v.union(v.literal('high'), v.literal('medium'), v.literal('closed')),
+      need: v.union(v.literal('high'), v.literal('medium'), v.literal('low'), v.literal('closed')),
     }),
   ),
   updatedAt: v.number(),

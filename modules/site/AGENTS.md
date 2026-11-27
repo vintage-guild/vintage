@@ -1,7 +1,8 @@
 # site module
 
-The website's editable copy: the recruiting band on the home page (headline, pitch, and the
-classes the guild is recruiting with the specs wanted and how much) and the guild profile (the
+The website's editable copy: the recruiting band on the Recruitment page (headline, pitch, and
+the lines the guild is recruiting: a class, the role it's wanted for, the specs, and how much)
+and the guild profile (the
 hero's facts and intro, the About page, the Discord invite, the contact email). Officers set them
 from the officers' quarters (Recruiting and Guild tabs), Discord, or an agent; everyone reads them.
 Maturity: **official**.
@@ -10,7 +11,7 @@ Maturity: **official**.
 
 | Path | Holds |
 |---|---|
-| `src/contract.ts` | `ClassNeed`, `NEED_LEVELS` (high, medium, closed), `RECRUITING_LIMITS`, the `Recruiting` view, `STARTER_RECRUITING`. The only import other modules may use |
+| `src/contract.ts` | `ClassNeed`, `NEED_LEVELS` (high, medium, low, closed), `NEED_ROLES` (any, tank, healer, melee, ranged), `RECRUITING_LIMITS`, the `Recruiting` view, `STARTER_RECRUITING`. The only import other modules may use |
 | `src/store.ts` | `SiteStore` port (`getRecruiting`, `putRecruiting`), `SiteDeps`, `command` |
 | `src/commands/` | `recruiting-get` / `guild-profile-get` (public) and `recruiting-set` / `guild-profile-set` (officer) |
 | `src/testing.ts` | Memory store, same behavior as the component |
@@ -22,9 +23,12 @@ Maturity: **official**.
   save, `recruiting-get` answers `STARTER_RECRUITING` with `updatedAt: null`, so the band never
   goes blank and a fresh deployment shows the copy the site shipped with.
 - **`recruiting-set` merges.** Fields left out keep their saved value; `needs` is the whole list
-  when given. One row per class (`DUPLICATE_CLASS`); an input with no
+  when given. One row per class and role (`DUPLICATE_CLASS`), so a class can have a line per
+  role; the role must be one the class plays, or any (`ROLE_NOT_PLAYED`). An input with no
   field is `NOTHING_TO_CHANGE`.
-- **`recruiting-get` sorts the needs** high, medium, closed (`byNeed`), keeping the saved order
+- **Lines saved before roles existed read as `any`.** The component's `role` is optional and
+  `recruiting.get` fills it in, so every reader gets a role without a data migration.
+- **`recruiting-get` sorts the needs** high, medium, low, closed (`byNeed`), keeping the saved order
   within a level, so no surface can show a closed class above an open one.
 - **Classes come from `@vintage/wow-data`.** The component's `wowClass` validator lists the same
   nine; change both together.

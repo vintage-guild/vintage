@@ -10,7 +10,8 @@
 //   button app:no:<id>           → application-decline preview with a Confirm button (officers)
 //   button app:nn:<id>           → application-decline for real (the click is the confirmation)
 //   /vintage recruiting           → the open needs with Apply buttons; leaders and officers post it
-//   button recruit:hi:<class>    → recruiting-set that class to high (the weekly assessment)
+//   button recruit:hi:<class>:<role> → recruiting-set that class and role to high (the weekly
+//                                      assessment; older buttons name only the class: any role)
 // Commands decide everything; this file only translates.
 
 import {
@@ -157,34 +158,39 @@ async function postRecruiting(
   if (!result.success) return refusal(result);
   const band = result.data as {
     headline: string;
-    needs: { wowClass: WowClass; specs: string; need: 'high' | 'medium' | 'closed' }[];
+    needs: {
+      wowClass: WowClass;
+      role: string;
+      specs: string;
+      need: 'high' | 'medium' | 'low' | 'closed';
+    }[];
   };
   const post = renderRecruitingPost(band.headline, band.needs, ports.siteUrl);
   // Leaders and officers post it for the channel; anyone else sees it privately.
   return tierAllows(caller.tier, 'leader') ? reply(post) : reply(post, { ephemeral: true });
 }
 
-/** recruit:hi:<class>: set one class to high need, keeping the rest of the band. */
+/** recruit:hi:<class>:<role>: set one class and role to high need, keeping the rest of the band. */
 async function raiseNeed(
   ports: ApplicationDiscordPorts,
   caller: Caller,
-  wowClass: string,
+  { wowClass, role }: { wowClass: string; role: string },
 ): Promise<InteractionResponse> {
   if (!tierAllows(caller.tier, 'officer'))
     return ephemeral('Only officers change recruiting needs.');
   const current = await ports.run(caller, 'recruiting-get', {});
   if (!current.success) return refusal(current);
-  const needs = (current.data as { needs: { wowClass: string; specs: string; need: string }[] })
-    .needs;
-  const next = needs.some((n) => n.wowClass === wowClass)
-    ? needs.map((n) => (n.wowClass === wowClass ? { ...n, need: 'high' } : n))
-    : [...needs, { wowClass, specs: 'any', need: 'high' }];
+  const needs = (
+    current.data as { needs: { wowClass: string; role: string; specs: string; need: string }[] }
+  ).needs;
+  const line = (n: { wowClass: string; role: string }) =>
+    n.wowClass === wowClass && n.role === role;
+  const next = needs.some(line)
+    ? needs.map((n) => (line(n) ? { ...n, need: 'high' } : n))
+    : [...needs, { wowClass, role, specs: 'any', need: 'high' }];
   const result = await ports.run(caller, 'recruiting-set', { needs: next });
-  return result.success
-    ? ephemeral(
-        `${wowClass.charAt(0).toUpperCase()}${wowClass.slice(1)} is now a high need on the site.`,
-      )
-    : refusal(result);
+  const name = `${wowClass.charAt(0).toUpperCase()}${wowClass.slice(1)}${role === 'any' ? '' : ` ${role}`}`;
+  return result.success ? ephemeral(`${name} is now a high need on the site.`) : refusal(result);
 }
 
 async function submit(

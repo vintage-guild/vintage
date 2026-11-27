@@ -93,8 +93,9 @@ describe('buildAssessment', () => {
       ],
       members,
       [
-        { wowClass: 'shaman', specs: 'restoration', need: 'medium' },
-        { wowClass: 'warrior', specs: 'protection', need: 'high' },
+        { wowClass: 'shaman', role: 'healer', specs: 'restoration', need: 'medium' },
+        { wowClass: 'warrior', role: 'tank', specs: 'protection', need: 'high' },
+        { wowClass: 'druid', role: 'healer', specs: 'restoration', need: 'high' },
       ],
     );
     expect(a.gaps.map((g) => g.role)).toEqual(expect.arrayContaining(['tank', 'healer']));
@@ -102,6 +103,16 @@ describe('buildAssessment', () => {
     expect(classes).not.toContain('warrior'); // already high
     expect(classes.indexOf('shaman')).toBeLessThan(classes.indexOf('priest')); // listed first
     expect(classes.length).toBeLessThanOrEqual(5);
+    // A druid healer is already high, but a druid tank isn't listed: it's still suggested.
+    const druid = a.suggestions.filter((s) => s.wowClass === 'druid');
+    expect(druid.map((s) => [s.role, s.from])).toEqual([['tank', null]]);
+  });
+
+  it('reads a class’s any-role line as its need for each role', () => {
+    const a = buildAssessment([tick([signup('a', 'melee', 'rogue')])], members, [
+      { wowClass: 'paladin', role: 'any', specs: 'any', need: 'high' },
+    ]);
+    expect(a.suggestions.some((s) => s.wowClass === 'paladin')).toBe(false);
   });
 
   it('suggests nothing when there are no tank or healer gaps', () => {
@@ -115,7 +126,7 @@ describe('buildAssessment', () => {
 
 describe('renderAssessment', () => {
   const a = buildAssessment([tick([signup('a', 'melee', 'rogue')])], members, [
-    { wowClass: 'priest', specs: 'holy', need: 'medium' },
+    { wowClass: 'priest', role: 'healer', specs: 'holy', need: 'medium' },
   ]);
 
   it('uses the facts when there is no wording, with one button per suggestion', () => {
@@ -123,8 +134,16 @@ describe('renderAssessment', () => {
     expect(message.content).toBe(assessmentFacts(a));
     const row = message.components?.[0] as { components: { custom_id: string }[] } | undefined;
     const ids = (row?.components ?? []).map((c) => c.custom_id);
-    expect(ids).toContain(raiseNeedCustomId('priest'));
-    expect(parseRaiseNeedCustomId(ids[0]!)).toBe(a.suggestions[0]?.wowClass);
+    expect(ids).toContain(raiseNeedCustomId('priest', 'healer'));
+    expect(parseRaiseNeedCustomId(ids[0]!)).toEqual({
+      wowClass: a.suggestions[0]?.wowClass,
+      role: a.suggestions[0]?.role,
+    });
+    // A button posted before roles existed names only the class.
+    expect(parseRaiseNeedCustomId('recruit:hi:priest')).toEqual({
+      wowClass: 'priest',
+      role: 'any',
+    });
     expect(parseRaiseNeedCustomId('poll:v:1')).toBeNull();
   });
 

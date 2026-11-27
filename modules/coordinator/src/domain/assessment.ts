@@ -1,7 +1,8 @@
 // The weekly roster and recruitment assessment (#130). Deterministic triggers, AI only for
 // wording (PLAN §6.2): every Monday from 16:00 UTC the coordinator looks at the comp gaps of the
 // coming raids and the site's recruiting needs, works out which classes could fill a tank or
-// healer gap, and posts that to the ops channel with one "Raise <class> to high" button each.
+// healer gap, and posts that to the ops channel with one "Raise <class> <role> to high" button
+// each.
 // The model may reword the facts; the facts, the suggestions, and the buttons are code.
 import type { CompRole, TargetRole } from '@vintage/comp-solver';
 import {
@@ -29,9 +30,17 @@ export const ASSESSMENT_RAIDS = 3;
 export const MAX_SUGGESTIONS = 5;
 
 const RAISE_PREFIX = 'recruit:hi:';
-export const raiseNeedCustomId = (wowClass: WowClass) => `${RAISE_PREFIX}${wowClass}`;
-export const parseRaiseNeedCustomId = (customId: string): string | null =>
-  customId.startsWith(RAISE_PREFIX) ? customId.slice(RAISE_PREFIX.length) || null : null;
+/** `recruit:hi:<class>:<role>`. Buttons posted before roles existed carry only the class. */
+export const raiseNeedCustomId = (wowClass: WowClass, role: CompRole) =>
+  `${RAISE_PREFIX}${wowClass}:${role}`;
+/** The class and role a raise button names; `any` for a button posted before roles existed. */
+export function parseRaiseNeedCustomId(
+  customId: string,
+): { wowClass: string; role: string } | null {
+  if (!customId.startsWith(RAISE_PREFIX)) return null;
+  const [wowClass, role] = customId.slice(RAISE_PREFIX.length).split(':');
+  return wowClass ? { wowClass, role: role || 'any' } : null;
+}
 
 /** This week's Monday 16:00 UTC: the assessment is due from then. */
 export function assessmentSlot(now: number): number {
@@ -58,7 +67,7 @@ export interface RoleGap {
 export interface Suggestion {
   wowClass: WowClass;
   role: CompRole;
-  /** The class's need on the site now, or null when it isn't listed. */
+  /** The class's need for this role on the site now (or its `any` line), or null when unlisted. */
   from: ClassNeed['need'] | null;
 }
 
@@ -99,13 +108,18 @@ export function buildAssessment(
       .map((wowClass) => ({
         wowClass,
         role,
-        from: needs.find((n) => n.wowClass === wowClass)?.need ?? null,
+        from:
+          needs.find((n) => n.wowClass === wowClass && n.role === role)?.need ??
+          needs.find((n) => n.wowClass === wowClass && n.role === 'any')?.need ??
+          null,
       }))
       .filter((s) => s.from !== 'high')
       // Listed classes first (a medium need is one step from high), then unlisted ones.
       .sort((a, b) => Number(a.from === null) - Number(b.from === null));
     for (const s of candidates) {
-      if (!suggestions.some((x) => x.wowClass === s.wowClass)) suggestions.push(s);
+      if (!suggestions.some((x) => x.wowClass === s.wowClass && x.role === s.role)) {
+        suggestions.push(s);
+      }
     }
   }
   return {
@@ -140,13 +154,18 @@ export function assessmentFacts(a: Assessment): string {
       : 'No role gaps in the coming raids.',
     `Recruiting now: ${
       open.length
-        ? open.map((n) => `${cap(n.wowClass)} (${n.specs}) ${n.need}`).join(' · ')
+        ? open
+            .map(
+              (n) =>
+                `${cap(n.wowClass)}${n.role === 'any' ? '' : ` ${n.role}`} (${n.specs}) ${n.need}`,
+            )
+            .join(' · ')
         : 'nothing listed'
     }`,
   ];
   if (a.suggestions.length) {
     lines.push(
-      `Suggested: raise ${a.suggestions.map((s) => cap(s.wowClass)).join(', ')} to high for the ${[
+      `Suggested: raise ${a.suggestions.map((s) => `${cap(s.wowClass)} ${s.role}`).join(', ')} to high for the ${[
         ...new Set(a.suggestions.map((s) => ROLE_NAME[s.role])),
       ].join(' and ')} gap.`,
     );
@@ -169,8 +188,8 @@ export function renderAssessment(a: Assessment, wording: string | null): Message
           actionRow(
             ...a.suggestions.map((s) =>
               button(
-                raiseNeedCustomId(s.wowClass),
-                `Raise ${cap(s.wowClass)} to high`,
+                raiseNeedCustomId(s.wowClass, s.role),
+                `Raise ${cap(s.wowClass)} ${s.role} to high`,
                 ButtonStyle.PRIMARY,
               ),
             ),

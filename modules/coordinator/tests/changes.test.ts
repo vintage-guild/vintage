@@ -615,7 +615,7 @@ describe('#leads post-digest change feed (changes.ts + runTick)', () => {
     expect(buttonLabels(grewPost!.message)).toEqual(['Seat Ironhide']);
   });
 
-  it('keeps 24h change and dropout alerts active in #leads while locked and awaiting over-cap officer approval (#345)', async () => {
+  it('keeps 24h change and dropout alerts active in #leads past lock while the raid awaits approval (#345)', async () => {
     const store = createMemoryCoordinatorStore();
     await store.setConfig(
       'g1',
@@ -667,10 +667,10 @@ describe('#leads post-digest change feed (changes.ts + runTick)', () => {
 
     await runTick(ports, 'g1', RAID_START - 48 * HOUR);
     await runTick(ports, 'g1', RAID_START - 24 * HOUR); // digest + party-draft
-    await runTick(ports, 'g1', RAID_START - 2 * HOUR); // locks, holds final-roster (3 going > 2)
-    expect(event.status).toBe('locked');
+    await runTick(ports, 'g1', RAID_START - 2 * HOUR); // unapproved: stays open, final roster held
+    expect(event.status).toBe('open');
 
-    // While locked and awaiting officer approval, Aeryn (seated tank) drops out and Moonglade goes Late 15m.
+    // While awaiting approval past lock, Aeryn (seated tank) drops out and Moonglade goes Late 15m.
     signups[0] = {
       ...signups[0]!,
       status: 'declined',

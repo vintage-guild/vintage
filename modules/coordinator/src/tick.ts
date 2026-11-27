@@ -46,6 +46,7 @@ import {
 import {
   digestNotes,
   hashMessage,
+  renderApprovalHoldNotice,
   renderDigest,
   renderDm,
   renderFailure,
@@ -229,11 +230,8 @@ async function perform(
       });
       return { ...(await send(message)), renderHash: hashMessage(message) };
     }
-    case 'unapproved-notice':
-      return send({
-        content: `Groups weren't approved before lock for **${tick.event.name}**; posted the 4-column final roster instead.`,
-        allowed_mentions: { parse: [] },
-      });
+    case 'approval-hold':
+      return send(renderApprovalHoldNotice(tick, state.members));
     case 'overcap-approval':
       return send(renderOvercapApprovalNotice(tick, state.members));
     case 'overcommitted-notice':

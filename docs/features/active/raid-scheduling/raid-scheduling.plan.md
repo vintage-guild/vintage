@@ -204,6 +204,7 @@ TJ decides how it behaves; Bloodfen makes the technical calls. Dated rows are de
 | 13 | `raid-update` allows every edit after the raid starts (time, notes, size, comp); only completed and cancelled raids refuse | Nights change mid-raid too | TJ, 2026-11-22 |
 | 14 | Discord forms keep melee and ranged apart, for schedules and for `/vintage event create` (#323) | Same targets as the site | TJ, 2026-11-22 |
 | 15 | Length lives as a `stringSelect` (0.5h–8h in half-hour steps, default 3h) on the preview message alongside the `Open to pugs` toggle, freeing Stage 2 for Size, Tanks, Healers, Melee, and Ranged (shared by events #323 and schedules) | Avoids a 3rd modal step and fits in 2 of Discord's 5 message action rows | Bloodfen, 2026-11-22 |
+| 17 | A raid never locks or posts its final roster until a raid leader or officer approves it in the leads channel (the party draft's **Approve and post**, `roster-approve`). At its lock time an unapproved raid stays open and the leads get one notice (`approval-hold`, with the recommended sits or the over-size count); the next check after approval locks it and posts. A leader can still lock it by hand. Dungeons, battlegrounds, and other events keep locking on their own | Nobody should be sat, or have the roster posted, without someone choosing it | TJ, 2026-11-27 |
 | 16 | `/vintage schedule create` is form-only, like the event form, with no inline slash options | One way in, and the form checks every field | TJ (proposed) |
 
 ## Open questions

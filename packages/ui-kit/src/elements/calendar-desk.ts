@@ -260,20 +260,31 @@ const template = html<VintageCalendarDesk>`
     )}
 
     <div class="views" role="group" aria-label="Show raids as">
-      <button type="button" aria-pressed="${(x) => String(x.view === 'agenda')}" @click="${(x) => x.show('agenda')}">Agenda</button>
       <button type="button" aria-pressed="${(x) => String(x.view === 'month')}" @click="${(x) => x.show('month')}">Month</button>
+      <button type="button" aria-pressed="${(x) => String(x.view === 'agenda')}" @click="${(x) => x.show('agenda')}">Agenda</button>
     </div>
 
     ${when(
       (x) => x.view === 'month',
       html<VintageCalendarDesk>`
+        ${when(
+          (x) => x.pickedDay.length > 0,
+          html<VintageCalendarDesk>`
+            <div class="picked" id="picked" tabindex="-1">
+              ${agendaDays((x) => x.pickedDay)}
+              <p class="actions">
+                <button type="button" @click="${(x) => x.closePicked()}">Close</button>
+              </p>
+            </div>
+          `,
+        )}
         <vintage-raid-month
           time-zone="${(x) => x.viewerZone}"
           min="${(x) => x.minMonth}"
           max="${(x) => x.maxMonth}"
           :now="${(x) => x.now}"
           :raids="${(x) => x.raids}"
-          @raid-selected="${(x, c) => x.reveal((c.event as CustomEvent<{ id: string }>).detail.id)}"
+          @raid-selected="${(x, c) => x.pick((c.event as CustomEvent<{ id: string }>).detail.id)}"
         ></vintage-raid-month>
       `,
     )}
@@ -359,6 +370,19 @@ const styles = css`
     color: var(--color-text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.06em;
+  }
+
+  .picked {
+    display: grid;
+    gap: var(--space-xs);
+  }
+
+  .picked:focus {
+    outline: none;
+  }
+
+  .picked > .actions {
+    justify-content: flex-end;
   }
 
   .views {
@@ -557,8 +581,9 @@ const styles = css`
 const DAY_MS = 86_400_000;
 
 /**
- * The officers' Calendar tab: the raids coming up as an agenda by day (or a month table), the
- * last two weeks folded away, and the schedules that create them. Leaders and officers add a
+ * The officers' Calendar tab: the raids as a month table (or an agenda by day, the last two
+ * weeks folded away), and the schedules that create them. Choosing a raid in the month opens its
+ * own card above the table, with the same details and buttons as its agenda row. Leaders and officers add a
  * one-off raid, move or cancel one (cancel previews first, then confirms), mark one done once it
  * has started, add or edit a schedule, pause or resume one, and create its raids now. Each change
  * raises `calendar-changed` so the page reads the calendar again.
@@ -587,8 +612,11 @@ export class VintageCalendarDesk extends FASTElement {
   @observable bot: CoordinatorDeskRaid[] = [];
   /** The clock (tests pin it). */
   @observable now = Date.now();
-  /** `agenda` (the default) or `month`. */
-  @attr view: 'agenda' | 'month' = 'agenda';
+  /** `month` (the default) or `agenda`. */
+  @attr view: 'agenda' | 'month' = 'month';
+
+  /** The raid chosen in the month, shown as its own card above the table; null for none. */
+  @observable picked: string | null = null;
   @observable editing: Editing | null = null;
   @observable pending: Pending | null = null;
   @observable busy = false;
@@ -728,14 +756,40 @@ export class VintageCalendarDesk extends FASTElement {
     };
   }
 
+  /** The picked raid as a one-day agenda, so its card reads and acts like its agenda row. */
+  @volatile
+  get pickedDay(): AgendaDay[] {
+    const raid = this.picked ? this.raids.find((r) => r.id === this.picked) : undefined;
+    return raid ? this.days([raid]) : [];
+  }
+
   show(view: 'agenda' | 'month'): void {
     this.view = view;
   }
 
-  /** From the month: switch to the agenda and put the raid in view with focus on it. */
+  /** From the month: open the raid's own card above the table, with focus on it. */
+  pick(id: string): void {
+    this.picked = id;
+    queueMicrotask(() => {
+      requestAnimationFrame(() => {
+        const card = this.shadowRoot?.getElementById('picked');
+        card?.scrollIntoView({ block: 'nearest' });
+        card?.focus();
+      });
+    });
+  }
+
+  closePicked(): void {
+    this.picked = null;
+  }
+
+  /** Put the raid back in view: its card in the month, its row (focused) in the agenda. */
   reveal(id: string): void {
+    if (this.view === 'month') {
+      this.pick(id);
+      return;
+    }
     const ended = this.raids.find((r) => r.id === id);
-    this.view = 'agenda';
     queueMicrotask(() => {
       requestAnimationFrame(() => {
         if (ended && this.endOf(ended) <= this.now) {

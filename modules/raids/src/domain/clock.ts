@@ -4,7 +4,7 @@
 import type { Schedule } from '../contract';
 
 /** The guild's clock when no schedule names one. */
-export const FALLBACK_TIME_ZONE = 'America/New_York';
+export const FALLBACK_TIME_ZONE = 'America/Chicago';
 /** The usual start time when no schedule names one. */
 export const FALLBACK_RAID_TIME = '20:00';
 
@@ -19,7 +19,7 @@ export interface GuildClock {
 
 /**
  * Resolve the guild's clock from its schedules: first active schedule, else first schedule,
- * else fallbacks (`America/New_York`, `20:00`).
+ * else fallbacks (`America/Chicago`, `20:00`).
  */
 export function resolveGuildClock(
   schedules: readonly Pick<Schedule, 'active' | 'recurrence'>[],

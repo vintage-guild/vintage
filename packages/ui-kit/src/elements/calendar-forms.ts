@@ -39,6 +39,7 @@ import {
   type CalendarRaidSize,
   type CalendarSchedule,
   formatWhen,
+  GUILD_RAID_NIGHTS,
   WEEK,
 } from './calendar-shared';
 import { deskStyles } from './desk-styles';
@@ -568,7 +569,7 @@ export class VintageScheduleForm extends KindedForm {
     this.name = s?.name ?? '';
     this.instance = s?.instance ?? '';
     this.loadKind(s);
-    this.weekdays = [...(s?.recurrence.weekdays ?? [])];
+    this.weekdays = [...(s?.recurrence.weekdays ?? GUILD_RAID_NIGHTS)];
     this.time = s?.recurrence.time ?? '20:00';
     this.zone = s?.recurrence.timeZone ?? (this.defaultZone || browserTimeZone());
     this.durationMinutes = s?.durationMinutes ?? 180;
@@ -616,7 +617,7 @@ export class VintageScheduleForm extends KindedForm {
     if (this.weekdays.length === 0) return 'Pick at least one raid night.';
     if (!/^\d{2}:\d{2}$/.test(this.time)) return 'Pick a start time.';
     if (!isTimeZone(this.zone.trim()))
-      return 'Use a time zone from the list, like America/New_York.';
+      return 'Use a time zone from the list, like America/Chicago.';
     if (!Number.isInteger(this.leadDays) || this.leadDays < 1 || this.leadDays > 28) {
       return 'Post signups between 1 and 28 days ahead.';
     }
@@ -851,7 +852,7 @@ export class VintageRaidForm extends KindedForm {
     this.problem = this.raid ? this.kindProblem() : this.oneOffProblem();
     if (this.problem) return;
     if (!isTimeZone(zone)) {
-      this.problem = 'Use a time zone from the list, like America/New_York.';
+      this.problem = 'Use a time zone from the list, like America/Chicago.';
       return;
     }
     const startsAt = instantFromInputs(this.date, this.time, zone);

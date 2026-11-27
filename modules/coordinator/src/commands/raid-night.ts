@@ -30,7 +30,7 @@ const timeZoneSchema = z.string().refine(
       return false;
     }
   },
-  { message: 'an IANA time zone, e.g. America/New_York' },
+  { message: 'an IANA time zone, e.g. America/Chicago' },
 );
 
 const invalid = (message: string, suggestion: string) =>
@@ -43,7 +43,7 @@ export const raidNightPoll = command({
     'another kind: dungeon, battleground, other, with optional roleTargets; other may leave out ' +
     'size for an open event and instance). When the poll closes, the coordinator creates the ' +
     'event at the winning time; a tie, a missed quorum, or no votes goes to the ops channel ' +
-    'instead. Labels use timeZone (New York by default); the post shows each time in every ' +
+    'instead. Labels use timeZone (Chicago by default); the post shows each time in every ' +
     'reader’s own zone.',
   tier: 'leader',
   mutation: true,
@@ -67,7 +67,7 @@ export const raidNightPoll = command({
         .default(180),
       startTimes: z.array(instantSchema).min(2).max(10),
       closesAt: instantSchema,
-      timeZone: timeZoneSchema.default('America/New_York'),
+      timeZone: timeZoneSchema.default('America/Chicago'),
       question: z.string().trim().min(1).max(300).optional(),
       eligibleTier: z
         .enum(TIERS)

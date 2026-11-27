@@ -238,7 +238,7 @@ describe('absence commands', () => {
     );
     expect(added.success).toBe(true);
     const data = added.data as { absence: Absence; stillSignedUp: { eventId: string }[] };
-    expect(data.absence.timeZone).toBe('America/New_York');
+    expect(data.absence.timeZone).toBe('America/Chicago');
     expect(data.absence.endedAt).toBeNull();
     expect(data.stillSignedUp.map((s) => s.eventId)).toEqual([eventId]);
     expect(deps.events.emitted.some((e) => e.type === 'absence-changed')).toBe(true);

@@ -112,7 +112,7 @@ pnpm --filter @vintage/web build   # dist/
   theme and a 4-second reveal fallback run from `public/first-paint.js`, a blocking script in
   `<head>` (not inline, because of the CSP below).
 - **Times** (`src/dates.ts`) always show their zone, in the member's profile zone when they
-  have set one (`member-prefs-set timezone`), else the browser's. The hero's "8 pm ET" pill is
+  have set one (`member-prefs-set timezone`), else the browser's. The hero's "8–11 pm CT" pill is
   the guild's stated time; the cards show the viewer's.
 - **Discord invite:** `DISCORD_INVITE_URL` in `src/content/recruiting.ts`, null until the GM
   sets it; the calls to action then point at the recruiting band.

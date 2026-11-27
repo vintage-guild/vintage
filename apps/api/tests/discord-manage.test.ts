@@ -26,10 +26,10 @@ const GUILD = 'guild-test';
 const DISCORD_GUILD = '600000000000000001';
 /** Mon 26 Oct 2026, 12:00 New York. */
 const NOW = Date.UTC(2026, 9, 26, 16);
-/** Tue 10 Nov 2026, 20:00 New York (EST). */
-const TUE_8PM = Date.UTC(2026, 10, 11, 1);
-/** Wed 11 Nov 2026, 20:00 New York (EST). */
-const WED_8PM = Date.UTC(2026, 10, 12, 1);
+/** Tue 10 Nov 2026, 20:00 Chicago (CST), the guild's clock with no schedule. */
+const TUE_8PM = Date.UTC(2026, 10, 11, 2);
+/** Wed 11 Nov 2026, 20:00 Chicago (CST). */
+const WED_8PM = Date.UTC(2026, 10, 12, 2);
 
 const member = (id: string, tier: Tier): Member => ({
   id,

@@ -1422,10 +1422,10 @@ describe('JTBD: raid night', () => {
       'Kind',
       'Where',
       'Date',
-      'Time (New York)',
+      'Time (Chicago)',
     ]);
     // Kind is a radio group; the date offers the next 25 days from today (Saturday), and the
-    // time starts on the guild's usual 8:00 PM from its Wednesday schedule.
+    // time starts on the guild's usual 8:00 PM (no schedule yet, so Chicago at 8:00 PM).
     expect(input(form, 'kind')?.type).toBe(21);
     const dates = input(form, 'date')?.options ?? [];
     expect(dates.slice(0, 2).map((d) => d.label)).toEqual(['Today', 'Tomorrow']);
@@ -1452,13 +1452,13 @@ describe('JTBD: raid night', () => {
       'Open to pugs: Off',
       'Cancel',
     ]);
-    // Today at noon has already gone by (it's Saturday noon), so the preview says so.
+    // 10:00 today has already gone by (it's 11:00 Saturday in Chicago), so the preview says so.
     const gone = await submit('evform:new', {
       name: 'Cathedral run',
       kind: { radio: 'dungeon' },
       where: 'Scarlet Monastery',
       date: ['2026-10-24'],
-      time: ['12:00'],
+      time: ['10:00'],
     });
     expect(field(gone, 'Fix before posting')).toContain('already passed');
 

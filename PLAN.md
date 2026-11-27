@@ -770,7 +770,7 @@ Tracked in #30 until 2026-11-23, when the GM answered the rest; Q6 and Q7 moved 
 | # | Question | Owner | Blocks |
 |---|---|---|---|
 | 1 | ~~Discord role names and which tier each maps to~~ **Answered** (§3.4); role ids come from the bot | GM | — |
-| 2 | ~~Raid nights/times and the channels the bot posts in~~ **Answered**: Wednesday + Thursday, 8 pm `America/New_York` (the production schedule); the signup channel is set. Ops and leads channels are tracked in #165 | GM | — |
+| 2 | ~~Raid nights/times and the channels the bot posts in~~ **Answered**: Monday + Wednesday, 8 to 11 pm `America/Chicago` (TJ, 2026-11-26; it was Wednesday + Thursday, 8 pm `America/New_York`); the signup channel is set. Ops and leads channels are tracked in #165 | GM | — |
 | 3 | ~~Reminder etiquette: are DMs OK, or channel pings only?~~ **Answered** (2026-10-25): DMs on by default at the last reminder; officers can turn them off (`coordinator-config-set dmReminders`), members can opt out | GM | — |
 | 4 | ~~Who adds the bot, and is the Server Members intent OK?~~ **Answered**: Random is in the Vintage server with the intent; role sync runs on the real rank roles | GM | — |
 | 5 | ~~Which loot system(s) to start with~~ **Answered** (2026-11-23): **mainspec over offspec (MS/OS)** first; soft-reserve and council stay candidates (#26) | GM + officers | — |

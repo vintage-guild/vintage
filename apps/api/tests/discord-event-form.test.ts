@@ -37,6 +37,8 @@ const NY = 'America/New_York';
 const NOW = Date.UTC(2026, 9, 26, 16);
 /** Tue 10 Nov 2026, 20:00 New York (EST). */
 const TUE_8PM = Date.UTC(2026, 10, 11, 1);
+/** Tue 10 Nov 2026, 20:00 Chicago (CST): the guild's clock when it has no schedule yet. */
+const GUILD_8PM = Date.UTC(2026, 10, 11, 2);
 
 const member = (id: string, tier: Tier): Member => ({
   id,
@@ -271,7 +273,7 @@ describe('a bare /vintage event create', () => {
       'Kind',
       'Where',
       'Date',
-      'Time (New York)',
+      'Time (Chicago)',
     ]);
     expect(field(r, 'name')?.description).toBe('Submit to set up the event.');
     expect(field(r, 'kind')?.component.type).toBe(21);
@@ -286,7 +288,7 @@ describe('a bare /vintage event create', () => {
     expect(field(r, 'date')?.component.type).toBe(3);
     expect(field(r, 'date')?.description).toContain('start:');
     expect(picked(r, 'date')).toBeUndefined();
-    expect(field(r, 'time')?.description).toContain(NY);
+    expect(field(r, 'time')?.description).toContain('America/Chicago');
     expect(field(r, 'hours')).toBeUndefined();
   });
 
@@ -486,7 +488,7 @@ describe('stage 1', () => {
     expect(card(r)?.title).toBe('Cathedral run');
     expect(fieldValue(r, 'Kind')).toBe('Dungeon');
     expect(fieldValue(r, 'Where')).toBe('Scarlet Monastery');
-    expect(fieldValue(r, 'Starts')).toBe(`<t:${TUE_8PM / 1000}:F> (<t:${TUE_8PM / 1000}:R>)`);
+    expect(fieldValue(r, 'Starts')).toBe(`<t:${GUILD_8PM / 1000}:F> (<t:${GUILD_8PM / 1000}:R>)`);
     expect(fieldValue(r, 'Size')).toBe('5-player dungeon');
     expect(fieldValue(r, 'Roles')).toBe('1 tank · 1 healer · 3 DPS (the usual comp)');
     expect(fieldValue(r, 'Length')).toBe('3 hours');
@@ -506,7 +508,7 @@ describe('stage 1', () => {
   });
 
   it('says what is wrong instead of failing: a time earlier today, no instance', async () => {
-    const past = await stageOne({ date: ['2026-10-26'], time: ['12:00'], where: '' });
+    const past = await stageOne({ date: ['2026-10-26'], time: ['10:00'], where: '' });
     expect(problems(past)).toContain('already passed');
     expect(problems(past)).toContain('Say where it runs');
     const later = await stageOne({ date: ['2026-10-26'], time: ['12:30'] });
@@ -741,7 +743,7 @@ describe('the preview', () => {
       instance: 'Somewhere',
       kind: 'dungeon',
       size: 5,
-      startsAt: TUE_8PM,
+      startsAt: GUILD_8PM,
       durationMinutes: 180,
       roleTargets: null,
     });
@@ -772,7 +774,7 @@ describe('the preview', () => {
       click(
         'rook',
         FORM_IDS.post,
-        messageOf(await stageOne({ date: ['2026-10-26'], time: ['12:00'] })),
+        messageOf(await stageOne({ date: ['2026-10-26'], time: ['10:00'] })),
       ),
     );
     expect(problems(past)).toContain('already passed');

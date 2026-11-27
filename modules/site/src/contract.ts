@@ -122,7 +122,7 @@ export interface GuildProfile {
  * and an About page in the guild's own terms (who we are, how we raid, how to join).
  */
 export const STARTER_PROFILE: GuildProfile = {
-  pills: ['Normal ruleset', 'Wed + Thu · 8 pm ET', '10 · 20 · 40', 'Semi-hardcore'],
+  pills: ['Normal ruleset', 'Mon + Wed · 8–11 pm CT', '10 · 20 · 40', 'Semi-hardcore'],
   intro:
     "We're building a raid team for Forever's first tier: people who show up prepared, on time, " +
     'and good company. Signups, reminders, and loot rules are settled before the first pull, so ' +

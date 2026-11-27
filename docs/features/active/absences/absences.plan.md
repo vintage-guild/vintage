@@ -131,7 +131,7 @@ button on that raid's post, which is up a week ahead.
 - Events: `absence-changed` on add, weekly-set and remove. Nothing subscribes yet; the
   coordinator reads absences on each tick, as it reads signups.
 - The guild clock moves from apps/api into raids (`domain/clock.ts`: the first active
-  schedule's zone, else the first schedule's, else New York) as a shared pure resolver that
+  schedule's zone, else the first schedule's, else Chicago) as a shared pure resolver that
   apps/api and apps/web both call (Bloodfen, 2026-11-20). Commands need it to read "today" and
   stamp `timeZone`.
 

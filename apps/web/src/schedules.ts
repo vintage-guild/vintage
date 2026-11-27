@@ -27,7 +27,7 @@ const list = (items: string[]) =>
   items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`;
 
 /**
- * "Raid nights are Wednesday and Thursday at 8:00 PM EST.", in the viewer's zone (the weekday
+ * "Raid nights are Monday and Wednesday at 8:00 PM CST.", in the viewer's zone (the weekday
  * follows the zone too: 8 pm in New York is early Friday in London). Null without schedules.
  */
 export function describeNights(

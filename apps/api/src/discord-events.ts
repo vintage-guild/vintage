@@ -122,7 +122,7 @@ export async function guildTimeZone(ports: EventPorts, caller: Caller): Promise<
 
 /**
  * The guild's clock and usual raid time, resolved by raids' `resolveGuildClock`: the first
- * active schedule, else the first one, else the fallbacks (New York, 20:00).
+ * active schedule, else the first one, else the fallbacks (Chicago, 20:00).
  */
 export async function guildClock(ports: EventPorts, caller: Caller): Promise<GuildClock> {
   const result = await ports.run(caller, 'schedule-list', { includeInactive: true });

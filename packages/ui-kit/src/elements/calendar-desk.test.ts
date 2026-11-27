@@ -379,10 +379,19 @@ describe('vintage-schedule-form', () => {
   }
   const submit = (f: VintageScheduleForm) => f.shadowRoot?.querySelector('form')?.requestSubmit();
 
+  it('starts a new schedule on Monday and Wednesday at 20:00 for three hours', async () => {
+    const { f } = await form(null);
+    expect(f.weekdays).toEqual(['mon', 'wed']);
+    expect(f.time).toBe('20:00');
+    expect(f.durationMinutes).toBe(180);
+  });
+
   it('asks for a raid night before adding a schedule', async () => {
     const { f, submitted } = await form(null);
     f.name = 'Raid night';
     f.instance = 'Molten Core';
+    f.toggleDay('mon', false);
+    f.toggleDay('wed', false);
     submit(f);
     await settle();
     expect(submitted).not.toHaveBeenCalled();
@@ -396,8 +405,8 @@ describe('vintage-schedule-form', () => {
     expect(f.zone).toBe('America/New_York');
     f.name = 'Raid night';
     f.instance = 'Molten Core';
+    f.toggleDay('wed', false);
     f.toggleDay('thu', true);
-    f.toggleDay('tue', true);
     f.reminders = '24, 72';
     submit(f);
     expect(submitted).toHaveBeenCalledWith({
@@ -409,7 +418,7 @@ describe('vintage-schedule-form', () => {
         access: 'guild',
         size: 40,
         roleTargets: null,
-        weekdays: ['tue', 'thu'],
+        weekdays: ['mon', 'thu'],
         time: '20:00',
         timeZone: 'America/New_York',
         durationMinutes: 180,

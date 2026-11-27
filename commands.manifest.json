@@ -3720,7 +3720,7 @@
     },
     {
       "name": "raid-night-poll",
-      "description": "Ask the raid which night works: post a poll of 2–10 start times for a one-off raid (or another kind: dungeon, battleground, other, with optional roleTargets; other may leave out size for an open event and instance). When the poll closes, the coordinator creates the event at the winning time; a tie, a missed quorum, or no votes goes to the ops channel instead. Labels use timeZone (New York by default); the post shows each time in every reader’s own zone.",
+      "description": "Ask the raid which night works: post a poll of 2–10 start times for a one-off raid (or another kind: dungeon, battleground, other, with optional roleTargets; other may leave out size for an open event and instance). When the poll closes, the coordinator creates the event at the winning time; a tie, a missed quorum, or no votes goes to the ops channel instead. Labels use timeZone (Chicago by default); the post shows each time in every reader’s own zone.",
       "tier": "leader",
       "mutation": true,
       "destructive": false,
@@ -3876,7 +3876,7 @@
             ]
           },
           "timeZone": {
-            "default": "America/New_York",
+            "default": "America/Chicago",
             "type": "string"
           },
           "question": {
@@ -5175,7 +5175,7 @@
     },
     {
       "name": "schedule-create",
-      "description": "Create a recurring raid night, e.g. Molten Core every Tuesday and Thursday at 20:00 New York time, or a weekly dungeon, battleground, or other event with kind (default raid; other may leave out size and instance). notes (what to bring, when to be on) are copied to each raid. Events are created ahead of time by schedule-materialize.",
+      "description": "Create a recurring raid night, e.g. Molten Core every Monday and Wednesday at 20:00 Chicago time, or a weekly dungeon, battleground, or other event with kind (default raid; other may leave out size and instance). notes (what to bring, when to be on) are copied to each raid. Events are created ahead of time by schedule-materialize.",
       "tier": "leader",
       "mutation": true,
       "destructive": false,

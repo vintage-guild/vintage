@@ -57,7 +57,7 @@ pnpm --filter @vintage/web build   # dist/
 - **Art** (`public/art/`, Bloodfen's generated pieces, used with permission; not covered by the
   code license) is listed in `src/content/art.ts`: the hero and its portrait for phones
   (`art-phone-src`), one scene per launch raid behind its ledger row (dimmed until the raids
-  unlock), the shield and staff on the recruiting band, the coordinator's raven beside the news
+  unlock), the shield and staff on the Recruitment page, the coordinator's raven beside the news
   heading, and the dusk sky under the footer. The tab and home-screen icons (`public/icon-*.png`,
   `apple-touch-icon.png`) are sized from the square emblem in `assets/brand`. The link-preview
   card (`public/og-image.jpg`, 1200×630, the Open Graph tags in `index.html`) is the hero art
@@ -86,11 +86,11 @@ pnpm --filter @vintage/web build   # dist/
   `refreshSession`, which do nothing until a backend installs handlers (`canSignIn()`).
 - **Views** (`src/view.ts`, [feature plan](../../docs/features/active/role-aware-views/role-aware-views.plan.md)):
   the home page composes by the session's tier. Visitors get the storefront; members, recruits,
-  and raiders get a compact hero with their own figures, "Your next raid" on top, and
-  recruiting as one line at the foot; leaders and officers get the same plus the officer strip above the hero. The view only
+  and raiders get a compact hero with their own figures and "Your next raid" on top; leaders
+  and officers get the same plus the officer strip above the hero. The view only
   orders sections; each command's tier is still the gate. A section the session's tier can't read
-  isn't rendered at all, and its header link is removed (`HOME_SECTIONS`): visitors get About,
-  Progress, and recruiting; `member` tier and up get Raids, Progress, recruiting, and News. While a
+  isn't rendered at all (`HOME_SECTIONS`): visitors get Progress and About; `member` tier and up
+  get Raids, Progress, and News. The open roles are their own page, `/recruitment`. While a
   read is pending, its section says it is loading, so a slow connection never reads as "nothing
   here".
 - **OAuth pages** (`src/oauth.ts`, `pages/oauth-*.ts`): `connectSite` installs the connection's
@@ -115,7 +115,7 @@ pnpm --filter @vintage/web build   # dist/
   have set one (`member-prefs-set timezone`), else the browser's. The hero's "8–11 pm CT" pill is
   the guild's stated time; the cards show the viewer's.
 - **Discord invite:** `DISCORD_INVITE_URL` in `src/content/recruiting.ts`, null until the GM
-  sets it; the calls to action then point at the recruiting band.
+  sets it; the calls to action then point at the Recruitment page.
 - **Deployed** on Vercel as `vintage-web`: https://vintageguild.gg (www redirects to it; https://vintage-web-pi.vercel.app also serves it). `vercel.json`
   here sets the build and an SPA fallback, so deep links like `/officers` load the app. Every push
   to `main` deploys it, and each PR gets a preview (SETUP.md → Deployments).

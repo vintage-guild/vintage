@@ -22,13 +22,14 @@ the recruiting post to the onboarding DM. Automated in
 **When** our needs change, **I (officer) want** to edit the open roles on the site, **so** the
 public recruiting band and the hero's figures change without a deploy.
 - [ ] Before anyone saves, `recruiting-get` as a visitor answers the starter band with
-  `updatedAt: null`. The home page's band eyebrow reads just "Recruiting".
+  `updatedAt: null`. The Recruitment page's eyebrow reads just "Recruiting".
 - [ ] In the quarters' Recruiting tab, Ana changes the headline, sets Hunter to Medium, and saves.
   The tab says it saved and when; the class rows re-sort high, medium, closed.
-- [ ] The home page shows the new headline and "Recruiting · updated" with today's date. For a
-  visitor, the class table has the new rows with their icons and the hero's "roles we need most"
-  figure counts the high rows. For members, the one-line ask names the high classes.
-- [ ] Ana sets Warrior to Closed and saves. The tab and the home band list Warrior with the
+- [ ] The Recruitment page (`/recruitment`, in the header nav) shows the new headline and
+  "Recruiting · updated" with today's date, and the class table has the new rows with their
+  icons. When the member count can't load, the visitor hero's "roles we need most" figure counts
+  the high rows.
+- [ ] Ana sets Warrior to Closed and saves. The tab and the Recruitment page list Warrior with the
   closed classes at the bottom: whatever order the needs are saved in, `recruiting-get` answers
   high, medium, closed.
 - [ ] Rook sees the tab read-only ("Officers edit the recruiting band"); `recruiting-set` as Rook
@@ -40,7 +41,7 @@ public recruiting band and the hero's figures change without a deploy.
 facts and intro, the About page, the Discord invite, and the contact email on the site, **so**
 visitors read what is true now.
 - [ ] Before anyone saves, `guild-profile-get` as a visitor answers the starter profile; "Join
-  the Discord" points at the recruiting band; Privacy and Terms say to ask an officer in Discord.
+  the Discord" points at the Recruitment page; Privacy and Terms say to ask an officer in Discord.
 - [ ] In the quarters' Guild tab, Ana changes the intro, sets the invite, adds an About section
   with two paragraphs, and saves. The tab says when it saved.
 - [ ] The home page's intro and "Join the Discord" link follow; a visitor sees the facts under the

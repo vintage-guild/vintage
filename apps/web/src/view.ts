@@ -32,15 +32,13 @@ export function currentView(): View {
 
 /**
  * The home page's sections, each with the lowest tier its reads allow. A section a session
- * can't read isn't shown at all, and neither is its header link: no placeholder copy for
- * people it isn't for. Recruiting is everyone's; About is only the storefront's
- * (`VISITOR_SECTIONS`).
+ * can't read isn't shown at all: no placeholder copy for people it isn't for. About is only
+ * the storefront's (`VISITOR_SECTIONS`); the open roles are on `/recruitment`.
  */
 export const HOME_SECTIONS = {
   about: 'public', // guild-profile-get
   raids: 'member', // raid-list, signup-list
   progress: 'public', // progress-get
-  recruiting: 'public', // recruiting-get
   news: 'member', // coordinator-log, poll-list
 } as const satisfies Record<string, Tier>;
 

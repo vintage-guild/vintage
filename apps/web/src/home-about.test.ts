@@ -131,31 +131,46 @@ describe('the home page’s public Progress section (#340)', () => {
     try {
       const section = page.shadowRoot?.querySelector('#progress');
       expect(section).not.toBeNull();
-      expect(section?.querySelector('.mono')?.textContent).toBe(`1 of ${LAUNCH_BOSS_COUNT} down`);
+      // The ledger follows the hero on its own: no section heading, no countdown callout.
+      expect(section?.querySelector('h2')).toBeNull();
+      expect(section?.querySelector('.callout')).toBeNull();
       const ledger = section?.querySelector('vintage-boss-ledger') as
         | (HTMLElement & { open: boolean; latest: { bossName: string } | null })
         | null;
       expect(ledger?.open).toBe(true);
       expect(ledger?.latest?.bossName).toBe('Chillhowl');
-      const bossesFigure = [
+      // The visitor hero shows each raid's progress in place of the countdowns.
+      const figures = [
         ...(page.shadowRoot?.querySelectorAll('vintage-hero vintage-figure') ?? []),
-      ].find((el) => el.getAttribute('caption') === 'bosses down');
-      expect(bossesFigure?.getAttribute('value')).toBe('1');
+      ].map((el) => [
+        el.getAttribute('caption'),
+        el.getAttribute('value'),
+        el.getAttribute('unit'),
+      ]);
+      expect(figures.slice(0, 3)).toEqual(
+        LAUNCH_RAIDS.map((raid) => [
+          raid.name,
+          raid.id === 'barrow-deeps' ? '1' : '0',
+          `/ ${raid.bosses.length}`,
+        ]),
+      );
+      expect(figures.some(([caption]) => caption?.startsWith('to '))).toBe(false);
     } finally {
       page.remove();
     }
   });
 });
 
-describe('the home page without its roster section', () => {
-  it('sends visitors to /roster from the recruiting band, not to a home section', async () => {
+describe('the home page without its roster or recruiting sections', () => {
+  it('sends visitors to /recruitment for the open roles, not to a home section', async () => {
     client();
     const page = await mountHome();
     try {
-      const link = page.shadowRoot?.querySelector('#recruiting a[href="/roster"]');
-      expect(link).not.toBeNull();
-      expect(link?.hasAttribute('data-section-link')).toBe(false);
+      expect(page.shadowRoot?.querySelector('#recruiting')).toBeNull();
       expect(page.shadowRoot?.querySelector('#roster')).toBeNull();
+      const apply = page.shadowRoot?.querySelector('[slot="actions"] a.primary');
+      expect(apply?.getAttribute('href')).toBe('/recruitment');
+      expect(apply?.hasAttribute('data-section-link')).toBe(false);
     } finally {
       page.remove();
     }

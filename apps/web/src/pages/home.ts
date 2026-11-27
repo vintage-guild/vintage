@@ -32,7 +32,6 @@ import {
 } from '@vintage/raids/contract';
 import {
   type AboutSection,
-  type ClassNeed,
   type GuildProfile,
   type Recruiting,
   STARTER_PROFILE,
@@ -47,22 +46,12 @@ import {
   type RosterMember,
   ruleWords,
   type SignupCounts,
-  titleCase,
   type Unsubscribe,
   watchCommand,
 } from '@vintage/ui-kit';
 import { characterLabel } from '../characters';
-import { classIcon } from '../class-icons';
 import { ART } from '../content/art';
-import {
-  daysUntil,
-  formatMonthDay,
-  formatTime,
-  formatWeekday,
-  LAUNCH_AT,
-  preferredTimeZone,
-  RAIDS_OPEN_AT as RAIDS_OPEN_ISO,
-} from '../dates';
+import { daysUntil, formatMonthDay, formatTime, formatWeekday, preferredTimeZone } from '../dates';
 import { paragraphs, readGuildProfile } from '../guild-profile';
 import { type PollCardModel, type PollGet, pollCardModel } from '../polls';
 import { raidHref } from '../raids';
@@ -76,6 +65,7 @@ import {
   watchSections,
 } from '../site-context';
 import { canSignUp, currentView, type HomeSection, sectionsFor, type View } from '../view';
+import { buttonStyles } from './button-styles';
 import { pageStyles } from './page-styles';
 
 /** How far ahead the calendar looks. */
@@ -103,12 +93,11 @@ const players = (e: RaidEvent) => {
   return kindOf(e) === 'raid' ? size : `${size} · ${KIND_LABELS[kindOf(e)]}`;
 };
 
-/** "Warrior, Priest, or Shaman": the classes the band marks high, for the members' one-liner. */
-function highNeeds(band: Recruiting): string {
-  const names = band.needs.filter((n) => n.need === 'high').map((n) => titleCase(n.wowClass));
-  return names.length <= 1
-    ? (names[0] ?? 'raider')
-    : `${names.slice(0, -1).join(', ')}, or ${names.at(-1)}`;
+/** One raid in the visitor hero: bosses down of its total. */
+interface RaidFigure {
+  name: string;
+  down: number;
+  total: number;
 }
 
 /** What a member's answer for the next raid reads as in the hero's figure. */
@@ -144,7 +133,7 @@ const template = html<Page>`
     data-section-eyebrow=""
     data-section-title=""
     data-section-action="${(x) => (x.view === 'visitor' ? 'Apply to raid' : 'Sign up')}"
-    data-section-href="${(x) => (x.view === 'visitor' ? '/#recruiting' : '/#raids')}"
+    data-section-href="${(x) => (x.view === 'visitor' ? '/recruitment' : '/#raids')}"
   >
     ${when(
       (x) => x.view === 'visitor',
@@ -166,16 +155,17 @@ const template = html<Page>`
     )}
     <p slot="standfirst" ?data-pending="${(x) => !x.guild}">${(x) => x.profile.intro}</p>
     <div slot="actions">
-      <a class="btn primary" href="/#recruiting" data-section-link="recruiting">Apply to raid</a>
-      <a class="btn" href="${(x) => x.discordHref}" data-section-link="${(x) => (x.profile.discordInvite ? '' : 'recruiting')}" rel="noopener">Join the Discord</a>
+      <a class="btn primary" href="/recruitment">Apply to raid</a>
+      <a class="btn" href="${(x) => x.discordHref}" rel="noopener">Join the Discord</a>
     </div>
     ${when(
       (x) => x.view === 'visitor',
       html<Page>`
         <div slot="figures">
-          <vintage-figure value="${(x) => x.daysToLaunch}" unit="days" caption="to launch · Wed Nov 4"></vintage-figure>
-          <vintage-figure value="${(x) => x.daysToRaids}" unit="days" caption="to raids · Wed Dec 9"></vintage-figure>
-          <vintage-figure value="${(x) => x.bossesDown}" unit="/ ${(x) => x.bossTotal}" caption="bosses down"></vintage-figure>
+          ${repeat(
+            (x) => x.raidFigures,
+            html<RaidFigure>`<vintage-figure value="${(r) => r.down}" unit="/ ${(r) => r.total}" caption="${(r) => r.name}"></vintage-figure>`,
+          )}
           ${when(
             (x) => x.memberCount !== null,
             html<Page>`<vintage-figure value="${(x) => x.memberCountText}" caption="${(x) => x.memberCaption}" tone="good"></vintage-figure>`,
@@ -313,32 +303,12 @@ const template = html<Page>`
         class="sec"
         id="progress"
         data-section
-        data-section-eyebrow="Progress"
-        data-section-title="Three raids, twenty-two bosses"
+        data-section-eyebrow=""
+        data-section-title="Raid progress"
         data-section-action="See the ledger"
-        aria-labelledby="h-progress"
+        aria-label="Raid progress"
       >
         <div class="wrap">
-          <header>
-            <div class="lead"><span class="eyebrow">Progress</span><h2 id="h-progress">Three raids, twenty-two bosses</h2></div>
-            <span class="mono">${(x) => x.progressNote}</span>
-          </header>
-          ${when(
-            (x) => !x.ledgerOpen,
-            html<Page>`
-              <div class="callout">
-                <div>
-                  <span class="eyebrow">Opens Wednesday, December 9</span>
-                  <p class="big">${(x) => x.daysToRaids} days until the first pull.</p>
-                </div>
-                <p class="muted">
-                  Barrow Deeps for ten, Hyjal Summit for twenty, Onyxia for forty. Each slot below
-                  is a boss; first kills get dated here. Onyxia needs the Drakefire Amulet chain per
-                  character and fire resistance, so the attunement runs start in November.
-                </p>
-              </div>
-            `,
-          )}
           <vintage-boss-ledger
             :raids="${(x) => x.ledgerRaids}"
             :latest="${(x) => x.latestKill}"
@@ -381,71 +351,6 @@ const template = html<Page>`
             )}
           </div>
           <p class="actions"><a class="btn" href="/about">More about the guild</a></p>
-        </div>
-      </section>
-    `,
-  )}
-
-  ${when(
-    (x) => x.view === 'visitor',
-    html<Page>`
-      <section
-        class="sec cream"
-        id="recruiting"
-        data-section
-        data-section-eyebrow="Recruiting"
-        data-section-title="Open roles"
-        data-section-action="Apply to raid"
-        aria-labelledby="h-recruiting"
-      >
-        <img class="arms" src="${ART.recruiting}" alt="" loading="lazy" decoding="async" />
-        <div class="wrap" ?data-pending="${(x) => !x.recruiting}">
-          <div class="two recruit">
-            <div class="lead">
-              <span class="eyebrow">${(x) => x.recruitingEyebrow}</span>
-              <h2 id="h-recruiting">${(x) => x.band.headline}</h2>
-              <p class="pitch">${(x) => x.band.pitch}</p>
-              <p class="actions">
-                ${when(
-                  (x) => x.profile.discordInvite,
-                  html<Page>`<a class="btn primary" href="${(x) => x.profile.discordInvite ?? ''}" rel="noopener">Join the Discord</a>`,
-                )}
-                <a class="btn ${(x) => (x.profile.discordInvite ? '' : 'primary')}" href="/apply">Apply to raid</a>
-                <a class="btn" href="/about">How we raid</a>
-                <a class="btn" href="/roster">Who’s in</a>
-              </p>
-              ${when(
-                (x) => !x.profile.discordInvite,
-                html`<p class="muted small">Discord invites come from an officer for now; the public link lands here once the GM sets it.</p>`,
-              )}
-            </div>
-            <table class="needs">
-              <thead><tr><th>Class</th><th>Specs</th><th class="end">Need</th></tr></thead>
-              <tbody>
-                ${repeat(
-                  (x) => x.band.needs,
-                  html<ClassNeed>`
-                    <tr>
-                      <td class="cls">
-                        <img
-                          src="${(n) => classIcon(n.wowClass)}"
-                          alt=""
-                          width="28"
-                          height="28"
-                          loading="lazy"
-                          decoding="async"
-                          referrerpolicy="no-referrer"
-                        />
-                        <span>${(n) => titleCase(n.wowClass)}</span>
-                      </td>
-                      <td class="muted">${(n) => n.specs}</td>
-                      <td class="end"><span class="need ${(n) => n.need}">${(n) => n.need}</span></td>
-                    </tr>
-                  `,
-                )}
-              </tbody>
-            </table>
-          </div>
         </div>
       </section>
     `,
@@ -533,27 +438,6 @@ const template = html<Page>`
       </section>
     `,
   )}
-  ${when(
-    (x) => x.view !== 'visitor',
-    html<Page>`
-      <section
-        class="sec cream slim"
-        id="recruiting"
-        data-section
-        data-section-eyebrow="Recruiting"
-        data-section-title="Open roles"
-        aria-labelledby="h-recruiting"
-      >
-        <div class="wrap" ?data-pending="${(x) => !x.recruiting}">
-          <div class="lead">
-            <span class="eyebrow">${(x) => x.recruitingEyebrow}</span>
-            <h2 id="h-recruiting">${(x) => x.band.headline}</h2>
-          </div>
-          <p class="ask">Know a <b>${(x) => highNeeds(x.band)}</b> who wants a home for Forever? Send them this site: signed out, the front page has the open roles and how to join.</p>
-        </div>
-      </section>
-    `,
-  )}
 `;
 
 /** One line of the coordinator feed: an action, in words. */
@@ -611,6 +495,7 @@ function summarize(row: RaidRow): string {
 
 const styles = css`
   ${pageStyles}
+  ${buttonStyles}
 
   :host {
     padding: 0;
@@ -643,39 +528,6 @@ const styles = css`
     background: color-mix(in srgb, var(--color-surface-canvas) 55%, transparent);
   }
 
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-xs);
-    padding: 0.7rem 1.1rem;
-    border-radius: 0.2rem;
-    border: var(--border-width-thin) solid var(--color-border-strong);
-    background: color-mix(in srgb, var(--color-surface-canvas) 55%, transparent);
-    color: var(--color-text-primary);
-    font-weight: var(--font-weight-bold);
-    font-size: var(--font-size-sm);
-    text-decoration: none;
-    box-shadow: var(--shadow-edge);
-  }
-
-  /* Crisp, not glowing: a solid darker rim, a one-pixel highlight inside the top, and a
-     one-pixel drop. No blur anywhere, so the edge stays sharp. */
-  .btn.primary {
-    border-color: color-mix(in srgb, var(--button-primary-bg) 55%, black);
-    background: var(--button-primary-bg);
-    color: var(--button-primary-text);
-    box-shadow: var(--shadow-button);
-  }
-
-  .btn:hover {
-    border-color: var(--color-text-secondary);
-  }
-
-  .btn.primary:hover {
-    background: var(--color-verdigris-400);
-    border-color: color-mix(in srgb, var(--color-verdigris-400) 55%, black);
-  }
-
   [slot='actions'] {
     display: flex;
     flex-wrap: wrap;
@@ -701,28 +553,6 @@ const styles = css`
     border-block-start: var(--border-width-thin) solid var(--color-border-default);
     font-size: var(--font-size-sm);
     color: var(--color-text-secondary);
-  }
-
-  .callout {
-    display: grid;
-    grid-template-columns: minmax(14rem, 1fr) 2fr;
-    gap: var(--space-md);
-    align-items: center;
-    padding: var(--space-md);
-    border-radius: 0.4rem;
-    border: var(--border-width-thin) solid var(--color-border-default);
-    border-inline-start: var(--border-width-thick) solid var(--color-accent-primary);
-    background: var(--color-surface-raised);
-    box-shadow: var(--shadow-raised);
-  }
-
-  .callout .big {
-    margin: 0;
-    font-family: var(--font-family-display);
-    font-weight: var(--font-weight-heavy);
-    font-size: var(--font-size-xl);
-    line-height: 1.1;
-    letter-spacing: var(--font-tracking-tight);
   }
 
   .wrap {
@@ -883,100 +713,11 @@ const styles = css`
     max-inline-size: none;
   }
 
-  /* Members get recruiting as one line at the foot of the page: the ask, not the pitch. */
-  .sec.cream.slim {
-    padding-block: var(--space-lg);
-  }
-
-  .sec.cream.slim .wrap {
-    display: grid;
-    grid-template-columns: 1.3fr 1fr;
-    gap: var(--space-sm) var(--space-xl);
-    align-items: end;
-  }
-
-  .sec.cream.slim h2 {
-    font-size: clamp(1.4rem, 2.4vw, 2rem);
-    line-height: 1.1;
-  }
-
-  .sec.cream.slim .ask {
-    margin: 0;
-    max-inline-size: 46ch;
-    color: var(--color-leather-700);
-  }
-
-  .sec.cream.slim .ask b {
-    color: var(--color-text-inverse);
-  }
-
-  /* Until recruiting-get or guild-profile-get answers, the text keeps its place but shows nothing. */
+  /* Until guild-profile-get answers, the text keeps its place but shows nothing. */
   .wrap[data-pending],
   [slot='standfirst'][data-pending],
   .how[data-pending] {
     visibility: hidden;
-  }
-
-  /* the cream band: recruiting, on the inverse surface tokens */
-  .sec.cream {
-    position: relative;
-    overflow: hidden;
-    background: var(--color-surface-inverse);
-    color: var(--color-text-inverse);
-    border-block-start: 0;
-    box-shadow:
-      inset 0 12px 30px rgb(0 0 0 / 8%),
-      inset 0 -12px 30px rgb(0 0 0 / 6%);
-  }
-
-  .sec.cream h2 {
-    color: var(--color-text-inverse);
-    font-size: clamp(2rem, 4vw, 3.4rem);
-    line-height: 1.02;
-  }
-
-  .sec.cream .eyebrow,
-  .sec.cream .muted,
-  .sec.cream .pitch {
-    color: var(--color-leather-700);
-  }
-
-  .sec.cream .lead .eyebrow {
-    color: var(--color-rose-700);
-  }
-
-  .two.recruit {
-    grid-template-columns: 1fr 1.1fr;
-    align-items: start;
-  }
-
-  /* The shield and staff stand at the band's right edge: in the margin on wide screens, behind
-     the needs table on narrower ones. Multiply keeps the ink in the paper. */
-  .sec.cream .wrap {
-    position: relative;
-    z-index: 1;
-  }
-
-  .arms {
-    position: absolute;
-    inset-block-end: 0;
-    inset-inline-end: max(0px, calc((100% - 80rem) / 2 - 9rem));
-    block-size: 94%;
-    inline-size: auto;
-    opacity: 0.26;
-    mix-blend-mode: multiply;
-    pointer-events: none;
-    user-select: none;
-  }
-
-  .two.recruit .lead {
-    display: grid;
-    gap: var(--space-sm);
-  }
-
-  .pitch {
-    margin: 0;
-    max-inline-size: 52ch;
   }
 
   .about-lead {
@@ -1001,93 +742,6 @@ const styles = css`
     margin: 0;
     max-inline-size: 60ch;
     text-wrap: pretty;
-  }
-
-  .sec.cream .btn.primary {
-    background: var(--color-verdigris-700);
-    border-color: color-mix(in srgb, var(--color-verdigris-700) 60%, black);
-    color: var(--color-parchment-50);
-    box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 22%),
-      0 1px 0 rgb(0 0 0 / 25%);
-  }
-
-  .needs {
-    inline-size: 100%;
-    border-collapse: collapse;
-    font-size: var(--font-size-sm);
-  }
-
-  .needs th,
-  .needs td {
-    text-align: start;
-    padding-block: 0.6rem;
-    border-block-end: var(--border-width-thin) solid var(--color-border-inverse);
-    vertical-align: top;
-  }
-
-  .needs th {
-    font-family: var(--font-family-mono);
-    font-size: var(--font-size-xs);
-    font-weight: var(--font-weight-medium);
-    letter-spacing: var(--font-tracking-wider);
-    text-transform: uppercase;
-    color: var(--color-leather-700);
-  }
-
-  /* Blizzard's class icon (Wowhead's CDN, as the bot uses), framed like an in-game icon. */
-  .needs .cls {
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-    font-weight: var(--font-weight-bold);
-  }
-
-  .needs .cls img {
-    flex: none;
-    inline-size: 1.75rem;
-    block-size: 1.75rem;
-    border-radius: 0.3rem;
-    border: var(--border-width-thin) solid color-mix(in srgb, var(--color-leather-900) 55%, transparent);
-    box-shadow: 0 1px 2px var(--color-shadow-soft);
-  }
-
-  .needs td {
-    vertical-align: middle;
-  }
-
-  .needs .end {
-    text-align: end;
-    white-space: nowrap;
-  }
-
-  .needs .cls {
-    font-weight: var(--font-weight-bold);
-  }
-
-  .need {
-    display: inline-block;
-    padding: 0.2rem 0.55rem;
-    border-radius: 0.2rem;
-    font-family: var(--font-family-mono);
-    font-size: var(--font-size-xs);
-    letter-spacing: var(--font-tracking-wider);
-    text-transform: uppercase;
-  }
-
-  .need.high {
-    background: var(--color-verdigris-700);
-    color: var(--color-parchment-50);
-  }
-
-  .need.medium {
-    background: var(--color-parchment-200);
-    color: var(--color-text-inverse);
-  }
-
-  .need.closed {
-    border: var(--border-width-thin) solid var(--color-border-inverse);
-    color: var(--color-leather-700);
   }
 
   /* the coordinator feed, with the raven as its byline */
@@ -1152,19 +806,8 @@ const styles = css`
   }
 
   @media (max-width: 62rem) {
-    .two,
-    .two.recruit,
-    .callout,
-    .sec.cream.slim .wrap {
+    .two {
       grid-template-columns: 1fr;
-    }
-
-    /* Stacked, the lead comes first; the arms drop behind the table, fainter. */
-    .arms {
-      inset-block: auto 0;
-      inset-inline-end: -2rem;
-      block-size: 48%;
-      opacity: 0.16;
     }
 
     .mascot {
@@ -1185,8 +828,9 @@ const styles = css`
 `;
 
 /**
- * The home page: the hero, the next-raid section, and the progression ledger; recruiting and the
- * coordinator feed follow (docs/features/proposed/home-page). The full roster lives at `/roster`.
+ * The home page: the hero, the next-raid section, and the progression ledger; the coordinator
+ * feed follows (docs/features/proposed/home-page). The full roster lives at `/roster` and the
+ * open roles at `/recruitment`.
  * Everything shown comes through the command client: `member-list`, `raid-list`, `signup-list`,
  * `character-list`, `progress-get`.
  */
@@ -1214,8 +858,6 @@ export class Page extends FASTElement {
   /** `schedule-list`: the raid nights and their signup timings. */
   @observable schedules: Schedule[] = [];
   @observable schedulesLoaded = false;
-  /** `progress-get` answered with an error: show the empty ledger. */
-  @observable progressFailed = false;
   /** `raid-list` was refused (visitors): the calendar, the counts, and the log say so. */
   @observable raidsFailed = false;
   /** `poll-list` was refused (visitors): the poll card says polls are for members. */
@@ -1294,14 +936,6 @@ export class Page extends FASTElement {
   private nextRaidSubs: Unsubscribe[] = [];
   private watchedNextId: string | null = null;
   private nextSignups: SignupRow[] = [];
-
-  get daysToLaunch(): string {
-    return String(daysUntil(LAUNCH_AT));
-  }
-
-  get daysToRaids(): string {
-    return String(daysUntil(RAIDS_OPEN_ISO));
-  }
 
   get memberCountText(): string {
     return this.memberCount === null ? '—' : String(this.memberCount);
@@ -1422,6 +1056,15 @@ export class Page extends FASTElement {
     return this.progress?.total ?? LAUNCH_BOSS_COUNT;
   }
 
+  /** The visitor hero's figures: bosses down in each raid. */
+  get raidFigures(): RaidFigure[] {
+    return this.ledgerRaids.map((raid) => ({
+      name: raid.name,
+      down: raid.bosses.filter((boss) => boss.firstKillAt !== null).length,
+      total: raid.bosses.length,
+    }));
+  }
+
   get meId(): string {
     return currentSession()?.memberId ?? '';
   }
@@ -1436,13 +1079,6 @@ export class Page extends FASTElement {
     return `${name ?? zone} (your profile)`;
   }
 
-  @volatile
-  get progressNote(): string {
-    if (!this.progress) return this.progressFailed ? 'couldn’t load progress' : '';
-    if (!this.progress.open) return '';
-    return `${this.progress.killed} of ${this.progress.total} down`;
-  }
-
   /** The recruiting band as officers last saved it, or the starter text. */
   @volatile
   get band(): Recruiting {
@@ -1453,12 +1089,6 @@ export class Page extends FASTElement {
   @volatile
   get highNeedCount(): number {
     return this.band.needs.filter((n) => n.need === 'high').length;
-  }
-
-  @volatile
-  get recruitingEyebrow(): string {
-    const at = this.band.updatedAt;
-    return at === null ? 'Recruiting' : `Recruiting · updated ${formatMonthDay(at)}`;
   }
 
   connectedCallback(): void {
@@ -1734,7 +1364,6 @@ export class Page extends FASTElement {
     this.main = characters.find((c) => c.isMain) ?? characters[0] ?? null;
   }
 
-  /** The recruiting band. A failed read shows the starter text rather than an empty band. */
   /** The guild's schedules, for the raid nights and signup timings under the calendar. */
   async loadSchedules(): Promise<void> {
     const result = await getCommandClient().read<Schedule[]>('schedule-list');
@@ -1766,12 +1395,13 @@ export class Page extends FASTElement {
     return this.guild ?? STARTER_PROFILE;
   }
 
-  /** Where "Join the Discord" goes: the invite, or the recruiting band that says how to get one. */
+  /** Where "Join the Discord" goes: the invite, or the Recruitment page that says how to get one. */
   @volatile
   get discordHref(): string {
-    return this.profile.discordInvite ?? '/#recruiting';
+    return this.profile.discordInvite ?? '/recruitment';
   }
 
+  /** The recruiting band, for the hero's "roles we need most". A failed read shows the starter. */
   async loadRecruiting(): Promise<void> {
     const result = await getCommandClient().read<Recruiting>('recruiting-get');
     this.recruiting = result.success && result.data ? result.data : STARTER_RECRUITING;
@@ -1781,7 +1411,6 @@ export class Page extends FASTElement {
   async loadProgress(): Promise<void> {
     const result = await getCommandClient().read<Progress>('progress-get');
     this.progress = result.success ? (result.data ?? null) : null;
-    this.progressFailed = !result.success;
   }
 
   /** The calendar, soonest first, plus the role counts for the next raid. */

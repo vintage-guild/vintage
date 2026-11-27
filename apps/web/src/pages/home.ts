@@ -267,6 +267,7 @@ const template = html<Page>`
                     (x) => x.nextRosterOk,
                     html<Page>`
                       <vintage-raid-post
+                        slot="roster"
                         me="${(x) => x.meId}"
                         :signups="${(x) => x.nextRows}"
                         :targets="${(x) => x.nextTargets}"

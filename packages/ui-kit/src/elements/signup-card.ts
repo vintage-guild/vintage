@@ -350,6 +350,7 @@ const template = html<VintageSignupCard>`
         ${(x) => x.statusText}
       </p>
     </div>
+    <slot name="roster"></slot>
   </article>
 `;
 
@@ -661,6 +662,7 @@ const styles = css`
  * @fires signup-changed - The server accepted the answer, character, spec, role, or flex roles;
  *   `detail` is the stored signup.
  * @slot - Extra content between the time and the counts, such as the raid's notes.
+ * @slot roster - Content after the member's answer, such as who else is coming.
  * @csspart card - The surface.
  * @csspart eyebrow - The label above the title.
  * @csspart title - The raid's name.

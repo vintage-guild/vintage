@@ -102,17 +102,24 @@ const labelFor = (tier: PreviewTier) => LABELS[tier];
 
 /**
  * Each command's tier, from the same module command lists apps/api registers (the manifest is
- * built from them too). Loaded only when previewing.
+ * built from them too). Loaded only when previewing. A command missing here is refused as
+ * officer-only, so every module apps/api registers belongs in this list; preview.test.ts checks
+ * it against commands.manifest.json.
  */
 export async function commandTiers(): Promise<Record<string, Tier>> {
   const lists = await Promise.all([
     import('@vintage/identity/commands').then((m) => m.identityCommands),
     import('@vintage/raids/commands').then((m) => m.raidsCommands),
-    import('@vintage/loot/commands').then((m) => m.lootCommands),
     import('@vintage/coordinator/commands').then((m) => m.coordinatorCommands),
     import('@vintage/polls/commands').then((m) => m.pollsCommands),
     import('@vintage/progress/commands').then((m) => m.progressCommands),
     import('@vintage/site/commands').then((m) => m.siteCommands),
+    import('@vintage/agent/commands').then((m) => m.agentCommands),
+    import('@vintage/applications/commands').then((m) => m.applicationsCommands),
+    import('@vintage/insights/commands').then((m) => m.insightsCommands),
+    import('@vintage/loot/commands').then((m) => m.lootCommands),
+    import('@vintage/armory/commands').then((m) => m.armoryCommands),
+    import('@vintage/wishlist/commands').then((m) => m.wishlistCommands),
   ]);
   return Object.fromEntries(lists.flat().map((c) => [c.name, c.tier]));
 }

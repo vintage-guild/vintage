@@ -100,13 +100,31 @@ def test_registers_the_module_one_line_per_shared_file(repo: Path) -> None:
     assert not any(step.startswith((".github", "commitlint")) for step in result.next_steps)
 
 
+def _plan(repo: Path, name: str) -> None:
+    """List a module that hasn't shipped: a commit scope and an issue Area, no CODEOWNERS line."""
+    commitlint = repo / "commitlint.config.mjs"
+    lines = commitlint.read_text(encoding="utf-8").splitlines(keepends=True)
+    start = next(i for i, ln in enumerate(lines) if ln.strip() == "// modules")
+    indent = lines[start][: len(lines[start]) - len(lines[start].lstrip())]
+    lines.insert(start + 1, f"{indent}'{name}',\n")
+    commitlint.write_text("".join(lines), encoding="utf-8")
+    for template in SHARED[3:]:
+        path = repo / template
+        text = path.read_text(encoding="utf-8")
+        assert " guild-kit," in text, template
+        path.write_text(text.replace(" guild-kit,", f" {name}, guild-kit,"), encoding="utf-8")
+
+
 def test_skips_files_that_already_list_the_module(repo: Path) -> None:
-    # A planned module: already a commit scope and an issue Area, with no CODEOWNERS line yet.
-    # When it ships, pick another such name (loot was this until modules/loot landed).
-    result = scaffold_module(repo, "wishlist")
+    # The test plans the module itself, so a real module shipping can't break it (wishlist did).
+    _plan(repo, "raffle")
+    before = {relative: (repo / relative).read_text(encoding="utf-8") for relative in SHARED}
+    result = scaffold_module(repo, "raffle")
     for relative in ["commitlint.config.mjs", *SHARED[3:]]:
-        assert _changes(repo, relative) == ([], []), relative
-    assert _changes(repo, ".github/CODEOWNERS") == ([], ["modules/wishlist/ @Falkicon"])
+        assert (repo / relative).read_text(encoding="utf-8") == before[relative], relative
+    codeowners = (repo / ".github/CODEOWNERS").read_text(encoding="utf-8").splitlines()
+    added = [ln for ln in codeowners if ln not in before[".github/CODEOWNERS"].splitlines()]
+    assert added == ["modules/raffle/ @Falkicon"]
     assert not any(step.startswith((".github", "commitlint")) for step in result.next_steps)
 
 

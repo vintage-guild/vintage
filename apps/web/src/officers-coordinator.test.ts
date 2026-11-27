@@ -52,7 +52,7 @@ const CONFIG = {
 
 type Page = HTMLElement & {
   loadCoordinator(): Promise<void>;
-  coordinatorEntries: { eventId: string; raidName: string }[];
+  coordinatorEntries: { eventId: string; raidName: string; who?: string | null }[];
   coordinatorConfig: { paused: boolean } | null;
   coordinatorError: string;
 };
@@ -73,8 +73,19 @@ describe('the Bot tab’s reads', () => {
       status: 'sent',
       detail: null,
       at: 200,
+      who: null,
     });
     expect(coordinatorEntry(action({ finishedAt: null }), 'Raid night').at).toBe(100);
+  });
+
+  it('names who a DM went to from the member list', () => {
+    const names = new Map([['m1', 'Aeryn']]);
+    const dm = action({ rule: 'dm-24h', target: 'm1' });
+    expect(coordinatorEntry(dm, 'Raid night', names).who).toBe('Aeryn');
+    expect(coordinatorEntry(action(), 'Raid night', names).who).toBeNull();
+    expect(
+      coordinatorEntry(action({ rule: 'dm-24h', target: 'gone' }), 'Raid night', names).who,
+    ).toBeNull();
   });
 
   it('logs the upcoming raids and last week’s, each once', async () => {
@@ -106,10 +117,21 @@ describe('the Bot tab’s reads', () => {
             data: [{ event: event('r0', 'Last Wednesday') }, { event: event('r1', 'Raid night') }],
           };
         }
+        if (name === 'member-list') {
+          return { success: true, data: [{ id: 'm1', displayName: 'Aeryn' }] };
+        }
         asked.push(input?.eventId ?? '');
         return {
           success: true,
-          data: [action({ id: `a-${input?.eventId}`, eventId: input?.eventId ?? '' })],
+          data: [
+            action({ id: `a-${input?.eventId}`, eventId: input?.eventId ?? '' }),
+            action({
+              id: `d-${input?.eventId}`,
+              eventId: input?.eventId ?? '',
+              rule: 'dm-24h',
+              target: 'm1',
+            }),
+          ],
         };
       }) as never,
       run: async () => ({ success: true }),
@@ -117,10 +139,11 @@ describe('the Bot tab’s reads', () => {
     const page = document.createElement('vintage-officers-page') as Page;
     await page.loadCoordinator();
     expect(asked.sort()).toEqual(['r0', 'r1']);
-    expect(page.coordinatorEntries.map((e) => e.raidName).sort()).toEqual([
+    expect([...new Set(page.coordinatorEntries.map((e) => e.raidName))].sort()).toEqual([
       'Last Wednesday',
       'Raid night',
     ]);
+    expect(page.coordinatorEntries.filter((e) => e.who === 'Aeryn')).toHaveLength(2);
     expect(page.coordinatorConfig?.paused).toBe(false);
   });
 

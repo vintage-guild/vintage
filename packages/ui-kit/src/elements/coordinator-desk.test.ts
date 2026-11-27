@@ -129,6 +129,26 @@ describe('vintage-coordinator-desk', () => {
     expect(lines[1]).toContain('Posted the signups · Raid night');
   });
 
+  it('names who a DM went to', async () => {
+    const el = await desk();
+    el.entries = [
+      {
+        id: 'd1',
+        eventId: 'r1',
+        raidName: 'Raid night',
+        rule: 'dm-24h',
+        status: 'sent',
+        detail: null,
+        at: Date.UTC(2026, 10, 3, 1),
+        who: 'Aeryn',
+      },
+    ];
+    await settle();
+    expect(text($(el, '.log .entry .what'))).toBe(
+      'Sent reminder DMs (24 hours before) · Raid night · Aeryn',
+    );
+  });
+
   it('names paused and not-set-up, and only runs a check when running', async () => {
     const paused = await desk({ config: config({ paused: true }) });
     expect(text($(paused, '#h-state'))).toBe('Vintage is paused');

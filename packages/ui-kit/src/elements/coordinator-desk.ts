@@ -49,6 +49,8 @@ export interface CoordinatorDeskEntry {
   detail: string | null;
   /** When it finished, or when it was claimed if it never did. */
   at: number;
+  /** For a DM, the member it went to; null otherwise or when they're not on the rolls. */
+  who?: string | null;
 }
 
 /** The ranks Random can chase, in guild order (identity's `GUILD_RANKS`). */
@@ -393,7 +395,7 @@ export class VintageCoordinatorDesk extends FASTElement {
         return {
           entry,
           when: formatWhen(entry.at, this.zone),
-          what: `${ruleWords(entry.rule)}${lead ? ` (${lead})` : ''} · ${entry.raidName}`,
+          what: `${ruleWords(entry.rule)}${lead ? ` (${lead})` : ''} · ${entry.raidName}${entry.who ? ` · ${entry.who}` : ''}`,
           flag: entry.status === 'sent' ? '' : entry.status,
         };
       });

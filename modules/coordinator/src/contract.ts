@@ -84,7 +84,8 @@ export function defaultConfig(guildId: string): CoordinatorConfig {
 }
 
 /**
- * What triggered an action: `post`, `remind-72h`, `dm-24h`, `digest`, `tentative-check`, `lock`, `final-roster`,
+ * What triggered an action: `post`, `remind-72h`, `dm-24h`, `digest`, `tentative-check`,
+ * `tentative-answer` (logged when the member answers that DM), `lock`, `final-roster`,
  * `import-string`, `server-event`, `server-event-cancel`, or `raid-summary`. Together with the event and target it is the idempotency key.
  */
 export type CoordinatorRule = string;
@@ -131,6 +132,8 @@ export type CoordinatorCommandName = (typeof COORDINATOR_COMMANDS)[number];
  * `no` answers Absent, and `unsure` leaves the signup Tentative (apps/api/src/discord-tentative.ts).
  */
 export const TENTATIVE_CHECK_PREFIX = 'tentative-check';
+/** The log rule for a member's answer to the tentative-check DM; its detail says what they chose. */
+export const TENTATIVE_ANSWER_RULE = 'tentative-answer';
 export const TENTATIVE_ANSWERS = ['yes', 'no', 'unsure'] as const;
 export type TentativeAnswer = (typeof TENTATIVE_ANSWERS)[number];
 

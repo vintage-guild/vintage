@@ -40,6 +40,11 @@ const RULE_WORDS: [prefix: string, done: string, todo: string][] = [
     'Asked Tentative signups if they can make it',
     'Ask Tentative signups if they can make it',
   ],
+  [
+    'tentative-answer',
+    'Got an answer to the Tentative check',
+    'Get an answer to the Tentative check',
+  ],
   ['lock', 'Locked the roster', 'Lock the roster'],
   ['final', 'Posted the final roster', 'Post the final roster'],
   [

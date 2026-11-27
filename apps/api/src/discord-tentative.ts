@@ -3,6 +3,7 @@
 //   button  tentative-check:<eventId>:yes     → signup-set Going (accepted), the Tentative reason cleared
 //   button  tentative-check:<eventId>:no      → signup-set Absent (declined), the reason kept
 //   button  tentative-check:<eventId>:unsure  → no change; they stay Tentative
+// Each answer is logged as a `tentative-answer` action, so the Bot tab's log shows it.
 // The click comes from a DM, so there is no guild id to check: the clicking Discord user must be a
 // known member, and the answer only ever changes their own signup. The DM is rewritten with the
 // result and loses its buttons. Pure over ports, so Convex (convex/discord.ts) and tests run the
@@ -40,6 +41,8 @@ export interface TentativePorts {
   ): Promise<CommandResult<Signup>>;
   /** A signup changed: refresh the post and the leads' change feed soon. */
   afterChange(): Promise<void>;
+  /** Log the member's answer in the coordinator's log (`tentative-answer`), with what they chose. */
+  logAnswer(eventId: string, memberId: string, detail: string): Promise<void>;
 }
 
 const ANSWERS: ReadonlySet<string> = new Set(TENTATIVE_ANSWERS);
@@ -110,6 +113,7 @@ export async function handleTentativeInteraction(
   if ('reply' in found) return found.reply;
   const { member, event, signup } = found;
   if (parsed.answer === 'unsure') {
+    await ports.logAnswer(event.id, member.id, 'Still doesn’t know, stays Tentative');
     return done(
       `OK, you're still Tentative for ${event.name}. Change your answer on the signup post once you know.`,
     );
@@ -137,6 +141,11 @@ export async function handleTentativeInteraction(
   }
   await ports.afterChange();
   const now = STATUS_WORDS[result.data.status];
+  await ports.logAnswer(
+    event.id,
+    member.id,
+    going ? `Can make it, now ${now}` : 'Can’t make it, now Absent',
+  );
   return done(
     going
       ? `Thanks! You're ${now} for ${event.name} on ${result.data.characterName}.`

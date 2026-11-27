@@ -14,6 +14,7 @@ import {
   createMemoryRosterStore,
 } from '@vintage/armory/testing';
 import { runTick } from '@vintage/coordinator/commands';
+import { TENTATIVE_ANSWER_RULE } from '@vintage/coordinator/contract';
 import { createFakeDiscord, createMemoryCoordinatorStore } from '@vintage/coordinator/testing';
 import type { DecisionsPort } from '@vintage/decisions';
 import {
@@ -700,6 +701,21 @@ export function createHost(start = Date.UTC(2026, 9, 26, 16)) {
             CommandResult<Signup>
           >,
         afterChange: () => deps.scheduler.runTickNow(GUILD),
+        logAnswer: async (eventId, memberId, detail) => {
+          const at = clock.now();
+          const claim = await deps.coordinator.claimAction(
+            { guildId: GUILD, eventId, rule: TENTATIVE_ANSWER_RULE, target: memberId },
+            at,
+            0,
+          );
+          if (claim)
+            await deps.coordinator.completeAction(
+              GUILD,
+              claim.action.id,
+              { status: 'sent', detail },
+              at,
+            );
+        },
       },
     );
 

@@ -540,6 +540,9 @@ DM asking if I can make it, so I can answer with one button instead of finding t
   draft went out gets one DM before lock (not members who turned DMs off). **I can make it**
   answers Going, **I can't make it** answers Absent, **Still don't know** changes nothing; the
   DM loses its buttons once answered.
+- [x] The Bot tab's log has each of those DMs and each answer (`tentative-answer`), with what
+  the member chose: "Can make it, now Going", "Can’t make it, now Absent", or "Still doesn’t
+  know, stays Tentative".
 
 ### J80 · Rank a character's wishlist and feed loot council candidates
 **When** I want loot council to know which raid drops matter most to my character, **I (raider)

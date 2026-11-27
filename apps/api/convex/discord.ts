@@ -5,6 +5,8 @@
 // Autocomplete (`/vintage character` spec and name, #149; the raid in `/vintage event check-export`)
 // runs in `autocomplete`, a query: indexed reads, no writes, so it answers well inside Discord's
 // 3 seconds.
+
+import { TENTATIVE_ANSWER_RULE } from '@vintage/coordinator/contract';
 import type { Interaction } from '@vintage/discord-kit';
 import type { Caller, CommandResult } from '@vintage/guild-kit';
 import type { Character, Member } from '@vintage/identity/contract';
@@ -157,6 +159,21 @@ export const interaction = internalMutation({
       signupSet: (caller: Caller, input) =>
         runCommandAs(ctx, caller, 'signup-set', input) as Promise<CommandResult<Signup>>,
       afterChange: () => coordinatorScheduler(ctx).runTickNow(GUILD_ID),
+      logAnswer: async (eventId, memberId, detail) => {
+        const at = Date.now();
+        const claim = await coordinatorStore(ctx).claimAction(
+          { guildId: GUILD_ID, eventId, rule: TENTATIVE_ANSWER_RULE, target: memberId },
+          at,
+          0,
+        );
+        if (claim)
+          await coordinatorStore(ctx).completeAction(
+            GUILD_ID,
+            claim.action.id,
+            { status: 'sent', detail },
+            at,
+          );
+      },
     });
     if (tentative) return tentative;
 

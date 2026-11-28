@@ -71,7 +71,11 @@ describe('vintage-recruiting-desk', () => {
     const el = await desk();
     expect($<HTMLInputElement>(el, '#headline').value).toBe('Tanks wanted');
     expect($<HTMLTextAreaElement>(el, '#pitch').value).toBe('Be kind.');
-    expect(lines(el)).toEqual(['mage:ranged:any:medium', 'warrior:tank:protection:high']);
+    // Mage was saved with "any", from when this column held specs: it shows as no note.
+    expect(lines(el)).toEqual(['mage:ranged::medium', 'warrior:tank:protection:high']);
+    expect(
+      [...(el.shadowRoot?.querySelectorAll('.row.head span') ?? [])].map((s) => s.textContent),
+    ).toEqual(['Class', 'Role', 'Special notes', 'Demand', '']);
     const classes = [...rows(el)[0]!.querySelectorAll<HTMLOptionElement>('select.cls option')];
     expect(classes.map((o) => o.value)).toEqual([...CLASS_NAMES]);
     expect(shadowText(el)).toContain('Nobody has saved the band yet');
@@ -130,7 +134,7 @@ describe('vintage-recruiting-desk', () => {
       needs: [
         { wowClass: 'warrior', role: 'tank', specs: 'protection', need: 'high' },
         { wowClass: 'druid', role: 'healer', specs: 'restoration', need: 'high' },
-        { wowClass: 'druid', role: 'tank', specs: 'any', need: 'low' },
+        { wowClass: 'druid', role: 'tank', specs: '', need: 'low' },
       ],
     });
     expect(changed).toHaveBeenCalledOnce();

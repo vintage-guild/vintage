@@ -2,6 +2,7 @@ import { css, FASTElement, html, observable, repeat, when } from '@lushly-dev/fa
 import {
   type ClassNeed,
   type GuildProfile,
+  needNote,
   type Recruiting,
   STARTER_PROFILE,
   STARTER_RECRUITING,
@@ -37,7 +38,7 @@ const template = html<Page>`
         )}
       </div>
       <table class="needs">
-        <thead><tr><th>Class</th><th>Role</th><th>Specs</th><th class="end">Demand</th></tr></thead>
+        <thead><tr><th>Class</th><th>Role</th><th>Special notes</th><th class="end">Demand</th></tr></thead>
         <tbody>
           ${repeat(
             (x) => x.band.needs,
@@ -56,7 +57,7 @@ const template = html<Page>`
                   <span>${(n) => titleCase(n.wowClass)}</span>
                 </td>
                 <td class="role">${(n) => titleCase(n.role ?? 'any')}</td>
-                <td class="muted">${(n) => n.specs}</td>
+                <td class="muted">${(n) => needNote(n.specs)}</td>
                 <td class="end"><span class="need ${(n) => n.need}">${(n) => n.need}</span></td>
               </tr>
             `,

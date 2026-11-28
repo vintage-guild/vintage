@@ -2,7 +2,7 @@ import type { Caller } from '@vintage/guild-kit';
 import { fixedClock, makeCaller, testRegistry } from '@vintage/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { siteCommands } from '../src/commands';
-import { type Recruiting, STARTER_RECRUITING } from '../src/contract';
+import { needNote, type Recruiting, STARTER_RECRUITING } from '../src/contract';
 import type { SiteDeps } from '../src/store';
 import { createMemorySiteDeps } from '../src/testing';
 
@@ -52,7 +52,7 @@ describe('recruiting-set', () => {
     expect(deps.site.recruiting.get(officer.guildId)?.updatedBy).toBe(officer.memberId);
   });
 
-  it('replaces the whole needs list, in the order given, role and specs defaulting to any', async () => {
+  it('replaces the whole needs list, in the order given, role defaulting to any and notes to none', async () => {
     await run(
       'recruiting-set',
       {
@@ -64,7 +64,7 @@ describe('recruiting-set', () => {
       officer,
     );
     expect((await read()).needs).toEqual([
-      { wowClass: 'druid', role: 'any', specs: 'any', need: 'high' },
+      { wowClass: 'druid', role: 'any', specs: '', need: 'high' },
       { wowClass: 'warrior', role: 'tank', specs: 'protection', need: 'closed' },
     ]);
   });
@@ -153,5 +153,14 @@ describe('recruiting-set', () => {
   it('is for officers: leaders and visitors are told it does not exist', async () => {
     expect(code(await run('recruiting-set', { headline: 'x' }, leader))).toBe('COMMAND_NOT_FOUND');
     expect(code(await run('recruiting-set', { headline: 'x' }, visitor))).toBe('COMMAND_NOT_FOUND');
+  });
+});
+
+describe('special notes', () => {
+  it('may be left empty, and an old "any" reads as no note', async () => {
+    expect(needNote('any')).toBe('');
+    expect(needNote(' Any ')).toBe('');
+    expect(needNote('')).toBe('');
+    expect(needNote(' can also off-tank ')).toBe('can also off-tank');
   });
 });

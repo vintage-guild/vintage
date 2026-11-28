@@ -4044,7 +4044,7 @@
     },
     {
       "name": "recruiting-get",
-      "description": "What the website’s recruiting band says: the headline, the pitch, and each line the guild is recruiting: a class, the role it’s wanted for (or any), the specs wanted, and how much (high, medium, low, closed). `updatedAt` is null while it still shows the starter text no officer has saved.",
+      "description": "What the website’s recruiting band says: the headline, the pitch, and each line the guild is recruiting: a class, the role it’s wanted for (or any), special notes (`specs`, free text, empty for none), and how much (high, medium, low, closed). `updatedAt` is null while it still shows the starter text no officer has saved.",
       "tier": "public",
       "mutation": false,
       "destructive": false,
@@ -4056,7 +4056,7 @@
     },
     {
       "name": "recruiting-set",
-      "description": "Change the website’s recruiting band. Give any of: `headline`, `pitch`, and `needs` (the whole list, one row per class and role; the band sorts high, medium, low, closed, keeping your order within each): wowClass, role (tank | healer | melee | ranged, one the class plays, or any; default any), specs as free text like \"holy · discipline\" or \"any\", need high | medium | low | closed. What you leave out stays as it is. Answers the band as it now reads.",
+      "description": "Change the website’s recruiting band. Give any of: `headline`, `pitch`, and `needs` (the whole list, one row per class and role; the band sorts high, medium, low, closed, keeping your order within each): wowClass, role (tank | healer | melee | ranged, one the class plays, or any; default any), specs as the line’s special notes (free text like \"restoration\" or \"can also off-tank\"; empty for none, the default), need high | medium | low | closed. What you leave out stays as it is. Answers the band as it now reads.",
       "tier": "officer",
       "mutation": true,
       "destructive": false,
@@ -4106,10 +4106,9 @@
                   ]
                 },
                 "specs": {
-                  "default": "any",
+                  "default": "",
                   "type": "string",
-                  "minLength": 1,
-                  "maxLength": 60
+                  "maxLength": 100
                 },
                 "need": {
                   "type": "string",

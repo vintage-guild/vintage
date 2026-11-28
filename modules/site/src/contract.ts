@@ -22,7 +22,11 @@ export interface ClassNeed {
   wowClass: WowClass;
   /** A role the class can play, or `any`. Lines saved before roles existed read as `any`. */
   role: NeedRole;
-  /** Free text for the specs wanted: "protection", "holy · discipline", "any". */
+  /**
+   * The line's special notes, shown under "Special notes": free text such as "restoration" or
+   * "can also off-tank", or empty. Named `specs` from when it only held specs; lines saved then
+   * may say "any", which reads as no note (`needNote`).
+   */
   specs: string;
   need: NeedLevel;
 }
@@ -32,10 +36,17 @@ export const RECRUITING_LIMITS = {
   headline: 120,
   /** Room for the guiding principles in full, with a paragraph or two around them. */
   pitch: 2000,
-  specs: 60,
+  /** A line's special notes. */
+  specs: 100,
   /** One line per class and role at most: each class's roles plus `any`. */
   needs: CLASS_NAMES.length * NEED_ROLES.length,
 } as const;
+
+/** A line's special note as shown: empty for none, and for "any", the old placeholder. */
+export function needNote(specs: string | undefined | null): string {
+  const note = (specs ?? '').trim();
+  return note.toLowerCase() === 'any' ? '' : note;
+}
 
 /** High, medium, low, closed: the order the band lists needs in. */
 export function byNeed<T extends { need: NeedLevel }>(needs: readonly T[]): T[] {
@@ -103,7 +114,7 @@ export const GUIDING_PRINCIPLES_MARKDOWN = GUIDING_PRINCIPLES.map(
  * module existed, so the first deploy shows no change.
  */
 export const STARTER_RECRUITING: Recruiting = {
-  headline: "Show up, know your class, don't be an asshole. That's the whole bar.",
+  headline: 'Show up, know your class, kill bosses.',
   pitch: [
     'We go back to Vanilla, and we still play like it. What we want now is an efficient use of ' +
       'game time that clears all the content on an expeditious timeline, while we actually enjoy ' +
@@ -117,13 +128,13 @@ export const STARTER_RECRUITING: Recruiting = {
     { wowClass: 'warrior', role: 'tank', specs: 'protection', need: 'high' },
     { wowClass: 'priest', role: 'healer', specs: 'holy · discipline', need: 'high' },
     { wowClass: 'shaman', role: 'healer', specs: 'restoration', need: 'high' },
-    { wowClass: 'mage', role: 'ranged', specs: 'any', need: 'medium' },
+    { wowClass: 'mage', role: 'ranged', specs: '', need: 'medium' },
     { wowClass: 'druid', role: 'healer', specs: 'restoration', need: 'medium' },
     { wowClass: 'druid', role: 'tank', specs: 'feral', need: 'medium' },
-    { wowClass: 'warlock', role: 'ranged', specs: 'any', need: 'medium' },
+    { wowClass: 'warlock', role: 'ranged', specs: '', need: 'medium' },
     { wowClass: 'paladin', role: 'healer', specs: 'holy', need: 'medium' },
-    { wowClass: 'hunter', role: 'ranged', specs: 'any', need: 'closed' },
-    { wowClass: 'rogue', role: 'melee', specs: 'any', need: 'closed' },
+    { wowClass: 'hunter', role: 'ranged', specs: '', need: 'closed' },
+    { wowClass: 'rogue', role: 'melee', specs: '', need: 'closed' },
   ],
   updatedAt: null,
 };

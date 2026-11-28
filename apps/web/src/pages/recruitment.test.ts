@@ -62,12 +62,18 @@ describe('the Recruitment page', () => {
       expect(root.querySelector('.eyebrow')?.textContent).toMatch(
         /^Recruiting · updated Nov 2[23]$/,
       );
+      expect([...root.querySelectorAll('.needs th')].map((th) => th.textContent)).toEqual([
+        'Class',
+        'Role',
+        'Special notes',
+        'Demand',
+      ]);
       const rows = [...root.querySelectorAll('.needs tbody tr')].map((tr) =>
         [...tr.querySelectorAll('td')].map((td) => td.textContent?.trim()),
       );
       expect(rows).toEqual([
         ['Warrior', 'Tank', 'protection', 'high'],
-        ['Mage', 'Any', 'any', 'medium'],
+        ['Mage', 'Any', '', 'medium'],
         ['Druid', 'Healer', 'restoration', 'low'],
       ]);
       expect(root.querySelector('.wrap')?.hasAttribute('data-pending')).toBe(false);

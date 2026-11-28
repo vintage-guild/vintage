@@ -11,7 +11,7 @@ export type RecruitingNeed = 'high' | 'medium' | 'low' | 'closed';
 /** The role a line recruits for, or `any`. */
 export type RecruitingRole = Role | 'any';
 
-/** One line of the band: a class, the role it's wanted for, the specs, and how much. */
+/** One line of the band: a class, the role it's wanted for, special notes, and how much. */
 export interface RecruitingDeskNeed {
   wowClass: WowClass;
   role: RecruitingRole;
@@ -52,7 +52,13 @@ const toRow = (n: RecruitingDeskNeed): Row => ({ ...n, key: nextKey++ });
 
 /** The band's lines, in its order. */
 function rowsFor(band: RecruitingDeskBand | null): Row[] {
-  return (band?.needs ?? []).map((n) => toRow({ ...n, role: n.role ?? 'any' }));
+  return (band?.needs ?? []).map((n) =>
+    toRow({
+      ...n,
+      role: n.role ?? 'any',
+      specs: n.specs.trim().toLowerCase() === 'any' ? '' : n.specs,
+    }),
+  );
 }
 
 /** What `recruiting-set` gets: high before medium before low before closed. */
@@ -63,7 +69,7 @@ function needsFrom(rows: Row[]): RecruitingDeskNeed[] {
     .map(({ r }) => ({
       wowClass: r.wowClass,
       role: r.role,
-      specs: r.specs.trim() || 'any',
+      specs: r.specs.trim(),
       need: r.need,
     }));
 }
@@ -113,7 +119,7 @@ const template = html<VintageRecruitingDesk>`
         (x) => x.rows.length > 0,
         html<VintageRecruitingDesk>`
           <div class="row head" aria-hidden="true">
-            <span>Class</span><span>Role</span><span>Specs</span><span>Demand</span><span></span>
+            <span>Class</span><span>Role</span><span>Special notes</span><span>Demand</span><span></span>
           </div>
         `,
       )}
@@ -152,9 +158,8 @@ const template = html<VintageRecruitingDesk>`
               </select>
               <input
                 class="specs"
-                aria-label="${(r) => `${titleCase(r.wowClass)} specs`}"
-                maxlength="60"
-                placeholder="any"
+                aria-label="${(r) => `${titleCase(r.wowClass)} special notes`}"
+                maxlength="100"
                 :value="${(r) => r.specs}"
                 @input="${(r, c) => c.parent.setSpecs(r, (c.event.target as HTMLInputElement).value)}"
               />
@@ -236,7 +241,7 @@ const styles = css`
     margin: 0;
   }
 
-  /* Phones: class and role on one line, specs on the next, demand and Remove under it. */
+  /* Phones: class and role on one line, notes on the next, demand and Remove under it. */
   @media (max-width: 36rem) {
     .row {
       grid-template-columns: 1fr 1fr;
@@ -256,7 +261,7 @@ const styles = css`
 
 /**
  * The officers' editor for the Recruitment page's band: the headline, the pitch, and the lines
- * it recruits for, each a class, a role (or any), the specs, and a demand. A class can have a
+ * it recruits for, each a class, a role (or any), special notes, and a demand. A class can have a
  * line per role. Feed it `recruiting-get`; Save runs `recruiting-set` with all three and emits
  * `recruiting-changed` so the page re-reads. Without `can-edit` (raid leaders, who see the
  * quarters but not this command) every field is read-only.

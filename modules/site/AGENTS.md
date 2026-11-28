@@ -1,7 +1,7 @@
 # site module
 
 The website's editable copy: the recruiting band on the Recruitment page (headline, pitch, and
-the lines the guild is recruiting: a class, the role it's wanted for, the specs, and how much)
+the lines the guild is recruiting: a class, the role it's wanted for, special notes, and how much)
 and the guild profile (the
 hero's facts and intro, the About page, the Discord invite, the contact email). Officers set them
 from the officers' quarters (Recruiting and Guild tabs), Discord, or an agent; everyone reads them.
@@ -32,6 +32,7 @@ Maturity: **official**.
   within a level, so no surface can show a closed class above an open one.
 - **Classes come from `@vintage/wow-data`.** The component's `wowClass` validator lists the same
   nine; change both together.
+- **A line's `specs` is its special notes.** The site shows it as "Special notes": free text, up to 100 characters, empty for none (the default). The field kept its name so the command contract didn't change; lines saved when it held specs may say "any", which every surface reads as no note (`needNote`).
 - **The pitch and the About bodies are markdown**, shown with ui-kit's `vintage-markdown` (built as elements, never parsed as HTML; https links only). The pitch takes up to 2,000 characters, enough for the guiding principles in full.
 - **The guiding principles are the GM's words.** `GUIDING_PRINCIPLES` holds them, and wherever the site lists them they read word for word (`tests/principles.test.ts` pins every character). Never reword them.
 - **`recruiting-get` is public.** It answers the band and when it was saved, never who saved it

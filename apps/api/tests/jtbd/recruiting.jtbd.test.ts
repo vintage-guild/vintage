@@ -280,7 +280,7 @@ describe('JTBD: recruiting', () => {
     expect(now.needs.find((n) => n.wowClass === 'hunter')).toEqual({
       wowClass: 'hunter',
       role: 'any',
-      specs: 'any',
+      specs: '',
       need: 'medium',
     });
     expect(now.updatedAt).toBe(NOW);

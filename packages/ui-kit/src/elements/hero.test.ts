@@ -19,7 +19,23 @@ describe('vintage-hero', () => {
     expect(img.getAttribute('alt')).toBe('');
     expect(el.shadowRoot!.querySelector('.art')?.getAttribute('aria-hidden')).toBe('true');
     const slots = [...el.shadowRoot!.querySelectorAll('slot')].map((s) => s.getAttribute('name'));
-    expect(slots).toEqual(['eyebrow', null, 'standfirst', 'actions', 'figures']);
+    expect(slots).toEqual(['eyebrow', null, 'standfirst', 'actions', 'figures', 'after']);
+  });
+
+  it('keeps the art at its own shape at the top once something is in the after slot', async () => {
+    const el = await mount<VintageHero>(
+      '<vintage-hero art-src="/art/x.webp"><h1>Welcome back</h1></vintage-hero>',
+    );
+    const hero = () => el.shadowRoot!.querySelector('section.hero');
+    expect(hero()?.classList.contains('long')).toBe(false);
+    const raids = document.createElement('section');
+    raids.slot = 'after';
+    el.append(raids);
+    await settle();
+    expect(hero()?.classList.contains('long')).toBe(true);
+    raids.remove();
+    await settle();
+    expect(hero()?.classList.contains('long')).toBe(false);
   });
 
   it('renders no art without a source', async () => {

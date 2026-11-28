@@ -1,7 +1,7 @@
-import { attr, css, FASTElement, html, when } from '@lushly-dev/fast-element';
+import { attr, css, FASTElement, html, observable, when } from '@lushly-dev/fast-element';
 
 const template = html<VintageHero>`
-  <section class="hero" part="hero">
+  <section class="${(x) => (x.hasAfter ? 'hero long' : 'hero')}" part="hero">
     ${when(
       (x) => Boolean(x.artSrc),
       html<VintageHero>`
@@ -30,6 +30,9 @@ const template = html<VintageHero>`
       <div class="standfirst" part="standfirst"><slot name="standfirst"></slot></div>
       <div class="actions" part="actions"><slot name="actions"></slot></div>
       <div class="figures" part="figures"><slot name="figures"></slot></div>
+    </div>
+    <div class="after" part="after">
+      <slot name="after" @slotchange="${(x, c) => x.afterChanged(c.event)}"></slot>
     </div>
   </section>
 `;
@@ -66,6 +69,18 @@ const styles = css`
   .art img {
     object-fit: cover;
     object-position: var(--art-position, 78% 42%);
+  }
+
+  /* With content in the after slot the hero runs long. Stretched to cover it, the art would be
+     blown up and cropped at the sides, so it keeps its own shape at the top instead, fading into
+     the page, and the after content carries on below it. */
+  .hero.long .art {
+    inset: 0 0 auto;
+  }
+
+  .hero.long .art picture,
+  .hero.long .art img {
+    block-size: auto;
   }
 
   .art::after {
@@ -226,12 +241,22 @@ const styles = css`
  * @slot standfirst - One paragraph under the heading. Hidden when `compact`.
  * @slot actions - Links or buttons. Hidden when `compact`.
  * @slot figures - A row of `vintage-figure` elements.
+ * @slot after - Content below the figures that should sit on the art too, such as the signed-in
+ *   home page's Raids section. The art and its fade stretch to cover it.
  * @csspart hero - The band.
  * @csspart art - The art and its fade. `art-phone-src` swaps in a portrait on phones.
  * @csspart content - The text column.
  * @csspart figures - The figures panel.
+ * @csspart after - The wrapper around the `after` slot.
  */
 export class VintageHero extends FASTElement {
+  /** Something is in the `after` slot: the art keeps its shape at the top instead of covering. */
+  @observable hasAfter = false;
+
+  afterChanged(event: Event): void {
+    this.hasAfter = (event.target as HTMLSlotElement).assignedElements().length > 0;
+  }
+
   /** URL of the art. Empty renders a plain band. */
   @attr({ attribute: 'art-src' }) artSrc = '';
   /** Alt text; empty marks the art decorative. */

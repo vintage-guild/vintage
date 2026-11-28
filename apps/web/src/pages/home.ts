@@ -202,117 +202,118 @@ const template = html<Page>`
         </div>
       `,
     )}
-  </vintage-hero>
-
-  ${when(
-    (x) => x.shows('raids'),
-    html<Page>`
-      <section
-        class="sec"
-        id="raids"
-        data-section
-        data-section-eyebrow="Raids"
-        data-section-title="${(x) => x.raidsTitle}"
-        data-section-action="Sign up"
-        aria-labelledby="h-raids"
-      >
-        <div class="wrap">
-          <header>
-            <div class="lead"><span class="eyebrow">Raids</span><h2 id="h-raids">${(x) => x.raidsTitle}</h2></div>
-            <span class="mono">${(x) => x.raidsNote}</span>
-          </header>
-          <div class="two">
-            ${when(
-              (x) => x.next,
-              html<Page>`
-                <vintage-signup-card
-                  class="${(x) => (x.nextRosterOk ? 'posted' : '')}"
-                  event-id="${(x) => x.next?.event.id}"
-                  event-title="${(x) => x.next?.event.name}"
-                  starts-at="${(x) => x.next?.event.startsAt}"
-                  lock-label="${(x) => x.lockLabel}"
-                  queue-position="${(x) => x.mySignup?.queuePosition ?? null}"
-                  status="${(x) => x.next?.myStatus ?? 'none'}"
-                  late-minutes="${(x) => x.mySignup?.lateMinutes ?? null}"
-                  note="${(x) => x.mySignup?.note ?? ''}"
-                  roster-state="${(x) => x.mySignup?.roster ?? ''}"
-                  ?flex-standby-only="${(x) => x.flexStandbyOnly}"
-                  ?roster-approved="${(x) => x.next?.event.rosterApprovedAt != null}"
-                  absence-coverage="${(x) => x.absenceCoverage}"
-                  absence-reason="${(x) => x.absenceReason}"
-                  weekly-late-minutes="${(x) => x.weeklyLateMinutes}"
-                  character-id="${(x) => (x.signUpAllowed ? (x.guess?.characterId ?? x.main?.id ?? '') : '')}"
-                  character-label="${(x) => x.mainLabel}"
-                  spec="${(x) => x.guess?.spec ?? ''}"
-                  reason="${(x) => x.guess?.reason ?? ''}"
-                  play-role="${(x) => (x.mySignup?.rolePicked ? x.mySignup.role : '')}"
-                  :alsoRoles="${(x) => x.mySignup?.alsoRoles ?? []}"
-                  :characters="${(x) => (x.signUpAllowed ? x.characters : [])}"
-                  :needed="${(x) => x.nextNeeded}"
-                  time-zone="${() => preferredTimeZone() ?? ''}"
-                  :counts="${(x) => x.nextCounts}"
-                  @signup-changed="${(x) => x.onSignupChanged()}"
-                >
-                  <p class="note">${(x) => (x.next ? [x.next.event.instance, players(x.next.event)].filter(Boolean).join(' · ') : '')} · <a href="${(x) => raidHref(x.next?.event.id ?? '')}">Raid page</a></p>
-                  ${when(
-                    (x) => x.next?.event.notes,
-                    html<Page>`<blockquote class="raid-notes" aria-label="Raid notes">${repeat((x) => paragraphs(x.next?.event.notes ?? ''), html<string>`<p>${(p) => p}</p>`)}</blockquote>`,
-                  )}
-                  ${when(
-                    (x) => x.nextRosterOk,
-                    html<Page>`
-                      <vintage-raid-post
-                        slot="roster"
-                        me="${(x) => x.meId}"
-                        :signups="${(x) => x.nextRows}"
-                        :targets="${(x) => x.nextTargets}"
-                      ></vintage-raid-post>
+    <!-- Raids is for members only, and sits on the hero's art with the greeting (TJ). -->
+    ${when(
+      (x) => x.shows('raids'),
+      html<Page>`
+        <section
+          slot="after"
+          class="sec"
+          id="raids"
+          data-section
+          data-section-eyebrow="Raids"
+          data-section-title="${(x) => x.raidsTitle}"
+          data-section-action="Sign up"
+          aria-labelledby="h-raids"
+        >
+          <div class="wrap">
+            <header>
+              <div class="lead"><span class="eyebrow">Raids</span><h2 id="h-raids">${(x) => x.raidsTitle}</h2></div>
+              <span class="mono">${(x) => x.raidsNote}</span>
+            </header>
+            <div class="two">
+              ${when(
+                (x) => x.next,
+                html<Page>`
+                  <vintage-signup-card
+                    class="${(x) => (x.nextRosterOk ? 'posted' : '')}"
+                    event-id="${(x) => x.next?.event.id}"
+                    event-title="${(x) => x.next?.event.name}"
+                    starts-at="${(x) => x.next?.event.startsAt}"
+                    lock-label="${(x) => x.lockLabel}"
+                    queue-position="${(x) => x.mySignup?.queuePosition ?? null}"
+                    status="${(x) => x.next?.myStatus ?? 'none'}"
+                    late-minutes="${(x) => x.mySignup?.lateMinutes ?? null}"
+                    note="${(x) => x.mySignup?.note ?? ''}"
+                    roster-state="${(x) => x.mySignup?.roster ?? ''}"
+                    ?flex-standby-only="${(x) => x.flexStandbyOnly}"
+                    ?roster-approved="${(x) => x.next?.event.rosterApprovedAt != null}"
+                    absence-coverage="${(x) => x.absenceCoverage}"
+                    absence-reason="${(x) => x.absenceReason}"
+                    weekly-late-minutes="${(x) => x.weeklyLateMinutes}"
+                    character-id="${(x) => (x.signUpAllowed ? (x.guess?.characterId ?? x.main?.id ?? '') : '')}"
+                    character-label="${(x) => x.mainLabel}"
+                    spec="${(x) => x.guess?.spec ?? ''}"
+                    reason="${(x) => x.guess?.reason ?? ''}"
+                    play-role="${(x) => (x.mySignup?.rolePicked ? x.mySignup.role : '')}"
+                    :alsoRoles="${(x) => x.mySignup?.alsoRoles ?? []}"
+                    :characters="${(x) => (x.signUpAllowed ? x.characters : [])}"
+                    :needed="${(x) => x.nextNeeded}"
+                    time-zone="${() => preferredTimeZone() ?? ''}"
+                    :counts="${(x) => x.nextCounts}"
+                    @signup-changed="${(x) => x.onSignupChanged()}"
+                  >
+                    <p class="note">${(x) => (x.next ? [x.next.event.instance, players(x.next.event)].filter(Boolean).join(' · ') : '')} · <a href="${(x) => raidHref(x.next?.event.id ?? '')}">Raid page</a></p>
+                    ${when(
+                      (x) => x.next?.event.notes,
+                      html<Page>`<blockquote class="raid-notes" aria-label="Raid notes">${repeat((x) => paragraphs(x.next?.event.notes ?? ''), html<string>`<p>${(p) => p}</p>`)}</blockquote>`,
+                    )}
+                    ${when(
+                      (x) => x.nextRosterOk,
+                      html<Page>`
+                        <vintage-raid-post
+                          slot="roster"
+                          me="${(x) => x.meId}"
+                          :signups="${(x) => x.nextRows}"
+                          :targets="${(x) => x.nextTargets}"
+                        ></vintage-raid-post>
+                      `,
+                    )}
+                    ${when(
+                      (x) => !x.signUpAllowed,
+                      html`<p class="note">Signups open to recruits and up. Ask an officer about raiding with us.</p>`,
+                    )}
+                  </vintage-signup-card>
+                `,
+              )}
+              ${when(
+                (x) => !x.next,
+                html<Page>`<div class="card empty" aria-busy="${(x) => !x.raidsLoaded}"><span class="eyebrow">Next up</span><p>${(x) => x.nextEmptyText}</p></div>`,
+              )}
+              <div class="card">
+                <span class="eyebrow">Coming up</span>
+                <div class="events">
+                  ${repeat(
+                    (x) => x.later,
+                    html<RaidRow>`
+                      <div class="ev">
+                        <time datetime="${(r) => new Date(r.event.startsAt).toISOString()}">
+                          ${(r) => weekday(r.event.startsAt)}<b>${(r) => monthDay(r.event.startsAt)}</b>
+                        </time>
+                        <div class="t">
+                          <b><a href="${(r) => raidHref(r.event.id)}">${(r) => r.event.name}</a></b>
+                          <span>${(r) => timeOf(r.event.startsAt)} · ${(r) => players(r.event)}</span>
+                        </div>
+                        <span class="s ${(r) => (r.myStatus ? 'mine' : '')}">${(r) => summarize(r)}</span>
+                      </div>
                     `,
                   )}
                   ${when(
-                    (x) => !x.signUpAllowed,
-                    html`<p class="note">Signups open to recruits and up. Ask an officer about raiding with us.</p>`,
+                    (x) => x.later.length === 0,
+                    html<Page>`<p class="muted">${(x) => (!x.raidsLoaded ? 'Loading…' : x.raidsFailed ? 'The calendar is for members.' : 'No other raids in the next two months.')}</p>`,
                   )}
-                </vintage-signup-card>
-              `,
-            )}
-            ${when(
-              (x) => !x.next,
-              html<Page>`<div class="card empty" aria-busy="${(x) => !x.raidsLoaded}"><span class="eyebrow">Next up</span><p>${(x) => x.nextEmptyText}</p></div>`,
-            )}
-            <div class="card">
-              <span class="eyebrow">Coming up</span>
-              <div class="events">
-                ${repeat(
-                  (x) => x.later,
-                  html<RaidRow>`
-                    <div class="ev">
-                      <time datetime="${(r) => new Date(r.event.startsAt).toISOString()}">
-                        ${(r) => weekday(r.event.startsAt)}<b>${(r) => monthDay(r.event.startsAt)}</b>
-                      </time>
-                      <div class="t">
-                        <b><a href="${(r) => raidHref(r.event.id)}">${(r) => r.event.name}</a></b>
-                        <span>${(r) => timeOf(r.event.startsAt)} · ${(r) => players(r.event)}</span>
-                      </div>
-                      <span class="s ${(r) => (r.myStatus ? 'mine' : '')}">${(r) => summarize(r)}</span>
-                    </div>
-                  `,
-                )}
-                ${when(
-                  (x) => x.later.length === 0,
-                  html<Page>`<p class="muted">${(x) => (!x.raidsLoaded ? 'Loading…' : x.raidsFailed ? 'The calendar is for members.' : 'No other raids in the next two months.')}</p>`,
-                )}
+                </div>
+                <p class="how" ?data-pending="${(x) => !x.schedulesLoaded}">
+                  ${(x) => x.nightsText} ${(x) => x.timingsText} Times are shown in
+                  ${(x) => x.timeZoneLabel}.
+                </p>
               </div>
-              <p class="how" ?data-pending="${(x) => !x.schedulesLoaded}">
-                ${(x) => x.nightsText} ${(x) => x.timingsText} Times are shown in
-                ${(x) => x.timeZoneLabel}.
-              </p>
             </div>
           </div>
-        </div>
-      </section>
-    `,
-  )}
+        </section>
+      `,
+    )}
+  </vintage-hero>
 
   ${when(
     (x) => x.shows('progress'),
@@ -559,6 +560,12 @@ const styles = css`
     display: block;
     padding-block: var(--space-xl) var(--space-2xl);
     border-block-start: var(--border-width-thin) solid var(--color-border-default);
+  }
+
+  /* Raids, on the hero's art for members: no rule between it and the greeting. */
+  .sec[slot='after'] {
+    border-block-start: 0;
+    padding-block-start: var(--space-lg);
   }
 
   .small {

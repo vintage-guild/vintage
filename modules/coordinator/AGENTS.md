@@ -72,8 +72,14 @@ and posts the final roster and addon import string. Maturity: **core**.
 - **Cards are embeds with four role columns in a 2x2 grid** (Tanks/Healers on row 1,
   Melee/Ranged on row 2, padded with inline spacers; Components V2 can't do columns), each
   headed by an outline role icon (`head_tank`, `head_healer`, `head_dps`). Going and Standby
-  follow `finalRoster` (`solveEventComp`), so pre-approval overflow shows in **Standby** rather
-  than inflating the role columns. The description is the time, the lock and size as `-#`
+  follow `visibleRoster`, not `finalRoster` directly: before a leader or officer has rostered,
+  approved, or filled the raid (`raids`' `hasRosterDecision`), a sign-up has no cap, so going
+  stays everyone going (overflowing a role's target instead of moving to Standby) and Standby is
+  only self-selected or an explicit leader bench (2026-11-27, row 48). Once a real decision
+  exists, `visibleRoster` matches `finalRoster` exactly, which the leads-only party draft
+  (`renderPartyDraft`), digest (`recommendedSitsFromBench`), and dropout/lock tooling keep using
+  throughout, since that draft is how a leader reviews a proposed roster before approving it. The
+  description is the time, the lock and size as `-#`
   subtext, the raid's notes quoted (`> `, a block per paragraph; none when it has none), then
   the status counts spaced with em spaces. The render hash is over the whole message, so a notes
   edit refreshes the post on the next tick. Each field uses line-safe character-budget packing

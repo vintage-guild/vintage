@@ -56,8 +56,6 @@ interface SignupWrite {
   rolePicked: boolean;
   alsoRoles: Role[];
   updatedBy: string | null;
-  /** True when the raid's party roster is already approved: new signups land on Standby. */
-  approved: boolean;
   existing: Signup | null;
 }
 
@@ -110,7 +108,8 @@ function resolveAlsoRoles(
 
 /**
  * Insert the member's signup, or update it in place. `signedUpAt` is kept as a record only
- * (seating is comp-based, not first-come). After roster approval, new answers land on Standby.
+ * (seating is comp-based, not first-come). A new signup always starts `roster: 'pending'`:
+ * standby only ever comes from the member pressing Standby or a leader seating/benching them.
  */
 function writeSignup(deps: RaidsDeps, w: SignupWrite, at: number): Promise<Signup> {
   const snapshot = {
@@ -146,7 +145,7 @@ function writeSignup(deps: RaidsDeps, w: SignupWrite, at: number): Promise<Signu
     signedUpAt: at,
     updatedAt: at,
     updatedBy: w.updatedBy,
-    roster: w.approved && w.status !== 'declined' ? 'benched' : 'pending',
+    roster: 'pending',
     group: null,
     queued: false,
     promotedAt: null,
@@ -218,15 +217,7 @@ async function loadEventForSignup(
   return { event, leader };
 }
 
-function signupReasoning(
-  characterName: string,
-  event: RaidEvent,
-  written: Signup,
-  flexStandbyOnly: boolean,
-): string {
-  if (flexStandbyOnly) {
-    return `You're on standby for ${event.name}. A raid leader will seat you if a spot opens.`;
-  }
+function signupReasoning(characterName: string, event: RaidEvent, written: Signup): string {
   if (written.roster === 'benched' && event.rosterApprovedAt !== null) {
     return `${characterName}: on Standby for ${event.name} (roster is already approved)`;
   }
@@ -278,17 +269,6 @@ export const signupSet = command({
     const late = resolveLateMinutes(status, lateMinutes, existing);
     if ('missing' in late) return needsLateMinutes();
 
-    // Flex Raiders start on Standby for guild raids (signup-improvements §3): Accept, Late, or
-    // Tentative lands on Standby (preserving lateMinutes if they answered Late); Absent still clears.
-    const subject = await deps.members.getMember(guildId, character.memberId);
-    const flexStandbyOnly =
-      event.kind === 'raid' &&
-      accessOf(event) === 'guild' &&
-      subject?.rank === 'flex-raider' &&
-      status !== 'declined' &&
-      !leader;
-    const storedStatus: SignupStatus = flexStandbyOnly ? 'bench' : status;
-
     const play = playOf(character, existing, spec, role);
     const resolvedAlso = resolveAlsoRoles(character, existing, play.role, alsoRoles);
     if ('rejected' in resolvedAlso) return cantPlay(character, resolvedAlso.rejected);
@@ -299,13 +279,12 @@ export const signupSet = command({
         guildId,
         eventId,
         character,
-        status: storedStatus,
+        status,
         lateMinutes: late.lateMinutes,
         note,
         ...play,
         alsoRoles: resolvedAlso.alsoRoles,
         updatedBy: caller.memberId ?? caller.discordId ?? null,
-        approved: event.rosterApprovedAt !== null,
         existing,
       },
       now(),
@@ -316,11 +295,11 @@ export const signupSet = command({
         memberId: character.memberId,
         characterId: character.id,
         from: existing?.status ?? null,
-        to: storedStatus,
+        to: status,
       });
     }
     return success(written, {
-      reasoning: signupReasoning(character.name, event, written, flexStandbyOnly),
+      reasoning: signupReasoning(character.name, event, written),
     });
   },
 });

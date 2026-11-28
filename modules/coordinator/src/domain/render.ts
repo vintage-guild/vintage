@@ -12,6 +12,7 @@ import {
 } from '@vintage/discord-kit';
 import {
   competingGoingSignups,
+  hasRosterDecision,
   type RaidEvent,
   rosteredSignups,
   type Signup,
@@ -287,13 +288,12 @@ export function finalRoster(
   members: TickMember[],
 ): { going: Signup[]; bench: Signup[] } {
   const rostered = tick.signups.filter((s) => s.roster === 'rostered' && s.status !== 'declined');
-  const pendingGoing = tick.signups.some((s) => s.roster === 'pending' && GOING.has(s.status));
   const approved = tick.event.rosterApprovedAt !== null;
   const fullByRoster = tick.event.size !== null && rostered.length >= tick.event.size;
   // Once leaders approved the roster (with materialized rostered seats), explicitly filled or
   // exceeded the cap, or rostered everyone going, keep every non-declined rostered seat even if it
   // exceeds event.size so shrinking a raid never silently unseats anyone.
-  if (rostered.length && (approved || !pendingGoing || fullByRoster)) {
+  if (hasRosterDecision(tick.event, tick.signups)) {
     return {
       going: rostered,
       bench: tick.signups.filter(
@@ -311,6 +311,27 @@ export function finalRoster(
     going: pick(comp.selected.map((d) => d.signup.id)),
     bench: pick(comp.bench.map((d) => d.signup.id)),
   };
+}
+
+/**
+ * Going and Standby for the public signup card and private replies: a sign-up has no cap until an
+ * officer reviews and approves the roster. Before `finalRoster`'s real decision applies (an
+ * officer has rostered, approved, or filled the raid), nobody sits out for capacity alone here —
+ * only a self-selected Standby (`status: 'bench'`) or an explicit leader bench
+ * (`roster: 'benched'`) does. Once a real decision applies, this matches `finalRoster` exactly
+ * (2026-11-27, reversing signup-improvements row 23's capacity-based card Standby).
+ */
+export function visibleRoster(
+  tick: TickEvent,
+  members: TickMember[],
+): { going: Signup[]; bench: Signup[] } {
+  if (hasRosterDecision(tick.event, tick.signups)) return finalRoster(tick, members);
+  const bench = tick.signups.filter(
+    (s) => s.roster === 'benched' || (s.roster === 'pending' && s.status === 'bench'),
+  );
+  const benchIds = new Set(bench.map((s) => s.id));
+  const going = tick.signups.filter((s) => GOING.has(s.status) && !benchIds.has(s.id));
+  return { going, bench };
 }
 
 /**

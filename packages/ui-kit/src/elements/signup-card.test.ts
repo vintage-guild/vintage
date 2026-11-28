@@ -411,36 +411,31 @@ describe('vintage-signup-card queue line', () => {
 });
 
 describe('vintage-signup-card v2 controls (#322)', () => {
-  it('supports Standby, Flex Raider Standby-only mode, and private Standby reasons', async () => {
+  it('supports Standby and private Standby reasons', async () => {
     const client = useClient(() => ({
       success: true,
       data: { id: 's1', status: 'bench', roster: 'pending' },
     }));
     const el = await mount<VintageSignupCard>(
-      '<vintage-signup-card event-id="e1" character-id="c1" flex-standby-only></vintage-signup-card>',
+      '<vintage-signup-card event-id="e1" character-id="c1"></vintage-signup-card>',
     );
-    // Flex Raiders on guild raids see Standby instead of Going, plus an explanation.
     expect(buttons(el).map((b) => b.textContent?.trim())).toEqual([
-      'Standby',
+      'Going',
       'Late',
       'Tentative',
+      'Standby',
       'Absent',
     ]);
-    expect(shadowText(el)).toContain('Flex Raiders start on Standby for guild raids');
 
-    buttons(el)[0]!.click();
+    buttons(el)[3]!.click();
     await settle();
     expect(client.run).toHaveBeenCalledWith('signup-set', {
       eventId: 'e1',
       characterId: 'c1',
       status: 'bench',
     });
-    expect(el.shadowRoot?.querySelector('.standby')?.textContent?.trim()).toContain(
-      'Flex Raiders start on Standby',
-    );
 
-    // Non-flex member on Standby after parties are approved gets the approved explanation.
-    el.flexStandbyOnly = false;
+    // On Standby after parties are approved gets the approved explanation.
     el.rosterApproved = true;
     await settle();
     expect(el.shadowRoot?.querySelector('.standby')?.textContent?.trim()).toContain(

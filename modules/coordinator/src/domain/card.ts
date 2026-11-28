@@ -44,7 +44,7 @@ import type { Role } from '@vintage/wow-data';
 import type { TickAway, TickEvent, TickMember } from '../store';
 import { EMOJI_IDS } from './emoji-ids';
 import { cardTitle, countOf, eventTitle, noun, sizeWords } from './kind-words';
-import { compFor, finalRoster, recommendedSitsFromBench } from './render';
+import { compFor, finalRoster, recommendedSitsFromBench, visibleRoster } from './render';
 
 const ROLE_ROWS: readonly (readonly [Role, string][])[] = [
   [
@@ -188,13 +188,13 @@ function missing(event: RaidEvent, gaps: CompGap[]): string {
     .join(' · ');
 }
 
-/** Partition signups into comp-seated `going`, comp/explicit `standby`, and unseated `maybe`. */
+/** Partition signups into going, explicit/decided `standby`, and unseated `maybe`. */
 function partitionSignups(
   tick: TickEvent,
   members: TickMember[],
   ranks: ReadonlyMap<string, GuildRank | null>,
 ): { going: Signup[]; standby: Signup[]; maybe: Signup[] } {
-  const { going, bench } = finalRoster(tick, members);
+  const { going, bench } = visibleRoster(tick, members);
   const standby = [...bench].sort(byStandbyOrder(ranks));
   const maybe = tick.signups
     .filter((s) => s.status === 'tentative' && s.roster !== 'rostered')

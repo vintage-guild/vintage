@@ -58,6 +58,26 @@ export function isRosterOverCap(
 }
 
 /**
+ * True once an officer's seating decision applies: someone is explicitly rostered, and either the
+ * roster is approved, nobody is left waiting on a seat (`roster: 'pending'` and going), or
+ * explicit seats already fill the raid. A sign-up has no cap before this: nothing may put a going
+ * signup on Standby for capacity alone until an officer reviews and approves the roster, only a
+ * member self-selecting it or an explicit leader bench (2026-11-27, reversing signup-improvements
+ * row 23's capacity-based card Standby and its live private-reply counterpart, row 38).
+ */
+export function hasRosterDecision(
+  event: Pick<RaidEvent, 'size' | 'rosterApprovedAt'>,
+  signups: readonly Signup[],
+): boolean {
+  const rostered = rosteredSignups(signups);
+  if (!rostered.length) return false;
+  const pendingGoing = signups.some((s) => s.roster === 'pending' && GOING.has(s.status));
+  const approved = event.rosterApprovedAt !== null;
+  const fullByRoster = event.size !== null && rostered.length >= event.size;
+  return approved || !pendingGoing || fullByRoster;
+}
+
+/**
  * Solve a raid's comp from its signups and member ranks (going-only by default):
  * - Leader-rostered signups get top priority (100) and count as accepted unless declined.
  * - Leader-benched signups stay on Standby (`bench`).

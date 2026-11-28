@@ -170,7 +170,7 @@ describe('JTBD J50–J70: absences and signup improvements', () => {
     );
   });
 
-  it('J67 & J68: Flex Raider lands on Standby with lateMinutes in guild raid, and Friend joins open raid in #open with no reminders', async () => {
+  it('J67 & J68: Flex Raider keeps his own Late answer in a guild raid, and Friend joins open raid in #open with no reminders', async () => {
     const g = await setupGuild();
     const bramChar = (
       await g.registry.execute(
@@ -199,7 +199,7 @@ describe('JTBD J50–J70: absences and signup improvements', () => {
       )
     ).data as { id: string };
 
-    // Guild raid: Bram presses Late 15m -> Standby keeping 15m; Kestrel (Friend) is refused.
+    // Guild raid: Bram presses Late 15m and keeps that answer; Kestrel (Friend) is refused.
     g.setClock(WED_RAID - 7 * 24 * HOUR);
     const guildRaid = (
       await g.registry.execute(
@@ -230,7 +230,7 @@ describe('JTBD J50–J70: absences and signup improvements', () => {
       g.deps,
     );
     expect(bramLate.success).toBe(true);
-    expect(bramLate.data).toMatchObject({ status: 'bench', lateMinutes: 15 });
+    expect(bramLate.data).toMatchObject({ status: 'late', lateMinutes: 15 });
 
     const kesGuild = await g.registry.execute(
       {

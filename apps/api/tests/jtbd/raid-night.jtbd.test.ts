@@ -916,17 +916,17 @@ describe('JTBD: raid night', () => {
     expect(roster.data.embeds?.[0]?.title).toBe('Roster · Raid night');
     expect(JSON.stringify(roster.data)).toContain('Aeryn');
 
-    // Late opens 5 / 15 / 30 min buttons; Flex Raider (Bramble) on a guild raid lands on Standby
-    // while keeping lateMinutes so leads see how late before seating them.
+    // Late opens 5 / 15 / 30 min buttons; Flex Raider (Bramble) keeps his own answer, not forced
+    // to Standby.
     const lateAsk = await ui.click(g.bram.discordId!, `signup:${wed.id}:late`);
     expect(content(lateAsk)).toContain('Later than 30 minutes? Press Absent instead.');
     const late = await ui.click(g.bram.discordId!, `signup-late:${wed.id}:${g.chars.bram}:15`);
     expect(await g.host.ok<Signup>(g.bram, 'signup-get', { eventId: wed.id })).toMatchObject({
-      status: 'bench',
+      status: 'late',
       lateMinutes: 15,
     });
     expect(content(late)).toMatch(
-      /\*\*Standby\*\* for Raid night as \*\*Bramble\*\* \(Holy Priest, healer\): your main\./,
+      /\*\*Late \(15m\)\*\* for Raid night as \*\*Bramble\*\* \(Holy Priest, healer\): your main\./,
     );
 
     // Several characters and no main to guess (she removed it): a private picker asks which,
@@ -1610,7 +1610,8 @@ describe('JTBD: raid night', () => {
     expect(text).toContain('**Missing** 1 healer · 3 dps');
     expect(text).not.toMatch(/MotW|Fort|Mark of the Wild|Fortitude|Arcane Intellect/);
 
-    // Five more answer: the dungeon holds five, so comp-solver seats five and puts the sixth on Standby.
+    // Five more answer: a sign-up has no cap, so the sixth shows as going too, not Standby —
+    // dungeons get no approval step, so the comp only decides seats for real at lock.
     g.host.clock.advance(60 * 1000);
     await answer(g, g.bram, 'bram', sm.id, 'accepted');
     for (const [who, key] of [
@@ -1626,9 +1627,9 @@ describe('JTBD: raid night', () => {
     expect(sixth?.queued).toBe(false);
     await g.host.tick();
     const edited = messageText(g.host.editsTo(SIGNUP_CHANNEL).at(-1)!.message);
-    expect(edited).toMatch(/\*\*5\*\* going/);
-    expect(edited).toMatch(/\*\*1\*\* standby/);
-    expect(edited).toMatch(/\*\*Standby\*\* .*Bramble/);
+    expect(edited).toMatch(/\*\*6\*\* going/);
+    expect(edited).toMatch(/\*\*0\*\* standby/);
+    expect(edited).not.toMatch(/\*\*Standby\*\*/);
   });
 
   it('J32 · an open levelling group takes everyone who answers, with no cap and no queue', async () => {
@@ -1800,10 +1801,11 @@ describe('JTBD: raid night', () => {
         .sentTo(SIGNUP_CHANNEL)
         .find((m) => m.message.embeds?.[0]?.title?.includes("Zul'Gurub"))!.message,
     );
-    expect(beforeGrow).toMatch(/\*\*2\*\* going/);
-    expect(beforeGrow).toMatch(/\*\*1\*\* standby/);
+    // A sign-up has no cap before an officer decides: all 3 show as going on a 2-seat event.
+    expect(beforeGrow).toMatch(/\*\*3\*\* going/);
+    expect(beforeGrow).toMatch(/\*\*0\*\* standby/);
 
-    // Before approval: growing 2 -> 4 seats the overflow player on the next tick.
+    // Before approval: growing 2 -> 4 still shows everyone going on the next tick.
     await g.host.ok(g.rook, 'raid-update', {
       eventId: zg.id,
       size: 4,

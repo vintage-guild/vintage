@@ -11,7 +11,7 @@ directly. Maturity: **core**.
 | `src/contract.ts` | Public types (`Schedule`, `RaidEvent`, `Signup`), command names, events. The only import other modules may use |
 | `src/domain/recurrence.ts` | Pure: a weekly recurrence in an IANA zone → start times (DST-safe) |
 | `src/domain/clock.ts` | Pure: `resolveGuildClock` (first active schedule's zone and start time, else first schedule's, else Chicago / 20:00) |
-| `src/domain/comp.ts` | Pure: `RANK_PRIORITY` and `solveEventComp` (shared by `comp-suggest`, `roster-approve`, coordinator cards/lock, and Discord signup replies) |
+| `src/domain/comp.ts` | Pure: `RANK_PRIORITY`, `solveEventComp` (shared by `comp-suggest`, `roster-approve`, coordinator cards/lock, and Discord signup replies), and `hasRosterDecision` (true once a leader/officer decision applies, so capacity alone never sits anyone before that) |
 | `src/domain/absence.ts` | Pure: `absenceCovers`, `resolveAbsenceCoverage` (`away` beats `late`), `excusedAtLock`, calendar date validation |
 | `src/domain/export-check.ts` | Pure: an addon export (`@vintage/bridge-format` `raid-export`) matched to a raid's signups by name, with or without the realm |
 | `src/domain/export-record.ts` | Pure: the attendance, drops, kills (matched to progress bosses), and boss tally `raid-export-record` stores from a checked export |
@@ -46,15 +46,25 @@ directly. Maturity: **core**.
   declined resets it to now. Swapping characters or declining drops the roster spot.
 - **Comp-based seating and Standby** (`domain/comp.ts`): first-come auto-queuing is retired
   (`queued` stays `false`, `promotedAt` stays `null`, and `signup-list`'s legacy `queuePosition`
-  is always `null`). Before approval, `solveEventComp` seats going signups by comp requirements,
-  role targets, and rank priority (`RANK_PRIORITY`: raiders/leaders/officers > recruits > flex
-  raiders > members > friends); overflow and Flex Raiders on guild raids sit on Standby.
-  `roster-approve` refuses overcommitted rosters (`ROSTER_OVERCOMMITTED` when explicitly seated
-  players exceed `event.size`, #345) and otherwise materializes the drafted comp and `groupDraft`
-  party groups onto `signups` (`roster: 'rostered'` + `group` for seated players, `roster:
-  'benched'` + `group: null` for Standby/overflow); after approval, new signups land on Standby
-  until a leader seats them. `roster-move` blocks seating a new player past `event.size`
-  (`ROSTER_FULL`) while still letting leaders move already-seated players into valid groups.
+  is always `null`). Before approval, `solveEventComp` drafts the ideal comp from going signups
+  by comp requirements, role targets, and rank priority (`RANK_PRIORITY`: raiders/leaders/officers
+  > recruits > flex raiders > members > friends), and the draft's overflow is what leaders review
+  (the T-24h party draft, digest recommended sits) — it never sits a member on Standby by itself.
+  `hasRosterDecision` is false until a leader or officer actually decides (rosters, approves, or
+  the raid locks with no approval step to wait for); until then, a sign-up has no cap, so the
+  signup card and private reply show everyone going as going, and Standby is only self-selected
+  (`status: 'bench'`) or an explicit leader bench (2026-11-27, row 48). A signup's own answer is
+  never overridden to Standby either way: Flex Raiders answer and compete for seats like anyone
+  else, and the comp's rank priority (not a forced status) is what tends to leave them short of a
+  seat (2026-11-27, reversing signup-improvements rows 12/20/35). `roster-approve` refuses
+  overcommitted rosters (`ROSTER_OVERCOMMITTED` when explicitly seated players exceed
+  `event.size`, #345) and otherwise materializes the drafted comp and `groupDraft` party groups
+  onto `signups` (`roster: 'rostered'` + `group` for seated players, `roster: 'benched'` +
+  `group: null` for Standby/overflow); after approval, a new signup stays `roster: 'pending'`
+  until a leader explicitly seats or benches it — standby is never assigned automatically, only
+  self-selected (`status: 'bench'`) or an officer's call. `roster-move` blocks seating a new
+  player past `event.size` (`ROSTER_FULL`) while still letting leaders move already-seated
+  players into valid groups.
 - **When signups lock** (`domain/timings.ts`): `locksAt` = start minus the schedule's
   `lockHours`, or `DEFAULT_TIMINGS` for a one-off, the same rule the coordinator's tick source
   uses. `raid-list` rows and `raid-get` carry it.

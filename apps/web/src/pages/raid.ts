@@ -14,7 +14,6 @@ import {
   type Absence,
   accessOf,
   type CompRole,
-  kindOf,
   type RaidAttendance,
   type RaidEvent,
   type RaidRecord,
@@ -114,7 +113,6 @@ const template = html<Page>`
               late-minutes="${(x) => x.mine?.lateMinutes ?? null}"
               note="${(x) => x.mine?.note ?? ''}"
               roster-state="${(x) => x.mine?.roster ?? ''}"
-              ?flex-standby-only="${(x) => x.flexStandbyOnly}"
               ?roster-approved="${(x) => x.event?.rosterApprovedAt != null}"
               absence-coverage="${(x) => x.absenceCoverage}"
               absence-reason="${(x) => x.absenceReason}"
@@ -384,18 +382,6 @@ export class Page extends FASTElement {
   @volatile
   get signUpAllowed(): boolean {
     return canSignUp(currentSession(), this.event ? accessOf(this.event) : 'guild');
-  }
-
-  /** Flex Raiders start on Standby for guild raids. */
-  @volatile
-  get flexStandbyOnly(): boolean {
-    const e = this.event;
-    return (
-      Boolean(e) &&
-      kindOf(e!) === 'raid' &&
-      accessOf(e!) === 'guild' &&
-      currentSession()?.rank === 'flex-raider'
-    );
   }
 
   private get myCoverage() {

@@ -375,9 +375,10 @@ describe('raid cards', () => {
     expect(emoji('not_an_emoji')).toBe('');
   });
 
-  it('places comp-solver overflow into Standby on pre-approval cards and Roster replies (#324)', () => {
+  it('shows every going signup, never Standby for capacity alone, before an officer decides (#324, row 48)', () => {
     const base = fullRaid();
-    // 10-person raid with 12 accepted raiders (all pending): comp solver seats 10 and benches 2.
+    // 10-person raid with 12 accepted raiders (all pending): a sign-up has no cap before a leader
+    // or officer acts, so all 12 show as going, overflowing role targets instead of sitting out.
     const smallEvent: RaidEvent = {
       ...event,
       size: 10,
@@ -414,29 +415,27 @@ describe('raid cards', () => {
       members,
     );
     const card = post.embeds![0] as Embed;
-    expect(card.description).toContain('**10** going');
-    expect(card.description).toContain('**2** standby');
-    const standbyField = card.fields!.find((f) => f.value.includes('**Standby**'));
-    expect(standbyField).toBeDefined();
-    // Player11 fills an open melee slot (target 3); Player09 (extra healer) & Player10 (recruit ranged) overflow to Standby.
-    expect(standbyField!.value).toContain('Player09');
-    expect(standbyField!.value).toContain('Player10');
-    // Overflowed players must not also appear in the 4 role columns.
-    const roleFieldsText = card
-      .fields!.slice(0, 6)
-      .map((f) => f.value)
-      .join('\n');
-    expect(roleFieldsText).not.toContain('Player09');
-    expect(roleFieldsText).not.toContain('Player10');
+    expect(card.description).toContain('**12** going');
+    expect(card.description).toContain('**0** standby');
+    // Nobody on Standby: no leader has rostered, approved, or benched anyone yet.
+    expect(card.fields!.find((f) => f.value.includes('**Standby**'))).toBeUndefined();
+    // Every signup shows in a role column, reading past its target instead of being sat out.
+    const roleFields = card.fields!.slice(0, 6);
+    const roleFieldsText = roleFields.map((f) => f.value).join('\n');
+    for (let i = 0; i < 12; i++) {
+      expect(roleFieldsText).toContain(`Player${String(i).padStart(2, '0')}`);
+    }
+    const nameOf = (role: string) => roleFields.find((f) => f.name.includes(role))!.name;
+    expect(nameOf('Tanks')).toContain('3/2');
+    expect(nameOf('Healers')).toContain('3/2');
+    expect(nameOf('Melee')).toContain('2/3');
+    expect(nameOf('Ranged')).toContain('4/3');
 
     const rosterReply = renderRosterReply(smallEvent, signups, members);
     const rosterEmbed = rosterReply.embeds![0] as Embed;
-    expect(rosterEmbed.description).toContain('**10** going');
-    expect(rosterEmbed.description).toContain('**2** standby');
-    const rosterStandby = rosterEmbed.fields!.find((f) => f.name.startsWith('Standby'));
-    expect(rosterStandby?.name).toBe('Standby (2)');
-    expect(rosterStandby?.value).toContain('Player09');
-    expect(rosterStandby?.value).toContain('Player10');
+    expect(rosterEmbed.description).toContain('**12** going');
+    expect(rosterEmbed.description).toContain('**0** standby');
+    expect(rosterEmbed.fields!.find((f) => f.name.startsWith('Standby'))).toBeUndefined();
   });
 });
 

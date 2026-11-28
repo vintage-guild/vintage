@@ -723,9 +723,13 @@ describe('raids commands', () => {
   });
 
   describe('comp-suggest', () => {
-    it('picks by rank priority, puts flex raiders on standby for guild raids, and reports gaps', async () => {
-      const raid = await createRaid({ roleTargets: { tank: 1, healer: 1, dps: 1 }, size: 10 });
-      // Flex raider (Bramble) on a guild raid lands on Standby; raider (Cade) takes the healer slot.
+    it('seats a flex raider like anyone else, falling to Standby only when the comp has no room', async () => {
+      // Tank, healer, and dps slots exactly match the raid size, so there's no spare seat.
+      const raid = await createRaid({
+        kind: 'other',
+        roleTargets: { tank: 1, healer: 1, dps: 1 },
+        size: 3,
+      });
       await ok(
         'signup-set',
         { eventId: raid.id, characterId: 'bramble', status: 'accepted' },
@@ -742,20 +746,27 @@ describe('raids commands', () => {
         { eventId: raid.id, characterId: 'aeryn', status: 'accepted' },
         as('aeryn'),
       );
+      const daraSignup = await ok<Signup>(
+        'signup-set',
+        { eventId: raid.id, characterId: 'dara', status: 'accepted' },
+        as('dara'),
+      );
+      expect(daraSignup.status).toBe('accepted');
 
       const result = await run('comp-suggest', { eventId: raid.id }, as('aeryn'));
       expect(result.success).toBe(true);
       const data = result.data as {
         selected: { signup: { name: string }; code: string }[];
-        bench: { signup: { name: string }; code: string }[];
+        bench: { signup: { name: string }; code: string; reason: string }[];
         gaps: { kind: string }[];
       };
       const codes = Object.fromEntries(data.selected.map((d) => [d.signup.name, d.code]));
-      expect(codes).toEqual({ Aeryn: 'role', Cade: 'role' });
-      expect(data.bench.map((d) => ({ name: d.signup.name, code: d.code }))).toEqual([
-        { name: 'Bramble', code: 'standby' },
-      ]);
-      expect(data.gaps.some((g) => g.kind === 'role')).toBe(true); // no dps signed up
+      // Cade (raider) beats Bramble (flex raider) for the one healer slot; the comp's rank
+      // priority decides, not a forced override of Bram's answer.
+      expect(codes).toEqual({ Aeryn: 'role', Cade: 'role', Dara: 'role' });
+      expect(
+        data.bench.map((d) => ({ name: d.signup.name, code: d.code, reason: d.reason })),
+      ).toEqual([{ name: 'Bramble', code: 'role-full', reason: 'healer slots full (1/1)' }]);
     });
 
     it('lets flex raiders sign up in full on open raids, and approves rosters via roster-approve', async () => {
@@ -778,13 +789,13 @@ describe('raids commands', () => {
         group: 1,
       });
 
-      // New answers after approval land on Standby until a leader seats them.
+      // New answers after approval stay pending until a leader seats or benches them.
       const lateComer = await ok<Signup>(
         'signup-set',
         { eventId: openRaid.id, characterId: 'aeryn', status: 'accepted' },
         as('aeryn'),
       );
-      expect(lateComer.roster).toBe('benched');
+      expect(lateComer.roster).toBe('pending');
 
       // Moving them bumps updatedAt and records updatedBy.
       clock.advance(HOUR);

@@ -221,7 +221,6 @@ const template = html<Page>`
                     late-minutes="${(x) => x.mySignup?.lateMinutes ?? null}"
                     note="${(x) => x.mySignup?.note ?? ''}"
                     roster-state="${(x) => x.mySignup?.roster ?? ''}"
-                    ?flex-standby-only="${(x) => x.flexStandbyOnly}"
                     ?roster-approved="${(x) => x.next?.event.rosterApprovedAt != null}"
                     absence-coverage="${(x) => x.absenceCoverage}"
                     absence-reason="${(x) => x.absenceReason}"
@@ -917,18 +916,6 @@ export class Page extends FASTElement {
   get signUpAllowed(): boolean {
     const next = this.next;
     return canSignUp(currentSession(), next ? accessOf(next.event) : 'guild');
-  }
-
-  /** Flex Raiders start on Standby for guild raids. */
-  @volatile
-  get flexStandbyOnly(): boolean {
-    const e = this.next?.event;
-    return (
-      Boolean(e) &&
-      kindOf(e!) === 'raid' &&
-      accessOf(e!) === 'guild' &&
-      currentSession()?.rank === 'flex-raider'
-    );
   }
 
   private get nextCoverage() {

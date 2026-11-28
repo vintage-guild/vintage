@@ -48,7 +48,7 @@ import {
   accessOf,
   type CompRole,
   compRole,
-  kindOf,
+  hasRosterDecision,
   LATE_MINUTES,
   type LateMinutes,
   type RaidEvent,
@@ -436,8 +436,11 @@ function characterPicker(
 }
 
 /**
- * When a going signup overflows the comp solver onto Standby pre-approval, return comp-solver's
- * bench reason (e.g. "melee slots full (10/10)" or "raid full (20/20)"); otherwise null.
+ * Once an officer's seating decision applies (`hasRosterDecision`), a going signup that the comp
+ * solver would bench returns its reason (e.g. "melee slots full (10/10)" or "raid full
+ * (20/20)"); otherwise null. A sign-up has no cap before that decision: nothing tells a member
+ * they're on Standby for capacity alone until an officer reviews and approves the roster
+ * (2026-11-27, row 48).
  */
 function compBenchReason(
   event: RaidEvent,
@@ -451,7 +454,8 @@ function compBenchReason(
     event.size === null ||
     !signup.id ||
     !signup.class ||
-    !signup.spec
+    !signup.spec ||
+    !hasRosterDecision(event, signups)
   ) {
     return null;
   }
@@ -466,19 +470,8 @@ function compBenchReason(
 }
 
 /** Standby explanation for the private reply (signup-improvements row 38). */
-function standbyTail(
-  s: Signup,
-  member: Member,
-  event: RaidEvent,
-  benchReason: string | null = null,
-): string | null {
+function standbyTail(s: Signup, benchReason: string | null = null): string | null {
   if (s.status !== 'bench' && s.roster !== 'benched' && !benchReason) return null;
-  if (kindOf(event) === 'raid' && accessOf(event) === 'guild' && member.rank === 'flex-raider') {
-    return "You're on Standby because Flex Raiders start on Standby for guild raids; leaders seat you where the comp needs you.";
-  }
-  if (event.rosterApprovedAt !== null) {
-    return "You're on Standby because parties are already approved; leaders will seat you if a spot opens.";
-  }
   if (benchReason) {
     return `You're on Standby (${benchReason}); leaders will seat you if a spot opens.`;
   }
@@ -551,8 +544,7 @@ async function outcome(
   ]);
   const membersForComp = rosterCtx?.members ?? [member];
   const benchReason = compBenchReason(event, s, signups, membersForComp);
-  const tail =
-    standbyTail(s, member, event, benchReason) ?? 'The signup post updates in a few seconds.';
+  const tail = standbyTail(s, benchReason) ?? 'The signup post updates in a few seconds.';
   const content = `${head}\n${tail}`;
   const needed = rolesShort(event, signups, member);
   const components = [];

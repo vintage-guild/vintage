@@ -356,7 +356,9 @@ dungeon's comp, **so I can** fill five spots without a raid's rules getting in t
   Tanks 1/1, Healers 0/1, DPS 0/3 once the tank answers.
 - [ ] **Missing** lists only roles (1 healer · 3 dps): no Mark of the Wild, Fortitude, or
   Intellect line, since buffs only count for raids.
-- [ ] The sixth person to answer is queued, and the card shows **5** going and **1** queued.
+- [ ] The sixth person to answer also shows as going on the card (**6** going, **0** standby): a
+  sign-up has no cap, and a dungeon gets no approval step, so only lock decides who's actually
+  seated.
 
 ### J32 · Open a levelling group anyone can join
 **When** people want to level together, **I (raid leader) want** a signup with no size and no
@@ -430,11 +432,15 @@ Tentative still asks for a reason shown inline.
 - [x] Pressing Late shows 5/15/30 min buttons; the card shows the late minutes and the digest shows
   `Name 15m`. Tentative shows its reason inline after the name.
 
-### J60 · Flex raiders wait on Standby
-**When** I'm a Flex Raider answering a guild raid, **I (flex raider) want** to land on Standby with
-a private explanation until a leader seats me.
-- [x] Bram presses Accept on a guild raid with open seats: stored as Standby, private reply
-  explains why, and leaders can seat him.
+### J60 · Flex raiders answer normally; the comp decides their seat
+**When** I'm a Flex Raider answering a guild raid, **I (flex raider) want** my answer recorded as
+given, landing on Standby only once a leader or officer has actually decided there's no room for
+me (decided by rank priority, never a forced override of my answer, and never on capacity alone
+before that decision — row 48).
+- [x] Bram presses Accept on a guild raid with open seats: stored as Accepted and shows as going,
+  however many have already answered. Once the roster is already full by explicit seats or
+  approved, rank priority can still leave him on Standby with a private explanation, and leaders
+  can seat him.
 
 ### J61 · A tank drops the night before
 **When** a seated tank drops out after the T-24h digest, **I (leader) want** a `#leads` dropout
@@ -471,11 +477,12 @@ seated and the header to read `Melee 12/10`.
 Raider > Member > Friend`) to decide seats, not signup timestamp.
 - [x] A tank answering last is seated ahead of an extra DPS who answered first.
 
-### J67 · Flex raiders on Standby in a guild raid
-**When** a Flex Raider presses Late 15m on a guild raid, **I (leader) want** them on Standby with
-their 15 minutes preserved, while Members are refused and Friends don't see guild raids.
-- [x] Bram's Late 15m lands on Standby keeping `lateMinutes: 15`; Member is refused (`Recruit`
-  required); Friend sees only open raids.
+### J67 · A Flex Raider's Late answer stays Late
+**When** a Flex Raider presses Late 15m on a guild raid, **I (leader) want** their answer recorded
+as Late with the minutes kept, not forced to Standby, while Members are refused and Friends don't
+see guild raids.
+- [x] Bram's Late 15m is stored as `status: 'late'`, `lateMinutes: 15`; Member is refused
+  (`Recruit` required); Friend sees only open raids.
 
 ### J68 · An open raid for pugs
 **When** a leader creates an open raid (`access: 'open'`), **I (leader) want** it posted in the
@@ -505,7 +512,8 @@ to change this raid's role targets without changing the schedule.
 ### J72 · Grow or shrink a raid before and after approval
 **When** a raid's size changes before or after roster approval, **I (leader) want** the draft to
 re-seat before approval and never unseat anyone after approval.
-- [x] Before approval: growing seats overflow Standby; shrinking clears out-of-range manual groups.
+- [x] Before approval: a sign-up has no cap, so the card already shows everyone going whatever
+  the size (row 48); shrinking clears out-of-range manual groups.
 - [x] After approval: shrinking below seated count saves without unseating anyone, `#leads` warns
   how many to move to Standby, the `#leads` draft and quarters show overflow and out-of-range
   groups while public party-post/final-roster updates stay held until `seated <= size` (#345);

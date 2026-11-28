@@ -204,34 +204,41 @@ This reverses three things built today:
 
 How it works:
 
-- **Who's seated before any leader acts:** raiders, recruits and above who answer going (in an
-  open raid, everyone who answers going, §3a). When more answer than the raid holds, the bot's
-  draft seats the ideal comp among them (`comp-solver`: role targets, buffs, then rank), never
-  answer order, and the rest go to Standby. Until leaders approve at T-24h (§1a), the draft can
-  change as answers come in; after that, only leaders change seats, and new answers go to
-  Standby. Recruits are seated like raiders and carry the recruit mark (§1) (TJ, 2026-11-20).
-- **Other event kinds** (dungeons, battlegrounds, other): the same comp-based seating; anyone
-  past the size goes to Standby and the leader picks (TJ, 2026-11-20). A 5-player dungeon's
-  sixth answer is on Standby.
-- **Standby** is everyone else who could play: raiders and recruits the comp left out, people
-  who press Standby, and everyone with a Standby-only rank. It's ordered by rank: Raiders,
-  Recruits, Flex Raiders, Members, then Friends (TJ, 2026-11-20). Within a rank, people the comp
-  needs most come first. Leaders seat whoever fits the comp.
+- **A sign-up has no cap before a leader acts** (reversed 2026-11-27, row 48): raiders, recruits
+  and above who answer going (in an open raid, everyone who answers going, §3a) all show as
+  going on the signup post, however many there are — the role columns just read past their
+  target ("12/10") as §1b already does for target overflow. The bot's draft (`comp-solver`: role
+  targets, buffs, then rank) still runs continuously underneath, and leads see it at T-24h as the
+  party draft and the digest's recommended sits (§1a, §4) — that draft is how leaders and
+  officers review a proposed roster before anyone sits out. Nobody moves to Standby on the card
+  or in their private reply for capacity alone until a leader or officer actually decides: they
+  approve the party draft, they explicitly seat or bench someone (`roster-move`), or (for a kind
+  with no approval step) signups lock. A new answer always stays pending until then. Recruits are
+  seated like raiders and carry the recruit mark (§1) (TJ, 2026-11-20; reversed 2026-11-27).
+- **Other event kinds** (dungeons, battlegrounds, other): the same comp draft underneath, but
+  since they get no leader approval step (§1a), the real cutoff is lock: everyone going shows as
+  going on the card up to lock, and only then does the comp decide who's seated and who's on
+  Standby (row 48). A 5-player dungeon's sixth answer shows as going until lock, not on Standby
+  the moment they sign up.
+- **Standby** is everyone else who could play: raiders and recruits the comp left out, and
+  people who press Standby themselves. It's ordered by rank: Raiders, Recruits, Flex Raiders,
+  Members, then Friends (TJ, 2026-11-20). Within a rank, people the comp needs most come first.
+  Leaders seat whoever fits the comp.
 - **Rank order:** `RANK_PRIORITY` puts Recruit above Flex Raider for seating and Standby only.
   The guild's rank list in identity (`GUILD_RANKS`) doesn't change (TJ, 2026-11-20).
-- **Why am I on Standby?** (TJ, 2026-11-20): the private reply and the site's signup card tell
-  the person why, using the reason `comp-solver` already writes on each bench decision
-  ("melee slots full (10/10)", "raid full (40/40)", "Flex Raiders start on Standby for guild
-  raids"). Only they see it.
-- **Who can answer depends on the kind of raid** (§3a). In a guild raid, Flex Raiders only go on
-  Standby, and Members and Friends can't sign up, as today. In an open raid, everyone with a
-  character signs up in full (TJ, 2026-11-20).
-- **Standby-only in guild raids:** on Discord everyone sees the same buttons, so a Flex Raider
-  pressing Accept, Late or Tentative goes on Standby, and the private reply says so: "You're on
-  standby for Raid night · Molten Core. A raid leader will seat you if a spot opens." Absent
-  still takes them off. On the site, the signup card shows them Standby only, and Leave standby
-  once they're on it. This is a seating rule in raids, not a permission: Flex Raiders stay at
-  the `raider` tier (Bloodfen).
+- **Why am I on Standby?** (TJ, 2026-11-20): once a real decision has put them there, the private
+  reply and the site's signup card tell the person why, using the reason `comp-solver` already
+  writes on each bench decision ("melee slots full (10/10)", "raid full (40/40)"). Only they see
+  it. Before any decision, there's no reason to give, since nobody is on Standby for capacity
+  alone (row 48).
+- **Who can answer depends on the kind of raid** (§3a). In a guild raid, Flex Raiders sign up in
+  full, the same as Raiders and Recruits; Members and Friends still can't sign up. In an open
+  raid, everyone with a character signs up in full (TJ, 2026-11-20).
+- **No rank is Standby-only** (reversed 2026-11-27, row 47): a Flex Raider's Accept, Late, or
+  Tentative is recorded as given, never overridden to Standby. `RANK_PRIORITY` still ranks Flex
+  Raiders behind Raiders and Recruits, so the comp is more likely to leave one on Standby when
+  the raid is full — but that's the comp's call, not a forced answer. Flex Raiders stay at the
+  `raider` tier (Bloodfen).
 - **Friends** get their own tier, `friend`, between `public` and `member`:
   `['public', 'friend', 'member', 'recruit', 'raider', 'leader', 'officer']` (Bloodfen). They
   can add characters and sign up for open raids. `signup-set` opens at the `friend` tier and
@@ -262,8 +269,8 @@ Decided: a raid is either a **guild raid** (usually recurring, the guild's own n
 
 | | Guild raid | Open raid |
 |---|---|---|
-| Who signs up in full | Raiders, Recruits and above | Everyone with a character: Raiders, Recruits, Flex Raiders, Members, Friends |
-| Flex Raiders | Standby only | Full signup |
+| Who signs up in full | Raiders, Recruits, Flex Raiders and above | Everyone with a character: Raiders, Recruits, Flex Raiders, Members, Friends |
+| Flex Raiders | Full signup (ranked behind Raiders and Recruits by the comp, reversed 2026-11-27) | Full signup |
 | Members | See it, can't sign up ("needs the Recruit rank") | Full signup |
 | Friends | Don't see it | Full signup |
 | Signup channel | The guild signup channel | A separate open-raid channel |
@@ -426,18 +433,18 @@ calls. Dated rows are decided; "(proposed)" rows wait on their owner.
 | 9 | Changes after the digest are found by diffing against an `announcedState` table, claimed per change, batched per tick, with immediate ticks coalesced over 10 to 15 seconds; `Signup.updatedBy`, and `roster-move` and `roster-bench` bump `updatedAt` | Fits the claim-before-send tick; no event bus subscriber needed; catches removals | Bloodfen, 2026-11-20 |
 | 10 | Seating replaces the queue's auto-promotion: a going-only comp mode, `RANK_PRIORITY` with Recruit above Flex Raider, `rosterApprovedAt` and `rosterApprovedBy` on raids, no more `queued`, and `raid-export-check` and `bridge-format` updated where they read `queued` | Biggest technical change here; the queue rules in raids `AGENTS.md` change with it | Bloodfen, 2026-11-20 |
 | 11 | No Blizzard icons or screenshots of them are committed; the mock lives outside the repo | Same rule as `scripts/discord-emojis.json` | Bloodfen, 2026-11-20 |
-| 12 | Flex raiders who answer going start on Standby, even when seats are open | They're the guild's fill players; leaders seat them where the comp needs them. First "listed first", changed by row 22 | TJ, 2026-11-20 |
+| 12 | Flex raiders who answer going start on Standby, even when seats are open | They're the guild's fill players; leaders seat them where the comp needs them. First "listed first", changed by row 22; reversed by row 47 | TJ, 2026-11-20 |
 | 13 | At T-24h the bot drafts parties for the leads channel; a raid leader or officer approves before the party post goes to the signup channel | Leaders know the comp; the bot does the first pass | TJ, 2026-11-20 |
 | 14 | The bot drafts parties and leaders' moves are kept. The class and buff rules for the draft are solved later, after a look at Forever's buffs | Some Forever buffs are raid-wide now, some party-only | TJ, 2026-11-20 |
 | 15 | Melee and ranged get separate targets, and every target is a suggestion a raid can go over. The default numbers per raid size are solved later | Leaders want the split, and flexibility on the night | TJ, 2026-11-20 |
 | 16 | Parties not approved by lock: a separate final roster shows role columns and leads are told once | The bot never posts groups nobody approved | TJ, 2026-11-20 |
 | 17 | `roleTargets` splits `dps` into `melee` and `ranged` in all three tables, with a union schema during the migration and the four targets at most the size; raids with only a DPS target show plain Melee and Ranged counts | Contract change; `breaking-contract` label if the manifest changes | Bloodfen, 2026-11-20 |
 | 18 | Recruits who answer going are seated like raiders, with a small `recruit` mark after their name | Recruits need raid time to be judged; leaders still see who's on trial | TJ, 2026-11-20 |
-| 19 | Signups are never first-come: the raid fills by the ideal comp, and place in line goes away | Composition wins raids, not who clicked first. Reverses J05, J13 and J14 | TJ, 2026-11-20 |
-| 20 | In guild raids, Flex Raiders only go on Standby (their Accept, Late and Tentative put them there), and Members and Friends can't sign up | Discord can't hide buttons per person, so the click decides | TJ, 2026-11-20 |
+| 19 | Signups are never first-come: the raid fills by the ideal comp, and place in line goes away | Composition wins raids, not who clicked first. Reverses J05, J13 and J14 (its live pre-approval Standby cutoff is reversed by row 48) | TJ, 2026-11-20 |
+| 20 | In guild raids, Flex Raiders only go on Standby (their Accept, Late and Tentative put them there), and Members and Friends can't sign up | Discord can't hide buttons per person, so the click decides. Reversed by row 47 | TJ, 2026-11-20 |
 | 21 | Friends can add characters, to sign up for open raids | Fills off-night seats with people outside the guild | TJ, 2026-11-20 |
 | 22 | Standby is ordered Raiders, Recruits, Flex Raiders, Members, Friends | Rank first; leaders still seat whoever fits | TJ, 2026-11-20 |
-| 23 | A new `friend` tier between `public` and `member`; `signup-set` opens at `friend` and requires `recruit` for guild raids; Flex Raiders stay `raider`, and Standby-only is a seating rule | Keeps "gate on tier" and keeps Friends apart from signed-out users | Bloodfen, 2026-11-20 |
+| 23 | A new `friend` tier between `public` and `member`; `signup-set` opens at `friend` and requires `recruit` for guild raids; Flex Raiders stay `raider` (the Standby-only seating rule it names is reversed by row 47) | Keeps "gate on tier" and keeps Friends apart from signed-out users | Bloodfen, 2026-11-20 |
 | 24 | Raids are guild raids or open raids (`access`), posted in separate channels | Guild nights and pug nights have different people and rules | TJ, 2026-11-20 |
 | 25 | In open raids, Flex Raiders, Members and Friends sign up in full | Open raids exist to fill seats with them | TJ, 2026-11-20 |
 | 26 | Open raids send no reminders or DMs, and absences don't apply to them | Nobody is expected at an open raid | TJ, 2026-11-20 |
@@ -449,7 +456,7 @@ calls. Dated rows are decided; "(proposed)" rows wait on their owner.
 | 32 | Missing shows on the signup post, full or not, and never on the party post or final roster | Gaps matter while signups are open; once parties are set, leads work from the change feed | TJ, 2026-11-20 |
 | 33 | Party drafts, approval and change alerts are for raids only; other kinds send overflow to Standby | Five-person groups don't need a party step | TJ, 2026-11-20 |
 | 34 | Members see guild raids; Friends see only open raids | Members are in the guild; Friends aren't | TJ, 2026-11-20 |
-| 35 | A Flex Raider's Late on a guild raid keeps the minutes on Standby | Leads see how late before seating them | TJ, 2026-11-20 |
+| 35 | A Flex Raider's Late on a guild raid keeps the minutes on Standby | Leads see how late before seating them. Reversed by row 47 | TJ, 2026-11-20 |
 | 36 | Moving someone between party groups isn't a change alert | Seats and Standby are what leads need to hear about | TJ, 2026-11-20 |
 | 37 | Recruit above Flex Raider applies to seating and Standby only; `GUILD_RANKS` doesn't change | Rank order elsewhere stays as it is | TJ, 2026-11-20 |
 | 38 | People on Standby see why, privately | Comp-based seating is new; the reason heads off "why was I benched?" | TJ, 2026-11-20 |
@@ -461,6 +468,8 @@ calls. Dated rows are decided; "(proposed)" rows wait on their owner.
 | 44 | `secondaryRole` (#301) migrates into `alsoRoles`; internal status and roster names stay as they are | One model for other roles; addon and bridge-format compatibility | Bloodfen, 2026-11-20 |
 | 45 | Once the leads get the party draft, Tentative signups get a DM asking if they can make it: **I can make it** answers Going, **I can't make it** answers Absent, **Still don't know** changes nothing. Officers turn it on or off on the quarters' Vintage tab (`tentativeCheck`) | Leads know who is really coming while they set the groups | TJ, 2026-11-25 |
 | 46 | The check is off until an officer turns it on. One DM per raid, before lock, only to members who were Tentative when the draft went out; DM opt-outs and `dmRanks` apply as for reminder DMs. Going clears the Tentative reason; Absent keeps it | Nobody gets a DM they didn't expect, and a locked raid can't take the answer | TJ, 2026-11-25 |
+| 47 | Reverses rows 12, 20, and 35: the bot never overrides a signup's answer to Standby. Flex Raiders answer and compete for seats in guild raids the same as Raiders and Recruits (full signup, not Standby-only); `RANK_PRIORITY` still ranks them behind Raiders and Recruits, so the comp is more likely to leave one on Standby when the raid is full. Separately, a new signup after the roster is approved now stays `roster: 'pending'` instead of defaulting to `'benched'` | Standby is only ever self-selected (pressing the Standby button) or an officer's explicit call when seating or approving the roster — never automatic, including for an officer who signs up after the roster fills | TJ, 2026-11-27 |
+| 48 | Reverses the part of row 19 (and §3's "who's seated before any leader acts") that put overflow on Standby on its own: the signup card and private reply never put a going signup on Standby for capacity alone. The comp draft keeps running underneath and still drives the leads-only party draft, digest recommended sits, and dropout/open-seat suggestions (§1a, §4) — that's the officer reviewing the proposed roster. Standby only shows once a real decision exists: a self-selected Standby, an explicit leader bench or seat (`roster-move`), an approved roster, or (for kinds with no approval step) lock | A sign-up has no cap; the cap isn't in place until an officer reviews the proposed roster and approves it. Capacity math alone was blocking people from signing up and defaulting them to Standby, including an officer signing themselves up | TJ, 2026-11-27 |
 
 ## Open questions
 
@@ -543,3 +552,14 @@ cleanup).
 - [x] **Tentative check** (coordinator, apps/api, ui-kit): rows 45 and 46, the `tentative-check`
   rule and DM, its buttons (`apps/api/src/discord-tentative.ts`), and the checkbox on the quarters' coordinator tab (now Bot). Each answer is logged as
   `tentative-answer` for the Bot tab's log (TJ, 2026-11-27).
+- [x] **No automatic Standby** (raids, apps/api, web, ui-kit): row 47, reversing rows 12/20/35.
+  `signup.ts` no longer overrides a Flex Raider's answer to `bench`, and a new signup after
+  roster approval stays `roster: 'pending'` instead of defaulting to `'benched'`. Updated the
+  private reply (`discord-signups.ts`), the site's signup card and pages (dropped
+  `flex-standby-only`), and jobs J60/J67 in `raid-night.md` (TJ, 2026-11-27).
+- [x] **A sign-up has no cap** (raids, coordinator, apps/api): row 48, reversing row 19's
+  pre-approval Standby cutoff for members. Added `hasRosterDecision` (raids `domain/comp.ts`) and
+  `visibleRoster` (coordinator `domain/render.ts`), used by the signup card's `partitionSignups`
+  and the private reply's `compBenchReason` so nobody sits on Standby for capacity alone before a
+  leader or officer decides. `finalRoster` and the leads-only party draft, digest, and dropout
+  tooling are unchanged (TJ, 2026-11-27).

@@ -395,20 +395,9 @@ describe('discord signups', () => {
     expect(pick('signup-pick:raid1:accepted:x', 'oak')).toBeNull();
   });
 
-  it('surfaces comp-solver bench reason in private reply when pre-approval signup overflows onto Standby (#324)', async () => {
-    const { p } = ports({ ...guessOak, spec: 'feral', role: 'melee' });
-    const smallRaid: RaidEvent = {
-      ...raid,
-      size: 10,
-      kind: 'raid',
-      access: 'guild',
-      roleTargets: { tank: 2, healer: 2, melee: 3, ranged: 3 },
-      rosterApprovedAt: null,
-      rosterApprovedBy: null,
-    };
-    const recruitMember: Member = { ...member, id: 'fen', rank: 'recruit', tier: 'recruit' };
-    const existingSignups: Signup[] = [
-      // 2 tanks, 2 healers, 3 melee, 3 ranged (all higher-priority raiders) -> raid full (10/10), melee 3/3.
+  /** 2 tanks, 2 healers, 3 melee, 3 ranged (all raiders): raid full (10/10), melee full (3/3). */
+  function compFullRoster(roster: Signup['roster']): Signup[] {
+    return [
       ...Array.from({ length: 2 }, (_, i) => ({
         id: `t${i}`,
         memberId: `mt${i}`,
@@ -417,7 +406,7 @@ describe('discord signups', () => {
         spec: 'protection',
         role: 'tank',
         status: 'accepted',
-        roster: 'pending',
+        roster,
         signedUpAt: i,
       })),
       ...Array.from({ length: 2 }, (_, i) => ({
@@ -428,7 +417,7 @@ describe('discord signups', () => {
         spec: i === 0 ? 'holy' : 'restoration',
         role: 'healer',
         status: 'accepted',
-        roster: 'pending',
+        roster,
         signedUpAt: 10 + i,
       })),
       ...Array.from({ length: 3 }, (_, i) => ({
@@ -439,7 +428,7 @@ describe('discord signups', () => {
         spec: 'combat',
         role: 'melee',
         status: 'accepted',
-        roster: 'pending',
+        roster,
         signedUpAt: 20 + i,
       })),
       ...Array.from({ length: 3 }, (_, i) => ({
@@ -450,18 +439,13 @@ describe('discord signups', () => {
         spec: 'frost',
         role: 'ranged',
         status: 'accepted',
-        roster: 'pending',
+        roster,
         signedUpAt: 30 + i,
       })),
     ] as Signup[];
-    const allMembers: Member[] = [
-      recruitMember,
-      ...existingSignups.map((s) => ({ ...member, id: s.memberId, rank: 'raider' as const })),
-    ];
-    p.memberByDiscordId = async () => recruitMember;
-    p.event = async () => smallRaid;
-    p.signups = async () => existingSignups;
-    p.rosterContext = async () => ({ members: allMembers, absences: [] });
+  }
+
+  function fenSignup(p: SignupPorts, spec = 'feral') {
     p.signupSet = async (_caller, input) => ({
       success: true,
       data: {
@@ -472,7 +456,7 @@ describe('discord signups', () => {
         characterId: 'oak',
         characterName: 'Oak',
         class: 'druid',
-        spec: input.spec ?? 'feral',
+        spec: input.spec ?? spec,
         role: 'melee',
         alsoRoles: [],
         status: input.status,
@@ -487,6 +471,62 @@ describe('discord signups', () => {
         promotedAt: null,
       } satisfies Signup,
     });
+  }
+
+  it('a sign-up has no cap: a new signup never hears Standby for capacity alone before an officer decides (#324, row 48)', async () => {
+    const { p } = ports({ ...guessOak, spec: 'feral', role: 'melee' });
+    const smallRaid: RaidEvent = {
+      ...raid,
+      size: 10,
+      kind: 'raid',
+      access: 'guild',
+      roleTargets: { tank: 2, healer: 2, melee: 3, ranged: 3 },
+      rosterApprovedAt: null,
+      rosterApprovedBy: null,
+    };
+    const recruitMember: Member = { ...member, id: 'fen', rank: 'recruit', tier: 'recruit' };
+    // Full by comp math (10/10, melee 3/3), but nobody is explicitly rostered yet: no officer
+    // decision has applied, so this doesn't count as a cap.
+    const existingSignups = compFullRoster('pending');
+    const allMembers: Member[] = [
+      recruitMember,
+      ...existingSignups.map((s) => ({ ...member, id: s.memberId, rank: 'raider' as const })),
+    ];
+    p.memberByDiscordId = async () => recruitMember;
+    p.event = async () => smallRaid;
+    p.signups = async () => existingSignups;
+    p.rosterContext = async () => ({ members: allMembers, absences: [] });
+    fenSignup(p);
+
+    const res = await handleSignupInteraction(interaction('signup:raid1:accepted'), p);
+    const text = JSON.stringify(res);
+    expect(text).not.toContain('Standby');
+    expect(text).toContain('The signup post updates in a few seconds.');
+  });
+
+  it('surfaces the comp-solver bench reason once the raid is already full by explicit seats (#324)', async () => {
+    const { p } = ports({ ...guessOak, spec: 'feral', role: 'melee' });
+    const smallRaid: RaidEvent = {
+      ...raid,
+      size: 10,
+      kind: 'raid',
+      access: 'guild',
+      roleTargets: { tank: 2, healer: 2, melee: 3, ranged: 3 },
+      rosterApprovedAt: null,
+      rosterApprovedBy: null,
+    };
+    const recruitMember: Member = { ...member, id: 'fen', rank: 'recruit', tier: 'recruit' };
+    // Already explicitly seated (roster: 'rostered') to fill the raid: a real leader decision.
+    const existingSignups = compFullRoster('rostered');
+    const allMembers: Member[] = [
+      recruitMember,
+      ...existingSignups.map((s) => ({ ...member, id: s.memberId, rank: 'raider' as const })),
+    ];
+    p.memberByDiscordId = async () => recruitMember;
+    p.event = async () => smallRaid;
+    p.signups = async () => existingSignups;
+    p.rosterContext = async () => ({ members: allMembers, absences: [] });
+    fenSignup(p);
 
     const res = await handleSignupInteraction(interaction('signup:raid1:accepted'), p);
     expect(JSON.stringify(res)).toContain(

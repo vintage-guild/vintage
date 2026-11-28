@@ -38,6 +38,7 @@ export {
 } from './domain/clock';
 export {
   competingGoingSignups,
+  hasRosterDecision,
   isRosterOverCap,
   isRosterOvercommitted,
   RANK_PRIORITY,

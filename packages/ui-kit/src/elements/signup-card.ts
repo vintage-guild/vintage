@@ -85,9 +85,6 @@ export const ANSWERS = [
 ] as const satisfies readonly SignupStatus[];
 export type Answer = (typeof ANSWERS)[number];
 
-/** Flex Raiders on guild raids start on Standby rather than Going. */
-const FLEX_ANSWERS: readonly Answer[] = ['bench', 'late', 'tentative', 'declined'];
-
 export const ANSWER_LABELS: Record<Answer, string> = {
   accepted: 'Going',
   late: 'Late',
@@ -184,7 +181,7 @@ const template = html<VintageSignupCard>`
       <div class="row">
         <div class="seg" role="group" aria-label="Your answer">
           ${repeat(
-            (x) => x.visibleAnswers,
+            () => ANSWERS,
             html<Answer, VintageSignupCard>`
               <button
                 type="button"
@@ -254,10 +251,6 @@ const template = html<VintageSignupCard>`
       ${when(
         (x) => x.standbyLine,
         html<VintageSignupCard>`<p class="standby" part="standby">${(x) => x.standbyLine}</p>`,
-      )}
-      ${when(
-        (x) => x.flexStandbyOnly && !x.standbyLine,
-        html<VintageSignupCard>`<p class="reason" part="flex-note">Flex Raiders start on Standby for guild raids; leaders seat you where the comp needs you.</p>`,
       )}
       ${when(
         (x) => x.queueLine,
@@ -723,8 +716,6 @@ export class VintageSignupCard extends FASTElement {
   @attr({ attribute: 'play-role' }) playRole = '';
   /** Roster state of the member's signup (`pending`, `rostered`, `benched`, or empty). */
   @attr({ attribute: 'roster-state' }) rosterState = '';
-  /** True when the member is a Flex Raider on a guild raid (starts on Standby). */
-  @attr({ attribute: 'flex-standby-only', mode: 'boolean' }) flexStandbyOnly = false;
   /** True once a raid leader has approved the party roster. */
   @attr({ attribute: 'roster-approved', mode: 'boolean' }) rosterApproved = false;
   /** Custom private Standby explanation; overrides the derived message when set. */
@@ -752,12 +743,6 @@ export class VintageSignupCard extends FASTElement {
   @observable draftNote = '';
   private alsoRolesTouched = false;
 
-  /** Buttons shown in the segmented answer bar. */
-  @volatile
-  get visibleAnswers(): readonly Answer[] {
-    return this.flexStandbyOnly ? FLEX_ANSWERS : ANSWERS;
-  }
-
   /** Button label, showing minutes on Late when the member is currently Late. */
   answerButtonLabel(a: Answer): string {
     if (a === 'late' && this.statusKey === 'late' && isLateMinutes(this.lateMinutes)) {
@@ -771,9 +756,6 @@ export class VintageSignupCard extends FASTElement {
   get standbyLine(): string {
     if (this.standbyReason) return this.standbyReason;
     if (this.statusKey !== 'bench' && this.rosterState !== 'benched') return '';
-    if (this.flexStandbyOnly) {
-      return 'You’re on Standby because Flex Raiders start on Standby for guild raids; leaders seat you where the comp needs you.';
-    }
     if (this.rosterApproved) {
       return 'You’re on Standby because parties are already approved; leaders will seat you if a spot opens.';
     }
@@ -805,7 +787,6 @@ export class VintageSignupCard extends FASTElement {
   @volatile
   get showOnTimeButton(): boolean {
     return (
-      !this.flexStandbyOnly &&
       isLateMinutes(this.weeklyLateMinutes) &&
       this.absenceCoverage !== 'away' &&
       (this.statusKey === 'late' || this.statusKey === 'none')

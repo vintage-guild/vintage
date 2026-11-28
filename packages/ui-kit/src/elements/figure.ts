@@ -73,7 +73,7 @@ const styles = css`
 `;
 
 /**
- * One big number with a unit and a caption: days to launch, bosses down, names on the rolls.
+ * One big number with a unit and a caption: days to the next raid, bosses down, roles we need.
  * Lay several out in a row in the hero's `figures` slot or any grid.
  *
  * @tagname vintage-figure

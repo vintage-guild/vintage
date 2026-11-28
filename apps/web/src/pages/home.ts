@@ -363,7 +363,7 @@ const template = html<Page>`
               html<AboutSection>`
                 <article class="card">
                   <h3>${(s) => s.heading}</h3>
-                  ${repeat((s) => paragraphs(s.body), html<string>`<p>${(p) => p}</p>`)}
+                  <vintage-markdown :text="${(s) => s.body}"></vintage-markdown>
                 </article>
               `,
             )}

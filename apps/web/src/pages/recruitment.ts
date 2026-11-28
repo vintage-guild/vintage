@@ -21,7 +21,7 @@ const template = html<Page>`
       <div class="lead">
         <span class="eyebrow">${(x) => x.eyebrow}</span>
         <h1 id="h-recruiting">${(x) => x.band.headline}</h1>
-        <p class="pitch">${(x) => x.band.pitch}</p>
+        <vintage-markdown class="pitch" :text="${(x) => x.band.pitch}"></vintage-markdown>
         <p class="actions">
           ${when(
             (x) => x.profile.discordInvite,
@@ -33,7 +33,7 @@ const template = html<Page>`
         </p>
         ${when(
           (x) => !x.profile.discordInvite,
-          html`<p class="muted small">Discord invites come from an officer for now; the public link lands here once the GM sets it.</p>`,
+          html`<p class="muted small">Ask an officer for a Discord invite.</p>`,
         )}
       </div>
       <table class="needs">
@@ -132,7 +132,9 @@ const styles = css`
   }
 
   .pitch {
-    max-inline-size: 52ch;
+    display: block;
+    max-inline-size: 60ch;
+    --markdown-link: var(--color-verdigris-700);
   }
 
   .muted {

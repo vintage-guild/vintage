@@ -13,9 +13,9 @@ const template = html<Page>`
   <div class="page">
     <h1>Apply to raid</h1>
     <p class="lead">
-      Vintage takes raiders and flex raiders by application. Tell us who you play and when you
-      can raid; officers answer in Discord. Friends and socials don't need to apply: just join
-      the Discord.
+      Raiders and flex raiders apply here. Tell us who you play and when you can raid, and an
+      officer answers you in Discord. Here to hang out instead? Join the Discord, no application
+      needed.
     </p>
     ${when(
       () => !currentSession(),

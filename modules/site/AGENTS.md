@@ -32,6 +32,8 @@ Maturity: **official**.
   within a level, so no surface can show a closed class above an open one.
 - **Classes come from `@vintage/wow-data`.** The component's `wowClass` validator lists the same
   nine; change both together.
+- **The pitch and the About bodies are markdown**, shown with ui-kit's `vintage-markdown` (built as elements, never parsed as HTML; https links only). The pitch takes up to 2,000 characters, enough for the guiding principles in full.
+- **The guiding principles are the GM's words.** `GUIDING_PRINCIPLES` holds them, and wherever the site lists them they read word for word (`tests/principles.test.ts` pins every character). Never reword them.
 - **`recruiting-get` is public.** It answers the band and when it was saved, never who saved it
   (`updatedBy` stays in the row).
 - **The profile works like the band.** `guild-profile-get` answers `STARTER_PROFILE` until the

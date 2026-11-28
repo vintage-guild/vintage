@@ -4072,7 +4072,7 @@
           "pitch": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 800
+            "maxLength": 2000
           },
           "needs": {
             "maxItems": 45,

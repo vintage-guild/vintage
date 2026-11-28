@@ -172,7 +172,7 @@ const template = html<Page>`
             (x) => x.raidFigures,
             html<RaidFigure>`<vintage-figure value="${(r) => r.down}" unit="/ ${(r) => r.total}" caption="${(r) => r.name}"></vintage-figure>`,
           )}
-          <vintage-figure value="${(x) => x.highNeedCount}" unit="roles" caption="we need most · recruiting" tone="good"></vintage-figure>
+          <vintage-figure value="${(x) => x.highNeedCount}" unit="roles" caption="we need most · recruiting" tone="good" href="/recruitment"></vintage-figure>
         </div>
       `,
     )}
@@ -183,7 +183,7 @@ const template = html<Page>`
           <vintage-figure value="${(x) => x.nextDays.value}" unit="${(x) => x.nextDays.unit}" caption="${(x) => x.nextDaysCaption}"></vintage-figure>
           <vintage-figure value="${(x) => x.nextGoing}" unit="going" caption="${(x) => x.myAnswer.caption}" tone="${(x) => x.myAnswer.tone}"></vintage-figure>
           <vintage-figure value="${(x) => x.bossesDown}" unit="/ ${(x) => x.bossTotal}" caption="bosses down"></vintage-figure>
-          <vintage-figure value="${(x) => x.highNeedCount}" unit="roles" caption="we need most · know anyone?"></vintage-figure>
+          <vintage-figure value="${(x) => x.highNeedCount}" unit="roles" caption="we need most · know anyone?" href="/recruitment"></vintage-figure>
         </div>
       `,
     )}

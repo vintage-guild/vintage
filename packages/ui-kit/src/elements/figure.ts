@@ -1,10 +1,14 @@
-import { attr, css, FASTElement, html } from '@lushly-dev/fast-element';
+import { attr, css, FASTElement, html, when } from '@lushly-dev/fast-element';
 
+const body = html<VintageFigure>`
+  <b class="value" part="value">${(x) => x.value}<small part="unit">${(x) => x.unit}</small></b>
+  <span class="caption" part="caption">${(x) => x.caption}</span>
+`;
+
+/** With `href` the whole figure is a link; the caption is underlined to say so. */
 const template = html<VintageFigure>`
-  <div class="figure" part="figure">
-    <b class="value" part="value">${(x) => x.value}<small part="unit">${(x) => x.unit}</small></b>
-    <span class="caption" part="caption">${(x) => x.caption}</span>
-  </div>
+  ${when((x) => x.href, html<VintageFigure>`<a class="figure link" part="figure" href="${(x) => x.href}">${body}</a>`)}
+  ${when((x) => !x.href, html<VintageFigure>`<div class="figure" part="figure">${body}</div>`)}
 `;
 
 const styles = css`
@@ -60,6 +64,28 @@ const styles = css`
     color: var(--color-text-secondary);
   }
 
+  a.figure {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  a.figure .caption {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+    text-decoration-color: color-mix(in srgb, currentColor 50%, transparent);
+  }
+
+  a.figure:hover .caption {
+    color: var(--color-text-primary);
+    text-decoration-color: currentColor;
+  }
+
+  a.figure:focus-visible {
+    outline: var(--border-width-thin) solid var(--color-focus-ring);
+    outline-offset: var(--border-width-thin);
+    border-radius: 0.2rem;
+  }
+
   @media (max-width: 62rem) {
     :host(:nth-child(odd)) {
       padding-inline-start: 0;
@@ -78,7 +104,7 @@ const styles = css`
  *
  * @tagname vintage-figure
  * @summary A big tabular number with a unit and caption.
- * @csspart figure - The block.
+ * @csspart figure - The block (a link when `href` is set).
  * @csspart value - The number.
  * @csspart unit - The unit after the number.
  * @csspart caption - The line under the number.
@@ -92,6 +118,8 @@ export class VintageFigure extends FASTElement {
   @attr caption = '';
   /** `good` tints the number verdigris; `accent` tints it rose. */
   @attr tone: 'default' | 'good' | 'accent' = 'default';
+  /** Where the figure leads, such as the list a count is of. Empty: not a link. */
+  @attr href = '';
 }
 
 if (!customElements.get('vintage-figure')) {

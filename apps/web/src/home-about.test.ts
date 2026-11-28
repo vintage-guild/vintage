@@ -209,6 +209,8 @@ describe('the home page without its roster or recruiting sections', () => {
       ].map((el) => el.getAttribute('caption'));
       expect(captions.some((c) => c?.includes('on the rolls'))).toBe(false);
       expect(captions).toContain('we need most · know anyone?');
+      const roles = page.shadowRoot?.querySelector('vintage-hero vintage-figure[unit="roles"]');
+      expect(roles?.getAttribute('href')).toBe('/recruitment');
       expect(asked).not.toContain('member-list');
     } finally {
       page.remove();

@@ -25,7 +25,8 @@ export const recruitingGet = command({
   name: 'recruiting-get',
   description:
     'What the website’s recruiting band says: the headline, the pitch, and each line the ' +
-    'guild is recruiting: a class, the role it’s wanted for (or any), the specs wanted, and ' +
+    'guild is recruiting: a class, the role it’s wanted for (or any), special notes (`specs`, ' +
+    'free text, empty for none), and ' +
     'how much (high, medium, low, closed). ' +
     '`updatedAt` is null while it still shows the starter text no officer has saved.',
   tier: 'public',
@@ -37,7 +38,7 @@ export const recruitingGet = command({
 const needSchema = z.object({
   wowClass: classSchema,
   role: z.enum(NEED_ROLES).default('any'),
-  specs: z.string().trim().min(1).max(RECRUITING_LIMITS.specs).default('any'),
+  specs: z.string().trim().max(RECRUITING_LIMITS.specs).default(''),
   need: z.enum(NEED_LEVELS),
 });
 
@@ -47,7 +48,8 @@ export const recruitingSet = command({
     'Change the website’s recruiting band. Give any of: `headline`, `pitch`, and `needs` (the ' +
     'whole list, one row per class and role; the band sorts high, medium, low, closed, keeping ' +
     'your order within each): wowClass, role (tank | healer | melee | ranged, one the class ' +
-    'plays, or any; default any), specs as free text like "holy · discipline" or "any", need ' +
+    'plays, or any; default any), specs as the line’s special notes (free text like "restoration" ' +
+    'or "can also off-tank"; empty for none, the default), need ' +
     'high | medium | low | closed. What you leave out stays as it is. Answers the band as it ' +
     'now reads.',
   tier: 'officer',
@@ -80,7 +82,7 @@ export const recruitingSet = command({
       const which =
         repeated.role === 'any' ? repeated.wowClass : `${repeated.role} ${repeated.wowClass}`;
       return error('DUPLICATE_CLASS', `${which} is listed twice`, {
-        suggestion: 'Give each class and role one row; put every spec wanted in its specs text',
+        suggestion: 'Give each class and role one row; put anything else in its special notes',
         retryable: false,
       });
     }

@@ -14,7 +14,7 @@ import {
   TimestampStyle,
   truncate,
 } from '@vintage/discord-kit';
-import type { ClassNeed } from '@vintage/site/contract';
+import { type ClassNeed, needNote } from '@vintage/site/contract';
 import type { WowClass } from '@vintage/wow-data';
 import type { TickEvent, TickMember } from '../store';
 import { compFor } from './render';
@@ -157,7 +157,7 @@ export function assessmentFacts(a: Assessment): string {
         ? open
             .map(
               (n) =>
-                `${cap(n.wowClass)}${n.role === 'any' ? '' : ` ${n.role}`} (${n.specs}) ${n.need}`,
+                `${cap(n.wowClass)}${n.role === 'any' ? '' : ` ${n.role}`}${needNote(n.specs) ? ` (${needNote(n.specs)})` : ''} ${n.need}`,
             )
             .join(' · ')
         : 'nothing listed'

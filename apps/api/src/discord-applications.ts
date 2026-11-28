@@ -187,7 +187,7 @@ async function raiseNeed(
     n.wowClass === wowClass && n.role === role;
   const next = needs.some(line)
     ? needs.map((n) => (line(n) ? { ...n, need: 'high' } : n))
-    : [...needs, { wowClass, role, specs: 'any', need: 'high' }];
+    : [...needs, { wowClass, role, specs: '', need: 'high' }];
   const result = await ports.run(caller, 'recruiting-set', { needs: next });
   const name = `${wowClass.charAt(0).toUpperCase()}${wowClass.slice(1)}${role === 'any' ? '' : ` ${role}`}`;
   return result.success ? ephemeral(`${name} is now a high need on the site.`) : refusal(result);

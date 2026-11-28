@@ -279,9 +279,13 @@ export interface NeedLineView {
   wowClass: WowClass;
   /** The role the line recruits for; `any` (or absent) leaves it out of the line. */
   role?: string;
+  /** Special notes; empty (or "any", from before notes) leaves them out. */
   specs: string;
   need: 'high' | 'medium' | 'low' | 'closed';
 }
+
+/** A special note as shown: empty for none and for "any", the old placeholder. */
+const note = (specs: string) => (specs.trim().toLowerCase() === 'any' ? '' : specs.trim());
 
 const DEMAND_WORDS: Record<NeedLineView['need'], string> = {
   high: 'high need',
@@ -305,9 +309,15 @@ export function renderRecruitingPost(
 ): MessageData {
   const open = needs.filter((n) => n.need !== 'closed');
   const lines = open.length
-    ? open.map(
-        (n) =>
-          `**${title(n.wowClass)}**${n.role && n.role !== 'any' ? ` · ${title(n.role)}` : ''} · ${n.specs} · ${DEMAND_WORDS[n.need]}`,
+    ? open.map((n) =>
+        [
+          `**${title(n.wowClass)}**`,
+          n.role && n.role !== 'any' ? title(n.role) : '',
+          note(n.specs),
+          DEMAND_WORDS[n.need],
+        ]
+          .filter(Boolean)
+          .join(' · '),
       )
     : ['No classes listed right now; strong players of any class are welcome to apply.'];
   return {

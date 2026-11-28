@@ -29,7 +29,7 @@ public recruiting band and the hero's figures change without a deploy.
   line's class plays, plus Any.
 - [ ] The Recruitment page (`/recruitment`, in the header nav) shows the new headline and
   "Recruiting · updated" with today's date, and the table has the new lines (class with its
-  icon, role, specs, demand). When the member count can't load, the visitor hero's "roles we need most" figure counts
+  icon, role, special notes, demand). When the member count can't load, the visitor hero's "roles we need most" figure counts
   the high rows.
 - [ ] Ana sets Warrior to Closed and saves. The tab and the Recruitment page list Warrior with the
   closed classes at the bottom: whatever order the needs are saved in, `recruiting-get` answers

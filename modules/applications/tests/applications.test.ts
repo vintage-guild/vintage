@@ -513,7 +513,7 @@ describe('the recruiting post', () => {
       ),
     );
     expect(post).toContain('**Druid** · Tank · feral · high need');
-    expect(post).toContain('**Mage** · any · low need');
+    expect(post).toContain('**Mage** · low need');
     expect(post).not.toContain('Rogue');
   });
 });

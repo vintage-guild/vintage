@@ -23,6 +23,9 @@ export interface NeedLine {
   need: string;
 }
 
+/** A special note, or empty for none and for "any", the old placeholder. */
+const noteOf = (specs: string) => (specs.trim().toLowerCase() === 'any' ? '' : specs.trim());
+
 export function labelRequest(
   application: Application,
   needs: readonly NeedLine[],
@@ -36,7 +39,7 @@ export function labelRequest(
         ? open
             .map(
               (n) =>
-                `${n.wowClass}${n.role && n.role !== 'any' ? ` ${n.role}` : ''} (${n.specs}, ${n.need})`,
+                `${n.wowClass}${n.role && n.role !== 'any' ? ` ${n.role}` : ''} (${[noteOf(n.specs), n.need].filter(Boolean).join(', ')})`,
             )
             .join('; ')
         : 'none listed'

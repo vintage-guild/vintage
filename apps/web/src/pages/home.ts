@@ -46,7 +46,6 @@ import {
   getCommandClient,
   type LedgerKill,
   type LedgerRaid,
-  type RosterMember,
   ruleWords,
   type SignupCounts,
   type Unsubscribe,
@@ -173,14 +172,7 @@ const template = html<Page>`
             (x) => x.raidFigures,
             html<RaidFigure>`<vintage-figure value="${(r) => r.down}" unit="/ ${(r) => r.total}" caption="${(r) => r.name}"></vintage-figure>`,
           )}
-          ${when(
-            (x) => x.memberCount !== null,
-            html<Page>`<vintage-figure value="${(x) => x.memberCountText}" caption="${(x) => x.memberCaption}" tone="good"></vintage-figure>`,
-          )}
-          ${when(
-            (x) => x.memberCount === null,
-            html<Page>`<vintage-figure value="${(x) => x.highNeedCount}" unit="roles" caption="we need most · recruiting" tone="good"></vintage-figure>`,
-          )}
+          <vintage-figure value="${(x) => x.highNeedCount}" unit="roles" caption="we need most · recruiting" tone="good"></vintage-figure>
         </div>
       `,
     )}
@@ -191,14 +183,7 @@ const template = html<Page>`
           <vintage-figure value="${(x) => x.nextDays.value}" unit="${(x) => x.nextDays.unit}" caption="${(x) => x.nextDaysCaption}"></vintage-figure>
           <vintage-figure value="${(x) => x.nextGoing}" unit="going" caption="${(x) => x.myAnswer.caption}" tone="${(x) => x.myAnswer.tone}"></vintage-figure>
           <vintage-figure value="${(x) => x.bossesDown}" unit="/ ${(x) => x.bossTotal}" caption="bosses down"></vintage-figure>
-          ${when(
-            (x) => x.memberCount !== null,
-            html<Page>`<vintage-figure value="${(x) => x.memberCountText}" caption="on the rolls"></vintage-figure>`,
-          )}
-          ${when(
-            (x) => x.memberCount === null,
-            html<Page>`<vintage-figure value="${(x) => x.highNeedCount}" unit="roles" caption="we need most · know anyone?"></vintage-figure>`,
-          )}
+          <vintage-figure value="${(x) => x.highNeedCount}" unit="roles" caption="we need most · know anyone?"></vintage-figure>
         </div>
       `,
     )}
@@ -874,7 +859,6 @@ const styles = css`
  * `character-list`, `progress-get`.
  */
 export class Page extends FASTElement {
-  @observable memberCount: number | null = null;
   @observable feed: FeedItem[] = [];
   /** The open poll the member may vote on, as the card shows it. */
   @observable poll: PollCardModel | null = null;
@@ -979,14 +963,6 @@ export class Page extends FASTElement {
   private nextRaidSubs: Unsubscribe[] = [];
   private watchedNextId: string | null = null;
   private nextSignups: SignupRow[] = [];
-
-  get memberCountText(): string {
-    return this.memberCount === null ? '—' : String(this.memberCount);
-  }
-
-  get memberCaption(): string {
-    return this.memberCount === null ? 'on the rolls' : 'on the rolls · recruiting';
-  }
 
   get next(): RaidRow | null {
     return this.raids[0] ?? null;
@@ -1147,7 +1123,6 @@ export class Page extends FASTElement {
     void this.loadRecruiting();
     void this.loadGuild();
     if (this.shows('raids')) void this.loadSchedules();
-    void this.loadMembers();
     this.watchRaids();
     void this.loadMain();
     void this.loadProgress();
@@ -1362,12 +1337,6 @@ export class Page extends FASTElement {
         : '';
     this.coordinator = { state, detail };
     this.officerLoaded = true;
-  }
-
-  /** How many are on the rolls, for the hero figure. The full roster lives at `/roster`. */
-  async loadMembers(): Promise<void> {
-    const result = await getCommandClient().read<RosterMember[]>('member-list');
-    this.memberCount = result.success ? (result.data ?? []).length : null;
   }
 
   /** The coordinator's log across the upcoming raids, newest first. */

@@ -569,7 +569,7 @@ const template = html<Page>`
       <div class="figures">
         <vintage-figure value="10" unit="days" caption="to launch"></vintage-figure>
         <vintage-figure value="0" unit="/ 22" caption="bosses down"></vintage-figure>
-        <vintage-figure value="33" caption="on the rolls" tone="good"></vintage-figure>
+        <vintage-figure value="3" unit="roles" caption="we need most · recruiting" tone="good"></vintage-figure>
         <vintage-figure value="7" unit="/ 22" caption="accent tone" tone="accent"></vintage-figure>
       </div>
     </section>
@@ -583,7 +583,7 @@ const template = html<Page>`
         <div slot="actions"><violet-button appearance="primary">Apply to raid</violet-button></div>
         <div slot="figures">
           <vintage-figure value="45" unit="days" caption="to raids"></vintage-figure>
-          <vintage-figure value="33" caption="on the rolls" tone="good"></vintage-figure>
+          <vintage-figure value="3" unit="roles" caption="we need most · recruiting" tone="good"></vintage-figure>
         </div>
       </vintage-hero>
     </section>

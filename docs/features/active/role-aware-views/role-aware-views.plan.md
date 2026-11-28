@@ -59,7 +59,7 @@ tier.
   `member` tier can't answer (that is `recruit`), so for them the card reads as the calendar with
   a line saying what unlocks when they are promoted.
 - **The hero shrinks to a band.** Logo context, the identity pills, and the figures, now the
-  member's: days to their next raid, their answer, bosses down, names on the rolls. The
+  member's: days to their next raid, their answer, bosses down, roles we need most. The
   headline and standfirst go; the visitor already read them.
 - **Recruiting collapses** to one line at the bottom: "We need two healers for the twenties.
   Know anyone?" with the Discord link. The needs table stays reachable on `/about`. (Replaced
@@ -169,6 +169,7 @@ New jobs for [docs/jtbd](../../../jtbd/README.md), each as a scenario test and a
 | 2026-11-27 | The site's public words come from the GM (TJ): the starter profile and band reuse his guild overview, and the guiding principles appear word for word on the About page and in the recruiting pitch (`GUIDING_PRINCIPLES`, pinned by a test). The pitch and the About bodies render markdown, and the pitch limit is 2,000 characters so the principles fit. |
 | 2026-11-27 | The Recruitment page is one column on the site's dark surfaces, in the same page column and heading as Roster and Professions (TJ): the headline, the pitch, then the classes in a raised card. The cream band and the shield-and-staff art are gone, so the page no longer stands apart from the rest of the site. |
 | 2026-11-25 | The coordinator's tab is **Bot** (TJ), with the settings first and the log after them. Its per-raid "Coming up" cards moved onto the Calendar tab's raids (what Random did, what is due, who hasn't answered, Replace the signup post), so the quarters lists the raids coming up once. The tab keeps `?tab=coordinator` so old links still open it. The Calendar tab reads `coordinator-status` for this; if that read fails the rows just leave it off. |
+| 2026-11-27 | The home hero drops its member count ("52 on the rolls") for everyone (TJ). The fourth figure is the high-demand recruiting count, as it already was whenever the count couldn't be read, and the page no longer reads `member-list`. |
 | 2026-11-27 | The header splits the quarters into three links after a thin rule, **Event Management** (Tonight, Calendar, Progress), **Guild** (Guild, Recruiting, Applications, Discord roles), and **Bot** (TJ), at `/officers/events`, `/officers/guild`, and `/officers/bot`. The quarters' Roster tab goes (the public `/roster` page covers the guild); its Discord role → rank map moves to Guild's **Discord roles** tab, so recruits on trial and members without a character aren't listed in the quarters any more. Older `/officers?tab=…` links open the right section. |
 | 2026-11-27 | For signed-in members the home page's Raids section sits on the hero art with the greeting (TJ), through `vintage-hero`'s `after` slot. The art then keeps its own shape at the top and fades into the page, so it isn't cropped to a short band or blown up to cover the taller hero. |
 | 2026-11-27 | Polls are off everywhere behind a feature flag (TJ): `polls` in `@vintage/features` hides the Polls page, header link, home card, and quarters tab, `/vintage poll` and `/vintage event pick-night`, their vote buttons, and the help topic. The poll commands stay registered and `help-get` still takes `topic: polls` (it answers the overview), so the command contract is unchanged. |
@@ -204,7 +205,7 @@ New jobs for [docs/jtbd](../../../jtbd/README.md), each as a scenario test and a
 - `vintage-hero` `compact`: heading kept (the page's h1, now "Welcome back, Bloodfen."), the
   standfirst and actions hidden, a shorter band. Member figures: days to their next raid, going
   count with their own answer ("you're going", "you haven't answered" in accent, or "recruits
-  and up sign up"), bosses down, names on the rolls. Pills become their rank and main character.
+  and up sign up"), bosses down, roles we need most. Pills become their rank and main character.
 - Composition: members get "Your next raid" at the top, the signup card read-only with a note
   for `member` tier, and recruiting as one line at the foot ("Know a Warrior, Priest, or
   Shaman…"). The full band stays the visitor's. Officers get the member composition for now;

@@ -187,13 +187,12 @@ describe('the home page without its roster or recruiting sections', () => {
     }
   });
 
-  it('shows a signed-in raider no roster section but keeps the member count', async () => {
+  it('shows a signed-in raider no member count, and doesn’t read the member list for one', async () => {
+    const asked: string[] = [];
     restore = setCommandClient({
       read: (async (name: string): Promise<CommandResult> => {
+        asked.push(name);
         if (name === 'guild-profile-get') return { success: true, data: PROFILE };
-        if (name === 'member-list') {
-          return { success: true, data: [{ memberId: 'm1' }, { memberId: 'm2' }] };
-        }
         return {
           success: false,
           error: { code: 'COMMAND_NOT_FOUND', message: 'Unknown command' },
@@ -205,10 +204,12 @@ describe('the home page without its roster or recruiting sections', () => {
     const page = await mountHome();
     try {
       expect(page.shadowRoot?.querySelector('#roster')).toBeNull();
-      const members = [
+      const captions = [
         ...(page.shadowRoot?.querySelectorAll('vintage-hero vintage-figure') ?? []),
-      ].find((el) => el.getAttribute('caption')?.startsWith('on the rolls'));
-      expect(members?.getAttribute('value')).toBe('2');
+      ].map((el) => el.getAttribute('caption'));
+      expect(captions.some((c) => c?.includes('on the rolls'))).toBe(false);
+      expect(captions).toContain('we need most · know anyone?');
+      expect(asked).not.toContain('member-list');
     } finally {
       page.remove();
     }

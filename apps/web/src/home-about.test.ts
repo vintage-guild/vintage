@@ -84,6 +84,9 @@ describe('the home page’s About section', () => {
     const page = await mountHome();
     try {
       expect(page.shadowRoot?.querySelector('#about')).toBeNull();
+      // Raids sits on the hero's art with the greeting.
+      const raids = page.shadowRoot?.querySelector('vintage-hero > #raids');
+      expect(raids?.getAttribute('slot')).toBe('after');
     } finally {
       page.remove();
     }

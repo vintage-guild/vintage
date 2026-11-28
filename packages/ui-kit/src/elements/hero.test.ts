@@ -86,6 +86,16 @@ describe('vintage-figure', () => {
     );
     expect(shadowText(el)).toBe('10days to launch');
     expect(el.getAttribute('tone')).toBe('good');
+    expect(el.shadowRoot?.querySelector('a')).toBeNull();
+  });
+
+  it('is a link to what it counts when given an href', async () => {
+    const el = await mount<VintageFigure>(
+      '<vintage-figure value="3" unit="roles" caption="we need most" href="/recruitment"></vintage-figure>',
+    );
+    const link = el.shadowRoot?.querySelector('a.figure');
+    expect(link?.getAttribute('href')).toBe('/recruitment');
+    expect(link?.textContent?.replace(/\s+/g, '')).toBe('3roleswe' + 'needmost');
   });
 });
 

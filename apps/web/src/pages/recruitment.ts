@@ -102,9 +102,9 @@ const styles = css`
     color: var(--color-text-accent);
   }
 
+  /* As wide as the page column, like the table under it. */
   .pitch {
     display: block;
-    max-inline-size: 65ch;
     color: var(--color-text-secondary);
   }
 

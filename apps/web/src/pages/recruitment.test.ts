@@ -88,6 +88,16 @@ describe('the Recruitment page', () => {
     try {
       const root = page.shadowRoot!;
       expect(root.querySelector('a.primary')?.getAttribute('href')).toBe('/apply');
+      expect(
+        [...root.querySelectorAll('.actions a')].map((a) => [
+          a.textContent,
+          a.getAttribute('href'),
+        ]),
+      ).toEqual([
+        ['Apply to raid', '/apply'],
+        ['About', '/about'],
+        ['Roster', '/roster'],
+      ]);
       expect(root.querySelector('.small')?.textContent).toBe(
         'Ask an officer for a Discord invite.',
       );

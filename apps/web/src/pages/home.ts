@@ -8,6 +8,7 @@ import {
   when,
 } from '@lushly-dev/fast-element';
 import type { CoordinatorAction } from '@vintage/coordinator/contract';
+import { featureOn } from '@vintage/features';
 import type { Character } from '@vintage/identity/contract';
 import {
   LAUNCH_BOSS_COUNT,
@@ -56,6 +57,10 @@ import { ART } from '../content/art';
 import { daysUntil, formatMonthDay, formatTime, formatWeekday, preferredTimeZone } from '../dates';
 import { paragraphs, readGuildProfile } from '../guild-profile';
 import { type PollCardModel, type PollGet, pollCardModel } from '../polls';
+
+/** Polls are off for now (@vintage/features): no poll card, and no `poll-list` read. */
+const POLLS_ON = featureOn('polls');
+
 import { raidHref } from '../raids';
 import { describeNights, describeTimings, lockLabel } from '../schedules';
 import { currentSession } from '../session';
@@ -390,7 +395,7 @@ const template = html<Page>`
             </div>
             <span class="mono">bot activity · raid notices</span>
           </header>
-          <div class="two">
+          <div class="${() => (POLLS_ON ? 'two' : 'two solo')}">
             <div class="card">
               <span class="eyebrow">What Vintage did · newest first</span>
               <div class="feed">
@@ -414,7 +419,7 @@ const template = html<Page>`
               )}
             </div>
             ${when(
-              (x) => x.poll,
+              (x) => POLLS_ON && x.poll,
               html<Page>`
                 <div class="poll">
                   <vintage-poll-card
@@ -443,7 +448,7 @@ const template = html<Page>`
               `,
             )}
             ${when(
-              (x) => !x.poll,
+              (x) => POLLS_ON && !x.poll,
               html<Page>`<div class="card"><span class="eyebrow">The question</span><p class="muted">${(x) => (x.pollFailed ? 'Polls are for members. Sign in with Discord to see the open question and vote.' : 'No open poll. Raid leaders open one with /vintage poll create in Discord.')}</p>${when((x) => !x.pollFailed, html`<p class="muted small"><a href="/polls">Closed polls and results</a></p>`)}</div>`,
             )}
           </div>
@@ -617,6 +622,11 @@ const styles = css`
     grid-template-columns: 1.3fr 1fr;
     gap: var(--space-md);
     align-items: stretch;
+  }
+
+  /* Polls off: the log has the row to itself. */
+  .two.solo {
+    grid-template-columns: 1fr;
   }
 
   .two > .card {
@@ -1378,6 +1388,7 @@ export class Page extends FASTElement {
    * server would refuse `poll-list` anyway.
    */
   async loadPoll(): Promise<void> {
+    if (!POLLS_ON) return;
     if (this.view === 'visitor') {
       this.pollFailed = true;
       this.poll = null;

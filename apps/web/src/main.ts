@@ -10,7 +10,9 @@ import '@vintage/ui-kit/violet-bridge.css';
 import './styles.css';
 import '@vintage/ui-kit';
 import { fastRouterRegistration } from '@microsoft/fast-router';
+import { featureOn } from '@vintage/features';
 import { isOAuthPage } from './oauth';
+import { OFFICER_SECTIONS } from './officer-sections';
 import { VintageRoutes } from './routes';
 import { canSignIn, currentPreview, currentSession, realSession, signIn, signOut } from './session';
 import { installSectionLinks, trackScrollProgress } from './site-context';
@@ -96,20 +98,29 @@ if (signInButton && !session && canSignIn()) {
   signInButton.addEventListener('click', () => startSignIn());
 }
 
-// Members and up get Polls in the header; visitors would only find a sign-in card there.
-if (currentView() !== 'visitor') {
+// Members and up get Polls in the header; visitors would only find a sign-in card there. Polls
+// are off for now (@vintage/features).
+if (currentView() !== 'visitor' && featureOn('polls')) {
   const link = document.createElement('a');
   link.href = '/polls';
   link.textContent = 'Polls';
   document.getElementById('member-menu')?.before(link);
 }
 
-// Leaders and officers get the quarters in the header; the page itself also checks the view.
+// Leaders and officers get the quarters' three sections in the header, after a thin rule that
+// sets them apart from the links everyone sees. The page itself also checks the view.
 if (currentView() === 'officer') {
-  const link = document.createElement('a');
-  link.href = '/officers';
-  link.textContent = 'Officers';
-  document.getElementById('member-menu')?.before(link);
+  const menu = document.getElementById('member-menu');
+  const divider = document.createElement('span');
+  divider.className = 'nav-divider';
+  divider.setAttribute('aria-hidden', 'true');
+  menu?.before(divider);
+  for (const section of OFFICER_SECTIONS) {
+    const link = document.createElement('a');
+    link.href = section.path;
+    link.textContent = section.label;
+    menu?.before(link);
+  }
 }
 
 const updated = document.getElementById('updated') as HTMLTimeElement | null;

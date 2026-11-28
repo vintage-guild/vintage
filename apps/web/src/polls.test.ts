@@ -106,13 +106,21 @@ describe('routing helpers', async () => {
     expect(pollIdFromPath('/polls/')).toBe('');
   });
 
-  it('opens the tab named in ?tab=, only when it is built', () => {
-    expect(tabFromUrl('?tab=polls')).toBe('polls');
+  it('opens the tab named in ?tab= when its section has it, else the section’s first', () => {
+    // A bare /officers (older links) takes the section holding the tab.
     expect(tabFromUrl('?tab=calendar')).toBe('calendar');
     expect(tabFromUrl('?tab=coordinator')).toBe('coordinator');
     expect(tabFromUrl('?tab=progress')).toBe('progress');
-    expect(tabFromUrl('?tab=roster')).toBe('roster');
+    expect(tabFromUrl('?tab=roster')).toBe('roles'); // the Roster tab became Discord roles
     expect(tabFromUrl('?tab=loot')).toBe('tonight');
     expect(tabFromUrl('')).toBe('tonight');
+    // Polls are off: their tab isn't anywhere.
+    expect(tabFromUrl('?tab=polls')).toBe('tonight');
+    expect(tabFromUrl('?tab=polls', '/officers/guild')).toBe('guild');
+    // A section's own address opens its first tab, and ignores another section's.
+    expect(tabFromUrl('', '/officers/guild')).toBe('guild');
+    expect(tabFromUrl('?tab=calendar', '/officers/guild')).toBe('guild');
+    expect(tabFromUrl('?tab=recruiting', '/officers/guild')).toBe('recruiting');
+    expect(tabFromUrl('', '/officers/bot')).toBe('coordinator');
   });
 });

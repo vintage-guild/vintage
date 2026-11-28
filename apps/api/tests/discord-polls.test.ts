@@ -12,13 +12,17 @@ import { pollsCommands } from '@vintage/polls/commands';
 import type { Poll } from '@vintage/polls/contract';
 import { createMemoryPollsDeps } from '@vintage/polls/testing';
 import { fixedClock, testRegistry } from '@vintage/testing';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createInput,
   handlePollInteraction,
   type PollPorts,
   splitOptions,
 } from '../src/discord-polls';
+
+// These tests cover the poll surfaces, so they run with Polls on; help-polls-off.test.ts covers
+// the flag being off.
+vi.mock('@vintage/features', () => ({ FEATURES: { polls: true }, featureOn: () => true }));
 
 const GUILD = 'guild-test';
 const DISCORD_GUILD = '600000000000000001';

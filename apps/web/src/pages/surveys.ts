@@ -1,4 +1,5 @@
 import { css, FASTElement, html, observable, repeat, when } from '@lushly-dev/fast-element';
+import { featureOn } from '@vintage/features';
 import { type Tier, tierAllows } from '@vintage/guild-kit';
 import type { Survey, SurveyResponse, SurveyResults } from '@vintage/polls/contract';
 import { SURVEY_LIMITS } from '@vintage/polls/contract';
@@ -36,7 +37,7 @@ const template = html<Page>`
         html<Page>`
           <p class="links">
             ${when((x) => x.surveyId, html`<a href="/surveys">All surveys</a>`)}
-            <a href="/polls">Polls</a>
+            ${when(() => featureOn('polls'), html`<a href="/polls">Polls</a>`)}
           </p>
         `,
       )}

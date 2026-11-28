@@ -3,8 +3,12 @@
 // apps/api imports this file too (`@vintage/gateway/commands`) to build Random's help pages in
 // Convex, so it stays pure data: discord-kit only, no Node or Vercel imports.
 import { type ApplicationCommand, ApplicationCommandOptionType } from '@vintage/discord-kit';
+import { featureOn } from '@vintage/features';
 
 const T = ApplicationCommandOptionType;
+
+/** Whether Polls are on (`@vintage/features`). */
+const POLLS_ON = featureOn('polls');
 
 /**
  * `/vintage <group> help`: that group's help page. Convex renders it for the reader's rank from
@@ -581,7 +585,7 @@ const HELP = {
         { name: 'Signups', value: 'signups' },
         { name: 'Absences', value: 'absences' },
         { name: 'Characters', value: 'characters' },
-        { name: 'Polls', value: 'polls' },
+        ...(POLLS_ON ? [{ name: 'Polls', value: 'polls' }] : []),
         { name: 'Ask Random', value: 'ask' },
         { name: 'Recruiting', value: 'recruiting' },
         { name: 'Roster', value: 'roster' },
@@ -589,6 +593,14 @@ const HELP = {
     },
   ],
 };
+
+/**
+ * With Polls off (`@vintage/features`), `/vintage poll` and `/vintage event pick-night` aren't
+ * registered, so Discord doesn't offer them.
+ */
+const REGISTERED_EVENT_GROUP = POLLS_ON
+  ? EVENT_GROUP
+  : { ...EVENT_GROUP, options: EVENT_GROUP.options.filter((o) => o.name !== 'pick-night') };
 
 export const RANDOM_COMMAND = {
   name: 'vintage',
@@ -601,8 +613,8 @@ export const RANDOM_COMMAND = {
       description: 'Check that Random is answering',
     },
     HELP,
-    POLL_GROUP,
-    EVENT_GROUP,
+    ...(POLLS_ON ? [POLL_GROUP] : []),
+    REGISTERED_EVENT_GROUP,
     SCHEDULE_GROUP,
     CHARACTER_GROUP,
     ABSENCE_GROUP,

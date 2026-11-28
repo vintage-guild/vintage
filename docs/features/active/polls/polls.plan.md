@@ -1,6 +1,7 @@
 # Polls — guild polls, votes, and surveys
 
 > Status: active · Owner: Bloodfen · Requested by the GM (2026-10-25) · Epic vintage-guild/vintage#56
+> **Off since 2026-11-27 (TJ):** the `polls` flag in `@vintage/features` hides polls on the site, `/vintage poll`, `/vintage event pick-night`, their vote buttons, and the help topic. The commands and stored polls are kept; turn the flag on and register the slash commands again to bring them back.
 > Related: [PLAN.md §3.3](../../../../PLAN.md) (command surface), §4.2 (module anatomy), §6 (coordinator)
 
 **The ask.** "Will it have different modules per set of functionality? I may add some

@@ -98,6 +98,9 @@ importers:
       '@vintage/discord-kit':
         specifier: workspace:*
         version: link:../../libs/discord-kit
+      '@vintage/features':
+        specifier: workspace:*
+        version: link:../../libs/features
       '@vintage/forever-api':
         specifier: workspace:*
         version: link:../../libs/forever-api
@@ -196,6 +199,9 @@ importers:
       '@vintage/discord-kit':
         specifier: workspace:*
         version: link:../../libs/discord-kit
+      '@vintage/features':
+        specifier: workspace:*
+        version: link:../../libs/features
       zod:
         specifier: 'catalog:'
         version: 4.6.7
@@ -251,6 +257,9 @@ importers:
       '@vintage/design-tokens':
         specifier: workspace:*
         version: link:../../libs/design-tokens
+      '@vintage/features':
+        specifier: workspace:*
+        version: link:../../libs/features
       '@vintage/guild-kit':
         specifier: workspace:*
         version: link:../../packages/guild-kit
@@ -352,6 +361,15 @@ importers:
         version: '@typescript/typescript6@6.0.2'
 
   libs/discord-kit:
+    devDependencies:
+      '@vintage/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      typescript:
+        specifier: 'catalog:'
+        version: '@typescript/typescript6@6.0.2'
+
+  libs/features:
     devDependencies:
       '@vintage/config':
         specifier: workspace:*

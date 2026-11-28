@@ -139,6 +139,20 @@ describe('vintage-roster-desk', () => {
     expect(rows.at(-1)).toContain('Wren');
   });
 
+  it('with roles-only shows just the last sync and the role map, for the Discord roles tab', async () => {
+    const el = await desk();
+    el.rolesOnly = true;
+    await settle();
+    // The form's own heading names it; no count of members above it.
+    expect($(el, '.head h2')).toBeNull();
+    expect(text($(el, '.head .meta'))).toContain('It runs every 15 minutes.');
+    expect($(el, '[part="trial"]')).toBeNull();
+    expect($(el, '[part="no-character"]')).toBeNull();
+    expect($(el, '[part="members"]')).toBeNull();
+    expect($(el, '[part="roles"]')).toBeTruthy();
+    expect($$(el, '[part="roles"] li.role')).toHaveLength(2);
+  });
+
   it('says when Discord last synced, and that the sync stopped when it is an hour old', async () => {
     const el = await desk();
     expect(text($(el, '.head .meta'))).toContain('It runs every 15 minutes.');

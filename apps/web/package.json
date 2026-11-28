@@ -22,6 +22,7 @@
     "@vintage/armory": "workspace:*",
     "@vintage/coordinator": "workspace:*",
     "@vintage/design-tokens": "workspace:*",
+    "@vintage/features": "workspace:*",
     "@vintage/guild-kit": "workspace:*",
     "@vintage/identity": "workspace:*",
     "@vintage/insights": "workspace:*",

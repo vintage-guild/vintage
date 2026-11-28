@@ -8,9 +8,13 @@ import {
 import type { Tier } from '@vintage/guild-kit';
 import type { Member } from '@vintage/identity/contract';
 import { fixedClock, testRegistry } from '@vintage/testing';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { type HelpPorts, handleHelpInteraction, UNKNOWN_MEMBER_NOTE } from '../src/discord-help';
 import { commands, type VintageDeps } from '../src/registry';
+
+// These tests cover the poll surfaces, so they run with Polls on; help-polls-off.test.ts covers
+// the flag being off.
+vi.mock('@vintage/features', () => ({ FEATURES: { polls: true }, featureOn: () => true }));
 
 const GUILD = 'guild-test';
 const DISCORD_GUILD = '600000000000000001';

@@ -168,7 +168,7 @@ const template = html<VintageRosterDesk>`
       (x) => !x.loading || x.members.length,
       html<VintageRosterDesk>`
         <header class="head" part="head">
-          <h2 id="h-roster">${(x) => x.headline}</h2>
+          ${when((x) => !x.rolesOnly, html<VintageRosterDesk>`<h2 id="h-roster">${(x) => x.headline}</h2>`)}
           <div class="sync-row">
             <p class="${(x) => (x.syncStale ? 'meta stale' : 'meta')}">${(x) => x.syncLine}</p>
             ${when(
@@ -190,6 +190,9 @@ const template = html<VintageRosterDesk>`
           )}
         </header>
 
+        ${when(
+          (x) => !x.rolesOnly,
+          html<VintageRosterDesk>`
         <section aria-labelledby="h-trial" part="trial">
           <h3 id="h-trial">Recruits on trial</h3>
           ${when((x) => !x.trials.length, html`<p class="note">No recruits right now.</p>`)}
@@ -243,6 +246,8 @@ const template = html<VintageRosterDesk>`
             </table>
           </div>
         </section>
+          `,
+        )}
 
         <form class="roles" part="roles" aria-labelledby="h-roles" @submit="${(x, c) => x.submit(c.event)}">
           <h3 id="h-roles">Discord roles → guild rank</h3>
@@ -442,6 +447,7 @@ const styles = css`
 /**
  * The officers' Roster tab: who is in the guild by rank, recruits with how long they have been
  * on trial, who has no character yet, when Discord last synced, and the Discord role → rank map.
+ * With `roles-only` (the quarters' Discord roles tab) it shows just the last sync and the map.
  * Feed it `member-list` (`members`) and `guild-roles-get` (`roles`). Saving the map needs
  * `can-configure` (officer tier, as `guild-roles-set` is) and goes through the server's preview
  * and confirm token. After it saves it emits `roster-changed` so the page reads again.
@@ -471,6 +477,8 @@ export class VintageRosterDesk extends FASTElement {
   @attr({ mode: 'boolean' }) loading = false;
   /** Why the roster could not be read. */
   @attr error = '';
+  /** Only the last sync and the role map: the quarters' Discord roles tab. */
+  @attr({ attribute: 'roles-only', mode: 'boolean' }) rolesOnly = false;
   @observable rows: RoleRow[] = [];
   @observable dirty = false;
   @observable busy = false;

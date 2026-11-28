@@ -5,7 +5,7 @@ import { messageText } from '@vintage/coordinator/testing';
 import { type Caller, publicCaller } from '@vintage/guild-kit';
 import type { Poll, PollResults } from '@vintage/polls/contract';
 import type { RaidEvent } from '@vintage/raids/contract';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createHost,
   GUILD,
@@ -17,6 +17,10 @@ import {
   ROLES,
   SIGNUP_CHANNEL,
 } from './host';
+
+// These tests cover the poll surfaces, so they run with Polls on; help-polls-off.test.ts covers
+// the flag being off.
+vi.mock('@vintage/features', () => ({ FEATURES: { polls: true }, featureOn: () => true }));
 
 interface Guild {
   host: Host;

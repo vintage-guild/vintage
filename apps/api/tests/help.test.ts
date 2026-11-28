@@ -5,7 +5,7 @@ import {
 import { FORWARDED_GROUPS, RANDOM_COMMAND } from '@vintage/gateway/commands';
 import { type Caller, publicCaller, type Tier } from '@vintage/guild-kit';
 import { fixedClock, testRegistry } from '@vintage/testing';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   type HelpContext,
   type HelpPage,
@@ -16,6 +16,10 @@ import {
 } from '../src/help';
 import { HELP_TOPICS } from '../src/help-topics';
 import { commands, type VintageDeps } from '../src/registry';
+
+// These tests cover the poll surfaces, so they run with Polls on; help-polls-off.test.ts covers
+// the flag being off.
+vi.mock('@vintage/features', () => ({ FEATURES: { polls: true }, featureOn: () => true }));
 
 const GUILD = 'guild-test';
 const tiers = new Map(commands.map((c) => [c.name, c.tier as Tier]));

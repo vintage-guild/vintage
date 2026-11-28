@@ -26,13 +26,14 @@ describe('VintageRoutes', () => {
     ['profile', 'Profile'],
     ['characters', 'Characters'],
     ['wishlist', 'Wishlist'],
-    ['polls', 'Polls'],
-    ['polls/j971cqgtxed9zmwk9nfvwafby18h1hwn', 'Polls'],
     ['surveys', 'Surveys'],
     ['surveys/j971cqgtxed9zmwk9nfvwafby18h1hwn', 'Surveys'],
     ['raids/k572bq8d3w0g0x9m2fz1y7j4hd7tn1pa', 'Raid'],
     ['r/k3m9qz', 'Raid'],
     ['officers', 'Officers’ quarters'],
+    ['officers/events', 'Officers’ quarters'],
+    ['officers/guild', 'Officers’ quarters'],
+    ['officers/bot', 'Officers’ quarters'],
     ['apply', 'Apply'],
     ['oauth/sign-in', 'Connect an app'],
     ['oauth/consent', 'Connect an app'],
@@ -46,6 +47,11 @@ describe('VintageRoutes', () => {
     // A raid page needs its raid; the calendar is the home page's Raids section.
     expect(await titleOf('raids')).toBe('Not found');
     expect(await titleOf('r')).toBe('Not found');
+  });
+
+  it('has no Polls page while Polls are off', async () => {
+    expect(await titleOf('polls')).toBe('Not found');
+    expect(await titleOf('polls/j971cqgtxed9zmwk9nfvwafby18h1hwn')).toBe('Not found');
   });
 });
 

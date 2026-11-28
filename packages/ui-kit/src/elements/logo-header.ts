@@ -130,6 +130,15 @@ const styles = css`
     border-block-end-color: var(--color-text-accent);
   }
 
+  /* A thin rule between the links everyone sees and the officers' ones. */
+  ::slotted(.nav-divider) {
+    flex: none;
+    align-self: center;
+    inline-size: var(--border-width-thin);
+    block-size: 1.1em;
+    background: var(--color-border-strong);
+  }
+
   ::slotted(a:focus-visible) {
     outline: var(--border-width-thin) solid var(--color-focus-ring);
     outline-offset: var(--border-width-thin);
@@ -250,7 +259,7 @@ const styles = css`
  * @tagname vintage-logo-header
  * @summary Sticky site header with the themed logo, nav, section context, and progress line.
  * @slot logo - The two-tone logo SVG (`assets/brand/vintage-logo-two-tone.svg`), usually in a link home.
- * @slot - Navigation links. Mark the current page with `aria-current="page"`.
+ * @slot - Navigation links. Mark the current page with `aria-current="page"`. A `span.nav-divider` between links draws a thin rule.
  * @slot member - The signed-in member (name and rank).
  * @slot actions - Header actions, such as the theme switch.
  * @csspart bar - The header row.

@@ -64,7 +64,8 @@ export type ComponentApi<Name extends string | undefined = string | undefined> =
           guildId: string;
           headline: string;
           needs: Array<{
-            need: "high" | "medium" | "closed";
+            need: "high" | "medium" | "low" | "closed";
+            role?: "any" | "tank" | "healer" | "melee" | "ranged";
             specs: string;
             wowClass:
               | "warrior"

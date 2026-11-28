@@ -277,9 +277,18 @@ export function renderAcceptReply(application: Application, giveRole: GiveRole):
 
 export interface NeedLineView {
   wowClass: WowClass;
+  /** The role the line recruits for; `any` (or absent) leaves it out of the line. */
+  role?: string;
   specs: string;
-  need: 'high' | 'medium' | 'closed';
+  need: 'high' | 'medium' | 'low' | 'closed';
 }
+
+const DEMAND_WORDS: Record<NeedLineView['need'], string> = {
+  high: 'high need',
+  medium: 'some need',
+  low: 'low need',
+  closed: 'closed',
+};
 
 /** A loop, not a regex: `/\/+$/` backtracks on a long run of slashes (CodeQL). */
 function withoutTrailingSlashes(url: string): string {
@@ -298,7 +307,7 @@ export function renderRecruitingPost(
   const lines = open.length
     ? open.map(
         (n) =>
-          `**${title(n.wowClass)}** · ${n.specs} · ${n.need === 'high' ? 'high need' : 'some need'}`,
+          `**${title(n.wowClass)}**${n.role && n.role !== 'any' ? ` · ${title(n.role)}` : ''} · ${n.specs} · ${DEMAND_WORDS[n.need]}`,
       )
     : ['No classes listed right now; strong players of any class are welcome to apply.'];
   return {

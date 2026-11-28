@@ -14,8 +14,9 @@ const BAND: Recruiting = {
   headline: 'We need a second main tank.',
   pitch: 'Come prepared, be on time, be kind.',
   needs: [
-    { wowClass: 'warrior', specs: 'protection', need: 'high' },
-    { wowClass: 'mage', specs: 'any', need: 'medium' },
+    { wowClass: 'warrior', role: 'tank', specs: 'protection', need: 'high' },
+    { wowClass: 'mage', role: 'any', specs: 'any', need: 'medium' },
+    { wowClass: 'druid', role: 'healer', specs: 'restoration', need: 'low' },
   ],
   updatedAt: Date.UTC(2026, 10, 23, 18),
 };
@@ -43,7 +44,7 @@ async function mount() {
 await import('./recruitment');
 
 describe('the Recruitment page', () => {
-  it('shows the band officers saved: headline, pitch, and each class it needs', async () => {
+  it('shows the band officers saved: headline, pitch, and each class, role, and demand', async () => {
     client(null);
     const page = await mount();
     try {
@@ -57,8 +58,9 @@ describe('the Recruitment page', () => {
         [...tr.querySelectorAll('td')].map((td) => td.textContent?.trim()),
       );
       expect(rows).toEqual([
-        ['Warrior', 'protection', 'high'],
-        ['Mage', 'any', 'medium'],
+        ['Warrior', 'Tank', 'protection', 'high'],
+        ['Mage', 'Any', 'any', 'medium'],
+        ['Druid', 'Healer', 'restoration', 'low'],
       ]);
       expect(root.querySelector('.wrap')?.hasAttribute('data-pending')).toBe(false);
     } finally {

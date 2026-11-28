@@ -499,4 +499,21 @@ describe('the recruiting post', () => {
     expect(text(null)).not.toContain('https://');
     expect(text(null)).not.toContain('on the site');
   });
+
+  it('names each open line’s role and demand, and leaves out closed lines', () => {
+    const post = JSON.stringify(
+      renderRecruitingPost(
+        'Tanks.',
+        [
+          { wowClass: 'druid', role: 'tank', specs: 'feral', need: 'high' },
+          { wowClass: 'mage', role: 'any', specs: 'any', need: 'low' },
+          { wowClass: 'rogue', role: 'melee', specs: 'any', need: 'closed' },
+        ],
+        null,
+      ),
+    );
+    expect(post).toContain('**Druid** · Tank · feral · high need');
+    expect(post).toContain('**Mage** · any · low need');
+    expect(post).not.toContain('Rogue');
+  });
 });

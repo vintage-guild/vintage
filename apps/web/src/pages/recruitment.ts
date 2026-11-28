@@ -37,7 +37,7 @@ const template = html<Page>`
         )}
       </div>
       <table class="needs">
-        <thead><tr><th>Class</th><th>Specs</th><th class="end">Need</th></tr></thead>
+        <thead><tr><th>Class</th><th>Role</th><th>Specs</th><th class="end">Demand</th></tr></thead>
         <tbody>
           ${repeat(
             (x) => x.band.needs,
@@ -55,6 +55,7 @@ const template = html<Page>`
                   />
                   <span>${(n) => titleCase(n.wowClass)}</span>
                 </td>
+                <td class="role">${(n) => titleCase(n.role ?? 'any')}</td>
                 <td class="muted">${(n) => n.specs}</td>
                 <td class="end"><span class="need ${(n) => n.need}">${(n) => n.need}</span></td>
               </tr>
@@ -181,6 +182,7 @@ const styles = css`
   .needs td {
     text-align: start;
     padding-block: 0.6rem;
+    padding-inline-end: var(--space-sm);
     border-block-end: var(--border-width-thin) solid var(--color-border-inverse);
     vertical-align: middle;
   }
@@ -233,6 +235,11 @@ const styles = css`
 
   .need.medium {
     background: var(--color-parchment-200);
+    color: var(--color-text-inverse);
+  }
+
+  .need.low {
+    border: var(--border-width-thin) solid var(--color-leather-700);
     color: var(--color-text-inverse);
   }
 

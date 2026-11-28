@@ -1,21 +1,27 @@
 // Public surface of the site module. Other modules import only this file.
 //
 // The site module owns the website's editable copy: the recruiting band (the headline, the
-// pitch, and how much the guild needs each class) and the guild profile (the hero's pills and
+// pitch, and how much the guild needs each class and role) and the guild profile (the hero's pills and
 // intro, the About page, the Discord invite, the contact address). Officers change them with
 // `recruiting-set` and `guild-profile-set` from the officers' quarters, Discord, or an agent;
 // everyone reads them with `recruiting-get` and `guild-profile-get`, so visitors see the same
 // thing officers wrote.
 
-import { CLASS_NAMES, type WowClass } from '@vintage/wow-data';
+import { CLASS_NAMES, ROLES, type Role, type WowClass } from '@vintage/wow-data';
 
 /** How much the guild wants a class, most to least. `closed` still shows, as "not now". */
-export const NEED_LEVELS = ['high', 'medium', 'closed'] as const;
+export const NEED_LEVELS = ['high', 'medium', 'low', 'closed'] as const;
 export type NeedLevel = (typeof NEED_LEVELS)[number];
 
-/** One row of the recruiting band. */
+/** The raid role a line recruits for; `any` when the class is wanted in whatever it plays. */
+export const NEED_ROLES = ['any', ...ROLES] as const;
+export type NeedRole = Role | 'any';
+
+/** One row of the recruiting band: a class, the role it's wanted for, and how much. */
 export interface ClassNeed {
   wowClass: WowClass;
+  /** A role the class can play, or `any`. Lines saved before roles existed read as `any`. */
+  role: NeedRole;
   /** Free text for the specs wanted: "protection", "holy · discipline", "any". */
   specs: string;
   need: NeedLevel;
@@ -26,10 +32,11 @@ export const RECRUITING_LIMITS = {
   headline: 120,
   pitch: 800,
   specs: 60,
-  needs: CLASS_NAMES.length,
+  /** One line per class and role at most: each class's roles plus `any`. */
+  needs: CLASS_NAMES.length * NEED_ROLES.length,
 } as const;
 
-/** High, medium, closed: the order the band lists needs in. */
+/** High, medium, low, closed: the order the band lists needs in. */
 export function byNeed<T extends { need: NeedLevel }>(needs: readonly T[]): T[] {
   const rank = (n: NeedLevel) => NEED_LEVELS.indexOf(n);
   return needs
@@ -43,8 +50,8 @@ export interface Recruiting {
   headline: string;
   pitch: string;
   /**
-   * High first, then medium, then closed, whatever order they were saved in; within a level,
-   * the order officers gave. One row per class at most.
+   * High first, then medium, low, and closed, whatever order they were saved in; within a
+   * level, the order officers gave. One row per class and role at most.
    */
   needs: ClassNeed[];
   /**
@@ -66,15 +73,16 @@ export const STARTER_RECRUITING: Recruiting = {
     'guild ranks, so nothing is managed twice. To join, ask an officer for an invite to the ' +
     'Discord, then sign in here to add your characters.',
   needs: [
-    { wowClass: 'warrior', specs: 'protection', need: 'high' },
-    { wowClass: 'priest', specs: 'holy · discipline', need: 'high' },
-    { wowClass: 'shaman', specs: 'restoration', need: 'high' },
-    { wowClass: 'mage', specs: 'any', need: 'medium' },
-    { wowClass: 'druid', specs: 'restoration · feral tank', need: 'medium' },
-    { wowClass: 'warlock', specs: 'any', need: 'medium' },
-    { wowClass: 'paladin', specs: 'holy', need: 'medium' },
-    { wowClass: 'hunter', specs: 'any', need: 'closed' },
-    { wowClass: 'rogue', specs: 'any', need: 'closed' },
+    { wowClass: 'warrior', role: 'tank', specs: 'protection', need: 'high' },
+    { wowClass: 'priest', role: 'healer', specs: 'holy · discipline', need: 'high' },
+    { wowClass: 'shaman', role: 'healer', specs: 'restoration', need: 'high' },
+    { wowClass: 'mage', role: 'ranged', specs: 'any', need: 'medium' },
+    { wowClass: 'druid', role: 'healer', specs: 'restoration', need: 'medium' },
+    { wowClass: 'druid', role: 'tank', specs: 'feral', need: 'medium' },
+    { wowClass: 'warlock', role: 'ranged', specs: 'any', need: 'medium' },
+    { wowClass: 'paladin', role: 'healer', specs: 'holy', need: 'medium' },
+    { wowClass: 'hunter', role: 'ranged', specs: 'any', need: 'closed' },
+    { wowClass: 'rogue', role: 'melee', specs: 'any', need: 'closed' },
   ],
   updatedAt: null,
 };

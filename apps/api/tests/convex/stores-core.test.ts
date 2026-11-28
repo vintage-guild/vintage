@@ -488,7 +488,7 @@ parity('siteStore', createMemorySiteStore, siteStore, (setup) => {
         guildId: GUILD_A,
         headline: 'Recruiting healers',
         pitch: 'Wed/Thu raids',
-        needs: [{ wowClass: 'priest', specs: 'holy', need: 'high' }],
+        needs: [{ wowClass: 'priest', role: 'healer', specs: 'holy', need: 'high' }],
         updatedAt: 1000,
         updatedBy: 'officer',
       });
@@ -510,5 +510,25 @@ parity('siteStore', createMemorySiteStore, siteStore, (setup) => {
       expect((await s.getProfile(GUILD_A))?.intro).toBe('Vintage on Forever');
       expect(await s.getProfile(GUILD_B)).toBeNull();
     });
+  });
+});
+
+describe('siteStore (convex) with lines saved before roles existed', () => {
+  it('reads a line without a role as any', async () => {
+    const t = await createConvexBackend();
+    const needs = await t.run(async (ctx) => {
+      const s = siteStore(ctx);
+      await s.putRecruiting({
+        guildId: GUILD_A,
+        headline: 'Healers',
+        pitch: 'Wed/Thu raids',
+        // The shape every line had before roles: no role at all.
+        needs: [{ wowClass: 'priest', specs: 'holy', need: 'high' } as never],
+        updatedAt: 1000,
+        updatedBy: 'officer',
+      });
+      return (await s.getRecruiting(GUILD_A))?.needs;
+    });
+    expect(needs).toEqual([{ wowClass: 'priest', role: 'any', specs: 'holy', need: 'high' }]);
   });
 });

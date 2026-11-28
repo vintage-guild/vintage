@@ -6,7 +6,8 @@ import { recruitingFields } from './schema';
 
 const toRecord = (doc: Doc<'recruiting'>) => {
   const { _id, _creationTime, ...rest } = doc;
-  return rest;
+  // Lines saved before roles existed recruit for any role.
+  return { ...rest, needs: rest.needs.map((n) => ({ ...n, role: n.role ?? ('any' as const) })) };
 };
 
 export const get = query({

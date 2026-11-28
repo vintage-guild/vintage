@@ -9,7 +9,6 @@ import {
 } from '@vintage/site/contract';
 import { getCommandClient, titleCase } from '@vintage/ui-kit';
 import { classIcon } from '../class-icons';
-import { ART } from '../content/art';
 import { formatMonthDay } from '../dates';
 import { readGuildProfile } from '../guild-profile';
 import { buttonStyles } from './button-styles';
@@ -17,53 +16,52 @@ import { pageStyles } from './page-styles';
 
 const template = html<Page>`
   <section class="band" id="recruiting" aria-labelledby="h-recruiting">
-    <img class="arms" src="${ART.recruiting}" alt="" decoding="async" />
     <div class="wrap" ?data-pending="${(x) => !x.recruiting}">
-      <div class="lead">
-        <span class="eyebrow">${(x) => x.eyebrow}</span>
-        <h1 id="h-recruiting">${(x) => x.band.headline}</h1>
-        <vintage-markdown class="pitch" :text="${(x) => x.band.pitch}"></vintage-markdown>
-        <p class="actions">
-          ${when(
-            (x) => x.profile.discordInvite,
-            html<Page>`<a class="btn primary" href="${(x) => x.profile.discordInvite ?? ''}" rel="noopener">Join the Discord</a>`,
-          )}
-          <a class="btn ${(x) => (x.profile.discordInvite ? '' : 'primary')}" href="/apply">Apply to raid</a>
-          <a class="btn" href="/about">How we raid</a>
-          <a class="btn" href="/roster">Who’s in</a>
-        </p>
+      <span class="eyebrow">${(x) => x.eyebrow}</span>
+      <h1 id="h-recruiting">${(x) => x.band.headline}</h1>
+      <vintage-markdown class="pitch" :text="${(x) => x.band.pitch}"></vintage-markdown>
+      <p class="actions">
         ${when(
-          (x) => !x.profile.discordInvite,
-          html`<p class="muted small">Ask an officer for a Discord invite.</p>`,
+          (x) => x.profile.discordInvite,
+          html<Page>`<a class="btn primary" href="${(x) => x.profile.discordInvite ?? ''}" rel="noopener">Join the Discord</a>`,
         )}
+        <a class="btn ${(x) => (x.profile.discordInvite ? '' : 'primary')}" href="/apply">Apply to raid</a>
+        <a class="btn" href="/about">How we raid</a>
+        <a class="btn" href="/roster">Who’s in</a>
+      </p>
+      ${when(
+        (x) => !x.profile.discordInvite,
+        html`<p class="muted small">Ask an officer for a Discord invite.</p>`,
+      )}
+      <div class="card">
+        <table class="needs">
+          <thead><tr><th>Class</th><th>Role</th><th>Special notes</th><th class="end">Demand</th></tr></thead>
+          <tbody>
+            ${repeat(
+              (x) => x.band.needs,
+              html<ClassNeed>`
+                <tr>
+                  <td class="cls">
+                    <img
+                      src="${(n) => classIcon(n.wowClass)}"
+                      alt=""
+                      width="28"
+                      height="28"
+                      loading="lazy"
+                      decoding="async"
+                      referrerpolicy="no-referrer"
+                    />
+                    <span>${(n) => titleCase(n.wowClass)}</span>
+                  </td>
+                  <td class="role">${(n) => titleCase(n.role ?? 'any')}</td>
+                  <td class="muted">${(n) => needNote(n.specs)}</td>
+                  <td class="end"><span class="need ${(n) => n.need}">${(n) => n.need}</span></td>
+                </tr>
+              `,
+            )}
+          </tbody>
+        </table>
       </div>
-      <table class="needs">
-        <thead><tr><th>Class</th><th>Role</th><th>Special notes</th><th class="end">Demand</th></tr></thead>
-        <tbody>
-          ${repeat(
-            (x) => x.band.needs,
-            html<ClassNeed>`
-              <tr>
-                <td class="cls">
-                  <img
-                    src="${(n) => classIcon(n.wowClass)}"
-                    alt=""
-                    width="28"
-                    height="28"
-                    loading="lazy"
-                    decoding="async"
-                    referrerpolicy="no-referrer"
-                  />
-                  <span>${(n) => titleCase(n.wowClass)}</span>
-                </td>
-                <td class="role">${(n) => titleCase(n.role ?? 'any')}</td>
-                <td class="muted">${(n) => needNote(n.specs)}</td>
-                <td class="end"><span class="need ${(n) => n.need}">${(n) => n.need}</span></td>
-              </tr>
-            `,
-          )}
-        </tbody>
-      </table>
     </div>
   </section>
 `;
@@ -72,33 +70,12 @@ const styles = css`
   ${pageStyles}
   ${buttonStyles}
 
-  :host {
-    padding: 0;
-  }
-
-  /* The cream band, on the inverse surface tokens, filling the page under the header. */
-  .band {
-    display: block;
-    position: relative;
-    overflow: hidden;
-    padding-block: var(--space-2xl) var(--space-3xl);
-    background: var(--color-surface-inverse);
-    color: var(--color-text-inverse);
-    box-shadow:
-      inset 0 12px 30px rgb(0 0 0 / 8%),
-      inset 0 -12px 30px rgb(0 0 0 / 6%);
-  }
-
+  /* One column on the site's own dark surfaces: the headline, the pitch, then the classes. */
   .wrap {
-    position: relative;
-    z-index: 1;
     display: grid;
-    grid-template-columns: 1fr 1.1fr;
-    gap: var(--space-lg) var(--space-xl);
-    align-items: start;
-    max-inline-size: 80rem;
+    gap: var(--space-md);
+    max-inline-size: 52rem;
     margin-inline: auto;
-    padding-inline: var(--space-inset);
   }
 
   /* Until recruiting-get answers, the text keeps its place but shows nothing. */
@@ -106,16 +83,10 @@ const styles = css`
     visibility: hidden;
   }
 
-  .lead {
-    display: grid;
-    gap: var(--space-sm);
-  }
-
   h1 {
-    color: var(--color-text-inverse);
-    font-size: clamp(2rem, 4vw, 3.4rem);
+    font-size: clamp(2rem, 4vw, 3.2rem);
     font-weight: var(--font-weight-heavy);
-    line-height: 1.02;
+    line-height: 1.05;
   }
 
   .eyebrow {
@@ -123,22 +94,18 @@ const styles = css`
     font-size: var(--font-size-xs);
     letter-spacing: var(--font-tracking-wider);
     text-transform: uppercase;
-    color: var(--color-rose-700);
-  }
-
-  .pitch,
-  .muted {
-    margin: 0;
-    color: var(--color-leather-700);
+    color: var(--color-text-accent);
   }
 
   .pitch {
     display: block;
-    max-inline-size: 60ch;
-    --markdown-link: var(--color-verdigris-700);
+    max-inline-size: 65ch;
+    color: var(--color-text-secondary);
   }
 
   .muted {
+    margin: 0;
+    color: var(--color-text-secondary);
     font-size: var(--font-size-sm);
   }
 
@@ -150,29 +117,17 @@ const styles = css`
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-xs);
+    margin: 0;
   }
 
-  .btn.primary {
-    background: var(--color-verdigris-700);
-    border-color: color-mix(in srgb, var(--color-verdigris-700) 60%, black);
-    color: var(--color-parchment-50);
-    box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 22%),
-      0 1px 0 rgb(0 0 0 / 25%);
-  }
-
-  /* The shield and staff stand at the band's right edge: in the margin on wide screens, behind
-     the needs table on narrower ones. Multiply keeps the ink in the paper. */
-  .arms {
-    position: absolute;
-    inset-block-end: 0;
-    inset-inline-end: max(0px, calc((100% - 80rem) / 2 - 9rem));
-    block-size: 94%;
-    inline-size: auto;
-    opacity: 0.26;
-    mix-blend-mode: multiply;
-    pointer-events: none;
-    user-select: none;
+  .card {
+    margin-block-start: var(--space-md);
+    padding: var(--space-xs) var(--space-md);
+    border-radius: 0.4rem;
+    border: var(--border-width-thin) solid var(--color-border-default);
+    background: var(--color-surface-raised);
+    box-shadow: var(--shadow-raised);
+    overflow-x: auto;
   }
 
   .needs {
@@ -186,8 +141,12 @@ const styles = css`
     text-align: start;
     padding-block: 0.6rem;
     padding-inline-end: var(--space-sm);
-    border-block-end: var(--border-width-thin) solid var(--color-border-inverse);
+    border-block-end: var(--border-width-thin) solid var(--color-border-default);
     vertical-align: middle;
+  }
+
+  .needs tbody tr:last-child td {
+    border-block-end: 0;
   }
 
   .needs th {
@@ -196,7 +155,7 @@ const styles = css`
     font-weight: var(--font-weight-medium);
     letter-spacing: var(--font-tracking-wider);
     text-transform: uppercase;
-    color: var(--color-leather-700);
+    color: var(--color-text-secondary);
   }
 
   /* Blizzard's class icon (Wowhead's CDN, as the bot uses), framed like an in-game icon. */
@@ -212,13 +171,14 @@ const styles = css`
     inline-size: 1.75rem;
     block-size: 1.75rem;
     border-radius: 0.3rem;
-    border: var(--border-width-thin) solid color-mix(in srgb, var(--color-leather-900) 55%, transparent);
+    border: var(--border-width-thin) solid var(--color-border-strong);
     box-shadow: 0 1px 2px var(--color-shadow-soft);
   }
 
   .needs .end {
     text-align: end;
     white-space: nowrap;
+    padding-inline-end: 0;
   }
 
   .need {
@@ -242,26 +202,32 @@ const styles = css`
   }
 
   .need.low {
-    border: var(--border-width-thin) solid var(--color-leather-700);
-    color: var(--color-text-inverse);
+    border: var(--border-width-thin) solid var(--color-border-strong);
+    color: var(--color-text-primary);
   }
 
   .need.closed {
-    border: var(--border-width-thin) solid var(--color-border-inverse);
-    color: var(--color-leather-700);
+    border: var(--border-width-thin) solid var(--color-border-default);
+    color: var(--color-text-secondary);
   }
 
-  @media (max-width: 62rem) {
-    .wrap {
-      grid-template-columns: 1fr;
+  /* Phones: tighter spacing, so the four columns fit the card without scrolling sideways. */
+  @media (max-width: 36rem) {
+    .card {
+      padding-inline: var(--space-sm);
     }
 
-    /* Stacked, the lead comes first; the arms drop behind the table, fainter. */
-    .arms {
-      inset-block: auto 0;
-      inset-inline-end: -2rem;
-      block-size: 48%;
-      opacity: 0.16;
+    .needs th,
+    .needs td {
+      padding-inline-end: var(--space-xs);
+    }
+
+    .needs .cls {
+      gap: var(--space-xs);
+    }
+
+    .need {
+      padding-inline: 0.35rem;
     }
   }
 `;

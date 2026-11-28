@@ -127,3 +127,36 @@ describe('vintage-raid-post', () => {
     expect(text(root.querySelector('.col p.none'))).toBe('—');
   });
 });
+
+describe('vintage-raid-post collapsed', () => {
+  it('starts closed with the status counts as its visible top line', async () => {
+    const el = await post();
+    const details = el.shadowRoot?.querySelector('details.post') as HTMLDetailsElement;
+    expect(details.open).toBe(false);
+    const summary = details.querySelector('summary');
+    expect(summary?.classList.contains('status')).toBe(true);
+    expect([...(summary?.querySelectorAll('.s') ?? [])].map(text)).toEqual([
+      '4 going',
+      '1 late',
+      '1 tentative',
+      '2 standby',
+      '1 absent',
+    ]);
+    expect(text(summary?.querySelector('.more'))).toBe('Show signups');
+  });
+
+  it('opens and closes from the toggle, and says which it will do', async () => {
+    const el = await post();
+    const details = el.shadowRoot?.querySelector('details.post') as HTMLDetailsElement;
+    details.open = true;
+    details.dispatchEvent(new Event('toggle'));
+    await settle();
+    expect(el.open).toBe(true);
+    expect(text(el.shadowRoot?.querySelector('.more'))).toBe('Hide signups');
+    details.open = false;
+    details.dispatchEvent(new Event('toggle'));
+    await settle();
+    expect(el.open).toBe(false);
+    expect(text(el.shadowRoot?.querySelector('.more'))).toBe('Show signups');
+  });
+});

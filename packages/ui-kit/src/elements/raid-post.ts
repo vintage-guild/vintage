@@ -54,13 +54,21 @@ const who = html<Entry>`
 `;
 
 const template = html<VintageRaidPost>`
-  <section class="post" part="post" aria-label="Signups">
-    <p class="status" part="status">
+  <details
+    class="post"
+    part="post"
+    aria-label="Signups"
+    ?open="${(x) => x.open}"
+    @toggle="${(x, c) => x.toggled(c.event)}"
+  >
+    <summary class="status" part="status">
       ${repeat(
         (x) => x.statusParts,
         html<StatusPart>`<span class="s ${(p) => p.key}"><i aria-hidden="true"></i><b>${(p) => p.count}</b> ${(p) => p.label}</span>`,
       )}
-    </p>
+      <span class="more" part="toggle">${(x) => (x.open ? 'Hide signups' : 'Show signups')}</span>
+    </summary>
+    <div class="body">
     <div class="${(x) => (x.columns.length > 1 ? 'columns' : 'columns one')}" part="columns">
       ${repeat(
         (x) => x.columns,
@@ -93,7 +101,8 @@ const template = html<VintageRaidPost>`
         `,
       )}
     </div>
-  </section>
+    </div>
+  </details>
 `;
 
 const styles = css`
@@ -104,9 +113,45 @@ const styles = css`
     font-size: var(--font-size-sm);
   }
 
-  .post {
+  .post,
+  .body {
     display: grid;
     gap: var(--space-sm);
+  }
+
+  /* Collapsed, only the status counts show; the toggle sits at their end. */
+  summary {
+    cursor: pointer;
+    list-style: none;
+  }
+
+  summary::-webkit-details-marker {
+    display: none;
+  }
+
+  summary:focus-visible {
+    outline: var(--border-width-thin) solid var(--color-focus-ring);
+    outline-offset: var(--border-width-thin);
+    border-radius: 0.2rem;
+  }
+
+  .more {
+    margin-inline-start: auto;
+    color: var(--color-text-accent);
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+    white-space: nowrap;
+  }
+
+  .more::after {
+    content: ' ▾';
+    text-decoration: none;
+    display: inline-block;
+    margin-inline-start: 0.2em;
+  }
+
+  .post[open] .more::after {
+    transform: rotate(180deg);
   }
 
   p,
@@ -275,12 +320,14 @@ const styles = css`
  * status counts (going, late, tentative, standby, absent), who is going in Tanks / Healers /
  * Melee / Ranged columns with their spec icons, then Standby and Tentative names, what the comp
  * is missing against the raid's role targets, and who is absent. Names only: tentative reasons
- * stay with the leaders, as on Discord.
+ * stay with the leaders, as on Discord. Collapsed by default: only the status counts show, with a
+ * toggle that opens the rest (`open`).
  *
  * @tagname vintage-raid-post
  * @summary A raid's signups in the Discord post's layout.
  * @csspart post - The whole block.
- * @csspart status - The status counts line.
+ * @csspart status - The status counts line, the part that stays visible when collapsed.
+ * @csspart toggle - "Show signups" / "Hide signups" at the end of the status line.
  * @csspart columns - The role columns.
  * @csspart foot - Standby, Tentative, Missing, and Absent.
  */
@@ -291,6 +338,13 @@ export class VintageRaidPost extends FASTElement {
   @observable targets: RoleTargets | null = null;
   /** The viewer's member id, to mark their own name. */
   @attr me = '';
+  /** Open shows the columns and lines under the counts; closed (the default) shows the counts only. */
+  @attr({ mode: 'boolean' }) open = false;
+
+  /** Keep `open` in step when the reader opens or closes it. */
+  toggled(event: Event): void {
+    this.open = (event.target as HTMLDetailsElement).open;
+  }
 
   /** Going and seated: Going or Late, not on a leader's Standby, not waiting in the queue. */
   get going(): RaidPostSignup[] {

@@ -17,6 +17,7 @@ import {
   subcommandPath,
   TimestampStyle,
 } from '@vintage/discord-kit';
+import { featureOn } from '@vintage/features';
 import { type Caller, type CommandResult, tierAllows } from '@vintage/guild-kit';
 import { type WallClock, wallClock, zonedTime } from '@vintage/raids/commands';
 import {
@@ -450,15 +451,20 @@ export function isEventInteraction(interaction: Interaction): boolean {
   return interaction.type === InteractionType.APPLICATION_COMMAND && isEventGroup(interaction);
 }
 
+/** What pick-night answers while Polls are off. */
+export const PICK_NIGHT_OFF = 'Polls are turned off for now, so pick-night is too.';
+
 export async function handleEventInteraction(
   interaction: Interaction,
   ports: EventPorts,
 ): Promise<InteractionResponse | null> {
   if (!isEventInteraction(interaction)) return null;
+  const [, sub] = subcommandPath(interaction);
+  // Polls are off (`@vintage/features`), and pick-night is a poll.
+  if (sub === 'pick-night' && !featureOn('polls')) return ephemeral(PICK_NIGHT_OFF);
   const who = await discordCaller(interaction, ports, 'raids');
   if ('refusal' in who) return who.refusal;
   const values = commandOptions(interaction);
-  const [, sub] = subcommandPath(interaction);
   if (sub === 'create') return create(ports, who.caller, values);
   if (sub === 'pick-night') return pickNight(ports, who.caller, values);
   if (sub === 'check-export') return checkExport(ports, who.caller, values);

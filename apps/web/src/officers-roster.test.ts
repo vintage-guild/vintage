@@ -29,7 +29,7 @@ afterEach(() => {
 
 const page = () => document.createElement('vintage-officers-page') as Page;
 
-describe('the Roster tab’s reads', () => {
+describe('the Discord roles tab’s reads', () => {
   it('reads the rolls and the role map, then saves the map through the real preview and confirm', async () => {
     const host = createFixtureHost();
     await seedFixtures(host);

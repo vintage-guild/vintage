@@ -13,7 +13,7 @@ import {
   tierAllows,
 } from '@vintage/guild-kit';
 import { z } from 'zod';
-import { HELP_TOPICS, type HelpTopic } from './help-topics';
+import { ALL_TOPIC_KEYS, HELP_TOPICS, type HelpTopic } from './help-topics';
 
 export const HELP_SUBCOMMAND = 'help';
 export const HELP_TOPIC_KEYS = HELP_TOPICS.map((t) => t.key) as [string, ...string[]];
@@ -289,7 +289,7 @@ export function helpGetCommand(
       'How to use Random, the guild’s Discord bot: an overview, or one topic’s commands, options, and examples, for your own rank.',
     tier: 'public',
     input: z.object({
-      topic: z.enum(HELP_TOPIC_KEYS).optional().describe('One topic; leave out for the overview'),
+      topic: z.enum(ALL_TOPIC_KEYS).optional().describe('One topic; leave out for the overview'),
     }),
     handler: async (input, { caller }) => {
       const url = siteUrl();

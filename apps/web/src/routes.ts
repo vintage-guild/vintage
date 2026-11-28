@@ -1,4 +1,5 @@
 import { type FASTElementConstructor, RouterConfiguration } from '@microsoft/fast-router';
+import { featureOn } from '@vintage/features';
 import { markCurrentLink } from './nav';
 
 type PageModule = { Page: FASTElementConstructor };
@@ -37,7 +38,6 @@ export class VintageRoutes extends RouterConfiguration {
         title: 'Professions',
         element: page(() => import('./pages/professions')),
       },
-      { path: 'polls/{id?}', title: 'Polls', element: page(() => import('./pages/polls')) },
       { path: 'surveys/{id?}', title: 'Surveys', element: page(() => import('./pages/surveys')) },
       { path: 'raids/{id}', title: 'Raid', element: page(() => import('./pages/raid')) },
       { path: 'r/{code}', title: 'Raid', element: page(() => import('./pages/raid')) },
@@ -59,11 +59,20 @@ export class VintageRoutes extends RouterConfiguration {
         element: page(() => import('./pages/oauth-consent')),
       },
       {
-        path: 'officers',
+        // The router sets the parameter on the page; it reads the section from the address instead.
+        path: 'officers/{sectionId?}',
         title: 'Officers’ quarters',
         element: page(() => import('./pages/officers')),
       },
     );
+    // Polls are off (@vintage/features): /polls is a page not found until they're back.
+    if (featureOn('polls')) {
+      this.routes.map({
+        path: 'polls/{id?}',
+        title: 'Polls',
+        element: page(() => import('./pages/polls')),
+      });
+    }
     if (import.meta.env.DEV) {
       // A dev-only gallery of every ui-kit element, for checking both themes.
       this.routes.map({

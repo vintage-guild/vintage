@@ -1,0 +1,17 @@
+{
+  "name": "@vintage/features",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Feature flags: guild features the site and the bot can switch off without removing them.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "type-check": "tsc6 -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@vintage/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

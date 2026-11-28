@@ -27,6 +27,7 @@
     "@vintage/coordinator": "workspace:*",
     "@vintage/decisions": "workspace:*",
     "@vintage/discord-kit": "workspace:*",
+    "@vintage/features": "workspace:*",
     "@vintage/forever-api": "workspace:*",
     "@vintage/gateway": "workspace:*",
     "@vintage/guild-kit": "workspace:*",

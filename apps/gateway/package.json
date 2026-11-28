@@ -18,6 +18,7 @@
     "@lushly-dev/afd-core": "catalog:",
     "@lushly-dev/afd-server": "catalog:",
     "@vintage/discord-kit": "workspace:*",
+    "@vintage/features": "workspace:*",
     "zod": "catalog:"
   },
   "devDependencies": {

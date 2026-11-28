@@ -137,6 +137,7 @@ Current packages:
 | Package | Layer | What it is | Status |
 |---|---|---|---|
 | `libs/wow-data` | lib | Classes, specs, raid roles | ✅ |
+| `libs/features` | lib | Feature flags the site, the gateway, and apps/api read (`featureOn`); `polls` is off | ✅ |
 | `libs/comp-solver` | lib | Raid-comp scoring: selected roster, bench, and gaps with reasons, from signups, group size, and a role/buff template (`solveComp`); the event-kind rules (sizes and default comps for raids, dungeons, battlegrounds, other) | ✅ built and tested; used by `comp-suggest` in raids |
 | `libs/discord-kit` | lib | Interaction signature verification, response/embed/component builders, timestamps, rate-limit-aware REST client | ✅ |
 | `libs/forever-api` | lib | Blizzard's WoW: Forever profile API: client-credentials token, character profile, equipment, media, guild roster; Zod-checked responses, 404 as null, `ForeverApiError` with `retryable` | 🚧 built and tested; checked live against Blizzard US (2026-11-07) |

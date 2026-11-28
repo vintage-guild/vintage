@@ -33,6 +33,14 @@ import {
   watchCommand,
 } from '@vintage/ui-kit';
 import { formatMonthDay, formatWeekday, preferredTimeZone } from '../dates';
+import { markCurrentLink } from '../nav';
+import {
+  type OfficerSection,
+  type OfficerTabId,
+  officerTabHref,
+  sectionFromUrl,
+  tabFromUrl as sectionTab,
+} from '../officer-sections';
 import { raidHref } from '../raids';
 import { canSignIn, currentSession } from '../session';
 import { currentView } from '../view';
@@ -63,7 +71,7 @@ const TABS = [
   { id: 'tonight', label: 'Tonight', ready: true, hint: '' },
   { id: 'calendar', label: 'Calendar', ready: true, hint: '' },
   { id: 'coordinator', label: 'Bot', ready: true, hint: '' },
-  { id: 'roster', label: 'Roster', ready: true, hint: '' },
+  { id: 'roles', label: 'Discord roles', ready: true, hint: '' },
   { id: 'guild', label: 'Guild', ready: true, hint: '' },
   { id: 'recruiting', label: 'Recruiting', ready: true, hint: '' },
   { id: 'applications', label: 'Applications', ready: true, hint: '' },
@@ -72,12 +80,14 @@ const TABS = [
 ] as const;
 
 type Tab = (typeof TABS)[number];
-type TabId = Tab['id'];
+type TabId = OfficerTabId;
 
-/** The tab named in `?tab=`, if it is built; Tonight otherwise. */
-export function tabFromUrl(search: string): TabId {
-  const wanted = new URLSearchParams(search).get('tab');
-  return TABS.find((t) => t.id === wanted && t.ready)?.id ?? 'tonight';
+/**
+ * The tab an address opens: `?tab=` when its section has it, else the section's first. A bare
+ * `/officers` takes the section holding `?tab=` (src/officer-sections.ts).
+ */
+export function tabFromUrl(search: string, pathname = '/officers'): TabId {
+  return sectionTab(search, sectionFromUrl(pathname, search));
 }
 
 /** One row of `poll-list`: the poll, its frozen result once closed, and the ballot count. */
@@ -179,8 +189,8 @@ const template = html<Page>`
   <div class="page wide">
     <header class="head">
       <div class="title">
-        <span class="eyebrow">Backstage</span>
-        <h1>Officers’ quarters</h1>
+        <span class="eyebrow">Officers’ quarters</span>
+        <h1>${(x) => x.section.label}</h1>
       </div>
       ${when(
         (x) => x.allowed,
@@ -220,9 +230,12 @@ const template = html<Page>`
       html<Page>`
         <div class="room ${(x) => (x.assistantOpen ? 'with-panel' : '')}">
         <div class="work">
-        <nav class="tabs" aria-label="Officers’ quarters">
+        ${when(
+          (x) => x.sectionTabs.length > 1,
+          html<Page>`
+        <nav class="tabs" aria-label="${(x) => x.section.label}">
           ${repeat(
-            () => TABS,
+            (x) => x.sectionTabs,
             html<Tab>`
               <button
                 type="button"
@@ -235,6 +248,8 @@ const template = html<Page>`
             `,
           )}
         </nav>
+          `,
+        )}
 
         ${when(
           (x) => x.tab === 'polls',
@@ -284,9 +299,10 @@ const template = html<Page>`
         )}
 
         ${when(
-          (x) => x.tab === 'roster',
+          (x) => x.tab === 'roles',
           html<Page>`
             <vintage-roster-desk
+              roles-only
               time-zone="${() => preferredTimeZone() ?? ''}"
               ?can-configure="${(x) => x.canEditRecruiting}"
               ?loading="${(x) => !x.rosterLoaded}"
@@ -579,8 +595,10 @@ const styles = css`
  * `coordinator-status` and `coordinator-log` and runs the coordinator's leader
  * commands; Recruiting reads `recruiting-get` and saves with `recruiting-set`; Guild reads
  * `guild-profile-get` and saves with `guild-profile-set` (both officers only to save); Progress
- * reads `progress-get` and records with `kill-record`; Roster reads `member-list` and
- * `guild-roles-get` and saves the role map with `guild-roles-set` (officers, preview then confirm).
+ * reads `progress-get` and records with `kill-record`; Discord roles reads `member-list` (for the
+ * last sync) and `guild-roles-get` and saves the role map with `guild-roles-set` (officers,
+ * preview then confirm). The tabs come in three sections, each a header link
+ * (`/officers/events`, `/officers/guild`, `/officers/bot`; src/officer-sections.ts).
  */
 export class Page extends FASTElement {
   /** Leaders and officers see the room; everyone else gets the sign-in card or a note. */
@@ -597,8 +615,25 @@ export class Page extends FASTElement {
   @observable loaded = false;
   @observable applications: ApplicationsDeskRow[] = [];
   @observable applicationsError = '';
-  /** The open tab, from `?tab=` (Tonight by default). */
-  @observable tab: TabId = tabFromUrl(location.search);
+  /** Event Management, Guild, or Bot, from the address (src/officer-sections.ts). */
+  readonly section: OfficerSection = sectionFromUrl(location.pathname, location.search);
+  /** The section's tabs, in its order. */
+  readonly sectionTabs: readonly Tab[] = this.section.tabs.flatMap((id) =>
+    TABS.filter((t) => t.id === id),
+  );
+  /** The open tab, from `?tab=` (the section's first by default). */
+  @observable tab: TabId = sectionTab(location.search, this.section);
+
+  /**
+   * The router copies query parameters onto the page, so `?tab=roster` or `?tab=polls` arrives
+   * here raw. Keep only a tab this section has: an older name maps to its new tab, anything else
+   * to the section's first.
+   */
+  tabChanged(_previous: TabId | undefined, next: TabId): void {
+    if (!this.section) return;
+    const allowed = sectionTab(`?tab=${encodeURIComponent(String(next ?? ''))}`, this.section);
+    if (allowed !== next) this.tab = allowed;
+  }
   /** Random's side panel (#168): open or closed is kept for the browser tab. */
   @observable assistantOpen = readAssistantOpen();
   private onAssistantKey = (event: KeyboardEvent) => {
@@ -721,18 +756,21 @@ export class Page extends FASTElement {
     if (this.tab === 'calendar') void this.loadCalendar();
     if (this.tab === 'coordinator') void this.loadCoordinator();
     if (this.tab === 'progress') void this.loadProgress();
-    if (this.tab === 'roster') void this.loadRoster();
+    if (this.tab === 'roles') void this.loadRoster();
+    // An older `/officers?tab=…` link: show the section's own address, so its header link is marked.
+    const href = officerTabHref(this.section, this.tab);
+    if (`${location.pathname}${location.search}` !== href) {
+      history.replaceState(history.state, '', `${href}${location.hash}`);
+      markCurrentLink(location.pathname);
+    }
   }
 
-  /** Switch tabs and keep the choice in the address, so `/officers?tab=polls` links work. */
+  /** Switch tabs and keep the choice in the address, so `/officers/guild?tab=recruiting` links work. */
   select(id: TabId): void {
-    if (!TABS.some((t) => t.id === id && t.ready) || id === this.tab) return;
+    if (!this.sectionTabs.some((t) => t.id === id && t.ready) || id === this.tab) return;
     const leavingTonight = this.tab === 'tonight';
     this.tab = id;
-    const url = new URL(location.href);
-    if (id === 'tonight') url.searchParams.delete('tab');
-    else url.searchParams.set('tab', id);
-    history.replaceState(history.state, '', url);
+    history.replaceState(history.state, '', officerTabHref(this.section, id));
     if (leavingTonight) this.stopWatchingTonight();
     if (id === 'tonight') this.watchTonight();
     if (id === 'polls') void this.loadPolls();
@@ -742,7 +780,7 @@ export class Page extends FASTElement {
     if (id === 'calendar') void this.loadCalendar();
     if (id === 'coordinator') void this.loadCoordinator();
     if (id === 'progress') void this.loadProgress();
-    if (id === 'roster') void this.loadRoster();
+    if (id === 'roles') void this.loadRoster();
   }
 
   /**

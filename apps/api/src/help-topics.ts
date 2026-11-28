@@ -4,6 +4,8 @@
 // drift; tests/help.test.ts fails when a forwarded subcommand has no topic or an example no longer
 // parses against the definitions.
 
+import { featureOn } from '@vintage/features';
+
 export interface HelpTopic {
   /** The `topic` choice on `/vintage help` (apps/gateway/src/commands.ts). */
   key: string;
@@ -25,7 +27,10 @@ export interface HelpTopic {
   sitePath?: string;
 }
 
-export const HELP_TOPICS: readonly HelpTopic[] = [
+/** The slash commands that make polls; with Polls off they aren't registered or shown. */
+const POLL_PATHS = ['poll create', 'event pick-night'];
+
+const ALL_TOPICS: readonly HelpTopic[] = [
   {
     key: 'events',
     title: 'Events',
@@ -59,7 +64,7 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
       '/vintage schedule pause schedule:sched-1',
       '/vintage schedule resume schedule:sched-1',
     ],
-    sitePath: '/officers',
+    sitePath: '/officers/events',
   },
   {
     key: 'exports',
@@ -72,7 +77,7 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
       '/vintage event check-export export:!VIN:1!9b5ZQnvq',
       'Add `event:` and pick the raid from its suggestions when the export doesn’t name one.',
     ],
-    sitePath: '/officers',
+    sitePath: '/officers/events',
   },
   {
     key: 'signups',
@@ -173,6 +178,30 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
     group: 'roster',
     runs: { 'roster audit': 'roster-rank-audit' },
     examples: ['/vintage roster audit', '/vintage roster audit section:unlinked'],
-    sitePath: '/officers?tab=roster',
+    sitePath: '/officers/guild?tab=roles',
   },
 ];
+
+/** Without the poll paths, their examples, or the Polls topic. */
+function withoutPolls(topics: readonly HelpTopic[]): HelpTopic[] {
+  return topics
+    .filter((t) => t.key !== 'polls')
+    .map((t) => ({
+      ...t,
+      runs: Object.fromEntries(
+        Object.entries(t.runs).filter(([path]) => !POLL_PATHS.includes(path)),
+      ),
+      examples: t.examples.filter((e) => !POLL_PATHS.some((p) => e.startsWith(`/vintage ${p}`))),
+    }));
+}
+
+/** Every topic, less the poll ones while Polls are off (`@vintage/features`). */
+export const HELP_TOPICS: readonly HelpTopic[] = featureOn('polls')
+  ? ALL_TOPICS
+  : withoutPolls(ALL_TOPICS);
+
+/**
+ * Every topic key, Polls included even while they're off, so `help-get`'s input keeps the same
+ * contract; a topic that's off answers the overview.
+ */
+export const ALL_TOPIC_KEYS = ALL_TOPICS.map((t) => t.key) as [string, ...string[]];

@@ -21,6 +21,7 @@ import {
   TimestampStyle,
   updateMessage,
 } from '@vintage/discord-kit';
+import { featureOn } from '@vintage/features';
 import type { Caller, CommandResult } from '@vintage/guild-kit';
 import { parsePollCustomId, pollCustomId } from '@vintage/polls/commands';
 import type { Poll, PollResults } from '@vintage/polls/contract';
@@ -193,11 +194,16 @@ export function isPollInteraction(interaction: Interaction): boolean {
   );
 }
 
+/** What a poll button or command answers while Polls are off. */
+export const POLLS_OFF = 'Polls are turned off for now.';
+
 export async function handlePollInteraction(
   interaction: Interaction,
   ports: PollPorts,
 ): Promise<InteractionResponse | null> {
   if (!isPollInteraction(interaction)) return null;
+  // Polls are off (`@vintage/features`): buttons on polls already posted say so.
+  if (!featureOn('polls')) return ephemeral(POLLS_OFF);
   const who = await discordCaller(interaction, ports, 'polls');
   if ('refusal' in who) return who.refusal;
   const { caller } = who;

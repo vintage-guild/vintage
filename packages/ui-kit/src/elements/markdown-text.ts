@@ -26,7 +26,11 @@ const styles = css`
     padding-inline-start: var(--space-lg);
   }
   .heading {
-    font-weight: var(--font-weight-semibold);
+    font-weight: var(--font-weight-bold);
+  }
+  /* A heading after other text starts a new part, so it gets room above it. */
+  * + .heading {
+    margin-block-start: var(--space-md);
   }
   code {
     font-family: var(--font-family-mono);
@@ -42,7 +46,7 @@ const styles = css`
     background: var(--color-surface-sunken);
   }
   a {
-    color: var(--color-text-link);
+    color: var(--markdown-link, var(--color-text-link));
   }
 `;
 
@@ -51,8 +55,9 @@ const styles = css`
  * lists, bold, italics, code, and https links. Nothing in `text` is ever parsed as HTML.
  *
  * @tagname vintage-markdown
- * @summary Safe markdown for agent answers.
+ * @summary Safe markdown, for agent answers and the guild's own copy.
  * @csspart markdown - The rendered text.
+ * @cssprop --markdown-link - Link color (the theme's link color by default).
  */
 export class VintageMarkdown extends FASTElement {
   @observable text = '';

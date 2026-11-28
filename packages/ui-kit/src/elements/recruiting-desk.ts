@@ -97,13 +97,13 @@ const template = html<VintageRecruitingDesk>`
       <textarea
         id="pitch"
         rows="5"
-        maxlength="800"
+        maxlength="2000"
         required
         :value="${(x) => x.pitch}"
         ?disabled="${(x) => !x.canEdit || x.busy}"
         @input="${(x, c) => x.edit('pitch', (c.event.target as HTMLTextAreaElement).value)}"
       ></textarea>
-      <small>Visitors read this before they ask an officer for an invite.</small>
+      <small>Markdown works here: **bold**, lists, and ## headings.</small>
     </div>
 
     <fieldset class="needs" part="needs" ?disabled="${(x) => !x.canEdit || x.busy}">

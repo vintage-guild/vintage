@@ -63,7 +63,15 @@ describe('the home page’s About section', () => {
         'Our history',
         'How we raid',
       ]);
-      expect(about?.querySelectorAll('.about-grid p')).toHaveLength(3);
+      // Each section's body is markdown: blank lines make paragraphs.
+      const paras = [...(about?.querySelectorAll('.about-grid vintage-markdown') ?? [])].flatMap(
+        (m) => [...(m.shadowRoot?.querySelectorAll('p') ?? [])],
+      );
+      expect(paras.map((p) => p.textContent)).toEqual([
+        'We met in Blackrock.',
+        'We stayed for Naxx.',
+        'Prepared, on time, and kind.',
+      ]);
       expect(about?.querySelector('a[href="/about"]')).toBeTruthy();
     } finally {
       page.remove();

@@ -46,7 +46,7 @@ const template = html<VintageGuildProfileDesk>`
               :value="${(x) => x.pills}"
               @input="${(x, c) => x.edit('pills', (c.event.target as HTMLTextAreaElement).value)}"
             ></textarea>
-            <small>One per line, up to six: ruleset, raid nights, sizes, style. Visitors see them under the title.</small>
+            <small>One per line, up to six. Visitors see them under the title.</small>
           </div>
           <div class="field">
             <label for="intro">Intro</label>
@@ -124,7 +124,7 @@ const template = html<VintageGuildProfileDesk>`
               :value="${(x) => x.discordInvite}"
               @input="${(x, c) => x.edit('discordInvite', (c.event.target as HTMLInputElement).value)}"
             />
-            <small>"Join the Discord" goes here. Empty sends visitors to the recruiting band instead.</small>
+            <small>"Join the Discord" goes here. Empty sends visitors to the Recruitment page instead.</small>
           </div>
           <div class="field">
             <label for="contact">Contact email</label>

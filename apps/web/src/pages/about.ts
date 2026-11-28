@@ -1,6 +1,6 @@
 import { FASTElement, html, observable, repeat, when } from '@lushly-dev/fast-element';
 import type { AboutSection, GuildProfile } from '@vintage/site/contract';
-import { paragraphs, readGuildProfile } from '../guild-profile';
+import { readGuildProfile } from '../guild-profile';
 import { pageStyles } from './page-styles';
 
 const template = html<Page>`
@@ -14,7 +14,7 @@ const template = html<Page>`
       html<AboutSection>`
         <section>
           <h2>${(s) => s.heading}</h2>
-          ${repeat((s) => paragraphs(s.body), html<string>`<p>${(p) => p}</p>`)}
+          <vintage-markdown :text="${(s) => s.body}"></vintage-markdown>
         </section>
       `,
     )}

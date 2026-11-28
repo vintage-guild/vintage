@@ -30,7 +30,8 @@ export interface ClassNeed {
 /** Limits `recruiting-set` enforces, here so every surface can show them. */
 export const RECRUITING_LIMITS = {
   headline: 120,
-  pitch: 800,
+  /** Room for the guiding principles in full, with a paragraph or two around them. */
+  pitch: 2000,
   specs: 60,
   /** One line per class and role at most: each class's roles plus `any`. */
   needs: CLASS_NAMES.length * NEED_ROLES.length,
@@ -62,16 +63,56 @@ export interface Recruiting {
 }
 
 /**
+ * The guild's guiding principles, in the GM's words. Shown wherever the site lists them, word for
+ * word: never reworded (TJ, 2026-11-27).
+ */
+export const GUIDING_PRINCIPLES: readonly { name: string; text: string }[] = [
+  {
+    name: 'Show up.',
+    text: "If you're on the raid roster, we built the night around you being there. Can't make it? Say so ahead of time.",
+  },
+  {
+    name: 'Know your shit.',
+    text: 'Rotation, cooldowns, your own buttons — sort that out before raid. The group is counting on your contributions, not carrying you.',
+  },
+  {
+    name: "Don't be an asshole.",
+    text: "Wipes happen, loot's going to piss someone off eventually, nobody needs to be a dick about either one.",
+  },
+  {
+    name: 'Say something.',
+    text: "Have a bad pull, bad rotation, you're burnt out, whatever — tell an officer. We'd rather hear it than watch you quietly check out.",
+  },
+  {
+    name: 'Time is precious.',
+    text: "We've got jobs. Some of us have kids. Plan and play in a way that's conscious of others' time.",
+  },
+  {
+    name: 'Have fun.',
+    text: "Don't let this game become another job. Laugh, share victories, kick some ass.",
+  },
+];
+
+/** The principles as a markdown list, each name in bold. */
+export const GUIDING_PRINCIPLES_MARKDOWN = GUIDING_PRINCIPLES.map(
+  (p) => `- **${p.name}** ${p.text}`,
+).join('\n');
+
+/**
  * What the band says until an officer saves it: the copy the website shipped with before this
  * module existed, so the first deploy shows no change.
  */
 export const STARTER_RECRUITING: Recruiting = {
-  headline: 'We need a second main tank, and two healers for the twenties.',
-  pitch:
-    'Semi-hardcore: come prepared, be on time, be kind. Loot is decided before the first raid ' +
-    'and written here. New members start as recruits for about two weeks; Discord ranks are ' +
-    'guild ranks, so nothing is managed twice. To join, ask an officer for an invite to the ' +
-    'Discord, then sign in here to add your characters.',
+  headline: "Show up, know your class, don't be an asshole. That's the whole bar.",
+  pitch: [
+    'We go back to Vanilla, and we still play like it. What we want now is an efficient use of ' +
+      'game time that clears all the content on an expeditious timeline, while we actually enjoy ' +
+      'the community and the game along the way.',
+    "We're taking like-minded players of any class. The table shows where we need people most.",
+    '## Guiding principles',
+    GUIDING_PRINCIPLES_MARKDOWN,
+    'Apply here, or ask an officer in Discord. Just here to hang out? Join the Discord and say hi.',
+  ].join('\n\n'),
   needs: [
     { wowClass: 'warrior', role: 'tank', specs: 'protection', need: 'high' },
     { wowClass: 'priest', role: 'healer', specs: 'holy · discipline', need: 'high' },
@@ -130,36 +171,40 @@ export interface GuildProfile {
  * and an About page in the guild's own terms (who we are, how we raid, how to join).
  */
 export const STARTER_PROFILE: GuildProfile = {
-  pills: ['Normal ruleset', 'Mon + Wed · 8–11 pm CT', 'Semi-hardcore'],
+  pills: ['Normal ruleset', 'Mon + Wed · 8–11 pm CT', 'Semi-hardcore', 'Raiding since Vanilla'],
   intro:
-    "We're building a raid team for Forever's first tier: people who show up prepared, on time, " +
-    'and good company. Signups, reminders, and loot rules are settled before the first pull, so ' +
-    'raid night is just the raid. Raids open December 9.',
+    'We raid two nights a week, clear all the content on a good timeline, and keep the game ' +
+    'from becoming another job. Raids open December 9.',
   aboutLead:
-    'A raiding guild on WoW: Forever, made of people who have raided together since Vanilla, ' +
-    'The Burning Crusade, and Wrath.',
+    'We go back to Vanilla. Somewhere in there we ran a Retail guild that cleared Cutting Edge ' +
+    'every season from TBC through Shadowlands, and a Classic guild that speedran competitively ' +
+    'from launch into Wrath.',
   aboutSections: [
     {
       heading: 'Who we are',
       body:
-        'Many of us have cleared content together across Vanilla, TBC, and Wrath, and a lot of ' +
-        'us were ahead of the curve, with server firsts along the way. Forever is a fresh start, ' +
-        'and we mean to be ready for it.',
+        "We still have the wrinkles in our brains to play like that. We just ain't about the " +
+        'time investment required for that life anymore.\n\nWhat we want now is an efficient use ' +
+        'of game time that clears all the content on an expeditious timeline, while we actually ' +
+        'enjoy the community and the game along the way.',
     },
+    { heading: 'Guiding principles', body: GUIDING_PRINCIPLES_MARKDOWN },
     {
       heading: 'Raiding',
       body:
-        "WoW: Forever launches on November 4. Barrow Deeps, Hyjal Summit, and Onyxia's Lair " +
-        'unlock on December 9.\n\nWe raid semi-hardcore: come prepared, be on time, be kind. ' +
-        'Signups, reminders, and the final roster run through Discord and this site, so raid ' +
-        'night is just the raid.',
+        "Monday and Wednesday, 8 to 11 pm Central. Barrow Deeps, Hyjal Summit, and Onyxia's Lair " +
+        'open December 9.\n\nTarget is 20 core raiders. We build from there as the right people ' +
+        'show up.\n\nIf we ever run more than one raid team, every team is the guild. Nobody gets ' +
+        "priority because they're progressing faster, and nobody gets treated like the backup " +
+        "squad because they're newer or smaller.",
     },
     {
       heading: 'Joining',
       body:
-        'Ask an officer for an invite to our Discord. New members start as recruits for about ' +
-        "two weeks, and Discord ranks are guild ranks here, so there's nothing to manage twice. " +
-        "Once you're in, sign in with Discord to add your characters.",
+        'Raiders and flex raiders apply on this site. New raiders start as Recruits. Same ' +
+        "expectations as Raider, we just haven't seen enough of you yet. A couple weeks, not a " +
+        'hazing ritual.\n\nHere for the guild and not the raid team? Join the Discord and hang ' +
+        'out. No raid obligation, no pressure.',
     },
   ],
   discordInvite: null,

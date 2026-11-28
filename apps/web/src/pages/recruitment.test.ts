@@ -12,7 +12,8 @@ afterEach(() => {
 
 const BAND: Recruiting = {
   headline: 'We need a second main tank.',
-  pitch: 'Come prepared, be on time, be kind.',
+  pitch:
+    'Come prepared.\n\n## Guiding principles\n\n- **Show up.** Be there.\n- **Have fun.** Laugh.',
   needs: [
     { wowClass: 'warrior', role: 'tank', specs: 'protection', need: 'high' },
     { wowClass: 'mage', role: 'any', specs: 'any', need: 'medium' },
@@ -50,7 +51,14 @@ describe('the Recruitment page', () => {
     try {
       const root = page.shadowRoot!;
       expect(root.querySelector('h1')?.textContent).toBe(BAND.headline);
-      expect(root.querySelector('.pitch')?.textContent).toBe(BAND.pitch);
+      // The pitch is markdown, built as elements (never parsed as HTML).
+      const pitch = root.querySelector('vintage-markdown.pitch')?.shadowRoot;
+      expect(pitch?.querySelector('p')?.textContent).toBe('Come prepared.');
+      expect([...(pitch?.querySelectorAll('li') ?? [])].map((li) => li.textContent)).toEqual([
+        'Show up. Be there.',
+        'Have fun. Laugh.',
+      ]);
+      expect(pitch?.querySelector('li strong')?.textContent).toBe('Show up.');
       expect(root.querySelector('.eyebrow')?.textContent).toMatch(
         /^Recruiting · updated Nov 2[23]$/,
       );
@@ -74,8 +82,8 @@ describe('the Recruitment page', () => {
     try {
       const root = page.shadowRoot!;
       expect(root.querySelector('a.primary')?.getAttribute('href')).toBe('/apply');
-      expect(root.querySelector('.small')?.textContent).toContain(
-        'Discord invites come from an officer',
+      expect(root.querySelector('.small')?.textContent).toBe(
+        'Ask an officer for a Discord invite.',
       );
     } finally {
       page.remove();

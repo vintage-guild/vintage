@@ -15,10 +15,12 @@ import { buttonStyles } from './button-styles';
 import { pageStyles } from './page-styles';
 
 const template = html<Page>`
-  <section class="band" id="recruiting" aria-labelledby="h-recruiting">
-    <div class="wrap" ?data-pending="${(x) => !x.recruiting}">
-      <span class="eyebrow">${(x) => x.eyebrow}</span>
-      <h1 id="h-recruiting">${(x) => x.band.headline}</h1>
+  <div class="page wide" id="recruiting" ?data-pending="${(x) => !x.recruiting}">
+    <div>
+      <header class="head">
+        <span class="eyebrow">${(x) => x.eyebrow}</span>
+        <h1>${(x) => x.band.headline}</h1>
+      </header>
       <vintage-markdown class="pitch" :text="${(x) => x.band.pitch}"></vintage-markdown>
       <p class="actions">
         ${when(
@@ -63,30 +65,33 @@ const template = html<Page>`
         </table>
       </div>
     </div>
-  </section>
+  </div>
 `;
 
 const styles = css`
   ${pageStyles}
   ${buttonStyles}
 
-  /* One column on the site's own dark surfaces: the headline, the pitch, then the classes. */
-  .wrap {
+  /* The shared page column at Roster's and Professions' width, with the standard heading: the
+     headline, the pitch, then the classes. */
+  .page.wide {
+    max-inline-size: 72rem;
+    gap: var(--space-md);
+  }
+
+  .page > div {
     display: grid;
     gap: var(--space-md);
-    max-inline-size: 52rem;
-    margin-inline: auto;
+  }
+
+  .head {
+    display: grid;
+    gap: var(--space-xs);
   }
 
   /* Until recruiting-get answers, the text keeps its place but shows nothing. */
-  .wrap[data-pending] {
+  .page[data-pending] {
     visibility: hidden;
-  }
-
-  h1 {
-    font-size: clamp(2rem, 4vw, 3.2rem);
-    font-weight: var(--font-weight-heavy);
-    line-height: 1.05;
   }
 
   .eyebrow {

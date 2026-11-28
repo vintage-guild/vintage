@@ -76,7 +76,7 @@ describe('the Recruitment page', () => {
         ['Mage', 'Any', '', 'medium'],
         ['Druid', 'Healer', 'restoration', 'low'],
       ]);
-      expect(root.querySelector('.wrap')?.hasAttribute('data-pending')).toBe(false);
+      expect(root.querySelector('.page')?.hasAttribute('data-pending')).toBe(false);
     } finally {
       page.remove();
     }
